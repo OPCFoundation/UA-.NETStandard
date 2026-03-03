@@ -5711,13 +5711,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(float value)
         {
-            return TryGet(out float v) && v == value;
+            return TryGet(out float v) &&
+                (v == value || (float.IsNaN(v) && float.IsNaN(value)));
         }
 
         /// <inheritdoc/>
         public bool Equals(double value)
         {
-            return TryGet(out double v) && v == value;
+            return TryGet(out double v) &&
+                (v == value || (double.IsNaN(v) && double.IsNaN(value)));
         }
 
         /// <inheritdoc/>

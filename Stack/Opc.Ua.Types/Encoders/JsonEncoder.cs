@@ -2415,6 +2415,7 @@ namespace Opc.Ua
             }
             m_nestingLevel++;
         }
+
         /// <inheritdoc/>
         public void PushStructure(string fieldName)
         {

@@ -56,7 +56,9 @@ namespace Opc.Ua
         /// <summary>
         /// Empty array
         /// </summary>
+#pragma warning disable IDE0301 // Simplify collection initialization
         public static readonly ArrayOf<T> Empty = new(Array.Empty<T>());
+#pragma warning restore IDE0301 // Simplify collection initialization
 
         /// <summary>
         /// Get values
@@ -122,6 +124,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override string ToString()
         {
+            if (IsNull)
+            {
+                return "default";
+            }
+            if (IsEmpty)
+            {
+                return "[]";
+            }
             StringBuilder builder = new StringBuilder()
                 .Append('[')
                 .Append(' ');
@@ -438,6 +448,16 @@ namespace Opc.Ua
         public MatrixOf<T> ToMatrix(params int[] dimensions)
         {
             return new(m_memory, dimensions);
+        }
+
+        /// <summary>
+        /// Redimensionate an array of T into a matrix
+        /// </summary>
+        /// <param name="dimensions"></param>
+        /// <returns></returns>
+        public MatrixOf<T> ToMatrix(ArrayOf<int> dimensions)
+        {
+            return new(m_memory, dimensions.ToArray());
         }
 
         /// <summary>

@@ -32,10 +32,12 @@ using System;
 using System.Runtime.CompilerServices;
 #else
 using System.Globalization;
+using System.Runtime.CompilerServices;
 #endif
 
 namespace Opc.Ua
 {
+
     /// <summary>
     /// Helper methods to work with enum types
     /// </summary>

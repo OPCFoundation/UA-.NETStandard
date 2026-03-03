@@ -227,6 +227,7 @@ namespace Opc.Ua
             {
                 return false;
             }
+
             if (StatusCode != other.StatusCode)
             {
                 return false;

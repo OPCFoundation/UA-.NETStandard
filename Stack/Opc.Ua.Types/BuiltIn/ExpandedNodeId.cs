@@ -66,14 +66,15 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
             if (!string.IsNullOrEmpty(namespaceUri))
             {
+                m_data.NamespaceUri = namespaceUri;
                 m_nodeId = nodeId.WithNamespaceIndex(0);
             }
             else
             {
+                m_data.NamespaceUri = null;
                 m_nodeId = nodeId;
             }
         }
@@ -91,7 +92,8 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -112,11 +114,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
@@ -133,7 +141,8 @@ namespace Opc.Ua
             string namespaceUri,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value, 0); // Must use 0 or else it parses
         }
@@ -156,11 +165,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value, 0);
+            }
         }
 
         /// <summary>
@@ -177,7 +192,8 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -198,11 +214,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
@@ -218,7 +240,8 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -239,11 +262,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
@@ -273,7 +302,7 @@ namespace Opc.Ua
             string namespaceUri,
             uint serverIndex)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri = string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(
                 identifier,
@@ -841,6 +870,10 @@ namespace Opc.Ua
         /// </summary>
         public string Format(IFormatProvider formatProvider)
         {
+            if (IsNull)
+            {
+                return string.Empty;
+            }
             var buffer = new StringBuilder();
             Format(formatProvider ?? CultureInfo.InvariantCulture, buffer);
             return buffer.ToString();

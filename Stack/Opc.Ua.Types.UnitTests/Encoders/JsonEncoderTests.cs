@@ -1,16 +1,40 @@
-// Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
-// Licensed under the OPC Foundation MIT License 1.00.
-using Moq;
-using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Tests;
-using Opc.Ua.Types;
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using System.Xml.Schema;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.UnitTests
 {
@@ -21,7 +45,7 @@ namespace Opc.Ua.UnitTests
     public class JsonEncoderTests
     {
         [Test]
-        public void Constructor_NonNullWriter_UsesProvidedWriter()
+        public void ConstructorNonNullWriterUsesProvidedWriter()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -39,7 +63,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodeMessage_DefaultStructValue_ThrowsArgumentNullException()
+        public void EncodeMessageDefaultStructValueThrowsArgumentNullException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -52,7 +76,7 @@ namespace Opc.Ua.UnitTests
 
         [TestCase(JsonEncodingType.Verbose, true)]
         [TestCase(JsonEncodingType.Compact, false)]
-        public void IncludeDefaultNumberValues_WithStreamConstructor_ReturnsExpectedValue(JsonEncodingType encodingType, bool expectedValue)
+        public void IncludeDefaultNumberValuesWithStreamConstructorReturnsExpectedValue(JsonEncodingType encodingType, bool expectedValue)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -65,7 +89,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void IncludeDefaultNumberValues_AccessedMultipleTimes_ReturnsSameValue()
+        public void IncludeDefaultNumberValuesAccessedMultipleTimesReturnsSameValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -82,7 +106,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodingType_CompactEncoding_ReturnsJson()
+        public void EncodingTypeCompactEncodingReturnsJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -94,7 +118,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodingType_VerboseEncoding_ReturnsJson()
+        public void EncodingTypeVerboseEncodingReturnsJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -106,7 +130,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodingType_InitializedWithStream_ReturnsJson()
+        public void EncodingTypeInitializedWithStreamReturnsJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -119,7 +143,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodingType_InitializedWithStreamWriter_ReturnsJson()
+        public void EncodingTypeInitializedWithStreamWriterReturnsJson()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -134,7 +158,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void EncodingType_CustomStreamSize_ReturnsJson()
+        public void EncodingTypeCustomStreamSizeReturnsJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -149,7 +173,7 @@ namespace Opc.Ua.UnitTests
         [Test]
         [Category("ProductionBugSuspected")]
         [Ignore("ProductionBugSuspected")]
-        public void WriteString_FieldNameNotNullIncludeDefaultValuesTrueValueNull_WritesField()
+        public void WriteStringFieldNameNotNullIncludeDefaultValuesTrueValueNullWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -164,7 +188,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_FieldNameNullValueNull_WritesNullValue()
+        public void WriteStringFieldNameNullValueNullWritesNullValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -178,7 +202,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_ValidFieldNameAndValue_WritesFieldAndValue()
+        public void WriteStringValidFieldNameAndValueWritesFieldAndValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -193,7 +217,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_ValueWithSpecialCharacters_EscapesValue()
+        public void WriteStringValueWithSpecialCharactersEscapesValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -208,7 +232,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_ValueWithQuotes_EscapesQuotes()
+        public void WriteStringValueWithQuotesEscapesQuotes()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -222,7 +246,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_EmptyStringValue_WritesEmptyString()
+        public void WriteStringEmptyStringValueWritesEmptyString()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -237,7 +261,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_WhitespaceValue_WritesWhitespace()
+        public void WriteStringWhitespaceValueWritesWhitespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -251,7 +275,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_EmptyFieldName_WritesValue()
+        public void WriteStringEmptyFieldNameWritesValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -266,7 +290,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_VeryLongValue_WritesCompleteValue()
+        public void WriteStringVeryLongValueWritesCompleteValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -283,7 +307,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteStringFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -297,7 +321,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_MultipleCalls_WritesMultipleFields()
+        public void WriteStringMultipleCallsWritesMultipleFields()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -313,7 +337,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteString_ArrayModeNullFieldName_WritesArrayElement()
+        public void WriteStringArrayModeNullFieldNameWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -332,7 +356,7 @@ namespace Opc.Ua.UnitTests
         [TestCase("\b", """\b""")]
         [TestCase("\f", """\f""")]
         [TestCase("""\""", """\\""")]
-        public void WriteString_ValueWithControlCharacters_EscapesCorrectly(string input, string expected)
+        public void WriteStringValueWithControlCharactersEscapesCorrectly(string input, string expected)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -347,7 +371,7 @@ namespace Opc.Ua.UnitTests
 
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void Constructor_ValidContext_SetsContextProperty(JsonEncodingType encoding)
+        public void ConstructorValidContextSetsContextProperty(JsonEncodingType encoding)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -359,7 +383,7 @@ namespace Opc.Ua.UnitTests
 
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void Constructor_ValidEncoding_SetsEncodingToUseProperty(JsonEncodingType encoding)
+        public void ConstructorValidEncodingSetsEncodingToUseProperty(JsonEncodingType encoding)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -370,7 +394,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_VerboseEncoding_SetsIncludeDefaultValuesTrue()
+        public void ConstructorVerboseEncodingSetsIncludeDefaultValuesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -381,7 +405,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_CompactEncoding_SetsIncludeDefaultValuesFalse()
+        public void ConstructorCompactEncodingSetsIncludeDefaultValuesFalse()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -393,7 +417,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_NullStream_InitializesAndWritesSuccessfully()
+        public void ConstructorNullStreamInitializesAndWritesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -407,7 +431,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_LeaveOpenTrue_StreamRemainsOpenAfterDisposal()
+        public void ConstructorLeaveOpenTrueStreamRemainsOpenAfterDisposal()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -415,7 +439,7 @@ namespace Opc.Ua.UnitTests
             // Act
             using (var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true))
             {
-            // Encoder created
+                // Encoder created
             }
 
             // Assert - stream should still be open and writable
@@ -424,7 +448,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_LeaveOpenFalse_StreamClosesAfterDisposal()
+        public void ConstructorLeaveOpenFalseStreamClosesAfterDisposal()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -433,7 +457,7 @@ namespace Opc.Ua.UnitTests
             // Act
             using (var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: false))
             {
-            // Encoder created
+                // Encoder created
             }
 
             // Assert - stream should be closed and not writable
@@ -444,7 +468,7 @@ namespace Opc.Ua.UnitTests
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(false, false)]
-        public void Constructor_BooleanParameterCombinations_CreatesSuccessfully(bool topLevelIsArray, bool leaveOpen)
+        public void ConstructorBooleanParameterCombinationsCreatesSuccessfully(bool topLevelIsArray, bool leaveOpen)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -459,7 +483,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void Constructor_InvalidEnumValue_CreatesSuccessfully()
+        public void ConstructorInvalidEnumValueCreatesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -475,7 +499,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteInt16NonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -494,7 +518,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteInt16NonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -510,7 +534,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteInt16NonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -529,7 +553,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_MinValue_WritesCorrectValue()
+        public void WriteInt16MinValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -547,7 +571,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_MaxValue_WritesCorrectValue()
+        public void WriteInt16MaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -565,7 +589,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_NegativeValue_WritesCorrectValue()
+        public void WriteInt16NegativeValueWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -584,7 +608,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_AnyValue_UsesInvariantCulture()
+        public void WriteInt16AnyValueUsesInvariantCulture()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -603,7 +627,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_EmptyStringFieldName_WritesValue()
+        public void WriteInt16EmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -619,7 +643,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_WhitespaceFieldName_WritesField()
+        public void WriteInt16WhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -637,7 +661,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteInt16FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -657,7 +681,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteInt16_ValueNegativeOne_WritesCorrectValue()
+        public void WriteInt16ValueNegativeOneWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -675,7 +699,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_FieldNameNotNullAndNotIncludeDefaultValuesAndEmptyValue_ReturnsEarly()
+        public void WriteXmlElementFieldNameNotNullAndNotIncludeDefaultValuesAndEmptyValueReturnsEarly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -694,7 +718,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_FieldNameNullAndEmptyValue_WritesNull()
+        public void WriteXmlElementFieldNameNullAndEmptyValueWritesNull()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -713,7 +737,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_IncludeDefaultValuesAndEmptyValue_WritesNull()
+        public void WriteXmlElementIncludeDefaultValuesAndEmptyValueWritesNull()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -734,7 +758,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_ValidXmlContent_WritesXmlString()
+        public void WriteXmlElementValidXmlContentWritesXmlString()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -757,7 +781,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_MaxStringLengthExceeded_ThrowsServiceResultException()
+        public void WriteXmlElementMaxStringLengthExceededThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -775,7 +799,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_MaxStringLengthEqualsXmlLength_WritesXmlString()
+        public void WriteXmlElementMaxStringLengthEqualsXmlLengthWritesXmlString()
         {
             // Arrange
             const string xmlContent = "<root><child>value</child></root>";
@@ -798,7 +822,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_MaxStringLengthGreaterThanXmlLength_WritesXmlString()
+        public void WriteXmlElementMaxStringLengthGreaterThanXmlLengthWritesXmlString()
         {
             // Arrange
             const string xmlContent = "<root><child>value</child></root>";
@@ -821,7 +845,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_MaxStringLengthZero_WritesXmlStringWithoutLengthCheck()
+        public void WriteXmlElementMaxStringLengthZeroWritesXmlStringWithoutLengthCheck()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -831,7 +855,7 @@ namespace Opc.Ua.UnitTests
             };
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
-            string longXmlContent = "<root>" + new string ('x', 10000) + "</root>";
+            string longXmlContent = "<root>" + new string('x', 10000) + "</root>";
             var xmlElement = XmlElement.From(longXmlContent);
             // Act
             encoder.WriteXmlElement("testField", xmlElement);
@@ -844,7 +868,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_XmlWithSpecialCharacters_WritesEscapedXmlString()
+        public void WriteXmlElementXmlWithSpecialCharactersWritesEscapedXmlString()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -870,7 +894,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_EmptyFieldName_WritesXmlValueWithoutFieldName()
+        public void WriteXmlElementEmptyFieldNameWritesXmlValueWithoutFieldName()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -890,10 +914,10 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_VeryLongXmlContentWithinLimit_WritesXmlString()
+        public void WriteXmlElementVeryLongXmlContentWithinLimitWritesXmlString()
         {
             // Arrange
-            string xmlContent = $"<root>{new string ('a', 5000)}</root>";
+            string xmlContent = $"<root>{new string('a', 5000)}</root>";
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext)
             {
@@ -913,7 +937,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_MaxStringLengthBoundaryValue_ThrowsForNonTrivialXml()
+        public void WriteXmlElementMaxStringLengthBoundaryValueThrowsForNonTrivialXml()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -931,7 +955,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_XmlWithControlCharacters_WritesEscapedXmlString()
+        public void WriteXmlElementXmlWithControlCharactersWritesEscapedXmlString()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -954,7 +978,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void WriteXmlElement_VerboseMode_WritesXmlStringWithFieldName()
+        public void WriteXmlElementVerboseModeWritesXmlStringWithFieldName()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -977,7 +1001,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_UtcDateTimeWithNoFractionalSeconds_ReturnsFormattedStringWithoutFraction()
+        public void ConvertUniversalTimeToStringUtcDateTimeWithNoFractionalSecondsReturnsFormattedStringWithoutFraction()
         {
             // Arrange
             var dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc);
@@ -996,7 +1020,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_LocalDateTime_ConvertsToUtcAndFormats()
+        public void ConvertUniversalTimeToStringLocalDateTimeConvertsToUtcAndFormats()
         {
             // Arrange
             var localDateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Local);
@@ -1017,7 +1041,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_UnspecifiedDateTime_ConvertsToUtcAndFormats()
+        public void ConvertUniversalTimeToStringUnspecifiedDateTimeConvertsToUtcAndFormats()
         {
             // Arrange
             var unspecifiedDateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Unspecified);
@@ -1038,7 +1062,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeWithAllNonZeroFractionalSeconds_KeepsAllDigits()
+        public void ConvertUniversalTimeToStringDateTimeWithAllNonZeroFractionalSecondsKeepsAllDigits()
         {
             // Arrange
             DateTime dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc).AddTicks(1234567);
@@ -1057,7 +1081,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeMinValue_ReturnsFormattedMinValue()
+        public void ConvertUniversalTimeToStringDateTimeMinValueReturnsFormattedMinValue()
         {
             // Arrange
             var dateTime = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
@@ -1076,7 +1100,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeMaxValue_ReturnsFormattedMaxValue()
+        public void ConvertUniversalTimeToStringDateTimeMaxValueReturnsFormattedMaxValue()
         {
             // Arrange
             var dateTime = DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
@@ -1096,7 +1120,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeWithMaxFractionalSeconds_PreservesAllDigits()
+        public void ConvertUniversalTimeToStringDateTimeWithMaxFractionalSecondsPreservesAllDigits()
         {
             // Arrange
             DateTime dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc).AddTicks(9999999);
@@ -1115,7 +1139,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeAtMidnight_FormatsCorrectly()
+        public void ConvertUniversalTimeToStringDateTimeAtMidnightFormatsCorrectly()
         {
             // Arrange
             var dateTime = new DateTime(2023, 6, 15, 0, 0, 0, DateTimeKind.Utc);
@@ -1134,7 +1158,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Test]
-        public void ConvertUniversalTimeToString_DateTimeJustBeforeMidnight_FormatsCorrectly()
+        public void ConvertUniversalTimeToStringDateTimeJustBeforeMidnightFormatsCorrectly()
         {
             // Arrange
             var dateTime = new DateTime(2023, 6, 15, 23, 59, 59, DateTimeKind.Utc);
@@ -1157,7 +1181,7 @@ namespace Opc.Ua.UnitTests
         [TestCase(1000000, 22)]
         [TestCase(1200000, 23)]
         [TestCase(1234567, 28)]
-        public void ConvertUniversalTimeToString_VariousFractionalSeconds_ReturnsCorrectCharsWritten(int ticks, int expectedLength)
+        public void ConvertUniversalTimeToStringVariousFractionalSecondsReturnsCorrectCharsWritten(int ticks, int expectedLength)
         {
             // Arrange
             var dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc).AddTicks(ticks);
@@ -1171,7 +1195,7 @@ namespace Opc.Ua.UnitTests
         }
 #endif
         [Test]
-        public void ConvertUniversalTimeToString_LeapYearDate_FormatsCorrectly()
+        public void ConvertUniversalTimeToStringLeapYearDateFormatsCorrectly()
         {
             // Arrange
             var dateTime = new DateTime(2024, 2, 29, 12, 0, 0, DateTimeKind.Utc);
@@ -1236,12 +1260,8 @@ namespace Opc.Ua.UnitTests
             Combined = Flag1 | Flag2
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with non-null fieldName, false value, and Compact encoding.
-        /// Expected: No output due to early return when IncludeDefaultNumberValues is false.
-        /// </summary>
         [Test]
-        public void WriteBoolean_NonNullFieldNameFalseValueCompactEncoding_ReturnsEarlyWithNoOutput()
+        public void WriteBooleanNonNullFieldNameFalseValueCompactEncodingReturnsEarlyWithNoOutput()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1256,12 +1276,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with non-null fieldName, true value, and Compact encoding.
-        /// Expected: Writes the field with "true" value.
-        /// </summary>
         [Test]
-        public void WriteBoolean_NonNullFieldNameTrueValueCompactEncoding_WritesTrue()
+        public void WriteBooleanNonNullFieldNameTrueValueCompactEncodingWritesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1277,12 +1293,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with non-null fieldName, false value, and Verbose encoding.
-        /// Expected: Writes the field with "false" value since IncludeDefaultNumberValues is true.
-        /// </summary>
         [Test]
-        public void WriteBoolean_NonNullFieldNameFalseValueVerboseEncoding_WritesFalse()
+        public void WriteBooleanNonNullFieldNameFalseValueVerboseEncodingWritesFalse()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1298,12 +1310,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with non-null fieldName, true value, and Verbose encoding.
-        /// Expected: Writes the field with "true" value.
-        /// </summary>
         [Test]
-        public void WriteBoolean_NonNullFieldNameTrueValueVerboseEncoding_WritesTrue()
+        public void WriteBooleanNonNullFieldNameTrueValueVerboseEncodingWritesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1319,12 +1327,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with null fieldName and true value.
-        /// Expected: Writes "true" without field name (early return condition doesn't apply).
-        /// </summary>
         [Test]
-        public void WriteBoolean_NullFieldNameTrueValue_WritesTrue()
+        public void WriteBooleanNullFieldNameTrueValueWritesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1337,12 +1341,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[true]"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with null fieldName and false value.
-        /// Expected: Writes "false" without field name (early return condition doesn't apply when fieldName is null).
-        /// </summary>
         [Test]
-        public void WriteBoolean_NullFieldNameFalseValue_WritesFalse()
+        public void WriteBooleanNullFieldNameFalseValueWritesFalse()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1357,12 +1357,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[false]"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with empty string fieldName and true value.
-        /// Expected: Writes "true" value without the field name prefix.
-        /// </summary>
         [Test]
-        public void WriteBoolean_EmptyStringFieldNameTrueValue_WritesTrue()
+        public void WriteBooleanEmptyStringFieldNameTrueValueWritesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1376,12 +1372,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("true"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with empty string fieldName and false value in Compact encoding.
-        /// Expected: Writes "false" value (early return applies only when fieldName is not null).
-        /// </summary>
         [Test]
-        public void WriteBoolean_EmptyStringFieldNameFalseValueCompactEncoding_WritesFalse()
+        public void WriteBooleanEmptyStringFieldNameFalseValueCompactEncodingWritesFalse()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1395,12 +1387,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("false"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with whitespace-only fieldName and true value.
-        /// Expected: Writes field with whitespace name and "true" value.
-        /// </summary>
         [Test]
-        public void WriteBoolean_WhitespaceFieldNameTrueValue_WritesFieldWithTrue()
+        public void WriteBooleanWhitespaceFieldNameTrueValueWritesFieldWithTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1416,12 +1404,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with fieldName containing special characters.
-        /// Expected: Field name is properly escaped and value "true" is written.
-        /// </summary>
         [Test]
-        public void WriteBoolean_FieldNameWithSpecialCharactersTrueValue_EscapesFieldNameAndWritesTrue()
+        public void WriteBooleanFieldNameWithSpecialCharactersTrueValueEscapesFieldNameAndWritesTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1436,12 +1420,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("true"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean called multiple times to verify comma separation in JSON output.
-        /// Expected: Multiple boolean fields are written with proper comma separation.
-        /// </summary>
         [Test]
-        public void WriteBoolean_MultipleCalls_WritesMultipleFieldsWithCommaSeparation()
+        public void WriteBooleanMultipleCallsWritesMultipleFieldsWithCommaSeparation()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1466,12 +1446,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match(".*Field1.*,.*Field2.*,.*Field3.*"));
         }
 
-        /// <summary>
-        /// Tests WriteBoolean with Compact encoding and false value where early return should occur.
-        /// Expected: Empty JSON object due to early return optimization.
-        /// </summary>
         [Test]
-        public void WriteBoolean_CompactEncodingFalseValueNonNullFieldName_VerifiesEarlyReturnOptimization()
+        public void WriteBooleanCompactEncodingFalseValueNonNullFieldNameVerifiesEarlyReturnOptimization()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1486,12 +1462,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.IncludeDefaultNumberValues, Is.False);
         }
 
-        /// <summary>
-        /// Tests WriteBoolean in array context with mixed true and false values.
-        /// Expected: Array contains both true and false values in order.
-        /// </summary>
         [Test]
-        public void WriteBoolean_InArrayContextMixedValues_WritesArrayWithBooleanValues()
+        public void WriteBooleanInArrayContextMixedValuesWritesArrayWithBooleanValues()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1507,12 +1479,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[true,false,true]"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId returns early without writing anything when fieldName is not null,
-        /// value is null, and IncludeDefaultValues is false (Compact encoding).
-        /// </summary>
         [Test]
-        public void WriteNodeId_NullNodeIdNonNullFieldNameCompactEncoding_ReturnsEarlyWithoutOutput()
+        public void WriteNodeIdNullNodeIdNonNullFieldNameCompactEncodingReturnsEarlyWithoutOutput()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1526,12 +1494,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId writes an empty string when fieldName is not null,
-        /// value is null, and IncludeDefaultValues is true (Verbose encoding).
-        /// </summary>
         [Test]
-        public void WriteNodeId_NullNodeIdNonNullFieldNameVerboseEncoding_WritesEmptyString()
+        public void WriteNodeIdNullNodeIdNonNullFieldNameVerboseEncodingWritesEmptyString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1547,12 +1511,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId writes an empty string when fieldName is null
-        /// and value is null, regardless of encoding type.
-        /// </summary>
         [Test]
-        public void WriteNodeId_NullNodeIdNullFieldName_WritesEmptyString()
+        public void WriteNodeIdNullNodeIdNullFieldNameWritesEmptyString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1566,11 +1526,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""[""]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes a numeric NodeId with namespace index 0.
-        /// </summary>
         [Test]
-        public void WriteNodeId_NumericNodeIdNamespaceZero_WritesFormattedValue()
+        public void WriteNodeIdNumericNodeIdNamespaceZeroWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1587,11 +1544,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes a numeric NodeId with non-zero namespace index.
-        /// </summary>
         [Test]
-        public void WriteNodeId_NumericNodeIdNonZeroNamespace_WritesFormattedValueWithNamespace()
+        public void WriteNodeIdNumericNodeIdNonZeroNamespaceWritesFormattedValueWithNamespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1608,11 +1562,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes a string NodeId.
-        /// </summary>
         [Test]
-        public void WriteNodeId_StringNodeId_WritesFormattedValue()
+        public void WriteNodeIdStringNodeIdWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1629,11 +1580,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes a Guid NodeId.
-        /// </summary>
         [Test]
-        public void WriteNodeId_GuidNodeId_WritesFormattedValue()
+        public void WriteNodeIdGuidNodeIdWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1651,11 +1599,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes an opaque (ByteString) NodeId.
-        /// </summary>
         [Test]
-        public void WriteNodeId_OpaqueNodeId_WritesFormattedValue()
+        public void WriteNodeIdOpaqueNodeIdWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1673,11 +1618,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId writes value without field name when fieldName is empty string.
-        /// </summary>
         [Test]
-        public void WriteNodeId_EmptyStringFieldName_WritesValueWithoutFieldName()
+        public void WriteNodeIdEmptyStringFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1692,11 +1634,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""["i=42"]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly handles field name with special characters by escaping them.
-        /// </summary>
         [Test]
-        public void WriteNodeId_FieldNameWithSpecialCharacters_EscapesFieldNameCorrectly()
+        public void WriteNodeIdFieldNameWithSpecialCharactersEscapesFieldNameCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1711,11 +1650,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""field\"With\\Quotes"""));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly handles whitespace-only field names.
-        /// </summary>
         [Test]
-        public void WriteNodeId_WhitespaceFieldName_WritesFieldWithWhitespace()
+        public void WriteNodeIdWhitespaceFieldNameWritesFieldWithWhitespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1732,11 +1668,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId correctly writes multiple NodeId fields in sequence.
-        /// </summary>
         [Test]
-        public void WriteNodeId_MultipleFields_WritesAllFieldsCorrectly()
+        public void WriteNodeIdMultipleFieldsWritesAllFieldsCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1744,7 +1677,7 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var nodeId1 = new NodeId(100);
             var nodeId2 = new NodeId("TestNode", 1);
-            var nodeId3 = NodeId.Null;
+            NodeId nodeId3 = NodeId.Null;
             // Act
             encoder.WriteNodeId("field1", nodeId1);
             encoder.WriteNodeId("field2", nodeId2);
@@ -1761,11 +1694,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("field3"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId in array mode with null field name writes NodeId as array element.
-        /// </summary>
         [Test]
-        public void WriteNodeId_ArrayModeNullFieldName_WritesAsArrayElement()
+        public void WriteNodeIdArrayModeNullFieldNameWritesAsArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1780,11 +1710,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""["i=10","i=20"]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId with ForceNamespaceUri=false writes NodeId without explicit namespace.
-        /// </summary>
         [Test]
-        public void WriteNodeId_ForceNamespaceUriFalse_WritesWithoutExplicitNamespace()
+        public void WriteNodeIdForceNamespaceUriFalseWritesWithoutExplicitNamespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1802,11 +1729,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles NodeId with maximum uint value correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_MaxUIntValue_WritesCorrectly()
+        public void WriteNodeIdMaxUIntValueWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1823,11 +1747,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles NodeId with zero numeric identifier correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_ZeroNumericIdentifier_WritesCorrectly()
+        public void WriteNodeIdZeroNumericIdentifierWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1844,11 +1765,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles string NodeId with empty string correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_EmptyStringIdentifier_WritesCorrectly()
+        public void WriteNodeIdEmptyStringIdentifierWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1865,11 +1783,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles Guid NodeId with empty Guid correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_EmptyGuidIdentifier_WritesCorrectly()
+        public void WriteNodeIdEmptyGuidIdentifierWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1886,11 +1801,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles string NodeId with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_StringIdentifierWithSpecialCharacters_WritesEscapedValue()
+        public void WriteNodeIdStringIdentifierWithSpecialCharactersWritesEscapedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1908,11 +1820,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("Node"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeId handles maximum namespace index correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeId_MaxNamespaceIndex_WritesCorrectly()
+        public void WriteNodeIdMaxNamespaceIndexWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -1929,18 +1838,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField with Compact encoding and SuppressArtifacts=false writes the switch field.
-        /// Validates that the output JSON contains the "SwitchField" field with the expected value.
-        /// </summary>
         [TestCase(0u)]
         [TestCase(1u)]
         [TestCase(42u)]
         [TestCase(uint.MaxValue)]
-        public void WriteSwitchField_CompactEncodingNoSuppression_WritesSwitchField(uint switchFieldValue)
+        public void WriteSwitchFieldCompactEncodingNoSuppressionWritesSwitchField(uint switchFieldValue)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact)
             {
                 SuppressArtifacts = false
@@ -1958,17 +1863,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(switchFieldValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField with Compact encoding and SuppressArtifacts=true does not write the switch field.
-        /// Validates early return behavior when artifacts are suppressed.
-        /// </summary>
         [TestCase(0u)]
         [TestCase(100u)]
         [TestCase(uint.MaxValue)]
-        public void WriteSwitchField_CompactEncodingSuppressArtifacts_DoesNotWriteField(uint switchFieldValue)
+        public void WriteSwitchFieldCompactEncodingSuppressArtifactsDoesNotWriteField(uint switchFieldValue)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact)
             {
                 SuppressArtifacts = true
@@ -1985,20 +1886,16 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField with Verbose encoding does not write the switch field.
-        /// Validates early return behavior for Verbose encoding regardless of SuppressArtifacts value.
-        /// </summary>
         [TestCase(0u, false)]
         [TestCase(123u, false)]
         [TestCase(uint.MaxValue, false)]
         [TestCase(0u, true)]
         [TestCase(456u, true)]
         [TestCase(uint.MaxValue, true)]
-        public void WriteSwitchField_VerboseEncoding_DoesNotWriteField(uint switchFieldValue, bool suppressArtifacts)
+        public void WriteSwitchFieldVerboseEncodingDoesNotWriteField(uint switchFieldValue, bool suppressArtifacts)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose)
             {
                 SuppressArtifacts = suppressArtifacts
@@ -2015,18 +1912,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField always sets the out parameter fieldName to null.
-        /// Validates the out parameter behavior across different encoding types and scenarios.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact, false)]
         [TestCase(JsonEncodingType.Compact, true)]
         [TestCase(JsonEncodingType.Verbose, false)]
         [TestCase(JsonEncodingType.Verbose, true)]
-        public void WriteSwitchField_AllScenarios_SetsFieldNameToNull(JsonEncodingType encodingType, bool suppressArtifacts)
+        public void WriteSwitchFieldAllScenariosSetsFieldNameToNull(JsonEncodingType encodingType, bool suppressArtifacts)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, encodingType)
             {
                 SuppressArtifacts = suppressArtifacts
@@ -2038,15 +1931,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(fieldName, Is.Null);
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField with zero value writes correctly in non-suppressed Compact mode.
-        /// Validates handling of boundary value (zero) for uint parameter.
-        /// </summary>
         [Test]
-        public void WriteSwitchField_ZeroValueCompactNoSuppression_WritesZero()
+        public void WriteSwitchFieldZeroValueCompactNoSuppressionWritesZero()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact)
             {
                 SuppressArtifacts = false
@@ -2064,15 +1953,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField with maximum uint value writes correctly in non-suppressed Compact mode.
-        /// Validates handling of boundary value (uint.MaxValue) for uint parameter.
-        /// </summary>
         [Test]
-        public void WriteSwitchField_MaxValueCompactNoSuppression_WritesMaxValue()
+        public void WriteSwitchFieldMaxValueCompactNoSuppressionWritesMaxValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact)
             {
                 SuppressArtifacts = false
@@ -2090,13 +1975,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(uint.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes null when the array is empty in Compact mode.
-        /// Input: empty array, Compact encoding (IncludeDefaultValues = false)
-        /// Expected: JSON output contains null
-        /// </summary>
         [Test]
-        public void WriteFloatArray_EmptyArrayCompactMode_WritesNull()
+        public void WriteFloatArrayEmptyArrayCompactModeWritesNull()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2113,13 +1993,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes empty array when the array is empty in Verbose mode.
-        /// Input: empty array, Verbose encoding (IncludeDefaultValues = true)
-        /// Expected: JSON output contains empty array []
-        /// </summary>
         [Test]
-        public void WriteFloatArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteFloatArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2136,13 +2011,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes a single element array correctly.
-        /// Input: array with one float value (42.5)
-        /// Expected: JSON array with single element
-        /// </summary>
         [Test]
-        public void WriteFloatArray_SingleElement_WritesArrayWithOneElement()
+        public void WriteFloatArraySingleElementWritesArrayWithOneElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2160,13 +2030,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42.5"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes multiple elements correctly.
-        /// Input: array with multiple float values
-        /// Expected: JSON array with all elements in order
-        /// </summary>
         [Test]
-        public void WriteFloatArray_MultipleElements_WritesAllElements()
+        public void WriteFloatArrayMultipleElementsWritesAllElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2187,13 +2052,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("4.4"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// Input: array with 5 elements, MaxArrayLength = 3
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayExceedsMaxLength_ThrowsServiceResultException()
+        public void WriteFloatArrayArrayExceedsMaxLengthThrowsServiceResultException()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
@@ -2204,17 +2064,12 @@ namespace Opc.Ua.UnitTests
             ArrayOf<float> values = new ArrayOf<float>([1.0f, 2.0f, 3.0f, 4.0f, 5.0f]);
             // Act & Assert
             encoder.PushStructure(null);
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", values));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray succeeds when array length equals MaxArrayLength.
-        /// Input: array with 3 elements, MaxArrayLength = 3
-        /// Expected: Array is written successfully
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayEqualsMaxLength_WritesSuccessfully()
+        public void WriteFloatArrayArrayEqualsMaxLengthWritesSuccessfully()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
@@ -2237,13 +2092,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray does not check length when MaxArrayLength is 0.
-        /// Input: array with many elements, MaxArrayLength = 0
-        /// Expected: Array is written successfully without length check
-        /// </summary>
         [Test]
-        public void WriteFloatArray_MaxArrayLengthZero_NoLengthCheck()
+        public void WriteFloatArrayMaxArrayLengthZeroNoLengthCheck()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
@@ -2265,13 +2115,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("10"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles NaN values.
-        /// Input: array containing float.NaN
-        /// Expected: JSON array with "NaN" string
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsNaN_WritesNaNString()
+        public void WriteFloatArrayArrayContainsNaNWritesNaNString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2291,13 +2136,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles PositiveInfinity values.
-        /// Input: array containing float.PositiveInfinity
-        /// Expected: JSON array with "Infinity" string
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsPositiveInfinity_WritesInfinityString()
+        public void WriteFloatArrayArrayContainsPositiveInfinityWritesInfinityString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2317,13 +2157,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles NegativeInfinity values.
-        /// Input: array containing float.NegativeInfinity
-        /// Expected: JSON array with "-Infinity" string
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsNegativeInfinity_WritesNegativeInfinityString()
+        public void WriteFloatArrayArrayContainsNegativeInfinityWritesNegativeInfinityString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2343,13 +2178,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles zero value.
-        /// Input: array containing 0.0f
-        /// Expected: JSON array with 0
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsZero_WritesZero()
+        public void WriteFloatArrayArrayContainsZeroWritesZero()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2367,13 +2197,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles negative values.
-        /// Input: array containing negative floats
-        /// Expected: JSON array with negative values
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsNegativeValues_WritesNegativeValues()
+        public void WriteFloatArrayArrayContainsNegativeValuesWritesNegativeValues()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2393,13 +2218,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("-0.5"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MinValue.
-        /// Input: array containing float.MinValue
-        /// Expected: JSON array with minimum float value
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsMinValue_WritesMinValue()
+        public void WriteFloatArrayArrayContainsMinValueWritesMinValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2418,13 +2238,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expectedValue));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MaxValue.
-        /// Input: array containing float.MaxValue
-        /// Expected: JSON array with maximum float value
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsMaxValue_WritesMaxValue()
+        public void WriteFloatArrayArrayContainsMaxValueWritesMaxValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2443,13 +2258,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expectedValue));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.Epsilon.
-        /// Input: array containing float.Epsilon
-        /// Expected: JSON array with epsilon value
-        /// </summary>
         [Test]
-        public void WriteFloatArray_ArrayContainsEpsilon_WritesEpsilon()
+        public void WriteFloatArrayArrayContainsEpsilonWritesEpsilon()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2468,13 +2278,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expectedValue));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray works with null fieldName.
-        /// Input: null fieldName (for array element context)
-        /// Expected: Array is written without field name
-        /// </summary>
         [Test]
-        public void WriteFloatArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteFloatArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2491,13 +2296,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray works with empty string fieldName.
-        /// Input: empty string fieldName
-        /// Expected: Array is written without field name
-        /// </summary>
         [Test]
-        public void WriteFloatArray_EmptyFieldName_WritesArray()
+        public void WriteFloatArrayEmptyFieldNameWritesArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2514,13 +2314,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2"));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray works with whitespace fieldName.
-        /// Input: whitespace-only fieldName
-        /// Expected: Field with whitespace name and array
-        /// </summary>
         [Test]
-        public void WriteFloatArray_WhitespaceFieldName_WritesFieldWithWhitespaceName()
+        public void WriteFloatArrayWhitespaceFieldNameWritesFieldWithWhitespaceName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2537,13 +2332,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly escapes fieldName with special characters.
-        /// Input: fieldName with quotes and special characters
-        /// Expected: Field name properly escaped in JSON
-        /// </summary>
         [Test]
-        public void WriteFloatArray_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteFloatArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -2558,16 +2348,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""Field\"With\\Special\nChars"""));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray uses invariant culture for float formatting.
-        /// Input: array with float values that would format differently in other cultures
-        /// Expected: Values formatted using invariant culture (dot as decimal separator)
-        /// </summary>
         [Test]
-        public void WriteFloatArray_DifferentCulture_UsesInvariantCulture()
+        public void WriteFloatArrayDifferentCultureUsesInvariantCulture()
         {
             // Arrange
-            var currentCulture = CultureInfo.CurrentCulture;
+            CultureInfo currentCulture = CultureInfo.CurrentCulture;
             try
             {
                 CultureInfo.CurrentCulture = new CultureInfo("de-DE"); // Uses comma as decimal separator
@@ -2590,16 +2375,11 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray writes an empty array.
-        /// Input: Empty ArrayOf LocalizedText with fieldName in verbose mode.
-        /// Expected: Writes empty JSON array.
-        /// </summary>
         [Test]
-        public void WriteLocalizedTextArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteLocalizedTextArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             var emptyArray = new ArrayOf<LocalizedText>();
@@ -2612,16 +2392,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray in compact mode omits empty array when defaults not included.
-        /// Input: Empty ArrayOf LocalizedText with fieldName in compact mode.
-        /// Expected: Returns early, writes null field.
-        /// </summary>
         [Test]
-        public void WriteLocalizedTextArray_EmptyArrayCompactMode_WritesNullField()
+        public void WriteLocalizedTextArrayEmptyArrayCompactModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var emptyArray = new ArrayOf<LocalizedText>();
@@ -2634,31 +2409,25 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that constructor with null context throws ArgumentNullException.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_NullContext_ThrowsArgumentNullException()
+        public void ConstructorWithStreamWriterNullContextThrowsArgumentNullException()
         {
             // Arrange
             IServiceMessageContext context = null;
-            var encoding = JsonEncodingType.Compact;
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() => new JsonEncoder(context, encoding, writer, false));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new JsonEncoder(context, encoding, writer, false));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
-        /// <summary>
-        /// Tests that constructor with null writer creates internal writer and writes opening bracket for array mode.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_NullWriterTopLevelArray_CreatesInternalWriterAndWritesOpenBracket()
+        public void ConstructorWithStreamWriterNullWriterTopLevelArrayCreatesInternalWriterAndWritesOpenBracket()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             StreamWriter writer = null;
             bool topLevelIsArray = true;
             // Act
@@ -2668,15 +2437,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.StartWith("["));
         }
 
-        /// <summary>
-        /// Tests that constructor with null writer creates internal writer and writes opening brace for object mode.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_NullWriterNotArray_CreatesInternalWriterAndWritesOpenBrace()
+        public void ConstructorWithStreamWriterNullWriterNotArrayCreatesInternalWriterAndWritesOpenBrace()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Verbose;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Verbose;
             StreamWriter writer = null;
             bool topLevelIsArray = false;
             // Act
@@ -2686,15 +2452,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.StartWith("{"));
         }
 
-        /// <summary>
-        /// Tests that constructor with non-null writer uses the provided writer.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_NonNullWriter_UsesProvidedWriter()
+        public void ConstructorWithStreamWriterNonNullWriterUsesProvidedWriter()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             bool topLevelIsArray = false;
@@ -2707,15 +2470,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value"));
         }
 
-        /// <summary>
-        /// Tests that constructor with Verbose encoding sets IncludeDefaultValues to true.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_VerboseEncoding_SetsIncludeDefaultValuesTrue()
+        public void ConstructorWithStreamWriterVerboseEncodingSetsIncludeDefaultValuesTrue()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Verbose;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Verbose;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2725,15 +2485,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.IncludeDefaultNumberValues, Is.True);
         }
 
-        /// <summary>
-        /// Tests that constructor with Compact encoding sets IncludeDefaultValues to false.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_CompactEncoding_SetsIncludeDefaultValuesFalse()
+        public void ConstructorWithStreamWriterCompactEncodingSetsIncludeDefaultValuesFalse()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2742,15 +2499,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.IncludeDefaultValues, Is.False);
         }
 
-        /// <summary>
-        /// Tests that constructor sets Context property correctly.
-        /// </summary>
+        [Test]
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void Constructor_WithStreamWriter_ValidContext_SetsContextProperty(JsonEncodingType encoding)
+        public void ConstructorWithStreamWriterValidContextSetsContextProperty(JsonEncodingType encoding)
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2759,15 +2514,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.Context, Is.SameAs(messageContext));
         }
 
-        /// <summary>
-        /// Tests that constructor sets EncodingToUse property correctly.
-        /// </summary>
+        [Test]
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void Constructor_WithStreamWriter_ValidEncoding_SetsEncodingToUseProperty(JsonEncodingType encoding)
+        public void ConstructorWithStreamWriterValidEncodingSetsEncodingToUseProperty(JsonEncodingType encoding)
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2776,15 +2529,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(encoding));
         }
 
-        /// <summary>
-        /// Tests that constructor with topLevelIsArray true writes opening bracket.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_TopLevelIsArrayTrue_WritesOpeningBracket()
+        public void ConstructorWithStreamWriterTopLevelIsArrayTrueWritesOpeningBracket()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             StreamWriter writer = null;
             bool topLevelIsArray = true;
             // Act
@@ -2795,15 +2545,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.EndWith("]"));
         }
 
-        /// <summary>
-        /// Tests that constructor with topLevelIsArray false writes opening brace.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_TopLevelIsArrayFalse_WritesOpeningBrace()
+        public void ConstructorWithStreamWriterTopLevelIsArrayFalseWritesOpeningBrace()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             StreamWriter writer = null;
             bool topLevelIsArray = false;
             // Act
@@ -2814,14 +2561,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.EndWith("}"));
         }
 
-        /// <summary>
-        /// Tests that constructor with invalid enum value still creates encoder.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_InvalidEncodingValue_CreatesEncoderSuccessfully()
+        public void ConstructorWithStreamWriterInvalidEncodingValueCreatesEncoderSuccessfully()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var invalidEncoding = (JsonEncodingType)999;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
@@ -2834,15 +2578,12 @@ namespace Opc.Ua.UnitTests
             });
         }
 
-        /// <summary>
-        /// Tests that constructor with provided writer does not close it prematurely.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_ProvidedWriter_DoesNotCloseWriter()
+        public void ConstructorWithStreamWriterProvidedWriterDoesNotCloseWriter()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
-            var encoding = JsonEncodingType.Compact;
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
+            JsonEncodingType encoding = JsonEncodingType.Compact;
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2855,14 +2596,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(memoryStream.CanWrite, Is.True);
         }
 
-        /// <summary>
-        /// Tests that constructor returns EncodingType.Json.
-        /// </summary>
         [Test]
-        public void Constructor_WithStreamWriter_EncodingType_ReturnsJson()
+        public void ConstructorWithStreamWriterEncodingTypeReturnsJson()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var memoryStream = new MemoryStream();
             var writer = new StreamWriter(memoryStream);
             // Act
@@ -2871,14 +2609,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Json));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 skips writing when fieldName is not null, IncludeDefaultNumberValues is false, and value is zero.
-        /// </summary>
         [Test]
-        public void WriteInt32_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteInt32NonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -2889,14 +2624,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes zero when IncludeDefaultNumberValues is true.
-        /// </summary>
         [Test]
-        public void WriteInt32_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteInt32NonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
@@ -2909,14 +2641,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes zero when fieldName is null (array mode).
-        /// </summary>
         [Test]
-        public void WriteInt32_NullFieldNameZeroValue_WritesValue()
+        public void WriteInt32NullFieldNameZeroValueWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
@@ -2927,14 +2656,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly writes int.MinValue.
-        /// </summary>
         [Test]
-        public void WriteInt32_MinValue_WritesCorrectValue()
+        public void WriteInt32MinValueWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -2947,14 +2673,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly writes int.MaxValue.
-        /// </summary>
         [Test]
-        public void WriteInt32_MaxValue_WritesCorrectValue()
+        public void WriteInt32MaxValueWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -2967,9 +2690,6 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly writes negative values.
-        /// </summary>
         [TestCase(-1, """
             "TestField":-1
             """)]
@@ -2979,10 +2699,10 @@ namespace Opc.Ua.UnitTests
         [TestCase(-999999, """
             "TestField":-999999
             """)]
-        public void WriteInt32_NegativeValue_WritesCorrectValue(int value, string expected)
+        public void WriteInt32NegativeValueWritesCorrectValue(int value, string expected)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -2993,9 +2713,6 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expected));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly writes positive values.
-        /// </summary>
         [TestCase(1, """
             "TestField":1
             """)]
@@ -3005,10 +2722,10 @@ namespace Opc.Ua.UnitTests
         [TestCase(999999, """
             "TestField":999999
             """)]
-        public void WriteInt32_PositiveValue_WritesCorrectValue(int value, string expected)
+        public void WriteInt32PositiveValueWritesCorrectValue(int value, string expected)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3019,17 +2736,14 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expected));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 uses InvariantCulture for number formatting.
-        /// </summary>
         [Test]
-        public void WriteInt32_AnyValue_UsesInvariantCulture()
+        public void WriteInt32AnyValueUsesInvariantCulture()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var originalCulture = CultureInfo.CurrentCulture;
+            CultureInfo originalCulture = CultureInfo.CurrentCulture;
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
             try
             {
@@ -3047,14 +2761,11 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes value when fieldName is empty string.
-        /// </summary>
         [Test]
-        public void WriteInt32_EmptyStringFieldName_WritesValue()
+        public void WriteInt32EmptyStringFieldNameWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
@@ -3065,14 +2776,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes field when fieldName is whitespace.
-        /// </summary>
         [Test]
-        public void WriteInt32_WhitespaceFieldName_WritesField()
+        public void WriteInt32WhitespaceFieldNameWritesField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3085,14 +2793,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 escapes fieldName with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteInt32FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3104,14 +2809,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(":42"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 can write multiple fields sequentially.
-        /// </summary>
         [Test]
-        public void WriteInt32_MultipleCalls_WritesMultipleFields()
+        public void WriteInt32MultipleCallsWritesMultipleFields()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3132,14 +2834,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes array elements when fieldName is null.
-        /// </summary>
         [Test]
-        public void WriteInt32_ArrayModeNullFieldName_WritesArrayElement()
+        public void WriteInt32ArrayModeNullFieldNameWritesArrayElement()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
@@ -3150,14 +2849,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 writes non-zero value even when IncludeDefaultNumberValues is false.
-        /// </summary>
         [Test]
-        public void WriteInt32_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteInt32NonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3170,14 +2866,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly formats value -1.
-        /// </summary>
         [Test]
-        public void WriteInt32_ValueNegativeOne_WritesCorrectValue()
+        public void WriteInt32ValueNegativeOneWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3190,14 +2883,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32 correctly formats value 1.
-        /// </summary>
         [Test]
-        public void WriteInt32_ValueOne_WritesCorrectValue()
+        public void WriteInt32ValueOneWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -3210,13 +2900,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is null, value is null (ExpandedNodeId.Null),
-        /// and Compact encoding is used.
-        /// Expects WriteSimpleField to be called with null fieldName and empty string value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameNullValueNullCompactEncoding_WritesNullValue()
+        public void WriteExpandedNodeIdFieldNameNullValueNullCompactEncodingWritesNullValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3232,13 +2917,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is not null, value is null (ExpandedNodeId.Null),
-        /// and Compact encoding is used (IncludeDefaultValues = false).
-        /// Expects early return without writing any field.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameNotNullValueNullCompactEncoding_ReturnsEarlyWithoutWriting()
+        public void WriteExpandedNodeIdFieldNameNotNullValueNullCompactEncodingReturnsEarlyWithoutWriting()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3252,13 +2932,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is not null, value is null (ExpandedNodeId.Null),
-        /// and Verbose encoding is used (IncludeDefaultValues = true).
-        /// Expects WriteSimpleField to be called with fieldName and empty string value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameNotNullValueNullVerboseEncoding_WritesFieldWithEmptyString()
+        public void WriteExpandedNodeIdFieldNameNotNullValueNullVerboseEncodingWritesFieldWithEmptyString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3274,13 +2949,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is not null and value is a valid non-null ExpandedNodeId
-        /// with Compact encoding.
-        /// Expects WriteSimpleField to be called with fieldName and the formatted value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameNotNullValidValueCompactEncoding_WritesFormattedValue()
+        public void WriteExpandedNodeIdFieldNameNotNullValidValueCompactEncodingWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3298,13 +2968,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("12345"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is not null and value is a valid non-null ExpandedNodeId
-        /// with Verbose encoding.
-        /// Expects WriteSimpleField to be called with fieldName and the formatted value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameNotNullValidValueVerboseEncoding_WritesFormattedValue()
+        public void WriteExpandedNodeIdFieldNameNotNullValidValueVerboseEncodingWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3322,12 +2987,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("54321"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName is an empty string and value is valid.
-        /// Expects WriteSimpleField to be called with empty fieldName and the formatted value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_EmptyStringFieldNameValidValue_WritesValueWithoutFieldName()
+        public void WriteExpandedNodeIdEmptyStringFieldNameValidValueWritesValueWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3342,12 +3003,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("999"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when fieldName has special characters and value is valid.
-        /// Expects the field name to be properly escaped in the JSON output.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_FieldNameWithSpecialCharactersValidValue_EscapesFieldName()
+        public void WriteExpandedNodeIdFieldNameWithSpecialCharactersValidValueEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3363,12 +3020,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("777"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with an ExpandedNodeId that has a namespace URI.
-        /// Expects the formatted output to include the namespace URI in the format string.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_ExpandedNodeIdWithNamespaceUri_WritesFormattedValueWithNamespace()
+        public void WriteExpandedNodeIdExpandedNodeIdWithNamespaceUriWritesFormattedValueWithNamespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3385,12 +3038,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with an ExpandedNodeId that has a server index.
-        /// Expects the formatted output to include the server index in the format string.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_ExpandedNodeIdWithServerIndex_WritesFormattedValueWithServerIndex()
+        public void WriteExpandedNodeIdExpandedNodeIdWithServerIndexWritesFormattedValueWithServerIndex()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3407,12 +3056,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("200"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with ForceNamespaceUri set to true.
-        /// Expects the formatted output to respect the ForceNamespaceUri setting.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_ForceNamespaceUriTrue_WritesFormattedValueWithUriFormat()
+        public void WriteExpandedNodeIdForceNamespaceUriTrueWritesFormattedValueWithUriFormat()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3430,12 +3075,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("300"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with ForceNamespaceUri set to false.
-        /// Expects the formatted output to use namespace index format.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_ForceNamespaceUriFalse_WritesFormattedValueWithIndexFormat()
+        public void WriteExpandedNodeIdForceNamespaceUriFalseWritesFormattedValueWithIndexFormat()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3453,12 +3094,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("400"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with a string-based ExpandedNodeId.
-        /// Expects the formatted output to include the string identifier.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_StringBasedExpandedNodeId_WritesFormattedStringValue()
+        public void WriteExpandedNodeIdStringBasedExpandedNodeIdWritesFormattedStringValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3474,12 +3111,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("StringIdentifier"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with a GUID-based ExpandedNodeId.
-        /// Expects the formatted output to include the GUID identifier.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_GuidBasedExpandedNodeId_WritesFormattedGuidValue()
+        public void WriteExpandedNodeIdGuidBasedExpandedNodeIdWritesFormattedGuidValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3497,12 +3130,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(guid.ToString()));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId when multiple calls are made in sequence.
-        /// Expects all fields to be written correctly with proper comma separation.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_MultipleCalls_WritesAllFieldsCorrectly()
+        public void WriteExpandedNodeIdMultipleCallsWritesAllFieldsCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3526,12 +3155,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("200"));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with maximum uint value as identifier.
-        /// Expects the formatted output to correctly handle the maximum value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_MaxUIntValue_WritesCorrectValue()
+        public void WriteExpandedNodeIdMaxUIntValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3547,12 +3172,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(uint.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests WriteExpandedNodeId with zero value as identifier.
-        /// Expects the formatted output to correctly handle zero value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeId_ZeroValue_WritesCorrectValue()
+        public void WriteExpandedNodeIdZeroValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3570,14 +3191,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray writes an empty array when values has zero elements in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteBooleanArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteBooleanArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
@@ -3591,14 +3209,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray returns early when values has zero elements in compact mode.
-        /// </summary>
         [Test]
-        public void WriteBooleanArray_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteBooleanArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -3610,11 +3225,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray with empty array in compact mode returns early.
-        /// </summary>
         [Test]
-        public void WriteDateTimeArray_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteDateTimeArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3629,11 +3241,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray with empty array in verbose mode writes empty array.
-        /// </summary>
         [Test]
-        public void WriteDateTimeArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteDateTimeArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3650,11 +3259,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray returns early when values is null and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_NullValuesWithFieldNameAndCompactEncoding_ReturnsEarly()
+        public void WriteExtensionObjectArrayNullValuesWithFieldNameAndCompactEncodingReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3669,11 +3275,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"root":{}}"""));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray writes null when values is null and IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_NullValuesVerboseEncoding_WritesNullField()
+        public void WriteExtensionObjectArrayNullValuesVerboseEncodingWritesNullField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3690,15 +3293,12 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray writes empty array when values is empty and IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_EmptyArrayVerboseEncoding_WritesEmptyArray()
+        public void WriteExtensionObjectArrayEmptyArrayVerboseEncodingWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            var values = ArrayOf<ExtensionObject>.Empty;
+            ArrayOf<ExtensionObject> values = ArrayOf<ExtensionObject>.Empty;
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             // Act
             encoder.PushStructure("root");
@@ -3711,15 +3311,12 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray returns early when values is empty and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_EmptyArrayCompactEncoding_ReturnsEarly()
+        public void WriteExtensionObjectArrayEmptyArrayCompactEncodingReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            var values = ArrayOf<ExtensionObject>.Empty;
+            ArrayOf<ExtensionObject> values = ArrayOf<ExtensionObject>.Empty;
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             // Act
             encoder.PushStructure("root");
@@ -3730,11 +3327,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray writes single element array correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_SingleElement_WritesArrayWithOneElement()
+        public void WriteExtensionObjectArraySingleElementWritesArrayWithOneElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3753,11 +3347,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("]"));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray writes multiple elements correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_MultipleElements_WritesAllElements()
+        public void WriteExtensionObjectArrayMultipleElementsWritesAllElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3778,11 +3369,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("]"));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray throws ServiceResultException when MaxArrayLength is exceeded.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        public void WriteExtensionObjectArrayExceedsMaxArrayLengthThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3797,15 +3385,12 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             // Act & Assert
             encoder.PushStructure("root");
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObjectArray("testField", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObjectArray("testField", values));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray succeeds when array length equals MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_ArrayLengthEqualsMaxArrayLength_Succeeds()
+        public void WriteExtensionObjectArrayArrayLengthEqualsMaxArrayLengthSucceeds()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3829,11 +3414,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray succeeds when MaxArrayLength is zero (no limit).
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_MaxArrayLengthZero_NoLimitCheck()
+        public void WriteExtensionObjectArrayMaxArrayLengthZeroNoLimitCheck()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3856,11 +3438,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray succeeds when array length is less than MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_ArrayLengthLessThanMaxArrayLength_Succeeds()
+        public void WriteExtensionObjectArrayArrayLengthLessThanMaxArrayLengthSucceeds()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3883,11 +3462,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray works with null fieldName (for array elements).
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_NullFieldName_WritesArrayElements()
+        public void WriteExtensionObjectArrayNullFieldNameWritesArrayElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3902,11 +3478,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("]"));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray works with empty fieldName.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_EmptyFieldName_WritesArrayElements()
+        public void WriteExtensionObjectArrayEmptyFieldNameWritesArrayElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3921,11 +3494,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("]"));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray handles fieldName with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteExtensionObjectArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -3941,11 +3511,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""test\"Field"""));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray throws when MaxArrayLength is 1 and array has 2 elements.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_MaxArrayLengthOne_ThrowsForTwoElements()
+        public void WriteExtensionObjectArrayMaxArrayLengthOneThrowsForTwoElements()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3959,15 +3526,12 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             // Act & Assert
             encoder.PushStructure("root");
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObjectArray("testField", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObjectArray("testField", values));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray correctly handles boundary at int.MaxValue for MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_MaxArrayLengthIntMaxValue_Succeeds()
+        public void WriteExtensionObjectArrayMaxArrayLengthIntMaxValueSucceeds()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3989,11 +3553,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray with very long fieldName encodes correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_VeryLongFieldName_EncodesCorrectly()
+        public void WriteExtensionObjectArrayVeryLongFieldNameEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4011,11 +3572,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(":["));
         }
 
-        /// <summary>
-        /// Tests that WriteExtensionObjectArray handles whitespace fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObjectArray_WhitespaceFieldName_EncodesCorrectly()
+        public void WriteExtensionObjectArrayWhitespaceFieldNameEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4033,12 +3591,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with non-null field name, non-zero value, and defaults not included.
-        /// The field should be written to the output.
-        /// </summary>
         [Test]
-        public void WriteUInt16_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteUInt16NonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4056,12 +3610,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with non-null field name, zero value, and defaults not included.
-        /// The field should NOT be written (early return path).
-        /// </summary>
         [Test]
-        public void WriteUInt16_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteUInt16NonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4076,12 +3626,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with non-null field name, zero value, and defaults included (Verbose mode).
-        /// The field should be written even with zero value.
-        /// </summary>
         [Test]
-        public void WriteUInt16_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteUInt16NonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4099,12 +3645,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with null field name and zero value.
-        /// The value should be written even though it's zero (no field name check applies).
-        /// </summary>
         [Test]
-        public void WriteUInt16_NullFieldNameZeroValue_WritesValue()
+        public void WriteUInt16NullFieldNameZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4121,12 +3663,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with the maximum ushort value (65535).
-        /// The field should be written with the correct maximum value.
-        /// </summary>
         [Test]
-        public void WriteUInt16_MaxValue_WritesCorrectValue()
+        public void WriteUInt16MaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4146,12 +3684,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with the minimum ushort value (0) and defaults included.
-        /// The field should be written with value 0.
-        /// </summary>
         [Test]
-        public void WriteUInt16_MinValueDefaultsIncluded_WritesCorrectValue()
+        public void WriteUInt16MinValueDefaultsIncludedWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4171,12 +3705,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with a boundary value of 1.
-        /// The field should be written correctly.
-        /// </summary>
         [Test]
-        public void WriteUInt16_BoundaryValueOne_WritesCorrectValue()
+        public void WriteUInt16BoundaryValueOneWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4193,12 +3723,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 to verify it uses InvariantCulture for number formatting.
-        /// The value should be formatted consistently regardless of current culture.
-        /// </summary>
         [Test]
-        public void WriteUInt16_AnyValue_UsesInvariantCulture()
+        public void WriteUInt16AnyValueUsesInvariantCulture()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4216,12 +3742,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with an empty string field name.
-        /// The value should be written without a field name.
-        /// </summary>
         [Test]
-        public void WriteUInt16_EmptyStringFieldName_WritesValue()
+        public void WriteUInt16EmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4236,12 +3758,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with a whitespace field name.
-        /// The field should be written with whitespace preserved in the field name.
-        /// </summary>
         [Test]
-        public void WriteUInt16_WhitespaceFieldName_WritesField()
+        public void WriteUInt16WhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4258,12 +3776,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with a field name containing special characters.
-        /// The field name should be properly escaped in the JSON output.
-        /// </summary>
         [Test]
-        public void WriteUInt16_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteUInt16FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4282,12 +3796,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with multiple calls to verify proper comma separation.
-        /// Each subsequent field should be properly separated with commas.
-        /// </summary>
         [Test]
-        public void WriteUInt16_MultipleCalls_WritesMultipleFieldsWithCommas()
+        public void WriteUInt16MultipleCallsWritesMultipleFieldsWithCommas()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4310,12 +3820,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with a mid-range value.
-        /// The field should be written with the correct mid-range value.
-        /// </summary>
         [Test]
-        public void WriteUInt16_MidRangeValue_WritesCorrectValue()
+        public void WriteUInt16MidRangeValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4332,12 +3838,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 in array mode with null field name.
-        /// The value should be written as an array element without a field name.
-        /// </summary>
         [Test]
-        public void WriteUInt16_ArrayModeNullFieldName_WritesArrayElement()
+        public void WriteUInt16ArrayModeNullFieldNameWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4354,12 +3856,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("456"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt16 with value at upper boundary (MaxValue - 1).
-        /// The field should be written with the correct value.
-        /// </summary>
         [Test]
-        public void WriteUInt16_UpperBoundaryValue_WritesCorrectValue()
+        public void WriteUInt16UpperBoundaryValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4376,11 +3874,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with a valid fieldName and Good status code writes correctly in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_ValidFieldNameGoodStatusCodeCompactMode_WritesEmptyObject()
+        public void WriteStatusCodeValidFieldNameGoodStatusCodeCompactModeWritesEmptyObject()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4394,11 +3889,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with a valid fieldName and Good status code writes correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_ValidFieldNameGoodStatusCodeVerboseMode_WritesStatusField()
+        public void WriteStatusCodeValidFieldNameGoodStatusCodeVerboseModeWritesStatusField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4414,11 +3906,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with null fieldName and Good status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_NullFieldNameGoodStatusCode_WritesStatusValue()
+        public void WriteStatusCodeNullFieldNameGoodStatusCodeWritesStatusValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4432,11 +3921,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with Bad status code writes Code field in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_BadStatusCodeCompactMode_WritesCodeField()
+        public void WriteStatusCodeBadStatusCodeCompactModeWritesCodeField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4455,11 +3941,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with Bad status code writes Code and Symbol fields in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_BadStatusCodeVerboseMode_WritesCodeAndSymbolFields()
+        public void WriteStatusCodeBadStatusCodeVerboseModeWritesCodeAndSymbolFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4484,11 +3967,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with Uncertain status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_UncertainStatusCode_WritesCodeField()
+        public void WriteStatusCodeUncertainStatusCodeWritesCodeField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4507,11 +3987,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with custom numeric status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_CustomNumericStatusCode_WritesCodeField()
+        public void WriteStatusCodeCustomNumericStatusCodeWritesCodeField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4531,11 +4008,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with empty string fieldName writes the status value.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_EmptyStringFieldName_WritesStatusValue()
+        public void WriteStatusCodeEmptyStringFieldNameWritesStatusValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4551,11 +4025,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with whitespace fieldName writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_WhitespaceFieldName_WritesField()
+        public void WriteStatusCodeWhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4574,11 +4045,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with fieldName containing special characters escapes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteStatusCodeFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4597,11 +4065,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with multiple calls writes multiple status fields.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_MultipleCalls_WritesMultipleFields()
+        public void WriteStatusCodeMultipleCallsWritesMultipleFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4622,11 +4087,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with BadEncodingError status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_BadEncodingError_WritesCodeAndSymbol()
+        public void WriteStatusCodeBadEncodingErrorWritesCodeAndSymbol()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4649,11 +4111,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("BadEncodingError"));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with BadUnexpectedError status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_BadUnexpectedError_WritesCorrectly()
+        public void WriteStatusCodeBadUnexpectedErrorWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4673,11 +4132,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("BadUnexpectedError"));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with status code containing flag bits writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_StatusCodeWithFlagBits_WritesCodeWithFlags()
+        public void WriteStatusCodeStatusCodeWithFlagBitsWritesCodeWithFlags()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4697,11 +4153,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with very long fieldName writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_VeryLongFieldName_WritesCompleteFieldName()
+        public void WriteStatusCodeVeryLongFieldNameWritesCompleteFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4719,11 +4172,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with Good status in array mode writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_GoodStatusInArrayMode_WritesEmptyObject()
+        public void WriteStatusCodeGoodStatusInArrayModeWritesEmptyObject()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4741,17 +4191,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with status code having StructureChanged bit writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_StatusCodeWithStructureChangedBit_WritesCorrectly()
+        public void WriteStatusCodeStatusCodeWithStructureChangedBitWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var statusWithBit = StatusCodes.Good.SetStructureChanged(true);
+            StatusCode statusWithBit = StatusCodes.Good.SetStructureChanged(true);
             // Act
             encoder.WriteStatusCode("structureChanged", statusWithBit);
             encoder.PopStructure();
@@ -4762,17 +4209,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with status code having SemanticsChanged bit writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_StatusCodeWithSemanticsChangedBit_WritesCorrectly()
+        public void WriteStatusCodeStatusCodeWithSemanticsChangedBitWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var statusWithBit = StatusCodes.Good.SetSemanticsChanged(true);
+            StatusCode statusWithBit = StatusCodes.Good.SetSemanticsChanged(true);
             // Act
             encoder.WriteStatusCode("semanticsChanged", statusWithBit);
             encoder.PopStructure();
@@ -4783,11 +4227,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with maximum uint value status code writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_MaxUIntStatusCode_WritesCorrectly()
+        public void WriteStatusCodeMaxUIntStatusCodeWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4807,11 +4248,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode with zero status code value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_ZeroStatusCode_WritesAsGood()
+        public void WriteStatusCodeZeroStatusCodeWritesAsGood()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4826,11 +4264,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode delegates to private overload with EscapeOptions.None.
-        /// </summary>
         [Test]
-        public void WriteStatusCode_AnyValidInput_DelegatesToPrivateOverload()
+        public void WriteStatusCodeAnyValidInputDelegatesToPrivateOverload()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -4853,13 +4288,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("BadNotImplemented"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask writes the EncodingMask field when SuppressArtifacts is false and EncodingToUse is Compact.
-        /// Input: encodingMask = 123, SuppressArtifacts = false, EncodingToUse = Compact
-        /// Expected: JSON output contains "EncodingMask":123
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_SuppressArtifactsFalseCompactEncoding_WritesField()
+        public void WriteEncodingMaskSuppressArtifactsFalseCompactEncodingWritesField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4878,13 +4308,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask does not write the EncodingMask field when SuppressArtifacts is true and EncodingToUse is Compact.
-        /// Input: encodingMask = 123, SuppressArtifacts = true, EncodingToUse = Compact
-        /// Expected: JSON output does not contain "EncodingMask"
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_SuppressArtifactsTrueCompactEncoding_DoesNotWriteField()
+        public void WriteEncodingMaskSuppressArtifactsTrueCompactEncodingDoesNotWriteField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4902,13 +4327,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask does not write the EncodingMask field when EncodingToUse is Verbose.
-        /// Input: encodingMask = 123, SuppressArtifacts = false, EncodingToUse = Verbose
-        /// Expected: JSON output does not contain "EncodingMask"
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_SuppressArtifactsFalseVerboseEncoding_DoesNotWriteField()
+        public void WriteEncodingMaskSuppressArtifactsFalseVerboseEncodingDoesNotWriteField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4926,13 +4346,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask does not write the EncodingMask field when SuppressArtifacts is true and EncodingToUse is Verbose.
-        /// Input: encodingMask = 123, SuppressArtifacts = true, EncodingToUse = Verbose
-        /// Expected: JSON output does not contain "EncodingMask"
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_SuppressArtifactsTrueVerboseEncoding_DoesNotWriteField()
+        public void WriteEncodingMaskSuppressArtifactsTrueVerboseEncodingDoesNotWriteField()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4950,13 +4365,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask writes uint.MaxValue correctly when conditions are met.
-        /// Input: encodingMask = uint.MaxValue, SuppressArtifacts = false, EncodingToUse = Compact
-        /// Expected: JSON output contains "EncodingMask":4294967295
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_MaxValue_WritesMaxValue()
+        public void WriteEncodingMaskMaxValueWritesMaxValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4975,16 +4385,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("4294967295"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask writes various typical values correctly.
-        /// Input: various encodingMask values with SuppressArtifacts = false, EncodingToUse = Compact
-        /// Expected: JSON output contains correct "EncodingMask" field with the value
-        /// </summary>
+        [Test]
         [TestCase(1u)]
         [TestCase(255u)]
         [TestCase(65535u)]
         [TestCase(16777216u)]
-        public void WriteEncodingMask_VariousValues_WritesCorrectValue(uint encodingMask)
+        public void WriteEncodingMaskVariousValuesWritesCorrectValue(uint encodingMask)
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5003,13 +4409,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(encodingMask.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask writes the field in proper JSON format.
-        /// Input: encodingMask = 42, SuppressArtifacts = false, EncodingToUse = Compact
-        /// Expected: JSON output is valid and properly formatted
-        /// </summary>
         [Test]
-        public void WriteEncodingMask_ValidConditions_ProducesValidJson()
+        public void WriteEncodingMaskValidConditionsProducesValidJson()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5027,11 +4428,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match("""\{"EncodingMask":42\}"""));
         }
 
-        /// <summary>
-        /// Tests that WriteStringArray omits empty array in compact mode when not in variant.
-        /// </summary>
         [Test]
-        public void WriteStringArray_EmptyArrayCompactMode_OmitsField()
+        public void WriteStringArrayEmptyArrayCompactModeOmitsField()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5045,11 +4443,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteStringArray writes empty array in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteStringArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteStringArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5065,15 +4460,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with an empty array.
-        /// Verifies that an empty JSON array is written.
-        /// </summary>
         [Test]
-        public void WriteVariantArray_EmptyArray_WritesEmptyJsonArray()
+        public void WriteVariantArrayEmptyArrayWritesEmptyJsonArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var emptyArray = new ArrayOf<Variant>();
             // Act
@@ -5087,13 +4478,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding changes encoding, executes action, and restores original encoding.
-        /// Input: Valid action with Compact encoding switching to Verbose.
-        /// Expected: Action is called with correct parameters and encoding is restored.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_ValidActionCompactToVerbose_ExecutesAndRestoresEncoding()
+        public void UsingAlternateEncodingValidActionCompactToVerboseExecutesAndRestoresEncoding()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5120,13 +4506,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding changes encoding, executes action, and restores original encoding.
-        /// Input: Valid action with Verbose encoding switching to Compact.
-        /// Expected: Action is called with correct parameters and encoding is restored.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_ValidActionVerboseToCompact_ExecutesAndRestoresEncoding()
+        public void UsingAlternateEncodingValidActionVerboseToCompactExecutesAndRestoresEncoding()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5147,13 +4528,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Verbose), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding throws NullReferenceException when action is null.
-        /// Input: Null action parameter.
-        /// Expected: NullReferenceException is thrown.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_NullAction_ThrowsNullReferenceException()
+        public void UsingAlternateEncodingNullActionThrowsNullReferenceException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5162,13 +4538,8 @@ namespace Opc.Ua.UnitTests
             Assert.Throws<NullReferenceException>(() => encoder.UsingAlternateEncoding(null, "field", 42, JsonEncodingType.Verbose));
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding passes null fieldName to action correctly.
-        /// Input: Null fieldName parameter.
-        /// Expected: Action receives null fieldName.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_NullFieldName_PassesNullToAction()
+        public void UsingAlternateEncodingNullFieldNamePassesNullToAction()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5189,13 +4560,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding passes null value to action for reference types.
-        /// Input: Null value parameter for string type.
-        /// Expected: Action receives null value.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_NullValueForReferenceType_PassesNullToAction()
+        public void UsingAlternateEncodingNullValueForReferenceTypePassesNullToAction()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5216,13 +4582,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding passes empty string correctly.
-        /// Input: Empty string for fieldName and value.
-        /// Expected: Action receives empty strings.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_EmptyStringParameters_PassesEmptyStringsToAction()
+        public void UsingAlternateEncodingEmptyStringParametersPassesEmptyStringsToAction()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5246,13 +4607,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Verbose), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles default value for value types.
-        /// Input: Default int value (0).
-        /// Expected: Action receives default value correctly.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_DefaultValueForValueType_PassesDefaultToAction()
+        public void UsingAlternateEncodingDefaultValueForValueTypePassesDefaultToAction()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5273,13 +4629,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles nested calls correctly.
-        /// Input: Nested UsingAlternateEncoding calls.
-        /// Expected: Each level uses its own encoding and restores properly.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_NestedCalls_HandlesEncodingChangesCorrectly()
+        public void UsingAlternateEncodingNestedCallsHandlesEncodingChangesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5305,13 +4656,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles very long string parameters correctly.
-        /// Input: Very long string for fieldName and value.
-        /// Expected: Action receives complete long strings.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_VeryLongStrings_PassesCompleteStringsToAction()
+        public void UsingAlternateEncodingVeryLongStringsPassesCompleteStringsToAction()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5337,13 +4683,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles special characters in string parameters.
-        /// Input: Strings with special characters.
-        /// Expected: Action receives strings with special characters intact.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_StringsWithSpecialCharacters_PassesCorrectly()
+        public void UsingAlternateEncodingStringsWithSpecialCharactersPassesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5369,13 +4710,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles same encoding type (no actual change).
-        /// Input: useEncodingType equals current encoding.
-        /// Expected: Action executes normally and encoding remains the same.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_SameEncodingType_ExecutesNormally()
+        public void UsingAlternateEncodingSameEncodingTypeExecutesNormally()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5396,15 +4732,10 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Encoding should remain Compact");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding handles extreme numeric values correctly.
-        /// Input: int.MaxValue and int.MinValue.
-        /// Expected: Action receives extreme values correctly.
-        /// </summary>
         [TestCase(int.MaxValue)]
         [TestCase(int.MinValue)]
         [TestCase(0)]
-        public void UsingAlternateEncoding_ExtremeIntValues_PassesCorrectly(int value)
+        public void UsingAlternateEncodingExtremeIntValuesPassesCorrectly(int value)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5425,13 +4756,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding with invalid enum value still executes and restores encoding.
-        /// Input: Invalid JsonEncodingType cast value.
-        /// Expected: Action executes and encoding is restored (encoder may allow invalid enum values).
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_InvalidEnumValue_ExecutesAndRestores()
+        public void UsingAlternateEncodingInvalidEnumValueExecutesAndRestores()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5452,13 +4778,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that UsingAlternateEncoding with complex object type works correctly.
-        /// Input: Complex object as value parameter.
-        /// Expected: Action receives object reference correctly.
-        /// </summary>
         [Test]
-        public void UsingAlternateEncoding_ComplexObjectType_PassesObjectCorrectly()
+        public void UsingAlternateEncodingComplexObjectTypePassesObjectCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -5484,12 +4805,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.EncodingToUse, Is.EqualTo(JsonEncodingType.Compact), "Original encoding should be restored");
         }
 
-        /// <summary>
-        /// Tests that WriteGuid returns early without writing when fieldName is not null,
-        /// IncludeDefaultValues is false (Compact mode), and value is Uuid.Empty.
-        /// </summary>
         [Test]
-        public void WriteGuid_NonNullFieldNameCompactModeEmptyValue_DoesNotWriteField()
+        public void WriteGuidNonNullFieldNameCompactModeEmptyValueDoesNotWriteField()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5503,12 +4820,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid writes null when fieldName is null and value is Uuid.Empty.
-        /// This tests the behavior when the early return condition is not met.
-        /// </summary>
         [Test]
-        public void WriteGuid_NullFieldNameEmptyValue_WritesNull()
+        public void WriteGuidNullFieldNameEmptyValueWritesNull()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5524,12 +4837,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid writes the empty UUID when IncludeDefaultValues is true (Verbose mode),
-        /// even though the value is Uuid.Empty.
-        /// </summary>
         [Test]
-        public void WriteGuid_VerboseModeEmptyValue_WritesEmptyGuid()
+        public void WriteGuidVerboseModeEmptyValueWritesEmptyGuid()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5547,12 +4856,8 @@ namespace Opc.Ua.UnitTests
                 "00000000-0000-0000-0000-000000000000"
                 """));
         }
-
-        /// <summary>
-        /// Tests that WriteGuid correctly writes a valid non-empty UUID value.
-        /// </summary>
         [Test]
-        public void WriteGuid_ValidNonEmptyValue_WritesGuidCorrectly()
+        public void WriteGuidValidNonEmptyValueWritesGuidCorrectly()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5572,11 +4877,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid writes the value without a field name when fieldName is an empty string.
-        /// </summary>
         [Test]
-        public void WriteGuid_EmptyStringFieldName_WritesValueWithoutFieldName()
+        public void WriteGuidEmptyStringFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5596,11 +4898,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid correctly escapes special characters in the field name.
-        /// </summary>
         [Test]
-        public void WriteGuid_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteGuidFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5618,11 +4917,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid handles whitespace-only field names correctly.
-        /// </summary>
         [Test]
-        public void WriteGuid_WhitespaceFieldName_WritesFieldCorrectly()
+        public void WriteGuidWhitespaceFieldNameWritesFieldCorrectly()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5642,11 +4938,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that multiple consecutive WriteGuid calls produce properly comma-separated JSON fields.
-        /// </summary>
         [Test]
-        public void WriteGuid_MultipleCalls_WritesMultipleFieldsWithCommas()
+        public void WriteGuidMultipleCallsWritesMultipleFieldsWithCommas()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5682,11 +4975,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid correctly writes Guid.Empty in array mode without a field name.
-        /// </summary>
         [Test]
-        public void WriteGuid_ArrayModeNullFieldNameEmptyGuid_WritesArrayElement()
+        public void WriteGuidArrayModeNullFieldNameEmptyGuidWritesArrayElement()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5700,12 +4990,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""["00000000-0000-0000-0000-000000000000"]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid skips writing when all three conditions are met:
-        /// non-null fieldName, Compact mode, and Uuid.Empty value.
-        /// </summary>
         [Test]
-        public void WriteGuid_AllEarlyReturnConditionsMet_SkipsWriting()
+        public void WriteGuidAllEarlyReturnConditionsMetSkipsWriting()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5721,11 +5007,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("shouldAppear"));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid formats the UUID in lowercase with hyphens.
-        /// </summary>
         [Test]
-        public void WriteGuid_ValidGuid_FormatsWithLowercaseAndHyphens()
+        public void WriteGuidValidGuidFormatsWithLowercaseAndHyphens()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5742,12 +5025,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid in Verbose mode includes the field even when value is Uuid.Empty.
-        /// This verifies that IncludeDefaultValues=true prevents early return.
-        /// </summary>
         [Test]
-        public void WriteGuid_VerboseModeNonNullFieldNameEmptyValue_WritesField()
+        public void WriteGuidVerboseModeNonNullFieldNameEmptyValueWritesField()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5766,16 +5045,13 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid correctly handles very long field names.
-        /// </summary>
         [Test]
-        public void WriteGuid_VeryLongFieldName_WritesCompleteFieldName()
+        public void WriteGuidVeryLongFieldNameWritesCompleteFieldName()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
-            var longFieldName = new string ('a', 1000);
+            var longFieldName = new string('a', 1000);
             var testGuid = new Uuid(Guid.Parse("fedcba98-7654-3210-fedc-ba9876543210"));
             encoder.PushStructure(null);
             // Act
@@ -5789,11 +5065,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteGuid with Compact encoding and non-empty value writes the field.
-        /// </summary>
         [Test]
-        public void WriteGuid_CompactModeNonEmptyValue_WritesField()
+        public void WriteGuidCompactModeNonEmptyValueWritesField()
         {
             // Arrange
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -5813,15 +5086,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with null value, non-null fieldName, and IncludeDefaultValues false
-        /// returns early without writing anything to the output.
-        /// </summary>
         [Test]
-        public void WriteEncodeable_NullValueNonNullFieldNameDefaultsNotIncluded_ReturnsEarlyWithoutWriting()
+        public void WriteEncodeableNullValueNonNullFieldNameDefaultsNotIncludedReturnsEarlyWithoutWriting()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             // Act
             encoder.WriteEncodeable<IEncodeable>("TestField", null);
@@ -5830,15 +5099,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with null value, non-null fieldName, and IncludeDefaultValues true
-        /// writes the field with null structure.
-        /// </summary>
         [Test]
-        public void WriteEncodeable_NullValueNonNullFieldNameDefaultsIncluded_WritesNullStructure()
+        public void WriteEncodeableNullValueNonNullFieldNameDefaultsIncludedWritesNullStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             // Act
             encoder.WriteEncodeable<IEncodeable>("TestField", null);
@@ -5849,15 +5114,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with null value and null fieldName
-        /// writes the structure regardless of IncludeDefaultValues setting.
-        /// </summary>
         [Test]
-        public void WriteEncodeable_NullValueNullFieldNameDefaultsNotIncluded_WritesStructure()
+        public void WriteEncodeableNullValueNullFieldNameDefaultsNotIncludedWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             // Act
             encoder.WriteEncodeable<IEncodeable>(null, null);
@@ -5866,16 +5127,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Empty);
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with compact encoding and null value with null fieldName
-        /// writes the structure correctly.
-        /// </summary>
+        [Test]
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void WriteEncodeable_NullValueWithNullFieldName_WritesCorrectly(JsonEncodingType encodingType)
+        public void WriteEncodeableNullValueWithNullFieldNameWritesCorrectly(JsonEncodingType encodingType)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, encodingType);
             // Act
             encoder.WriteEncodeable<IEncodeable>(null, null);
@@ -5884,15 +5142,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Empty);
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with default struct value
-        /// is treated as null and respects IncludeDefaultValues setting.
-        /// </summary>
         [Test]
-        public void WriteEncodeable_DefaultStructValue_TreatedAsNull()
+        public void WriteEncodeableDefaultStructValueTreatedAsNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             // Act
             encoder.WriteEncodeable<IEncodeable>("TestField", default);
@@ -5901,15 +5155,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeable with IncludeDefaultValues true and default value
-        /// writes the field structure.
-        /// </summary>
         [Test]
-        public void WriteEncodeable_DefaultValueIncludeDefaultsTrue_WritesField()
+        public void WriteEncodeableDefaultValueIncludeDefaultsTrueWritesField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             // Act
             encoder.WriteEncodeable<IEncodeable>("TestField", default);
@@ -5920,12 +5170,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array with empty array in Compact mode does not write field.
-        /// Expected: Empty array is not written when IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteInt64Array_EmptyArrayCompactMode_DoesNotWriteField()
+        public void WriteInt64ArrayEmptyArrayCompactModeDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -5940,12 +5186,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array with empty array in Verbose mode writes null.
-        /// Expected: Field with null value is written when IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteInt64Array_EmptyArrayVerboseMode_WritesNull()
+        public void WriteInt64ArrayEmptyArrayVerboseModeWritesNull()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -5963,15 +5205,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("null"));
         }
 
-        /// <summary>
-        /// Tests WriteDiagnosticInfoArray with empty array in compact mode.
-        /// Should return early without writing array.
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfoArray_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteDiagnosticInfoArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure("root");
             var values = new ArrayOf<DiagnosticInfo>();
@@ -5985,15 +5223,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDiagnosticInfoArray with empty array in verbose mode.
-        /// Should write empty array.
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfoArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteDiagnosticInfoArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure("root");
             var values = new ArrayOf<DiagnosticInfo>();
@@ -6007,11 +5241,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with a valid field name writes the field name followed by array start.
-        /// </summary>
         [Test]
-        public void PushArray_ValidFieldName_WritesFieldNameAndArrayStart()
+        public void PushArrayValidFieldNameWritesFieldNameAndArrayStart()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6028,11 +5259,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with null field name writes array start without field name.
-        /// </summary>
         [Test]
-        public void PushArray_NullFieldName_WritesArrayStartWithoutFieldName()
+        public void PushArrayNullFieldNameWritesArrayStartWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6045,11 +5273,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[]"));
         }
 
-        /// <summary>
-        /// Tests that PushArray with empty string field name writes array start without field name.
-        /// </summary>
         [Test]
-        public void PushArray_EmptyFieldName_WritesArrayStartWithoutFieldName()
+        public void PushArrayEmptyFieldNameWritesArrayStartWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6062,11 +5287,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[]"));
         }
 
-        /// <summary>
-        /// Tests that PushArray with whitespace field name writes the field name (whitespace is valid).
-        /// </summary>
         [Test]
-        public void PushArray_WhitespaceFieldName_WritesFieldNameAndArrayStart()
+        public void PushArrayWhitespaceFieldNameWritesFieldNameAndArrayStart()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6083,11 +5305,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with field name containing special characters properly escapes them.
-        /// </summary>
         [Test]
-        public void PushArray_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void PushArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6104,11 +5323,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray writes a comma before the field when comma is required.
-        /// </summary>
         [Test]
-        public void PushArray_CommaRequired_WritesCommaBeforeField()
+        public void PushArrayCommaRequiredWritesCommaBeforeField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6124,12 +5340,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(""","second":["""));
         }
 
-        /// <summary>
-        /// Tests that PushArray at nesting level 1 with topLevelIsArray false and no field name
-        /// sets levelOneSkipped and returns early without writing bracket.
-        /// </summary>
         [Test]
-        public void PushArray_NestingLevelOneTopLevelNotArrayEmptyFieldName_SetsLevelOneSkippedAndReturnsEarly()
+        public void PushArrayNestingLevelOneTopLevelNotArrayEmptyFieldNameSetsLevelOneSkippedAndReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6142,11 +5354,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(""));
         }
 
-        /// <summary>
-        /// Tests that multiple PushArray calls increment nesting level correctly.
-        /// </summary>
         [Test]
-        public void PushArray_MultipleCalls_IncrementsNestingLevel()
+        public void PushArrayMultipleCallsIncrementsNestingLevel()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6163,11 +5372,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[[[]]]"));
         }
 
-        /// <summary>
-        /// Tests that PushArray with very long field name writes the complete field name.
-        /// </summary>
         [Test]
-        public void PushArray_VeryLongFieldName_WritesCompleteFieldName()
+        public void PushArrayVeryLongFieldNameWritesCompleteFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6185,11 +5391,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray after PushStructure writes comma when required.
-        /// </summary>
         [Test]
-        public void PushArray_AfterWritingValue_WritesComma()
+        public void PushArrayAfterWritingValueWritesComma()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6207,11 +5410,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with field name containing newline escapes it correctly.
-        /// </summary>
         [Test]
-        public void PushArray_FieldNameWithNewline_EscapesCorrectly()
+        public void PushArrayFieldNameWithNewlineEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6228,11 +5428,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with field name containing backslash escapes it correctly.
-        /// </summary>
         [Test]
-        public void PushArray_FieldNameWithBackslash_EscapesCorrectly()
+        public void PushArrayFieldNameWithBackslashEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6249,11 +5446,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with field name containing tab character escapes it correctly.
-        /// </summary>
         [Test]
-        public void PushArray_FieldNameWithTab_EscapesCorrectly()
+        public void PushArrayFieldNameWithTabEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6270,11 +5464,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray can be called multiple times with different field names.
-        /// </summary>
         [Test]
-        public void PushArray_MultipleFieldNames_WritesAllFields()
+        public void PushArrayMultipleFieldNamesWritesAllFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6301,11 +5492,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray with topLevelIsArray true and null field name writes array start.
-        /// </summary>
         [Test]
-        public void PushArray_TopLevelIsArrayTrueNullFieldName_WritesArrayStart()
+        public void PushArrayTopLevelIsArrayTrueNullFieldNameWritesArrayStart()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6320,11 +5508,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[1,2]"));
         }
 
-        /// <summary>
-        /// Tests that PushArray with field name containing control character escapes it as Unicode.
-        /// </summary>
         [Test]
-        public void PushArray_FieldNameWithControlCharacter_EscapesAsUnicode()
+        public void PushArrayFieldNameWithControlCharacterEscapesAsUnicode()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6341,11 +5526,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushArray inside nested structures maintains proper comma placement.
-        /// </summary>
         [Test]
-        public void PushArray_InsideNestedStructures_MaintainsProperCommaPlacement()
+        public void PushArrayInsideNestedStructuresMaintainsProperCommaPlacement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6365,12 +5547,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte does not write a field when fieldName is not null,
-        /// IncludeDefaultNumberValues is false, and value is zero.
-        /// </summary>
         [Test]
-        public void WriteSByte_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteSByteNonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6384,12 +5562,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a field when fieldName is not null,
-        /// IncludeDefaultNumberValues is true (Verbose mode), and value is zero.
-        /// </summary>
         [Test]
-        public void WriteSByte_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteSByteNonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6405,12 +5579,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a field when fieldName is not null,
-        /// IncludeDefaultNumberValues is false, and value is non-zero.
-        /// </summary>
         [Test]
-        public void WriteSByte_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteSByteNonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6426,11 +5596,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes the minimum sbyte value correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_MinValue_WritesCorrectValue()
+        public void WriteSByteMinValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6446,11 +5613,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes the maximum sbyte value correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_MaxValue_WritesCorrectValue()
+        public void WriteSByteMaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6466,11 +5630,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a negative value correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_NegativeValue_WritesCorrectValue()
+        public void WriteSByteNegativeValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6486,11 +5647,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte uses InvariantCulture when converting the value to string.
-        /// </summary>
         [Test]
-        public void WriteSByte_AnyValue_UsesInvariantCulture()
+        public void WriteSByteAnyValueUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -6515,11 +5673,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes the value without a field name when fieldName is empty string.
-        /// </summary>
         [Test]
-        public void WriteSByte_EmptyStringFieldName_WritesValue()
+        public void WriteSByteEmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6533,11 +5688,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("10"));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a field when fieldName contains whitespace.
-        /// </summary>
         [Test]
-        public void WriteSByte_WhitespaceFieldName_WritesField()
+        public void WriteSByteWhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6553,11 +5705,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte escapes field names with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteSByteFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6573,11 +5722,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes negative one correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_ValueNegativeOne_WritesCorrectValue()
+        public void WriteSByteValueNegativeOneWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6593,11 +5739,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a field when fieldName is null and value is zero.
-        /// </summary>
         [Test]
-        public void WriteSByte_NullFieldNameZeroValue_WritesValue()
+        public void WriteSByteNullFieldNameZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6611,11 +5754,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte writes a field when fieldName is null and value is non-zero.
-        /// </summary>
         [Test]
-        public void WriteSByte_NullFieldNameNonZeroValue_WritesValue()
+        public void WriteSByteNullFieldNameNonZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6629,11 +5769,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("99"));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte handles positive boundary value correctly.
-        /// </summary>
         [Test]
-        public void WriteSByte_PositiveBoundaryValue_WritesCorrectValue()
+        public void WriteSBytePositiveBoundaryValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6649,13 +5786,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteString returns early without writing when fieldName is not null,
-        /// IncludeDefaultValues is false (Compact mode), and value is null.
-        /// This tests the early return branch that was previously uncovered.
-        /// </summary>
         [Test]
-        public void WriteString_FieldNameNotNullCompactModeValueNull_ReturnsEarlyWithoutWriting()
+        public void WriteStringFieldNameNotNullCompactModeValueNullReturnsEarlyWithoutWriting()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6669,12 +5801,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests WriteString with null fieldName and non-null value.
-        /// When fieldName is null, the value should be written without a field name.
-        /// </summary>
         [Test]
-        public void WriteString_NullFieldNameNonNullValue_WritesValueWithoutFieldName()
+        public void WriteStringNullFieldNameNonNullValueWritesValueWithoutFieldName()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6688,11 +5816,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""["testValue"]"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with null fieldName and empty string value in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteString_NullFieldNameEmptyStringValue_WritesEmptyString()
+        public void WriteStringNullFieldNameEmptyStringValueWritesEmptyString()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6706,12 +5831,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("""[""]"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with Verbose mode (IncludeDefaultValues = true) and null value.
-        /// In Verbose mode, null values should be written.
-        /// </summary>
         [Test]
-        public void WriteString_VerboseModeNullValue_WritesNullValue()
+        public void WriteStringVerboseModeNullValueWritesNullValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6725,11 +5846,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"testField":null}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with very long field name to ensure proper handling.
-        /// </summary>
         [Test]
-        public void WriteString_VeryLongFieldName_WritesCorrectly()
+        public void WriteStringVeryLongFieldNameWritesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6747,11 +5865,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteString with Unicode characters in field name.
-        /// </summary>
         [Test]
-        public void WriteString_UnicodeFieldName_WritesCorrectly()
+        public void WriteStringUnicodeFieldNameWritesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6765,11 +5880,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"测试字段":"测试值"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with Unicode characters in value.
-        /// </summary>
         [Test]
-        public void WriteString_UnicodeValue_WritesCorrectly()
+        public void WriteStringUnicodeValueWritesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6783,11 +5895,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":"Café ☕ 日本語"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with emoji characters in both field name and value.
-        /// </summary>
         [Test]
-        public void WriteString_EmojiCharacters_WritesCorrectly()
+        public void WriteStringEmojiCharactersWritesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6801,12 +5910,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"🔑field":"🎉value🎊"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString after writing another field in Compact mode with null value.
-        /// Tests the early return doesn't affect subsequent writes.
-        /// </summary>
         [Test]
-        public void WriteString_MultipleCallsWithNullInCompactMode_HandlesCorrectly()
+        public void WriteStringMultipleCallsWithNullInCompactModeHandlesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6822,11 +5927,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field1":"value1","field3":"value3"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with null field name and null value in array mode.
-        /// </summary>
         [Test]
-        public void WriteString_NullFieldNameNullValueArrayMode_WritesNull()
+        public void WriteStringNullFieldNameNullValueArrayModeWritesNull()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6840,11 +5942,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[null]"));
         }
 
-        /// <summary>
-        /// Tests WriteString with field name containing newline characters.
-        /// </summary>
         [Test]
-        public void WriteString_FieldNameWithNewline_EscapesCorrectly()
+        public void WriteStringFieldNameWithNewlineEscapesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6858,12 +5957,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field\nname":"value"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString in Compact mode where null value is written after non-null values.
-        /// Verifies the early return behavior doesn't break JSON structure.
-        /// </summary>
         [Test]
-        public void WriteString_CompactModeNullAfterNonNull_MaintainsStructure()
+        public void WriteStringCompactModeNullAfterNonNullMaintainsStructure()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6880,12 +5975,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"a":"valueA","d":"valueD"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteString with maximum length string value at int.MaxValue boundary (if feasible).
-        /// This tests extremely large string handling.
-        /// </summary>
         [Test]
-        public void WriteString_ExtremelyLongValue_WritesSuccessfully()
+        public void WriteStringExtremelyLongValueWritesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6901,11 +5992,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result.Length, Is.GreaterThan(100000));
         }
 
-        /// <summary>
-        /// Tests WriteString with field name containing all types of control characters.
-        /// </summary>
         [Test]
-        public void WriteString_FieldNameWithAllControlCharacters_EscapesAll()
+        public void WriteStringFieldNameWithAllControlCharactersEscapesAll()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6927,12 +6015,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteString behavior when switching between Compact and Verbose modes
-        /// using UsingAlternateEncoding. Verifies that null handling respects current mode.
-        /// </summary>
         [Test]
-        public void WriteString_AlternateEncodingMode_RespectsCurrentMode()
+        public void WriteStringAlternateEncodingModeRespectsCurrentMode()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6947,12 +6031,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"afterSwitch":"value"}"""));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with null ExtensionObject, non-null fieldName, and IncludeDefaultValues=false.
-        /// Expected: Method returns early without writing anything.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_NullValueNonNullFieldNameDefaultsNotIncluded_ReturnsEarly()
+        public void WriteExtensionObjectNullValueNonNullFieldNameDefaultsNotIncludedReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6968,12 +6048,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with null ExtensionObject, null fieldName, and IncludeDefaultValues=false.
-        /// Expected: Writes null value.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_NullValueNullFieldNameDefaultsNotIncluded_WritesNull()
+        public void WriteExtensionObjectNullValueNullFieldNameDefaultsNotIncludedWritesNull()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -6987,12 +6063,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with null ExtensionObject and IncludeDefaultValues=true.
-        /// Expected: Writes empty structure.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_NullValueDefaultsIncluded_WritesStructure()
+        public void WriteExtensionObjectNullValueDefaultsIncludedWritesStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7009,12 +6081,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with ExtensionObjectEncoding.None, non-null fieldName, and IncludeDefaultValues=false.
-        /// Expected: Method returns early without writing anything.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_NoneEncodingNonNullFieldNameDefaultsNotIncluded_ReturnsEarly()
+        public void WriteExtensionObjectNoneEncodingNonNullFieldNameDefaultsNotIncludedReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7031,12 +6099,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with JSON body and Compact encoding.
-        /// Expected: Writes UaTypeId and JSON content.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_JsonBodyCompactEncoding_WritesUaTypeIdAndJson()
+        public void WriteExtensionObjectJsonBodyCompactEncodingWritesUaTypeIdAndJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7060,12 +6124,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value1"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with JSON body, Compact encoding, and SuppressArtifacts=true.
-        /// Expected: Does not write UaTypeId but writes JSON content.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_JsonBodyCompactEncodingSuppressArtifacts_DoesNotWriteUaTypeId()
+        public void WriteExtensionObjectJsonBodyCompactEncodingSuppressArtifactsDoesNotWriteUaTypeId()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7089,12 +6149,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("data"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Binary encoding and Compact encoding type.
-        /// Expected: Writes UaTypeId, UaEncoding, and UaBody.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_BinaryBodyCompactEncoding_WritesUaTypeIdEncodingAndBody()
+        public void WriteExtensionObjectBinaryBodyCompactEncodingWritesUaTypeIdEncodingAndBody()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7122,12 +6178,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Binary encoding, Compact encoding type, and SuppressArtifacts=true.
-        /// Expected: Does not write UaTypeId but writes UaEncoding and UaBody.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_BinaryBodyCompactEncodingSuppressArtifacts_DoesNotWriteUaTypeId()
+        public void WriteExtensionObjectBinaryBodyCompactEncodingSuppressArtifactsDoesNotWriteUaTypeId()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7156,12 +6208,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Xml encoding and Verbose encoding type.
-        /// Expected: Writes UaTypeId, UaEncoding, and UaBody.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_XmlBodyVerboseEncoding_WritesUaTypeIdEncodingAndBody()
+        public void WriteExtensionObjectXmlBodyVerboseEncodingWritesUaTypeIdEncodingAndBody()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7189,12 +6237,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Xml encoding, Verbose encoding type, and SuppressArtifacts=true.
-        /// Expected: Does not write UaTypeId but writes UaEncoding and UaBody.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_XmlBodyVerboseEncodingSuppressArtifacts_DoesNotWriteUaTypeId()
+        public void WriteExtensionObjectXmlBodyVerboseEncodingSuppressArtifactsDoesNotWriteUaTypeId()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7223,12 +6267,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with JSON body and non-Compact/Verbose encoding.
-        /// Expected: Writes TypeId and JSON content without Body field.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_JsonBodyNonCompactEncoding_WritesTypeIdAndJson()
+        public void WriteExtensionObjectJsonBodyNonCompactEncodingWritesTypeIdAndJson()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7251,12 +6291,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("key"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Binary encoding and non-Compact/Verbose encoding.
-        /// Expected: Writes TypeId, Encoding, and Body.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_BinaryBodyNonCompactEncoding_WritesTypeIdEncodingAndBody()
+        public void WriteExtensionObjectBinaryBodyNonCompactEncodingWritesTypeIdEncodingAndBody()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7284,12 +6320,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Xml encoding and non-Compact/Verbose encoding.
-        /// Expected: Writes TypeId, Encoding, and Body.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_XmlBodyNonCompactEncoding_WritesTypeIdEncodingAndBody()
+        public void WriteExtensionObjectXmlBodyNonCompactEncodingWritesTypeIdEncodingAndBody()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7317,12 +6349,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with ExtensionObject having only TypeId set (no body).
-        /// Expected: Writes structure with TypeId.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_OnlyTypeIdSet_WritesTypeId()
+        public void WriteExtensionObjectOnlyTypeIdSetWritesTypeId()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7343,12 +6371,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with multiple calls to verify structure integrity.
-        /// Expected: Multiple extension objects written correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_MultipleCalls_WritesMultipleObjects()
+        public void WriteExtensionObjectMultipleCallsWritesMultipleObjects()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7375,12 +6399,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with Binary body containing empty ByteString.
-        /// Expected: Writes empty body correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_EmptyBinaryBody_WritesEmptyBody()
+        public void WriteExtensionObjectEmptyBinaryBodyWritesEmptyBody()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7402,12 +6422,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with very large Binary body.
-        /// Expected: Writes large body correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_LargeBinaryBody_WritesCorrectly()
+        public void WriteExtensionObjectLargeBinaryBodyWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7436,12 +6452,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result.Length, Is.GreaterThan(1000));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with JSON body containing empty string.
-        /// Expected: Writes empty JSON correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_EmptyJsonBody_WritesCorrectly()
+        public void WriteExtensionObjectEmptyJsonBodyWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7460,12 +6472,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with XML body containing empty element.
-        /// Expected: Writes empty XML correctly.
-        /// </summary>
         [Test]
-        public void WriteExtensionObject_EmptyXmlBody_WritesCorrectly()
+        public void WriteExtensionObjectEmptyXmlBodyWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -7487,15 +6495,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with null values in compact mode.
-        /// Verifies that null array is written as null field.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_NullValuesCompactMode_WritesNullField()
+        public void WriteDoubleArrayNullValuesCompactModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             ArrayOf<double> values = default;
             // Act
@@ -7509,15 +6513,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with null values in verbose mode.
-        /// Verifies that null array is written as null field even with IncludeDefaultValues.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_NullValuesVerboseMode_WritesNullField()
+        public void WriteDoubleArrayNullValuesVerboseModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             ArrayOf<double> values = default;
             // Act
@@ -7531,15 +6531,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with empty array in compact mode without IncludeDefaultValues.
-        /// Verifies that empty array is written as null when defaults are not included.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_EmptyArrayCompactMode_WritesNullField()
+        public void WriteDoubleArrayEmptyArrayCompactModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([]);
             // Act
@@ -7553,15 +6549,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with empty array in verbose mode with IncludeDefaultValues.
-        /// Verifies that empty array is written as empty JSON array.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteDoubleArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var values = new ArrayOf<double>([]);
             // Act
@@ -7575,15 +6567,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with single element array.
-        /// Verifies that single double value is written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_SingleElement_WritesArrayWithOneValue()
+        public void WriteDoubleArraySingleElementWritesArrayWithOneValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([42.5]);
             // Act
@@ -7597,15 +6585,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with multiple elements.
-        /// Verifies that all double values are written correctly in sequence.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_MultipleElements_WritesAllValues()
+        public void WriteDoubleArrayMultipleElementsWritesAllValues()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([1.0, 2.5, 3.14159]);
             // Act
@@ -7619,15 +6603,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with double.NaN value.
-        /// Verifies that NaN is encoded as "NaN" string.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_DoubleNaN_WritesNaNString()
+        public void WriteDoubleArrayDoubleNaNWritesNaNString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([double.NaN]);
             // Act
@@ -7641,15 +6621,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with double.PositiveInfinity value.
-        /// Verifies that positive infinity is encoded as "Infinity" string.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_PositiveInfinity_WritesInfinityString()
+        public void WriteDoubleArrayPositiveInfinityWritesInfinityString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([double.PositiveInfinity]);
             // Act
@@ -7663,15 +6639,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with double.NegativeInfinity value.
-        /// Verifies that negative infinity is encoded as "-Infinity" string.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_NegativeInfinity_WritesNegativeInfinityString()
+        public void WriteDoubleArrayNegativeInfinityWritesNegativeInfinityString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([double.NegativeInfinity]);
             // Act
@@ -7685,15 +6657,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with double.MinValue.
-        /// Verifies that minimum double value is written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_MinValue_WritesCorrectly()
+        public void WriteDoubleArrayMinValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([double.MinValue]);
             // Act
@@ -7705,15 +6673,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(double.MinValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with double.MaxValue.
-        /// Verifies that maximum double value is written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_MaxValue_WritesCorrectly()
+        public void WriteDoubleArrayMaxValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([double.MaxValue]);
             // Act
@@ -7725,15 +6689,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(double.MaxValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with zero value.
-        /// Verifies that zero is written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_ZeroValue_WritesZero()
+        public void WriteDoubleArrayZeroValueWritesZero()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([0.0]);
             // Act
@@ -7747,15 +6707,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with negative values.
-        /// Verifies that negative double values are written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_NegativeValues_WritesCorrectly()
+        public void WriteDoubleArrayNegativeValuesWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([-1.5, -100.0, -0.00001]);
             // Act
@@ -7769,15 +6725,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("-1E-05")); // Scientific notation for -0.00001
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with null fieldName.
-        /// Verifies that array is written as array element without field name.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteDoubleArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var values = new ArrayOf<double>([1.0, 2.0]);
             // Act
@@ -7787,15 +6739,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1,2]"));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with empty string fieldName.
-        /// Verifies that array is written without field name prefix.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_EmptyStringFieldName_WritesArrayValue()
+        public void WriteDoubleArrayEmptyStringFieldNameWritesArrayValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([1.0, 2.0]);
             // Act
@@ -7807,15 +6755,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1,2]"));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with mix of special and normal values.
-        /// Verifies that all values including NaN and Infinity are encoded correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_MixedSpecialAndNormalValues_WritesAllValuesCorrectly()
+        public void WriteDoubleArrayMixedSpecialAndNormalValuesWritesAllValuesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([1.0, double.NaN, double.PositiveInfinity, -5.5, double.NegativeInfinity, 0.0]);
             // Act
@@ -7838,15 +6782,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with very small positive values.
-        /// Verifies that small values are written with correct precision.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_VerySmallPositiveValues_WritesWithCorrectPrecision()
+        public void WriteDoubleArrayVerySmallPositiveValuesWritesWithCorrectPrecision()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([1e-100, 1e-200, double.Epsilon]);
             // Act
@@ -7861,15 +6801,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Empty);
         }
 
-        /// <summary>
-        /// Tests WriteDoubleArray with very large values.
-        /// Verifies that large values close to MaxValue are written correctly.
-        /// </summary>
         [Test]
-        public void WriteDoubleArray_VeryLargeValues_WritesCorrectly()
+        public void WriteDoubleArrayVeryLargeValuesWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<double>([1e100, 1e200, 1.7976931348623157e308]);
             // Act
@@ -7884,16 +6820,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Empty);
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes null when provided with a null array and fieldName is not null in compact mode.
-        /// Input: fieldName = "TestField", values = null (IsNull = true), Compact encoding
-        /// Expected: Method returns early after writing null, no array written
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_NullArrayCompactMode_WritesNull()
+        public void WriteDataValueArrayNullArrayCompactModeWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             ArrayOf<DataValue> nullArray = default;
@@ -7907,16 +6838,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes null when provided with a null array in verbose mode.
-        /// Input: fieldName = "TestField", values = null (IsNull = true), Verbose encoding
-        /// Expected: Method returns early after writing null
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_NullArrayVerboseMode_WritesNull()
+        public void WriteDataValueArrayNullArrayVerboseModeWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             ArrayOf<DataValue> nullArray = default;
@@ -7930,16 +6856,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray returns early for empty array in compact mode without IncludeDefaultValues.
-        /// Input: fieldName = "TestField", values = empty array, Compact encoding
-        /// Expected: Method returns early, writes null
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_EmptyArrayCompactMode_WritesNull()
+        public void WriteDataValueArrayEmptyArrayCompactModeWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var emptyArray = new ArrayOf<DataValue>([]);
@@ -7953,16 +6874,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes empty array in verbose mode.
-        /// Input: fieldName = "TestField", values = empty array, Verbose encoding
-        /// Expected: Empty array is written
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteDataValueArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             var emptyArray = new ArrayOf<DataValue>([]);
@@ -7976,16 +6892,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes a single DataValue element.
-        /// Input: fieldName = "TestField", values = array with one DataValue
-        /// Expected: Array with one element is written
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_SingleElement_WritesArrayWithOneElement()
+        public void WriteDataValueArraySingleElementWritesArrayWithOneElement()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var dataValue = new DataValue(new Variant(42));
@@ -8003,16 +6914,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes multiple DataValue elements.
-        /// Input: fieldName = "TestField", values = array with multiple DataValues
-        /// Expected: Array with all elements is written
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_MultipleElements_WritesAllElements()
+        public void WriteDataValueArrayMultipleElementsWritesAllElements()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var dataValue1 = new DataValue(new Variant(10));
@@ -8038,16 +6944,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray works with null fieldName.
-        /// Input: fieldName = null, values = array with elements
-        /// Expected: Array is written without field name
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteDataValueArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var dataValue = new DataValue(new Variant(100));
             var array = new ArrayOf<DataValue>([dataValue]);
@@ -8063,16 +6964,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray works with empty string fieldName.
-        /// Input: fieldName = "", values = array with elements
-        /// Expected: Array is written without field name
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_EmptyStringFieldName_WritesArrayWithoutFieldName()
+        public void WriteDataValueArrayEmptyStringFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var dataValue = new DataValue(new Variant(200));
             var array = new ArrayOf<DataValue>([dataValue]);
@@ -8085,16 +6981,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray escapes special characters in fieldName.
-        /// Input: fieldName with special characters, values = array with elements
-        /// Expected: Field name is properly escaped
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteDataValueArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var dataValue = new DataValue(new Variant(123));
@@ -8107,16 +6998,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""Test\"Field\\Name"""));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray throws when MaxArrayLength is exceeded.
-        /// Input: MaxArrayLength = 2, values with 3 elements
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        public void WriteDataValueArrayExceedsMaxArrayLengthThrowsServiceResultException()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = 2
@@ -8128,20 +7014,15 @@ namespace Opc.Ua.UnitTests
             var dataValue3 = new DataValue(new Variant(3));
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray succeeds when array count equals MaxArrayLength.
-        /// Input: MaxArrayLength = 3, values with 3 elements
-        /// Expected: Array is written successfully
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_ArrayCountEqualsMaxArrayLength_WritesSuccessfully()
+        public void WriteDataValueArrayArrayCountEqualsMaxArrayLengthWritesSuccessfully()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = 3
@@ -8171,16 +7052,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray succeeds when array count is less than MaxArrayLength.
-        /// Input: MaxArrayLength = 10, values with 2 elements
-        /// Expected: Array is written successfully
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_ArrayCountLessThanMaxArrayLength_WritesSuccessfully()
+        public void WriteDataValueArrayArrayCountLessThanMaxArrayLengthWritesSuccessfully()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = 10
@@ -8206,16 +7082,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray does not check length when MaxArrayLength is zero.
-        /// Input: MaxArrayLength = 0, values with multiple elements
-        /// Expected: Array is written successfully without length check
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_MaxArrayLengthZero_SkipsLengthCheck()
+        public void WriteDataValueArrayMaxArrayLengthZeroSkipsLengthCheck()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = 0
@@ -8245,16 +7116,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray handles array with null DataValue elements.
-        /// Input: values array containing null DataValue elements
-        /// Expected: Null elements are written as empty objects
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_ArrayWithNullElements_WritesNullElements()
+        public void WriteDataValueArrayArrayWithNullElementsWritesNullElements()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var array = new ArrayOf<DataValue>([null, new DataValue(new Variant(42)), null]);
@@ -8271,16 +7137,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes DataValue with all properties set.
-        /// Input: DataValue with Value, StatusCode, SourceTimestamp, ServerTimestamp, and Picoseconds
-        /// Expected: All properties are written correctly
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_DataValueWithAllProperties_WritesAllProperties()
+        public void WriteDataValueArrayDataValueWithAllPropertiesWritesAllProperties()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var dataValue = new DataValue
@@ -8306,16 +7167,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray with MaxArrayLength of 1 and 2 elements throws exception.
-        /// Input: MaxArrayLength = 1, values with 2 elements
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_MaxArrayLengthOne_ThrowsForTwoElements()
+        public void WriteDataValueArrayMaxArrayLengthOneThrowsForTwoElements()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = 1
@@ -8326,20 +7182,15 @@ namespace Opc.Ua.UnitTests
             var dataValue2 = new DataValue(new Variant(2));
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray with MaxArrayLength of int.MaxValue handles large values.
-        /// Input: MaxArrayLength = int.MaxValue, values with 2 elements
-        /// Expected: Array is written successfully
-        /// </summary>
         [Test]
-        public void WriteDataValueArray_MaxArrayLengthMaxValue_WritesSuccessfully()
+        public void WriteDataValueArrayMaxArrayLengthMaxValueWritesSuccessfully()
         {
             // Arrange
-            var telemetryContext = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetryContext)
             {
                 MaxArrayLength = int.MaxValue
@@ -8365,32 +7216,24 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage throws ArgumentNullException when message is null.
-        /// Input: null message parameter.
-        /// Expected: ArgumentNullException with parameter name "message".
-        /// </summary>
         [Test]
-        public void EncodeMessage_NullMessage_ThrowsArgumentNullException()
+        public void EncodeMessageNullMessageThrowsArgumentNullException()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             var buffer = new byte[1024];
             // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() => JsonEncoder.EncodeMessage(null, buffer, context));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => JsonEncoder.EncodeMessage(null, buffer, context));
             Assert.That(ex.ParamName, Is.EqualTo("message"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Compact encoding, non-null fieldName, and null variant returns early without writing.
-        /// </summary>
         [Test]
-        public void WriteVariant_CompactEncodingNonNullFieldNameNullVariant_ReturnsEarlyWithoutWriting()
+        public void WriteVariantCompactEncodingNonNullFieldNameNullVariantReturnsEarlyWithoutWriting()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            var nullVariant = Variant.Null;
+            Variant nullVariant = Variant.Null;
             // Act
             encoder.PushStructure(null);
             encoder.WriteVariant("TestField", nullVariant);
@@ -8400,16 +7243,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Compact encoding, null fieldName, and null variant writes the structure.
-        /// </summary>
         [Test]
-        public void WriteVariant_CompactEncodingNullFieldNameNullVariant_WritesStructure()
+        public void WriteVariantCompactEncodingNullFieldNameNullVariantWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
-            var nullVariant = Variant.Null;
+            Variant nullVariant = Variant.Null;
             // Act
             encoder.PushArray(null);
             encoder.WriteVariant(null, nullVariant);
@@ -8420,14 +7260,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("}"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Compact encoding, non-null fieldName, and non-null variant writes structure with value.
-        /// </summary>
         [Test]
-        public void WriteVariant_CompactEncodingNonNullFieldNameNonNullVariant_WritesStructureWithValue()
+        public void WriteVariantCompactEncodingNonNullFieldNameNonNullVariantWritesStructureWithValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant(42);
             // Act
@@ -8445,16 +7282,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Verbose encoding, non-null fieldName, and null variant writes structure.
-        /// </summary>
         [Test]
-        public void WriteVariant_VerboseEncodingNonNullFieldNameNullVariant_WritesStructure()
+        public void WriteVariantVerboseEncodingNonNullFieldNameNullVariantWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            var nullVariant = Variant.Null;
+            Variant nullVariant = Variant.Null;
             // Act
             encoder.PushStructure(null);
             encoder.WriteVariant("TestField", nullVariant);
@@ -8468,14 +7302,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("}"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Verbose encoding, non-null fieldName, and non-null variant writes structure with value.
-        /// </summary>
         [Test]
-        public void WriteVariant_VerboseEncodingNonNullFieldNameNonNullVariant_WritesStructureWithValue()
+        public void WriteVariantVerboseEncodingNonNullFieldNameNonNullVariantWritesStructureWithValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(true);
             // Act
@@ -8493,14 +7324,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("true"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with empty string fieldName writes the structure.
-        /// </summary>
         [Test]
-        public void WriteVariant_EmptyStringFieldName_WritesStructure()
+        public void WriteVariantEmptyStringFieldNameWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant(123);
             // Act
@@ -8515,14 +7343,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with string variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_StringVariantValue_WritesCorrectly()
+        public void WriteVariantStringVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant("test string");
             // Act
@@ -8540,14 +7365,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("test string"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with double variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_DoubleVariantValue_WritesCorrectly()
+        public void WriteVariantDoubleVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(3.14159);
             // Act
@@ -8565,14 +7387,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3.14159"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with DateTime variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_DateTimeVariantValue_WritesCorrectly()
+        public void WriteVariantDateTimeVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc);
             var variant = new Variant(dateTime);
@@ -8590,14 +7409,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with array variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_ArrayVariantValue_WritesCorrectly()
+        public void WriteVariantArrayVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var array = new int[]
             {
@@ -8622,14 +7438,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with boolean variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_BooleanVariantValue_WritesCorrectly()
+        public void WriteVariantBooleanVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(false);
             // Act
@@ -8647,14 +7460,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("false"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with NodeId variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_NodeIdVariantValue_WritesCorrectly()
+        public void WriteVariantNodeIdVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var nodeId = new NodeId(123, 2);
             var variant = new Variant(nodeId);
@@ -8672,14 +7482,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with byte variant value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_ByteVariantValue_WritesCorrectly()
+        public void WriteVariantByteVariantValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant((byte)255);
             // Act
@@ -8697,14 +7504,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("255"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with multiple calls writes multiple fields correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_MultipleCalls_WritesAllFields()
+        public void WriteVariantMultipleCallsWritesAllFields()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant1 = new Variant(100);
             var variant2 = new Variant("test");
@@ -8723,14 +7527,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with zero integer value writes correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteVariant_ZeroIntegerValueVerboseMode_WritesValue()
+        public void WriteVariantZeroIntegerValueVerboseModeWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(0);
             // Act
@@ -8748,14 +7549,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with negative integer value writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_NegativeIntegerValue_WritesCorrectly()
+        public void WriteVariantNegativeIntegerValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant(-999);
             // Act
@@ -8773,14 +7571,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("-999"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Int64 MaxValue writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_Int64MaxValue_WritesCorrectly()
+        public void WriteVariantInt64MaxValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(long.MaxValue);
             // Act
@@ -8797,14 +7592,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Int64 MinValue writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_Int64MinValue_WritesCorrectly()
+        public void WriteVariantInt64MinValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant(long.MinValue);
             // Act
@@ -8821,14 +7613,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with UInt64 MaxValue writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_UInt64MaxValue_WritesCorrectly()
+        public void WriteVariantUInt64MaxValueWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(ulong.MaxValue);
             // Act
@@ -8845,14 +7634,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with whitespace fieldName writes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_WhitespaceFieldName_WritesCorrectly()
+        public void WriteVariantWhitespaceFieldNameWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var variant = new Variant(42);
             // Act
@@ -8867,14 +7653,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with fieldName containing special characters escapes correctly.
-        /// </summary>
         [Test]
-        public void WriteVariant_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteVariantFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var variant = new Variant(100);
             // Act
@@ -8892,14 +7675,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Compact encoding and null fieldName with non-null variant writes structure.
-        /// </summary>
         [Test]
-        public void WriteVariant_CompactEncodingNullFieldNameNonNullVariant_WritesStructure()
+        public void WriteVariantCompactEncodingNullFieldNameNonNullVariantWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var variant = new Variant(777);
             // Act
@@ -8914,14 +7694,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("777"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariant with Verbose encoding, null fieldName, and non-null variant writes structure.
-        /// </summary>
         [Test]
-        public void WriteVariant_VerboseEncodingNullFieldNameNonNullVariant_WritesStructure()
+        public void WriteVariantVerboseEncodingNullFieldNameNonNullVariantWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, topLevelIsArray: true);
             var variant = new Variant(888);
             // Act
@@ -8936,13 +7713,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("888"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with null values returns early without writing.
-        /// Input: Valid fieldName with null values array.
-        /// Expected: Method returns early via CheckForSimpleFieldNull and writes null.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_NullValues_WritesNull()
+        public void WriteUInt16ArrayNullValuesWritesNull()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -8959,13 +7731,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with empty array in compact mode returns early.
-        /// Input: Valid fieldName with empty array, compact encoding.
-        /// Expected: Field is not written when IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_EmptyArrayCompactMode_DoesNotWriteField()
+        public void WriteUInt16ArrayEmptyArrayCompactModeDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -8980,13 +7747,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with empty array in verbose mode writes empty array.
-        /// Input: Valid fieldName with empty array, verbose encoding.
-        /// Expected: Empty JSON array is written.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteUInt16ArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9003,13 +7765,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with single element writes array with one value.
-        /// Input: Valid fieldName with array containing one ushort value.
-        /// Expected: JSON array with single element is written.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_SingleElement_WritesArrayWithOneValue()
+        public void WriteUInt16ArraySingleElementWritesArrayWithOneValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9029,13 +7786,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with multiple elements writes all values.
-        /// Input: Valid fieldName with array containing multiple ushort values.
-        /// Expected: JSON array with all elements is written.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_MultipleElements_WritesAllValues()
+        public void WriteUInt16ArrayMultipleElementsWritesAllValues()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9059,14 +7811,10 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array handles ushort boundary values correctly.
-        /// Input: Array containing ushort.MinValue and ushort.MaxValue.
-        /// Expected: Both boundary values are written correctly.
-        /// </summary>
+        [Test]
         [TestCase(ushort.MinValue, ushort.MaxValue)]
         [TestCase(0, 65535)]
-        public void WriteUInt16Array_BoundaryValues_WritesCorrectly(ushort minVal, ushort maxVal)
+        public void WriteUInt16ArrayBoundaryValuesWritesCorrectly(ushort minVal, ushort maxVal)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9087,13 +7835,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with null fieldName writes array without field name.
-        /// Input: Null fieldName with valid array.
-        /// Expected: Array is written without field name (array mode).
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteUInt16ArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9113,13 +7856,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[[1,2,3]]"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with empty string fieldName writes value without field name.
-        /// Input: Empty string fieldName with valid array.
-        /// Expected: Array is written without field name.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_EmptyFieldName_WritesArrayWithoutFieldName()
+        public void WriteUInt16ArrayEmptyFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9138,13 +7876,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[[100,200]]"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array throws when array length exceeds MaxArrayLength.
-        /// Input: Array with count greater than MaxArrayLength.
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded is thrown.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        public void WriteUInt16ArrayExceedsMaxArrayLengthThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9168,13 +7901,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array succeeds when array length equals MaxArrayLength.
-        /// Input: Array with count equal to MaxArrayLength.
-        /// Expected: Array is written successfully without exception.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_EqualsMaxArrayLength_WritesSuccessfully()
+        public void WriteUInt16ArrayEqualsMaxArrayLengthWritesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9200,13 +7928,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with MaxArrayLength of zero allows any array size.
-        /// Input: Large array with MaxArrayLength set to 0 (no limit).
-        /// Expected: Array is written successfully regardless of size.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_MaxArrayLengthZero_AllowsAnySize()
+        public void WriteUInt16ArrayMaxArrayLengthZeroAllowsAnySize()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9239,13 +7962,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array with fieldName containing special characters escapes properly.
-        /// Input: FieldName with special characters and valid array.
-        /// Expected: Field name is properly escaped in JSON output.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteUInt16ArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9265,13 +7983,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array in compact mode omits default values correctly.
-        /// Input: Valid array in compact encoding mode.
-        /// Expected: Array is written according to compact encoding rules.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_CompactMode_WritesArray()
+        public void WriteUInt16ArrayCompactModeWritesArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9293,13 +8006,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array writes array with mixed boundary and regular values.
-        /// Input: Array containing min value, max value, and regular values.
-        /// Expected: All values are written correctly in order.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_MixedValues_WritesAllCorrectly()
+        public void WriteUInt16ArrayMixedValuesWritesAllCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9322,13 +8030,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array handles large array within limits.
-        /// Input: Large array within MaxArrayLength limit.
-        /// Expected: All values are written successfully.
-        /// </summary>
         [Test]
-        public void WriteUInt16Array_LargeArrayWithinLimit_WritesSuccessfully()
+        public void WriteUInt16ArrayLargeArrayWithinLimitWritesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9356,13 +8059,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[0,100,200"));
         }
 
-        /// <summary>
-        /// Tests that WriteXmlElementArray with empty array in compact mode returns early.
-        /// Input: empty array, non-null fieldName, compact encoding.
-        /// Expected: No output written.
-        /// </summary>
         [Test]
-        public void WriteXmlElementArray_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteXmlElementArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9377,15 +8075,10 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteXmlElementArray with empty array in verbose mode writes null.
-        /// Input: empty array, non-null fieldName, verbose encoding.
-        /// Expected: Field written with null value.
-        /// </summary>
         [Test]
         [Category("ProductionBugSuspected")]
         [Ignore("ProductionBugSuspected")]
-        public void WriteXmlElementArray_EmptyArrayVerboseMode_WritesNull()
+        public void WriteXmlElementArrayEmptyArrayVerboseModeWritesNull()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9402,13 +8095,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteXmlElementArray with compact encoding omits field for empty array.
-        /// Input: empty array, compact encoding.
-        /// Expected: Field not written.
-        /// </summary>
         [Test]
-        public void WriteXmlElementArray_CompactEncodingEmptyArray_OmitsField()
+        public void WriteXmlElementArrayCompactEncodingEmptyArrayOmitsField()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9425,11 +8113,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("otherField"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray writes a null field when the array is null.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_NullArray_WritesNullField()
+        public void WriteEnumeratedArrayNullArrayWritesNullField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9446,11 +8131,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray writes a null field when the array is empty.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_EmptyArray_WritesNullField()
+        public void WriteEnumeratedArrayEmptyArrayWritesNullField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9467,11 +8149,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes a single enum value correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_SingleElement_EncodesSuccessfully()
+        public void WriteEnumeratedArraySingleElementEncodesSuccessfully()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9492,11 +8171,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("1"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes all elements in an array with multiple values.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_MultipleElements_EncodesAllElements()
+        public void WriteEnumeratedArrayMultipleElementsEncodesAllElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9521,11 +8197,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        public void WriteEnumeratedArrayExceedsMaxArrayLengthThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9542,15 +8215,12 @@ namespace Opc.Ua.UnitTests
             };
             // Act & Assert
             encoder.PushStructure(null);
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteEnumeratedArray("enumArray", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteEnumeratedArray("enumArray", values));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes successfully when array length equals MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_EqualsMaxArrayLength_EncodesSuccessfully()
+        public void WriteEnumeratedArrayEqualsMaxArrayLengthEncodesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9579,11 +8249,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes successfully when MaxArrayLength is zero (no limit).
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_MaxArrayLengthZero_EncodesWithoutLengthCheck()
+        public void WriteEnumeratedArrayMaxArrayLengthZeroEncodesWithoutLengthCheck()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9612,11 +8279,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray writes an array without a field name when fieldName is null.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteEnumeratedArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9635,11 +8299,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1]"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray writes a null field when fieldName is null and array is null.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_NullFieldNameNullArray_WritesNull()
+        public void WriteEnumeratedArrayNullFieldNameNullArrayWritesNull()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9652,11 +8313,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("null"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes correctly with empty string field name.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_EmptyFieldName_WritesArrayValue()
+        public void WriteEnumeratedArrayEmptyFieldNameWritesArrayValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9672,11 +8330,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1]"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray escapes field name with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteEnumeratedArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9696,11 +8351,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes flags enum correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_FlagsEnum_EncodesCorrectly()
+        public void WriteEnumeratedArrayFlagsEnumEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9723,11 +8375,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes enum with zero value correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_EnumWithZeroValue_EncodesCorrectly()
+        public void WriteEnumeratedArrayEnumWithZeroValueEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9748,11 +8397,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes large array correctly when no limit is set.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_LargeArrayNoLimit_EncodesSuccessfully()
+        public void WriteEnumeratedArrayLargeArrayNoLimitEncodesSuccessfully()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9776,11 +8422,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray in compact mode excludes field when array is null.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_CompactModeNullArray_DoesNotWriteField()
+        public void WriteEnumeratedArrayCompactModeNullArrayDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9797,11 +8440,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray encodes array with all enum values correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_AllEnumValues_EncodesCorrectly()
+        public void WriteEnumeratedArrayAllEnumValuesEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9828,11 +8468,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray throws when MaxArrayLength is exactly one less than array count.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_MaxArrayLengthOneLessThanCount_ThrowsServiceResultException()
+        public void WriteEnumeratedArrayMaxArrayLengthOneLessThanCountThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -9849,15 +8486,12 @@ namespace Opc.Ua.UnitTests
             };
             // Act & Assert
             encoder.PushStructure(null);
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteEnumeratedArray("enumArray", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteEnumeratedArray("enumArray", values));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumeratedArray with undefined enum value (cast from int) encodes the numeric value.
-        /// </summary>
         [Test]
-        public void WriteEnumeratedArray_UndefinedEnumValue_EncodesNumericValue()
+        public void WriteEnumeratedArrayUndefinedEnumValueEncodesNumericValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -9878,13 +8512,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("99"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns valid JSON text when using internal memory stream.
-        /// Input: Encoder created without external stream, with simple JSON content written.
-        /// Expected: Returns properly formatted JSON text.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_InternalMemoryStream_ReturnsValidJsonText()
+        public void CloseAndReturnTextInternalMemoryStreamReturnsValidJsonText()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9901,13 +8530,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("testValue"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns text when external MemoryStream is provided.
-        /// Input: Encoder created with external MemoryStream, with simple JSON content written.
-        /// Expected: Returns properly formatted JSON text from the external stream.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_ExternalMemoryStream_ReturnsValidJsonText()
+        public void CloseAndReturnTextExternalMemoryStreamReturnsValidJsonText()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9925,13 +8549,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText throws NotSupportedException when external non-MemoryStream is provided.
-        /// Input: Encoder created with FileStream.
-        /// Expected: Throws NotSupportedException with appropriate message.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_ExternalFileStream_ThrowsNotSupportedException()
+        public void CloseAndReturnTextExternalFileStreamThrowsNotSupportedException()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9944,7 +8563,7 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteString("field", "value");
                 encoder.PopStructure();
                 // Act & Assert
-                var ex = Assert.Throws<NotSupportedException>(() => encoder.CloseAndReturnText());
+                NotSupportedException ex = Assert.Throws<NotSupportedException>(() => encoder.CloseAndReturnText());
                 Assert.That(ex.Message, Does.Contain("Cannot get text from external stream"));
             }
             finally
@@ -9956,13 +8575,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns empty structure when no content is written.
-        /// Input: Encoder created but no content written before closing.
-        /// Expected: Returns minimal JSON structure (empty object or array).
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_NoContentWritten_ReturnsEmptyStructure()
+        public void CloseAndReturnTextNoContentWrittenReturnsEmptyStructure()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9974,13 +8588,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns array structure when topLevelIsArray is true.
-        /// Input: Encoder created with topLevelIsArray=true, no content written.
-        /// Expected: Returns empty array structure.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_TopLevelIsArrayNoContent_ReturnsEmptyArray()
+        public void CloseAndReturnTextTopLevelIsArrayNoContentReturnsEmptyArray()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -9992,13 +8601,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[]"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText disposes writer after returning text.
-        /// Input: Encoder with content, call CloseAndReturnText once.
-        /// Expected: Writer is disposed and set to null after method completes.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_AfterCall_DisposesWriter()
+        public void CloseAndReturnTextAfterCallDisposesWriter()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10014,13 +8618,8 @@ namespace Opc.Ua.UnitTests
             Assert.Throws<ObjectDisposedException>(() => encoder.WriteString("another", "value"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles complex JSON structures correctly.
-        /// Input: Encoder with nested structures, arrays, and multiple fields.
-        /// Expected: Returns valid JSON with all content properly formatted.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_ComplexJsonStructure_ReturnsValidJson()
+        public void CloseAndReturnTextComplexJsonStructureReturnsValidJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10042,13 +8641,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("true"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns UTF-8 encoded text correctly.
-        /// Input: Encoder with Unicode characters.
-        /// Expected: Returns properly UTF-8 encoded JSON text with Unicode characters intact.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_UnicodeCharacters_ReturnsUtf8EncodedText()
+        public void CloseAndReturnTextUnicodeCharactersReturnsUtf8EncodedText()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10063,13 +8657,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("Hello 世界 🌍"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles verbose encoding correctly.
-        /// Input: Encoder with verbose encoding type.
-        /// Expected: Returns JSON with default values included.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_VerboseEncoding_ReturnsJsonWithDefaults()
+        public void CloseAndReturnTextVerboseEncodingReturnsJsonWithDefaults()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10087,13 +8676,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("number"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles empty string values correctly.
-        /// Input: Encoder with empty string field value.
-        /// Expected: Returns JSON with empty string properly represented.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_EmptyStringValue_ReturnsValidJson()
+        public void CloseAndReturnTextEmptyStringValueReturnsValidJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10111,13 +8695,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles special characters correctly.
-        /// Input: Encoder with special characters that need escaping.
-        /// Expected: Returns JSON with properly escaped special characters.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_SpecialCharacters_ReturnsEscapedJson()
+        public void CloseAndReturnTextSpecialCharactersReturnsEscapedJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10133,13 +8712,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""\n""").Or.Contains("""\t"""));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles large JSON content.
-        /// Input: Encoder with many fields to create large JSON output.
-        /// Expected: Returns complete JSON text without truncation.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_LargeContent_ReturnsCompleteJson()
+        public void CloseAndReturnTextLargeContentReturnsCompleteJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10161,13 +8735,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value999"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText handles custom stream size parameter.
-        /// Input: Encoder created with custom streamSize parameter.
-        /// Expected: Returns valid JSON text regardless of buffer size.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_CustomStreamSize_ReturnsValidJson()
+        public void CloseAndReturnTextCustomStreamSizeReturnsValidJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10183,13 +8752,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value"));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText works with StreamWriter constructor.
-        /// Input: Encoder created with StreamWriter wrapping MemoryStream.
-        /// Expected: Returns valid JSON text from the writer's stream.
-        /// </summary>
         [Test]
-        public void CloseAndReturnText_StreamWriterConstructor_ReturnsValidJson()
+        public void CloseAndReturnTextStreamWriterConstructorReturnsValidJson()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -10207,11 +8771,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("value"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a field when fieldName is not null, value is non-zero, and defaults are not included.
-        /// </summary>
         [Test]
-        public void WriteInt64_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteInt64NonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10230,11 +8791,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 does not write a field when fieldName is not null, value is zero, and defaults are not included.
-        /// </summary>
         [Test]
-        public void WriteInt64_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteInt64NonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10248,11 +8806,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a field when fieldName is not null, value is zero, and defaults are included.
-        /// </summary>
         [Test]
-        public void WriteInt64_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteInt64NonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10271,11 +8826,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes the minimum long value correctly.
-        /// </summary>
         [Test]
-        public void WriteInt64_MinValue_WritesCorrectValue()
+        public void WriteInt64MinValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10294,11 +8846,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes the maximum long value correctly.
-        /// </summary>
         [Test]
-        public void WriteInt64_MaxValue_WritesCorrectValue()
+        public void WriteInt64MaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10317,11 +8866,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes negative values correctly.
-        /// </summary>
         [Test]
-        public void WriteInt64_NegativeValue_WritesCorrectValue()
+        public void WriteInt64NegativeValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10340,11 +8886,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 uses InvariantCulture for formatting.
-        /// </summary>
         [Test]
-        public void WriteInt64_AnyValue_UsesInvariantCulture()
+        public void WriteInt64AnyValueUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -10371,11 +8914,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a value when fieldName is an empty string.
-        /// </summary>
         [Test]
-        public void WriteInt64_EmptyStringFieldName_WritesValue()
+        public void WriteInt64EmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10391,11 +8931,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a field when fieldName contains whitespace.
-        /// </summary>
         [Test]
-        public void WriteInt64_WhitespaceFieldName_WritesField()
+        public void WriteInt64WhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10414,11 +8951,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 escapes fieldName with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteInt64_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteInt64FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10437,11 +8971,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes value of -1 correctly.
-        /// </summary>
         [Test]
-        public void WriteInt64_ValueNegativeOne_WritesCorrectValue()
+        public void WriteInt64ValueNegativeOneWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10460,11 +8991,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a value when fieldName is null and value is zero.
-        /// </summary>
         [Test]
-        public void WriteInt64_NullFieldNameZeroValue_WritesValue()
+        public void WriteInt64NullFieldNameZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10480,11 +9008,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64 writes a value when fieldName is null and value is non-zero.
-        /// </summary>
         [Test]
-        public void WriteInt64_NullFieldNameNonZeroValue_WritesValue()
+        public void WriteInt64NullFieldNameNonZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -10500,15 +9025,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName does not write anything when fieldName is not null,
-        /// value is null, and IncludeDefaultValues is false (early return case).
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameNotNullValueNullCompactEncoding_DoesNotWriteField()
+        public void WriteQualifiedNameFieldNameNotNullValueNullCompactEncodingDoesNotWriteField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var nullValue = new QualifiedName(null, 0);
             // Act
@@ -10521,15 +9042,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes an empty string when fieldName is not null,
-        /// value is null, and IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameNotNullValueNullVerboseEncoding_WritesEmptyString()
+        public void WriteQualifiedNameFieldNameNotNullValueNullVerboseEncodingWritesEmptyString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var nullValue = new QualifiedName(null, 0);
             // Act
@@ -10543,15 +9060,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes an empty string when fieldName is null
-        /// and value is null (array element context).
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameNullValueNull_WritesEmptyString()
+        public void WriteQualifiedNameFieldNameNullValueNullWritesEmptyString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var nullValue = new QualifiedName(null, 0);
             // Act
@@ -10565,15 +9078,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes a formatted QualifiedName when value is valid
-        /// with namespace index 0 (default namespace).
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValidValueNamespaceZero_WritesFormattedName()
+        public void WriteQualifiedNameValidValueNamespaceZeroWritesFormattedName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("TestName", 0);
             // Act
@@ -10587,15 +9096,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes a formatted QualifiedName with namespace index
-        /// when value has non-zero namespace and ForceNamespaceUri is false.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValidValueWithNamespaceIndexForceNamespaceUriFalse_WritesIndexedFormat()
+        public void WriteQualifiedNameValidValueWithNamespaceIndexForceNamespaceUriFalseWritesIndexedFormat()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.ForceNamespaceUri = false;
             var value = new QualifiedName("TestName", 2);
@@ -10610,15 +9115,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes a formatted QualifiedName with namespace URI
-        /// when value has non-zero namespace and ForceNamespaceUri is true.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValidValueWithNamespaceIndexForceNamespaceUriTrue_WritesUriFormat()
+        public void WriteQualifiedNameValidValueWithNamespaceIndexForceNamespaceUriTrueWritesUriFormat()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             context.NamespaceUris.Append("http://test.namespace");
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.ForceNamespaceUri = true;
@@ -10632,15 +9133,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("nsu=http://test.namespace;TestName"));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName writes formatted value without field name
-        /// when fieldName is null (array element context).
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameNullValidValue_WritesValueWithoutFieldName()
+        public void WriteQualifiedNameFieldNameNullValidValueWritesValueWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("TestName", 0);
             // Act
@@ -10655,14 +9152,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles empty string fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_EmptyStringFieldName_WritesValue()
+        public void WriteQualifiedNameEmptyStringFieldNameWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("TestName", 0);
             // Act
@@ -10676,14 +9170,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles whitespace fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_WhitespaceFieldName_WritesFieldWithWhitespace()
+        public void WriteQualifiedNameWhitespaceFieldNameWritesFieldWithWhitespace()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("TestName", 0);
             // Act
@@ -10697,14 +9188,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName escapes special characters in fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteQualifiedNameFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("TestName", 0);
             // Act
@@ -10718,14 +9206,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles QualifiedName with special characters in name.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValueWithSpecialCharacters_EscapesCorrectly()
+        public void WriteQualifiedNameValueWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName("""Test"Name\Value""", 0);
             // Act
@@ -10741,14 +9226,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""\\"""));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles multiple calls correctly with proper comma separation.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_MultipleCalls_WritesMultipleFieldsWithCommas()
+        public void WriteQualifiedNameMultipleCallsWritesMultipleFieldsWithCommas()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value1 = new QualifiedName("Name1", 0);
             var value2 = new QualifiedName("Name2", 1);
@@ -10767,14 +9249,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles QualifiedName with empty name correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValueWithEmptyName_WritesEmptyString()
+        public void WriteQualifiedNameValueWithEmptyNameWritesEmptyString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new QualifiedName(string.Empty, 2);
             // Act
@@ -10788,14 +9267,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles QualifiedName with very long name correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValueWithVeryLongName_WritesCompleteValue()
+        public void WriteQualifiedNameValueWithVeryLongNameWritesCompleteValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             string longName = new('A', 10000);
             var value = new QualifiedName(longName, 0);
@@ -10809,14 +9285,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result.Length, Is.GreaterThan(10000));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName handles maximum namespace index correctly.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_ValueWithMaxNamespaceIndex_WritesCorrectly()
+        public void WriteQualifiedNameValueWithMaxNamespaceIndexWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.ForceNamespaceUri = false;
             var value = new QualifiedName("TestName", ushort.MaxValue);
@@ -10831,15 +9304,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedName with null value in array context in verbose mode
-        /// writes empty string.
-        /// </summary>
         [Test]
-        public void WriteQualifiedName_FieldNameNullValueNullVerboseEncoding_WritesEmptyString()
+        public void WriteQualifiedNameFieldNameNullValueNullVerboseEncodingWritesEmptyString()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var nullValue = new QualifiedName(null, 0);
             // Act
@@ -10853,14 +9322,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes a null value when the array is null and field name is not null with default values not included.
-        /// </summary>
         [Test]
-        public void WriteByteArray_NullValuesNonNullFieldNameNoDefaults_WritesNull()
+        public void WriteByteArrayNullValuesNonNullFieldNameNoDefaultsWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             ArrayOf<byte> values = default;
@@ -10872,14 +9338,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":null}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes a null value when the array is null and field name is not null with default values included.
-        /// </summary>
         [Test]
-        public void WriteByteArray_NullValuesNonNullFieldNameWithDefaults_WritesNull()
+        public void WriteByteArrayNullValuesNonNullFieldNameWithDefaultsWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             ArrayOf<byte> values = default;
@@ -10891,14 +9354,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":null}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes null when array is null and field name is null.
-        /// </summary>
         [Test]
-        public void WriteByteArray_NullValuesNullFieldName_WritesNull()
+        public void WriteByteArrayNullValuesNullFieldNameWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             ArrayOf<byte> values = default;
             // Act
@@ -10908,14 +9368,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[null]"));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes an empty array when provided with an empty ArrayOf byte collection.
-        /// </summary>
         [Test]
-        public void WriteByteArray_EmptyArray_WritesEmptyArray()
+        public void WriteByteArrayEmptyArrayWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([]);
@@ -10927,14 +9384,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[]}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes a single byte value correctly.
-        /// </summary>
         [Test]
-        public void WriteByteArray_SingleElement_WritesCorrectly()
+        public void WriteByteArraySingleElementWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([42]);
@@ -10946,14 +9400,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[42]}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray writes multiple byte values correctly including boundary values.
-        /// </summary>
         [Test]
-        public void WriteByteArray_MultipleElementsWithBoundaries_WritesCorrectly()
+        public void WriteByteArrayMultipleElementsWithBoundariesWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([byte.MinValue, 1, 127, 128, 254, byte.MaxValue]);
@@ -10965,14 +9416,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[0,1,127,128,254,255]}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray works with empty field name.
-        /// </summary>
         [Test]
-        public void WriteByteArray_EmptyFieldName_WritesValue()
+        public void WriteByteArrayEmptyFieldNameWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var values = new ArrayOf<byte>([100]);
             // Act
@@ -10982,14 +9430,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[100]"));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray works with null field name in array context.
-        /// </summary>
         [Test]
-        public void WriteByteArray_NullFieldNameWithValues_WritesArrayElement()
+        public void WriteByteArrayNullFieldNameWithValuesWritesArrayElement()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var values = new ArrayOf<byte>([50, 150, 200]);
             // Act
@@ -10999,14 +9444,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[[50,150,200]]"));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray works in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteByteArray_VerboseMode_WritesCorrectly()
+        public void WriteByteArrayVerboseModeWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([11, 22, 33]);
@@ -11018,14 +9460,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"bytes":[11,22,33]}"""));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray correctly handles field names with special characters.
-        /// </summary>
         [Test]
-        public void WriteByteArray_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteByteArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([99]);
@@ -11040,14 +9479,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[99]"));
         }
 
-        /// <summary>
-        /// Verifies that WriteByteArray correctly handles large arrays within the limit.
-        /// </summary>
         [Test]
-        public void WriteByteArray_LargeArrayWithinLimit_WritesCorrectly()
+        public void WriteByteArrayLargeArrayWithinLimitWritesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var largeArray = new byte[100];
@@ -11067,16 +9503,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0,1,2,3,4,5,6,7,8,9"));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray writes an empty array when values is an empty collection with IncludeDefaultValues enabled.
-        /// Input: Empty ArrayOf ByteString with Verbose encoding.
-        /// Expected: JSON array with no elements is written.
-        /// </summary>
         [Test]
-        public void WriteByteStringArray_EmptyArrayVerboseEncoding_WritesEmptyArray()
+        public void WriteByteStringArrayEmptyArrayVerboseEncodingWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var values = new ArrayOf<ByteString>();
             // Act
@@ -11090,16 +9521,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray skips writing when values is empty and IncludeDefaultValues is false.
-        /// Input: Empty ArrayOf ByteString with Compact encoding.
-        /// Expected: Field is not written to JSON.
-        /// </summary>
         [Test]
-        public void WriteByteStringArray_EmptyArrayCompactEncoding_SkipsField()
+        public void WriteByteStringArrayEmptyArrayCompactEncodingSkipsField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ByteString>();
             // Act
@@ -11111,14 +9537,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("data"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeableArray returns early when values is null.
-        /// </summary>
         [Test]
-        public void WriteEncodeableArray_NullValues_WritesNullField()
+        public void WriteEncodeableArrayNullValuesWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             ArrayOf<IEncodeable> values = default;
             // Act
@@ -11130,14 +9553,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeableArray writes an empty array correctly when IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteEncodeableArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteEncodeableArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var values = new ArrayOf<IEncodeable>([]);
             // Act
@@ -11149,14 +9569,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeableArray returns early when array is empty and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteEncodeableArray_EmptyArrayCompactMode_WritesNullField()
+        public void WriteEncodeableArrayEmptyArrayCompactModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<IEncodeable>([]);
             // Act
@@ -11168,28 +9585,20 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage throws ArgumentNullException when a null reference message is provided.
-        /// Input: null message (cast to IEncodeable).
-        /// Expected: ArgumentNullException with parameter name "message".
-        /// </summary>
         [Test]
-        public void EncodeMessage_NullReferenceMessage_ThrowsArgumentNullException()
+        public void EncodeMessageNullReferenceMessageThrowsArgumentNullException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             IEncodeable nullMessage = null;
             // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() => encoder.EncodeMessage(nullMessage));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => encoder.EncodeMessage(nullMessage));
             Assert.That(ex.ParamName, Is.EqualTo("message"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 does not write field when fieldName is not null, encoding is Compact, and value is 0.
-        /// </summary>
         [Test]
-        public void WriteUInt64_CompactEncodingNonNullFieldNameZeroValue_DoesNotWriteField()
+        public void WriteUInt64CompactEncodingNonNullFieldNameZeroValueDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11203,11 +9612,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 writes field when fieldName is not null, encoding is Verbose, and value is 0.
-        /// </summary>
         [Test]
-        public void WriteUInt64_VerboseEncodingNonNullFieldNameZeroValue_WritesField()
+        public void WriteUInt64VerboseEncodingNonNullFieldNameZeroValueWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11226,11 +9632,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 writes field when fieldName is not null, encoding is Compact, and value is non-zero.
-        /// </summary>
         [Test]
-        public void WriteUInt64_CompactEncodingNonNullFieldNameNonZeroValue_WritesField()
+        public void WriteUInt64CompactEncodingNonNullFieldNameNonZeroValueWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11249,12 +9652,9 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 writes value when fieldName is null and value is 0, regardless of encoding type.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void WriteUInt64_NullFieldNameZeroValue_WritesValue(JsonEncodingType encoding)
+        public void WriteUInt64NullFieldNameZeroValueWritesValue(JsonEncodingType encoding)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11270,11 +9670,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly formats ulong.MaxValue using InvariantCulture.
-        /// </summary>
         [Test]
-        public void WriteUInt64_MaxValue_WritesCorrectValue()
+        public void WriteUInt64MaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11294,11 +9691,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly formats ulong.MinValue (which is 0).
-        /// </summary>
         [Test]
-        public void WriteUInt64_MinValue_WritesCorrectValue()
+        public void WriteUInt64MinValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11317,14 +9711,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly formats large ulong values using InvariantCulture.
-        /// </summary>
         [TestCase(1UL, "1")]
         [TestCase(1000UL, "1000")]
         [TestCase(999999999999UL, "999999999999")]
         [TestCase(18446744073709551614UL, "18446744073709551614")]
-        public void WriteUInt64_VariousValues_FormatsWithInvariantCulture(ulong value, string expectedString)
+        public void WriteUInt64VariousValuesFormatsWithInvariantCulture(ulong value, string expectedString)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11343,11 +9734,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 writes value without field name when fieldName is empty string.
-        /// </summary>
         [Test]
-        public void WriteUInt64_EmptyStringFieldName_WritesValue()
+        public void WriteUInt64EmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11363,11 +9751,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 escapes special characters in field name.
-        /// </summary>
         [Test]
-        public void WriteUInt64_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteUInt64FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11384,11 +9769,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly handles multiple consecutive calls with comma separation.
-        /// </summary>
         [Test]
-        public void WriteUInt64_MultipleCalls_WritesMultipleFieldsWithCommas()
+        public void WriteUInt64MultipleCallsWritesMultipleFieldsWithCommas()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11412,11 +9794,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 wraps the value in quotes as per EscapeOptions.Quotes.
-        /// </summary>
         [Test]
-        public void WriteUInt64_AnyValue_WrapsInQuotes()
+        public void WriteUInt64AnyValueWrapsInQuotes()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11432,11 +9811,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 in array mode writes values sequentially without field names.
-        /// </summary>
         [Test]
-        public void WriteUInt64_ArrayMode_WritesValuesWithoutFieldNames()
+        public void WriteUInt64ArrayModeWritesValuesWithoutFieldNames()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11463,11 +9839,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 with whitespace-only fieldName writes the field.
-        /// </summary>
         [Test]
-        public void WriteUInt64_WhitespaceFieldName_WritesField()
+        public void WriteUInt64WhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11486,11 +9859,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 uses InvariantCulture regardless of current thread culture.
-        /// </summary>
         [Test]
-        public void WriteUInt64_DifferentCulture_UsesInvariantCulture()
+        public void WriteUInt64DifferentCultureUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -11517,11 +9887,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 with CompactEncoding and null fieldName with zero value writes the value.
-        /// </summary>
         [Test]
-        public void WriteUInt64_CompactEncodingNullFieldNameZeroValue_WritesValue()
+        public void WriteUInt64CompactEncodingNullFieldNameZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -11537,15 +9904,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText returns early when fieldName is not null,
-        /// value is null or empty, and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_NonNullFieldNameNullValueDefaultsNotIncluded_ReturnsEarly()
+        public void WriteLocalizedTextNonNullFieldNameNullValueDefaultsNotIncludedReturnsEarly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var emptyValue = new LocalizedText();
             // Act
@@ -11557,15 +9920,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"root":{}}"""));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes an empty structure when fieldName is not null,
-        /// value is null or empty, and IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_NonNullFieldNameNullValueDefaultsIncluded_WritesEmptyStructure()
+        public void WriteLocalizedTextNonNullFieldNameNullValueDefaultsIncludedWritesEmptyStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var emptyValue = new LocalizedText();
             // Act
@@ -11579,15 +9938,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes an empty structure when fieldName is null
-        /// and value is null or empty.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_NullFieldNameNullValue_WritesEmptyStructure()
+        public void WriteLocalizedTextNullFieldNameNullValueWritesEmptyStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var emptyValue = new LocalizedText();
             // Act
@@ -11599,14 +9954,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes only the Text field when value has text but no locale.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_ValueWithTextOnly_WritesTextFieldOnly()
+        public void WriteLocalizedTextValueWithTextOnlyWritesTextFieldOnly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("Hello World");
             // Act
@@ -11626,14 +9978,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes both Text and Locale fields when value has both.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_ValueWithTextAndLocale_WritesBothFields()
+        public void WriteLocalizedTextValueWithTextAndLocaleWritesBothFields()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("en-US", "Hello World");
             // Act
@@ -11653,14 +10002,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText properly escapes special characters in Text field.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_TextWithSpecialCharacters_EscapesCorrectly()
+        public void WriteLocalizedTextTextWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("Text with \"quotes\" and \n newlines");
             // Act
@@ -11675,14 +10021,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""\n"""));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText properly escapes special characters in Locale field.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_LocaleWithSpecialCharacters_EscapesCorrectly()
+        public void WriteLocalizedTextLocaleWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("""en"US""", "Test");
             // Act
@@ -11696,14 +10039,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText does not write Locale field when locale is null.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_LocaleIsNull_DoesNotWriteLocaleField()
+        public void WriteLocalizedTextLocaleIsNullDoesNotWriteLocaleField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText(null, "Test Text");
             // Act
@@ -11720,14 +10060,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText does not write Locale field when locale is empty string.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_LocaleIsEmpty_DoesNotWriteLocaleField()
+        public void WriteLocalizedTextLocaleIsEmptyDoesNotWriteLocaleField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText(string.Empty, "Test Text");
             // Act
@@ -11744,15 +10081,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes empty structure when fieldName is empty string
-        /// and value is null or empty, with defaults not included.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_EmptyFieldNameNullValueDefaultsNotIncluded_WritesValue()
+        public void WriteLocalizedTextEmptyFieldNameNullValueDefaultsNotIncludedWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var emptyValue = new LocalizedText();
             // Act
@@ -11764,14 +10097,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes structure when fieldName has whitespace.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_WhitespaceFieldName_WritesField()
+        public void WriteLocalizedTextWhitespaceFieldNameWritesField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("Test");
             // Act
@@ -11788,14 +10118,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText handles very long text values.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_VeryLongText_WritesCompleteText()
+        public void WriteLocalizedTextVeryLongTextWritesCompleteText()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             string longText = new('A', 10000);
             var value = new LocalizedText(longText);
@@ -11808,14 +10135,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(longText));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText handles multiple consecutive calls correctly.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_MultipleCalls_WritesAllFields()
+        public void WriteLocalizedTextMultipleCallsWritesAllFields()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value1 = new LocalizedText("en-US", "First");
             var value2 = new LocalizedText("fr-FR", "Second");
@@ -11846,14 +10170,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText works correctly in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_VerboseMode_IncludesAllFields()
+        public void WriteLocalizedTextVerboseModeIncludesAllFields()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             var value = new LocalizedText("en-US", "Test");
             // Act
@@ -11873,14 +10194,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText handles whitespace-only text correctly.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_WhitespaceOnlyText_WritesWhitespace()
+        public void WriteLocalizedTextWhitespaceOnlyTextWritesWhitespace()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("   ");
             // Act
@@ -11894,17 +10212,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText handles control characters in text.
-        /// </summary>
         [TestCase("\t", """\t""")]
         [TestCase("\r", """\r""")]
         [TestCase("\b", """\b""")]
         [TestCase("\f", """\f""")]
-        public void WriteLocalizedText_TextWithControlCharacters_EscapesCorrectly(string input, string expected)
+        public void WriteLocalizedTextTextWithControlCharactersEscapesCorrectly(string input, string expected)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText(input);
             // Act
@@ -11916,14 +10231,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expected));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText handles empty text with locale correctly.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_EmptyTextWithLocale_WritesEmptyTextAndLocale()
+        public void WriteLocalizedTextEmptyTextWithLocaleWritesEmptyTextAndLocale()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var value = new LocalizedText("en-US", string.Empty);
             // Act
@@ -11940,14 +10252,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedText writes structure in array context.
-        /// </summary>
         [Test]
-        public void WriteLocalizedText_ArrayContext_WritesStructure()
+        public void WriteLocalizedTextArrayContextWritesStructure()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, topLevelIsArray: true);
             var value = new LocalizedText("en-US", "Test");
             // Act
@@ -11966,16 +10275,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("}"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with a null array in compact mode returns early and writes null.
-        /// Input: fieldName = "TestField", null array (IsNull = true), compact encoding
-        /// Expected: Field written as null, no exception thrown
-        /// </summary>
         [Test]
-        public void WriteInt16Array_NullArrayCompactMode_WritesNullField()
+        public void WriteInt16ArrayNullArrayCompactModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure("root");
@@ -11990,16 +10294,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with a null array in verbose mode writes null.
-        /// Input: fieldName = "TestField", null array (IsNull = true), verbose encoding
-        /// Expected: Field written as null
-        /// </summary>
         [Test]
-        public void WriteInt16Array_NullArrayVerboseMode_WritesNullField()
+        public void WriteInt16ArrayNullArrayVerboseModeWritesNullField()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
@@ -12014,16 +10313,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with an empty array in compact mode returns early without writing.
-        /// Input: fieldName = "TestField", empty array, compact encoding
-        /// Expected: Field not written (returns early)
-        /// </summary>
         [Test]
-        public void WriteInt16Array_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteInt16ArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12038,16 +10332,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with an empty array in verbose mode writes an empty JSON array.
-        /// Input: fieldName = "TestField", empty array, verbose encoding
-        /// Expected: Field written as empty array []
-        /// </summary>
         [Test]
-        public void WriteInt16Array_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteInt16ArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
@@ -12062,16 +10351,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with a single-element array writes the array correctly.
-        /// Input: fieldName = "TestField", array with single value 42
-        /// Expected: JSON array with single value [42]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_SingleElement_WritesArrayWithOneValue()
+        public void WriteInt16ArraySingleElementWritesArrayWithOneValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12086,16 +10370,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with multiple elements writes all values correctly.
-        /// Input: fieldName = "TestField", array with values [1, 2, 3, 4, 5]
-        /// Expected: JSON array with all values [1,2,3,4,5]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_MultipleElements_WritesAllValues()
+        public void WriteInt16ArrayMultipleElementsWritesAllValues()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12110,16 +10389,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with short.MinValue writes the correct minimum value.
-        /// Input: array containing short.MinValue (-32768)
-        /// Expected: JSON array with minimum value [-32768]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_MinValue_WritesCorrectValue()
+        public void WriteInt16ArrayMinValueWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12134,16 +10408,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with short.MaxValue writes the correct maximum value.
-        /// Input: array containing short.MaxValue (32767)
-        /// Expected: JSON array with maximum value [32767]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_MaxValue_WritesCorrectValue()
+        public void WriteInt16ArrayMaxValueWritesCorrectValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12158,16 +10427,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with mixed positive and negative values writes correctly.
-        /// Input: array with mixed values [-100, 0, 100]
-        /// Expected: JSON array with all values [-100,0,100]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_MixedValues_WritesAllValuesCorrectly()
+        public void WriteInt16ArrayMixedValuesWritesAllValuesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12182,16 +10446,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with MaxArrayLength = 0 writes array without length check.
-        /// Input: large array, MaxArrayLength = 0 (no limit)
-        /// Expected: Array written successfully regardless of size
-        /// </summary>
         [Test]
-        public void WriteInt16Array_MaxArrayLengthZero_WritesWithoutLengthCheck()
+        public void WriteInt16ArrayMaxArrayLengthZeroWritesWithoutLengthCheck()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12206,16 +10465,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with null fieldName writes array without field name.
-        /// Input: fieldName = null, array with values
-        /// Expected: Array values written without field name
-        /// </summary>
         [Test]
-        public void WriteInt16Array_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteInt16ArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, true, stream, false);
             var values = new ArrayOf<short>([1, 2, 3]);
@@ -12226,16 +10480,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1,2,3]"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with empty fieldName writes array with empty field name.
-        /// Input: fieldName = "", array with values
-        /// Expected: Array written without field name prefix
-        /// </summary>
         [Test]
-        public void WriteInt16Array_EmptyFieldName_WritesArrayValue()
+        public void WriteInt16ArrayEmptyFieldNameWritesArrayValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12248,16 +10497,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[1,2]"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with fieldName containing special characters escapes correctly.
-        /// Input: fieldName with special characters, array with values
-        /// Expected: Field name properly escaped in JSON
-        /// </summary>
         [Test]
-        public void WriteInt16Array_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteInt16ArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12272,16 +10516,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with array containing only zero values writes correctly.
-        /// Input: array with all zero values [0, 0, 0]
-        /// Expected: JSON array with all zeros [0,0,0]
-        /// </summary>
         [Test]
-        public void WriteInt16Array_AllZeroValues_WritesAllZeros()
+        public void WriteInt16ArrayAllZeroValuesWritesAllZeros()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12296,16 +10535,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with array containing boundary values writes correctly.
-        /// Input: array with [short.MinValue, -1, 0, 1, short.MaxValue]
-        /// Expected: All boundary values written correctly
-        /// </summary>
         [Test]
-        public void WriteInt16Array_BoundaryValues_WritesAllValuesCorrectly()
+        public void WriteInt16ArrayBoundaryValuesWritesAllValuesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
@@ -12320,11 +10554,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray returns early when values is null and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_NullArrayCompactMode_ReturnsEarly()
+        public void WriteNodeIdArrayNullArrayCompactModeReturnsEarly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12338,11 +10569,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Null);
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray writes null field when array is null in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_NullArrayVerboseMode_WritesNullField()
+        public void WriteNodeIdArrayNullArrayVerboseModeWritesNullField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12358,11 +10586,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray writes an empty array when values.Count is 0.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_EmptyArray_WritesEmptyJsonArray()
+        public void WriteNodeIdArrayEmptyArrayWritesEmptyJsonArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12379,11 +10604,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly writes a single NodeId element.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_SingleElement_WritesSingleNodeId()
+        public void WriteNodeIdArraySingleElementWritesSingleNodeId()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12402,11 +10624,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly writes multiple NodeId elements.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_MultipleElements_WritesAllNodeIds()
+        public void WriteNodeIdArrayMultipleElementsWritesAllNodeIds()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12426,11 +10645,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("300"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_ArrayLengthExceedsMax_ThrowsServiceResultException()
+        public void WriteNodeIdArrayArrayLengthExceedsMaxThrowsServiceResultException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12442,15 +10658,12 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var array = new ArrayOf<NodeId>([new NodeId(1), new NodeId(2), new NodeId(3)]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteNodeIdArray("nodeIds", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteNodeIdArray("nodeIds", array));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray succeeds when array length equals MaxArrayLength boundary.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_ArrayLengthEqualsMax_Succeeds()
+        public void WriteNodeIdArrayArrayLengthEqualsMaxSucceeds()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12472,11 +10685,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray succeeds with any array size when MaxArrayLength is 0 (disabled).
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_MaxArrayLengthZero_SucceedsWithAnySize()
+        public void WriteNodeIdArrayMaxArrayLengthZeroSucceedsWithAnySize()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12498,11 +10708,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray works correctly when fieldName is null (for nested arrays).
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteNodeIdArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12517,11 +10724,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray handles empty string fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_EmptyStringFieldName_WritesArrayWithEmptyFieldName()
+        public void WriteNodeIdArrayEmptyStringFieldNameWritesArrayWithEmptyFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12536,11 +10740,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes numeric NodeIds.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_NumericNodeIds_EncodesCorrectly()
+        public void WriteNodeIdArrayNumericNodeIdsEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12557,11 +10758,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes string NodeIds.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_StringNodeIds_EncodesCorrectly()
+        public void WriteNodeIdArrayStringNodeIdsEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12580,11 +10778,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("Node2"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes GUID NodeIds.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_GuidNodeIds_EncodesCorrectly()
+        public void WriteNodeIdArrayGuidNodeIdsEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12603,11 +10798,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes mixed types of NodeIds.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_MixedNodeIdTypes_EncodesAllCorrectly()
+        public void WriteNodeIdArrayMixedNodeIdTypesEncodesAllCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12626,11 +10818,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("StringNode"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes NodeIds with different namespace indices.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_DifferentNamespaceIndices_EncodesCorrectly()
+        public void WriteNodeIdArrayDifferentNamespaceIndicesEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12647,11 +10836,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray produces valid JSON structure.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_ValidInput_ProducesValidJsonStructure()
+        public void WriteNodeIdArrayValidInputProducesValidJsonStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12671,11 +10857,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray works in verbose encoding mode.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_VerboseMode_EncodesWithFullDetails()
+        public void WriteNodeIdArrayVerboseModeEncodesWithFullDetails()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12693,11 +10876,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Null);
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray handles fieldName with special characters.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteNodeIdArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12712,11 +10892,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("field"));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray handles very large arrays correctly when MaxArrayLength is 0.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_VeryLargeArray_EncodesSuccessfully()
+        public void WriteNodeIdArrayVeryLargeArrayEncodesSuccessfully()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12744,11 +10921,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles NodeId.Null in array.
-        /// </summary>
         [Test]
-        public void WriteNodeIdArray_ArrayContainsNodeIdNull_EncodesCorrectly()
+        public void WriteNodeIdArrayArrayContainsNodeIdNullEncodesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -12767,12 +10941,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("200"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue returns early when the variant is null.
-        /// The variant is null, so the method should return without writing anything.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_NullVariant_ReturnsEarlyWithoutWriting()
+        public void WriteVariantValueNullVariantReturnsEarlyWithoutWriting()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12788,12 +10958,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue writes variant content without field name when fieldName is null.
-        /// The fieldName is null, so only the variant value is written.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_NullFieldName_WritesValueWithoutFieldName()
+        public void WriteVariantValueNullFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12809,12 +10975,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[42]"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue writes variant content without field name when fieldName is empty.
-        /// The fieldName is empty, so only the variant value is written.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_EmptyFieldName_WritesValueWithoutFieldName()
+        public void WriteVariantValueEmptyFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12830,12 +10992,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[123]"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue writes field name and variant value when both are provided.
-        /// The fieldName is non-empty, so both field name and value are written.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_ValidFieldNameAndValue_WritesFieldAndValue()
+        public void WriteVariantValueValidFieldNameAndValueWritesFieldAndValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12854,12 +11012,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("99"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue correctly escapes field name with special characters.
-        /// The fieldName contains special JSON characters that require escaping.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteVariantValueFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12878,12 +11032,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""\\"""));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles boolean variant correctly.
-        /// The variant contains a boolean value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_BooleanVariant_WritesCorrectValue()
+        public void WriteVariantValueBooleanVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12901,12 +11051,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles string variant correctly.
-        /// The variant contains a string value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_StringVariant_WritesCorrectValue()
+        public void WriteVariantValueStringVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12924,12 +11070,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles double variant correctly.
-        /// The variant contains a double value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_DoubleVariant_WritesCorrectValue()
+        public void WriteVariantValueDoubleVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12948,12 +11090,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("3.14159"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles multiple consecutive calls correctly.
-        /// Multiple variants are written in sequence.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_MultipleCalls_WritesAllValues()
+        public void WriteVariantValueMultipleCallsWritesAllValues()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -12981,12 +11119,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles whitespace field name correctly.
-        /// The fieldName contains only whitespace.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_WhitespaceFieldName_WritesFieldAndValue()
+        public void WriteVariantValueWhitespaceFieldNameWritesFieldAndValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13005,12 +11139,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("555"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles long variant correctly.
-        /// The variant contains a long value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_LongVariant_WritesCorrectValue()
+        public void WriteVariantValueLongVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13031,12 +11161,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles byte variant correctly.
-        /// The variant contains a byte value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_ByteVariant_WritesCorrectValue()
+        public void WriteVariantValueByteVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13054,12 +11180,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles DateTime variant correctly.
-        /// The variant contains a DateTime value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_DateTimeVariant_WritesCorrectValue()
+        public void WriteVariantValueDateTimeVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13079,12 +11201,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles very long field name correctly.
-        /// The fieldName is very long.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_VeryLongFieldName_WritesCorrectly()
+        public void WriteVariantValueVeryLongFieldNameWritesCorrectly()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13102,14 +11220,10 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("777"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue with null variant in array context doesn't write anything.
-        /// The variant is null and no field name is provided.
-        /// </summary>
         [Test]
         [Category("ProductionBugSuspected")]
         [Ignore("ProductionBugSuspected")]
-        public void WriteVariantValue_NullVariantInArray_ReturnsEarlyWithoutWriting()
+        public void WriteVariantValueNullVariantInArrayReturnsEarlyWithoutWriting()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13126,14 +11240,10 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[42,42]"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles field name with control characters correctly.
-        /// The fieldName contains control characters that require escaping.
-        /// </summary>
         [TestCase("\t", """\t""")]
         [TestCase("\n", """\n""")]
         [TestCase("\r", """\r""")]
-        public void WriteVariantValue_FieldNameWithControlCharacters_EscapesCorrectly(string controlChar, string expected)
+        public void WriteVariantValueFieldNameWithControlCharactersEscapesCorrectly(string controlChar, string expected)
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13149,12 +11259,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expected));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles negative integer variant correctly.
-        /// The variant contains a negative integer value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_NegativeIntegerVariant_WritesCorrectValue()
+        public void WriteVariantValueNegativeIntegerVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13172,12 +11278,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles zero value variant correctly.
-        /// The variant contains zero value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_ZeroValueVariant_WritesCorrectValue()
+        public void WriteVariantValueZeroValueVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13195,12 +11297,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue handles float variant correctly.
-        /// The variant contains a float value.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_FloatVariant_WritesCorrectValue()
+        public void WriteVariantValueFloatVariantWritesCorrectValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13219,12 +11317,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2.5"));
         }
 
-        /// <summary>
-        /// Tests that WriteVariantValue in verbose mode includes all expected information.
-        /// The encoder is configured for verbose mode.
-        /// </summary>
         [Test]
-        public void WriteVariantValue_VerboseMode_WritesWithAllInformation()
+        public void WriteVariantValueVerboseModeWritesWithAllInformation()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -13243,12 +11337,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42"));
         }
 
-        /// <summary>
-        /// Tests that PushNamespace successfully pushes a valid namespace URI onto the stack.
-        /// Verifies by popping the value without exception.
-        /// </summary>
         [Test]
-        public void PushNamespace_ValidNamespaceUri_PushesSuccessfully()
+        public void PushNamespaceValidNamespaceUriPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13259,12 +11349,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace accepts and pushes a null value.
-        /// Verifies that Stack allows null values.
-        /// </summary>
         [Test]
-        public void PushNamespace_NullValue_PushesSuccessfully()
+        public void PushNamespaceNullValuePushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13275,12 +11361,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace accepts and pushes an empty string.
-        /// Verifies edge case of empty namespace URI.
-        /// </summary>
         [Test]
-        public void PushNamespace_EmptyString_PushesSuccessfully()
+        public void PushNamespaceEmptyStringPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13291,12 +11373,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace accepts and pushes a whitespace-only string.
-        /// Verifies edge case of whitespace namespace URI.
-        /// </summary>
         [Test]
-        public void PushNamespace_WhitespaceString_PushesSuccessfully()
+        public void PushNamespaceWhitespaceStringPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13307,12 +11385,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace can handle very long namespace URIs.
-        /// Verifies no length limitation on input string.
-        /// </summary>
         [Test]
-        public void PushNamespace_VeryLongString_PushesSuccessfully()
+        public void PushNamespaceVeryLongStringPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13324,12 +11398,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace accepts strings with special characters.
-        /// Verifies no character validation or encoding is performed.
-        /// </summary>
         [Test]
-        public void PushNamespace_StringWithSpecialCharacters_PushesSuccessfully()
+        public void PushNamespaceStringWithSpecialCharactersPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13340,12 +11410,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that multiple PushNamespace calls maintain LIFO (Last-In-First-Out) stack order.
-        /// Verifies stack semantics are preserved.
-        /// </summary>
         [Test]
-        public void PushNamespace_MultipleValues_MaintainsLifoOrder()
+        public void PushNamespaceMultipleValuesMaintainsLifoOrder()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13362,12 +11428,8 @@ namespace Opc.Ua.UnitTests
             Assert.Throws<InvalidOperationException>(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that after pushing and popping a value, the stack is empty.
-        /// Verifies proper push/pop pairing behavior.
-        /// </summary>
         [Test]
-        public void PushNamespace_PushAndPop_StackBecomesEmpty()
+        public void PushNamespacePushAndPopStackBecomesEmpty()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13379,13 +11441,9 @@ namespace Opc.Ua.UnitTests
             Assert.Throws<InvalidOperationException>(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace works correctly with different encoding types.
-        /// Verifies the method is independent of encoding type.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void PushNamespace_DifferentEncodingTypes_PushesSuccessfully(JsonEncodingType encodingType)
+        public void PushNamespaceDifferentEncodingTypesPushesSuccessfully(JsonEncodingType encodingType)
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13396,12 +11454,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace can handle Unicode characters in namespace URIs.
-        /// Verifies support for internationalized namespace identifiers.
-        /// </summary>
         [Test]
-        public void PushNamespace_UnicodeCharacters_PushesSuccessfully()
+        public void PushNamespaceUnicodeCharactersPushesSuccessfully()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13412,16 +11466,12 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PushNamespace handles control characters in the input string.
-        /// Verifies no sanitization is performed on input.
-        /// </summary>
         [TestCase("\t")]
         [TestCase("\r")]
         [TestCase("\n")]
         [TestCase("\b")]
         [TestCase("\f")]
-        public void PushNamespace_ControlCharacters_PushesSuccessfully(string controlChar)
+        public void PushNamespaceControlCharactersPushesSuccessfully(string controlChar)
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -13432,11 +11482,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a normal UTC date writes the correct JSON field.
-        /// </summary>
         [Test]
-        public void WriteDateTime_UtcDateNonNullFieldName_WritesFormattedDateField()
+        public void WriteDateTimeUtcDateNonNullFieldNameWritesFormattedDateField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13453,11 +11500,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTime.MinValue and IncludeDefaultValues false does not write the field.
-        /// </summary>
         [Test]
-        public void WriteDateTime_MinValueNonNullFieldNameDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteDateTimeMinValueNonNullFieldNameDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13470,11 +11514,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTime.MinValue and IncludeDefaultValues true writes the minimum date.
-        /// </summary>
         [Test]
-        public void WriteDateTime_MinValueNonNullFieldNameDefaultsIncluded_WritesMinDate()
+        public void WriteDateTimeMinValueNonNullFieldNameDefaultsIncludedWritesMinDate()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13490,11 +11531,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0001-01-01T00:00:00Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTime.MaxValue writes the maximum date value.
-        /// </summary>
         [Test]
-        public void WriteDateTime_MaxValue_WritesMaxDate()
+        public void WriteDateTimeMaxValueWritesMaxDate()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13510,11 +11548,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("9999-12-31T23:59:59Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with null fieldName writes the date value without a field name.
-        /// </summary>
         [Test]
-        public void WriteDateTime_NullFieldName_WritesDateValueOnly()
+        public void WriteDateTimeNullFieldNameWritesDateValueOnly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13531,11 +11566,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with empty string fieldName writes the date value.
-        /// </summary>
         [Test]
-        public void WriteDateTime_EmptyStringFieldName_WritesDateValue()
+        public void WriteDateTimeEmptyStringFieldNameWritesDateValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13549,11 +11581,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a Local DateTime converts to UTC and writes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_LocalDateTime_ConvertsToUtc()
+        public void WriteDateTimeLocalDateTimeConvertsToUtc()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13570,11 +11599,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with Unspecified DateTimeKind is handled correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_UnspecifiedDateTimeKind_WritesDate()
+        public void WriteDateTimeUnspecifiedDateTimeKindWritesDate()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13591,15 +11617,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a date having fractional seconds writes all digits.
-        /// </summary>
         [Test]
-        public void WriteDateTime_DateWithFractionalSeconds_WritesAllDigits()
+        public void WriteDateTimeDateWithFractionalSecondsWritesAllDigits()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            var dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc).AddTicks(1234567);
+            DateTime dateTime = new DateTime(2023, 6, 15, 14, 30, 45, DateTimeKind.Utc).AddTicks(1234567);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -13612,11 +11635,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with fieldName containing special characters escapes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteDateTimeFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13631,11 +11651,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with whitespace-only fieldName writes the field.
-        /// </summary>
         [Test]
-        public void WriteDateTime_WhitespaceFieldName_WritesField()
+        public void WriteDateTimeWhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13652,11 +11669,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime at midnight writes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_DateAtMidnight_WritesCorrectly()
+        public void WriteDateTimeDateAtMidnightWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13673,11 +11687,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-15T00:00:00Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime on a leap year date writes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_LeapYearDate_WritesCorrectly()
+        public void WriteDateTimeLeapYearDateWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13694,11 +11705,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2024-02-29T12:00:00Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with multiple calls writes multiple fields.
-        /// </summary>
         [Test]
-        public void WriteDateTime_MultipleCalls_WritesMultipleFields()
+        public void WriteDateTimeMultipleCallsWritesMultipleFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13721,15 +11729,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-12-31T23:59:59"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with date just above MinValue writes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_DateJustAboveMinValue_WritesDate()
+        public void WriteDateTimeDateJustAboveMinValueWritesDate()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            var dateTime = DateTime.MinValue.AddTicks(1);
+            DateTime dateTime = DateTime.MinValue.AddTicks(1);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -13742,15 +11747,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0001-01-01"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with date just below MaxValue writes correctly.
-        /// </summary>
         [Test]
-        public void WriteDateTime_DateJustBelowMaxValue_WritesDate()
+        public void WriteDateTimeDateJustBelowMaxValueWritesDate()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            var dateTime = DateTime.MaxValue.AddTicks(-1);
+            DateTime dateTime = DateTime.MaxValue.AddTicks(-1);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -13763,11 +11765,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("9999-12-31T23:59:59"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime in Verbose mode includes the field even for MinValue.
-        /// </summary>
         [Test]
-        public void WriteDateTime_VerboseModeMinValue_WritesField()
+        public void WriteDateTimeVerboseModeMinValueWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13783,11 +11782,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0001-01-01T00:00:00Z"));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime in array mode with null fieldName writes array element.
-        /// </summary>
         [Test]
-        public void WriteDateTime_ArrayModeNullFieldName_WritesArrayElement()
+        public void WriteDateTimeArrayModeNullFieldNameWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13805,11 +11801,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2023-06-16T14:30:45"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue returns early when fieldName is not null, value is null, and IncludeDefaultValues is false.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NullValueNonNullFieldNameDefaultsNotIncluded_ReturnsEarlyWithoutWriting()
+        public void WriteDataValueNullValueNonNullFieldNameDefaultsNotIncludedReturnsEarlyWithoutWriting()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13821,11 +11814,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes a null structure when fieldName is not null, value is null, and IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NullValueNonNullFieldNameDefaultsIncluded_WritesNullStructure()
+        public void WriteDataValueNullValueNonNullFieldNameDefaultsIncludedWritesNullStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13840,11 +11830,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes a null structure when fieldName is null and value is null.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NullValueNullFieldName_WritesNullStructure()
+        public void WriteDataValueNullValueNullFieldNameWritesNullStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13858,11 +11845,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes only the value when WrappedValue is valid and all other properties are default.
-        /// </summary>
         [Test]
-        public void WriteDataValue_ValidValueWithDefaults_WritesValueOnly()
+        public void WriteDataValueValidValueWithDefaultsWritesValueOnly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13889,11 +11873,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write Value when WrappedValue TypeInfo is unknown.
-        /// </summary>
         [Test]
-        public void WriteDataValue_UnknownTypeInfo_DoesNotWriteValue()
+        public void WriteDataValueUnknownTypeInfoDoesNotWriteValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13911,11 +11892,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes StatusCode when it is not Good.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NonGoodStatusCode_WritesStatusCode()
+        public void WriteDataValueNonGoodStatusCodeWritesStatusCode()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13936,11 +11914,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write StatusCode when it is Good.
-        /// </summary>
         [Test]
-        public void WriteDataValue_GoodStatusCode_DoesNotWriteStatusCode()
+        public void WriteDataValueGoodStatusCodeDoesNotWriteStatusCode()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13961,11 +11936,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes SourceTimestamp when it is not MinValue.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NonMinValueSourceTimestamp_WritesSourceTimestamp()
+        public void WriteDataValueNonMinValueSourceTimestampWritesSourceTimestamp()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -13990,11 +11962,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write SourceTimestamp when it is MinValue.
-        /// </summary>
         [Test]
-        public void WriteDataValue_MinValueSourceTimestamp_DoesNotWriteSourceTimestamp()
+        public void WriteDataValueMinValueSourceTimestampDoesNotWriteSourceTimestamp()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14018,11 +11987,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes SourcePicoseconds when SourceTimestamp is not MinValue and SourcePicoseconds is not zero.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NonZeroSourcePicoseconds_WritesSourcePicoseconds()
+        public void WriteDataValueNonZeroSourcePicosecondsWritesSourcePicoseconds()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14048,11 +12014,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("500"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write SourcePicoseconds when it is zero.
-        /// </summary>
         [Test]
-        public void WriteDataValue_ZeroSourcePicoseconds_DoesNotWriteSourcePicoseconds()
+        public void WriteDataValueZeroSourcePicosecondsDoesNotWriteSourcePicoseconds()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14077,11 +12040,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes ServerTimestamp when it is not MinValue.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NonMinValueServerTimestamp_WritesServerTimestamp()
+        public void WriteDataValueNonMinValueServerTimestampWritesServerTimestamp()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14107,11 +12067,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write ServerTimestamp when it is MinValue.
-        /// </summary>
         [Test]
-        public void WriteDataValue_MinValueServerTimestamp_DoesNotWriteServerTimestamp()
+        public void WriteDataValueMinValueServerTimestampDoesNotWriteServerTimestamp()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14135,11 +12092,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes ServerPicoseconds when ServerTimestamp is not MinValue and ServerPicoseconds is not zero.
-        /// </summary>
         [Test]
-        public void WriteDataValue_NonZeroServerPicoseconds_WritesServerPicoseconds()
+        public void WriteDataValueNonZeroServerPicosecondsWritesServerPicoseconds()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14166,11 +12120,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("750"));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue does not write ServerPicoseconds when it is zero.
-        /// </summary>
         [Test]
-        public void WriteDataValue_ZeroServerPicoseconds_DoesNotWriteServerPicoseconds()
+        public void WriteDataValueZeroServerPicosecondsDoesNotWriteServerPicoseconds()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14196,11 +12147,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue writes all properties when all are present and valid.
-        /// </summary>
         [Test]
-        public void WriteDataValue_AllPropertiesSet_WritesAllProperties()
+        public void WriteDataValueAllPropertiesSetWritesAllProperties()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14239,11 +12187,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue works correctly with empty string as field name.
-        /// </summary>
         [Test]
-        public void WriteDataValue_EmptyFieldName_WritesValueWithoutFieldName()
+        public void WriteDataValueEmptyFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14260,11 +12205,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue correctly handles boundary value for SourcePicoseconds.
-        /// </summary>
         [Test]
-        public void WriteDataValue_MaxSourcePicoseconds_WritesCorrectly()
+        public void WriteDataValueMaxSourcePicosecondsWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14284,11 +12226,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(ushort.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue correctly handles boundary value for ServerPicoseconds.
-        /// </summary>
         [Test]
-        public void WriteDataValue_MaxServerPicoseconds_WritesCorrectly()
+        public void WriteDataValueMaxServerPicosecondsWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14309,11 +12248,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(ushort.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue works with Compact encoding mode.
-        /// </summary>
         [Test]
-        public void WriteDataValue_CompactEncoding_WritesCorrectly()
+        public void WriteDataValueCompactEncodingWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14329,11 +12265,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue handles field name with special characters.
-        /// </summary>
         [Test]
-        public void WriteDataValue_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteDataValueFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14346,11 +12279,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""test\"Field\\Name"""));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValue handles DateTime.MaxValue correctly.
-        /// </summary>
         [Test]
-        public void WriteDataValue_MaxDateTimeValues_WritesCorrectly()
+        public void WriteDataValueMaxDateTimeValuesWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -14368,14 +12298,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes null when array is null and defaults are included.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_NullArrayIncludeDefaults_WritesNull()
+        public void WriteInt32ArrayNullArrayIncludeDefaultsWritesNull()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
@@ -14389,14 +12316,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array skips field when array is null and defaults are not included.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_NullArrayExcludeDefaults_SkipsField()
+        public void WriteInt32ArrayNullArrayExcludeDefaultsSkipsField()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14416,14 +12340,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes empty array when array is empty.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_EmptyArray_WritesEmptyArray()
+        public void WriteInt32ArrayEmptyArrayWritesEmptyArray()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14438,14 +12359,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes single element correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_SingleElement_WritesCorrectly()
+        public void WriteInt32ArraySingleElementWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14460,14 +12378,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes multiple elements correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_MultipleElements_WritesCorrectly()
+        public void WriteInt32ArrayMultipleElementsWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14482,14 +12397,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array throws exception when array exceeds max length limit.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        public void WriteInt32ArrayExceedsMaxArrayLengthThrowsServiceResultException()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context)
             {
                 MaxArrayLength = 3
@@ -14498,18 +12410,15 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var array = new ArrayOf<int>([1, 2, 3, 4]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt32Array("testField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt32Array("testField", array));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array succeeds when array equals max length limit.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_EqualsMaxArrayLength_WritesCorrectly()
+        public void WriteInt32ArrayEqualsMaxArrayLengthWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context)
             {
                 MaxArrayLength = 3
@@ -14527,14 +12436,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array does not check length when MaxArrayLength is zero.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_MaxArrayLengthZero_DoesNotCheckLimit()
+        public void WriteInt32ArrayMaxArrayLengthZeroDoesNotCheckLimit()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context)
             {
                 MaxArrayLength = 0
@@ -14552,14 +12458,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes array with int.MinValue correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_ContainsIntMinValue_WritesCorrectly()
+        public void WriteInt32ArrayContainsIntMinValueWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14574,14 +12477,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes array with int.MaxValue correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_ContainsIntMaxValue_WritesCorrectly()
+        public void WriteInt32ArrayContainsIntMaxValueWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14596,14 +12496,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes array with zero values correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_ContainsZeroValues_WritesCorrectly()
+        public void WriteInt32ArrayContainsZeroValuesWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14618,14 +12515,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes array with negative values correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_ContainsNegativeValues_WritesCorrectly()
+        public void WriteInt32ArrayContainsNegativeValuesWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14640,14 +12534,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with null field name writes array without field name.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteInt32ArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, topLevelIsArray: true);
             encoder.PushArray(null);
@@ -14660,14 +12551,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[[1,2,3]]"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with empty field name writes array correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_EmptyFieldName_WritesArrayWithEmptyFieldName()
+        public void WriteInt32ArrayEmptyFieldNameWritesArrayWithEmptyFieldName()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14682,14 +12570,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with field name containing special characters escapes correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteInt32ArrayFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14704,14 +12589,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array writes large array correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_LargeArray_WritesCorrectly()
+        public void WriteInt32ArrayLargeArrayWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14733,14 +12615,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(",99]"));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with verbose encoding includes field correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_VerboseEncoding_WritesCorrectly()
+        public void WriteInt32ArrayVerboseEncodingWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
@@ -14755,14 +12634,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with multiple arrays writes all correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_MultipleArrays_WritesAllCorrectly()
+        public void WriteInt32ArrayMultipleArraysWritesAllCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14782,14 +12658,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array with mixed positive and negative values writes correctly.
-        /// </summary>
         [Test]
-        public void WriteInt32Array_MixedPositiveNegativeValues_WritesCorrectly()
+        public void WriteInt32ArrayMixedPositiveNegativeValuesWritesCorrectly()
         {
             // Arrange
-            var context = NUnitTelemetryContext.Create();
+            ITelemetryContext context = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
@@ -14804,19 +12677,14 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCodeArray with empty array writes empty array.
-        /// Input: fieldName = "StatusCodes", values = empty array
-        /// Expected: Empty array written.
-        /// </summary>
         [Test]
-        public void WriteStatusCodeArray_EmptyArray_WritesEmptyArray()
+        public void WriteStatusCodeArrayEmptyArrayWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            var emptyArray = ArrayOf<StatusCode>.Empty;
+            ArrayOf<StatusCode> emptyArray = ArrayOf<StatusCode>.Empty;
             // Act
             encoder.WriteStatusCodeArray("StatusCodes", emptyArray);
             encoder.PopStructure();
@@ -14827,13 +12695,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with a valid field name writes the field name with opening brace.
-        /// Input: Non-null, non-empty field name "testField".
-        /// Expected: Output contains "testField":{.
-        /// </summary>
         [Test]
-        public void PushStructure_ValidFieldName_WritesFieldNameWithOpeningBrace()
+        public void PushStructureValidFieldNameWritesFieldNameWithOpeningBrace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14848,13 +12711,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with null field name and topLevelIsArray=false skips level one.
-        /// Input: null field name, topLevelIsArray=false.
-        /// Expected: No opening brace written, content appears at top level.
-        /// </summary>
         [Test]
-        public void PushStructure_NullFieldNameTopLevelNotArray_SkipsLevelOne()
+        public void PushStructureNullFieldNameTopLevelNotArraySkipsLevelOne()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14871,13 +12729,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.StartWith("{"));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with empty field name and topLevelIsArray=false skips level one.
-        /// Input: empty string field name, topLevelIsArray=false.
-        /// Expected: No opening brace written, content appears at top level.
-        /// </summary>
         [Test]
-        public void PushStructure_EmptyFieldNameTopLevelNotArray_SkipsLevelOne()
+        public void PushStructureEmptyFieldNameTopLevelNotArraySkipsLevelOne()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14894,13 +12747,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.StartWith("{"));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with null field name and topLevelIsArray=true writes opening brace.
-        /// Input: null field name, topLevelIsArray=true.
-        /// Expected: Opening brace is written.
-        /// </summary>
         [Test]
-        public void PushStructure_NullFieldNameTopLevelIsArray_WritesOpeningBrace()
+        public void PushStructureNullFieldNameTopLevelIsArrayWritesOpeningBrace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14917,13 +12765,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with whitespace-only field name writes the whitespace field name.
-        /// Input: Field name with only whitespace "   ".
-        /// Expected: Output contains the whitespace field name with quotes and colon.
-        /// </summary>
         [Test]
-        public void PushStructure_WhitespaceFieldName_WritesWhitespaceFieldName()
+        public void PushStructureWhitespaceFieldNameWritesWhitespaceFieldName()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14938,13 +12781,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing quotes escapes them correctly.
-        /// Input: Field name with quotes: test"field.
-        /// Expected: Output contains escaped quotes: \"test\\\"field\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithQuotes_EscapesQuotes()
+        public void PushStructureFieldNameWithQuotesEscapesQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14959,13 +12797,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing backslashes escapes them correctly.
-        /// Input: Field name with backslash: test\field.
-        /// Expected: Output contains escaped backslash: \"test\\\\field\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithBackslash_EscapesBackslash()
+        public void PushStructureFieldNameWithBackslashEscapesBackslash()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -14980,13 +12813,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing newline escapes it correctly.
-        /// Input: Field name with newline: test\nfield.
-        /// Expected: Output contains escaped newline: \"test\\nfield\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithNewline_EscapesNewline()
+        public void PushStructureFieldNameWithNewlineEscapesNewline()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15001,13 +12829,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure called multiple times writes commas between structures.
-        /// Input: Two consecutive PushStructure calls with field names.
-        /// Expected: Output contains comma between the two structures.
-        /// </summary>
         [Test]
-        public void PushStructure_MultipleCalls_WritesCommasBetweenStructures()
+        public void PushStructureMultipleCallsWritesCommasBetweenStructures()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15030,13 +12853,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match(".*field1.*,.*field2.*"));
         }
 
-        /// <summary>
-        /// Tests that PushStructure handles nested structures correctly.
-        /// Input: Nested PushStructure calls (outer and inner).
-        /// Expected: Output contains properly nested JSON objects.
-        /// </summary>
         [Test]
-        public void PushStructure_NestedStructures_WritesProperlyNestedJson()
+        public void PushStructureNestedStructuresWritesProperlyNestedJson()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15060,13 +12878,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with empty field name after a field writes opening brace without field name.
-        /// Input: Write a field, then PushStructure with empty field name.
-        /// Expected: Comma is written before the opening brace.
-        /// </summary>
         [Test]
-        public void PushStructure_EmptyFieldNameAfterField_WritesCommaAndOpeningBrace()
+        public void PushStructureEmptyFieldNameAfterFieldWritesCommaAndOpeningBrace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15089,13 +12902,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match(""".*field1.*,.*\{.*field2.*"""));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with null field name after a field writes comma and opening brace.
-        /// Input: Write a field, then PushStructure with null field name.
-        /// Expected: Comma is written before the opening brace.
-        /// </summary>
         [Test]
-        public void PushStructure_NullFieldNameAfterField_WritesCommaAndOpeningBrace()
+        public void PushStructureNullFieldNameAfterFieldWritesCommaAndOpeningBrace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15118,13 +12926,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match(""".*field1.*,.*\{.*field2.*"""));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing tab character escapes it correctly.
-        /// Input: Field name with tab: test\tfield.
-        /// Expected: Output contains escaped tab: \"test\\tfield\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithTab_EscapesTab()
+        public void PushStructureFieldNameWithTabEscapesTab()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15139,13 +12942,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing carriage return escapes it correctly.
-        /// Input: Field name with carriage return: test\rfield.
-        /// Expected: Output contains escaped carriage return: \"test\\rfield\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithCarriageReturn_EscapesCarriageReturn()
+        public void PushStructureFieldNameWithCarriageReturnEscapesCarriageReturn()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15160,13 +12958,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with very long field name writes the complete field name.
-        /// Input: Field name with 1000 characters.
-        /// Expected: Output contains the complete field name.
-        /// </summary>
         [Test]
-        public void PushStructure_VeryLongFieldName_WritesCompleteFieldName()
+        public void PushStructureVeryLongFieldNameWritesCompleteFieldName()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15182,13 +12975,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure in Compact encoding mode behaves consistently.
-        /// Input: Valid field name with Compact encoding.
-        /// Expected: Output contains field name with opening brace.
-        /// </summary>
         [Test]
-        public void PushStructure_CompactEncoding_WritesFieldNameWithOpeningBrace()
+        public void PushStructureCompactEncodingWritesFieldNameWithOpeningBrace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15203,13 +12991,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing backspace escapes it correctly.
-        /// Input: Field name with backspace: test\bfield.
-        /// Expected: Output contains escaped backspace: \"test\\bfield\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithBackspace_EscapesBackspace()
+        public void PushStructureFieldNameWithBackspaceEscapesBackspace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15224,13 +13007,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure with field name containing form feed escapes it correctly.
-        /// Input: Field name with form feed: test\ffield.
-        /// Expected: Output contains escaped form feed: \"test\\ffield\".
-        /// </summary>
         [Test]
-        public void PushStructure_FieldNameWithFormFeed_EscapesFormFeed()
+        public void PushStructureFieldNameWithFormFeedEscapesFormFeed()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15245,13 +13023,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PushStructure at deeper nesting levels writes structures correctly.
-        /// Input: Three levels of nested structures.
-        /// Expected: Output contains all three nested structures properly formatted.
-        /// </summary>
         [Test]
-        public void PushStructure_DeepNesting_WritesAllLevelsCorrectly()
+        public void PushStructureDeepNestingWritesAllLevelsCorrectly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -15280,12 +13053,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopNamespace does not throw when called after PushNamespace.
-        /// Verifies normal operation with balanced push/pop operations.
-        /// </summary>
         [Test]
-        public void PopNamespace_AfterPushNamespace_DoesNotThrow()
+        public void PopNamespaceAfterPushNamespaceDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15295,12 +13064,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that PopNamespace throws InvalidOperationException when called on an empty stack.
-        /// Verifies that attempting to pop from an empty namespace stack results in an exception.
-        /// </summary>
         [Test]
-        public void PopNamespace_EmptyStack_ThrowsInvalidOperationException()
+        public void PopNamespaceEmptyStackThrowsInvalidOperationException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15309,12 +13074,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
-        /// <summary>
-        /// Tests that multiple balanced push and pop operations work correctly.
-        /// Verifies LIFO (Last-In-First-Out) behavior with multiple namespace operations.
-        /// </summary>
         [Test]
-        public void PopNamespace_MultiplePushAndPop_DoesNotThrow()
+        public void PopNamespaceMultiplePushAndPopDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15328,12 +13089,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that PopNamespace throws InvalidOperationException when called more times than PushNamespace.
-        /// Verifies stack underflow behavior.
-        /// </summary>
         [Test]
-        public void PopNamespace_CalledMoreTimesThanPushed_ThrowsInvalidOperationException()
+        public void PopNamespaceCalledMoreTimesThanPushedThrowsInvalidOperationException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15344,12 +13101,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
-        /// <summary>
-        /// Tests that PopNamespace works correctly after a single push operation.
-        /// Verifies basic single push/pop cycle.
-        /// </summary>
         [Test]
-        public void PopNamespace_SinglePushFollowedByPop_DoesNotThrow()
+        public void PopNamespaceSinglePushFollowedByPopDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15359,12 +13112,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that PopNamespace throws after emptying the stack.
-        /// Verifies that once all pushed namespaces are popped, further pops throw an exception.
-        /// </summary>
         [Test]
-        public void PopNamespace_AfterEmptyingStack_ThrowsInvalidOperationException()
+        public void PopNamespaceAfterEmptyingStackThrowsInvalidOperationException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15377,12 +13126,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
-        /// <summary>
-        /// Tests PopNamespace with null namespace URI previously pushed.
-        /// Verifies that null values can be pushed and popped without issue.
-        /// </summary>
         [Test]
-        public void PopNamespace_AfterPushingNullNamespace_DoesNotThrow()
+        public void PopNamespaceAfterPushingNullNamespaceDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15392,12 +13137,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests PopNamespace with empty string namespace URI previously pushed.
-        /// Verifies that empty strings can be pushed and popped without issue.
-        /// </summary>
         [Test]
-        public void PopNamespace_AfterPushingEmptyString_DoesNotThrow()
+        public void PopNamespaceAfterPushingEmptyStringDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15407,12 +13148,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests PopNamespace with very long namespace URI previously pushed.
-        /// Verifies that long strings can be pushed and popped without issue.
-        /// </summary>
         [Test]
-        public void PopNamespace_AfterPushingVeryLongNamespace_DoesNotThrow()
+        public void PopNamespaceAfterPushingVeryLongNamespaceDoesNotThrow()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15423,11 +13160,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes NaN as the JSON string "NaN".
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueNaN_WritesNaNString()
+        public void WriteDoubleValueNaNWritesNaNString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15442,11 +13176,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes positive infinity as the JSON string "Infinity".
-        /// </summary>
         [Test]
-        public void WriteDouble_ValuePositiveInfinity_WritesInfinityString()
+        public void WriteDoubleValuePositiveInfinityWritesInfinityString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15461,11 +13192,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes negative infinity as the JSON string "-Infinity".
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueNegativeInfinity_WritesNegativeInfinityString()
+        public void WriteDoubleValueNegativeInfinityWritesNegativeInfinityString()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15480,11 +13208,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble skips writing when fieldName is not null, encoding is Compact, and value is zero.
-        /// </summary>
         [Test]
-        public void WriteDouble_FieldNameNotNullCompactEncodingValueZero_SkipsWriting()
+        public void WriteDoubleFieldNameNotNullCompactEncodingValueZeroSkipsWriting()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15497,11 +13222,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes zero when fieldName is not null and encoding is Verbose.
-        /// </summary>
         [Test]
-        public void WriteDouble_FieldNameNotNullVerboseEncodingValueZero_WritesZero()
+        public void WriteDoubleFieldNameNotNullVerboseEncodingValueZeroWritesZero()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15516,11 +13238,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes zero when fieldName is null, regardless of encoding.
-        /// </summary>
         [Test]
-        public void WriteDouble_FieldNameNullValueZero_WritesZero()
+        public void WriteDoubleFieldNameNullValueZeroWritesZero()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15534,11 +13253,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble skips writing very small values within epsilon range in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueWithinEpsilonCompactEncoding_SkipsWriting()
+        public void WriteDoubleValueWithinEpsilonCompactEncodingSkipsWriting()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15552,11 +13268,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes very small values within epsilon range in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueWithinEpsilonVerboseEncoding_WritesValue()
+        public void WriteDoubleValueWithinEpsilonVerboseEncodingWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15572,11 +13285,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes double.MaxValue correctly.
-        /// </summary>
         [Test]
-        public void WriteDouble_MaxValue_WritesMaxValue()
+        public void WriteDoubleMaxValueWritesMaxValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15592,11 +13302,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(double.MaxValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes double.MinValue correctly.
-        /// </summary>
         [Test]
-        public void WriteDouble_MinValue_WritesMinValue()
+        public void WriteDoubleMinValueWritesMinValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15612,11 +13319,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(double.MinValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes positive values correctly.
-        /// </summary>
         [Test]
-        public void WriteDouble_PositiveValue_WritesFormattedValue()
+        public void WriteDoublePositiveValueWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15632,11 +13336,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes negative values correctly.
-        /// </summary>
         [Test]
-        public void WriteDouble_NegativeValue_WritesFormattedValue()
+        public void WriteDoubleNegativeValueWritesFormattedValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15652,11 +13353,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble uses InvariantCulture for formatting.
-        /// </summary>
         [Test]
-        public void WriteDouble_AnyValue_UsesInvariantCulture()
+        public void WriteDoubleAnyValueUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -15680,11 +13378,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes value correctly when fieldName is empty string.
-        /// </summary>
         [Test]
-        public void WriteDouble_EmptyFieldName_WritesValue()
+        public void WriteDoubleEmptyFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15698,11 +13393,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("42"));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble escapes field names with special characters correctly.
-        /// </summary>
         [Test]
-        public void WriteDouble_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteDoubleFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15719,11 +13411,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble does not skip writing when value equals double.Epsilon in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueEqualsEpsilonCompactEncoding_WritesValue()
+        public void WriteDoubleValueEqualsEpsilonCompactEncodingWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15738,11 +13427,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble does not skip writing when value equals -double.Epsilon in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteDouble_ValueEqualsNegativeEpsilonCompactEncoding_WritesValue()
+        public void WriteDoubleValueEqualsNegativeEpsilonCompactEncodingWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15757,11 +13443,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble writes multiple values correctly with proper JSON formatting.
-        /// </summary>
         [Test]
-        public void WriteDouble_MultipleCalls_WritesMultipleFields()
+        public void WriteDoubleMultipleCallsWritesMultipleFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15784,11 +13467,6 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDouble with various special double values.
-        /// </summary>
-        /// <param name = "value">The double value to test.</param>
-        /// <param name = "expectedContent">The expected JSON content for the value.</param>
         [TestCase(double.NaN, """
             "NaN"
             """)]
@@ -15798,7 +13476,7 @@ namespace Opc.Ua.UnitTests
         [TestCase(double.NegativeInfinity, """
             "-Infinity"
             """)]
-        public void WriteDouble_SpecialValues_WritesCorrectFormat(double value, string expectedContent)
+        public void WriteDoubleSpecialValuesWritesCorrectFormat(double value, string expectedContent)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15813,10 +13491,6 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteDouble with various numeric edge cases.
-        /// </summary>
-        /// <param name = "value">The double value to test.</param>
         [TestCase(1.0)]
         [TestCase(-1.0)]
         [TestCase(0.1)]
@@ -15825,7 +13499,7 @@ namespace Opc.Ua.UnitTests
         [TestCase(-1e10)]
         [TestCase(1e-10)]
         [TestCase(-1e-10)]
-        public void WriteDouble_VariousNumericValues_WritesCorrectly(double value)
+        public void WriteDoubleVariousNumericValuesWritesCorrectly(double value)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15842,13 +13516,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(expectedValue));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes null for a null array in verbose mode.
-        /// Verifies that when values is null and IncludeDefaultValues is true, the method writes "null".
-        /// Expected: JSON output contains the field with "null" value.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_NullArrayVerboseMode_WritesNull()
+        public void WriteExpandedNodeIdArrayNullArrayVerboseModeWritesNull()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15864,14 +13533,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray skips null array in compact mode when fieldName is not null.
-        /// Verifies that when values is null, fieldName is not null, and IncludeDefaultValues is false,
-        /// the method returns early without writing anything.
-        /// Expected: No field is written to JSON output.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_NullArrayCompactModeWithFieldName_SkipsField()
+        public void WriteExpandedNodeIdArrayNullArrayCompactModeWithFieldNameSkipsField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15885,14 +13548,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes an empty JSON array for an empty input array.
-        /// Verifies that when values.Count is 0 and IncludeDefaultValues is true,
-        /// the method writes an empty array.
-        /// Expected: JSON output contains the field with an empty array "[]".
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteExpandedNodeIdArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15909,14 +13566,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray skips empty array in compact mode when fieldName is not null.
-        /// Verifies that when values.Count is 0, fieldName is not null, and IncludeDefaultValues is false,
-        /// the method returns early without writing anything.
-        /// Expected: No field is written to JSON output.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_EmptyArrayCompactModeWithFieldName_SkipsField()
+        public void WriteExpandedNodeIdArrayEmptyArrayCompactModeWithFieldNameSkipsField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15931,13 +13582,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray correctly writes a single element array.
-        /// Verifies that an array with one ExpandedNodeId is properly encoded as a JSON array.
-        /// Expected: JSON output contains an array with one properly formatted ExpandedNodeId.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_SingleElement_WritesArrayWithOneElement()
+        public void WriteExpandedNodeIdArraySingleElementWritesArrayWithOneElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15956,14 +13602,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray works correctly with null fieldName.
-        /// Verifies that when fieldName is null (array element context),
-        /// the array is written without a field name prefix.
-        /// Expected: Array is written directly without field name.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteExpandedNodeIdArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -15979,14 +13619,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("200"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray handles empty string fieldName.
-        /// Verifies that when fieldName is an empty string,
-        /// the array is written with appropriate formatting.
-        /// Expected: Array is written correctly with empty field name handling.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_EmptyFieldName_WritesArray()
+        public void WriteExpandedNodeIdArrayEmptyFieldNameWritesArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -16001,13 +13635,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray handles fieldName with special characters.
-        /// Verifies that field names containing special characters are properly escaped.
-        /// Expected: JSON output has properly escaped field name and correct array content.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteExpandedNodeIdArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -16023,13 +13652,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Match("Field.*With.*Special.*Chars"));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray in compact mode writes non-empty arrays.
-        /// Verifies that in compact mode with a valid array, the array is written.
-        /// Expected: JSON output contains the array field.
-        /// </summary>
         [Test]
-        public void WriteExpandedNodeIdArray_CompactModeNonEmptyArray_WritesArray()
+        public void WriteExpandedNodeIdArrayCompactModeNonEmptyArrayWritesArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -16047,15 +13671,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("100"));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Compact encoding and zero value.
-        /// Verifies that the value is written as a JSON number without quotes.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingZeroValue_WritesNumberWithoutQuotes()
+        public void WriteEnumeratedCompactEncodingZeroValueWritesNumberWithoutQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16070,15 +13690,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Verbose encoding and zero value.
-        /// Verifies that the value is written as a JSON string with quotes.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingZeroValue_WritesStringWithQuotes()
+        public void WriteEnumeratedVerboseEncodingZeroValueWritesStringWithQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
@@ -16093,15 +13709,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Compact encoding and positive value.
-        /// Verifies that positive integers are written correctly as JSON numbers.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingPositiveValue_WritesNumberWithoutQuotes()
+        public void WriteEnumeratedCompactEncodingPositiveValueWritesNumberWithoutQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16113,15 +13725,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Verbose encoding and positive value.
-        /// Verifies that positive integers are written as JSON strings with quotes.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingPositiveValue_WritesStringWithQuotes()
+        public void WriteEnumeratedVerboseEncodingPositiveValueWritesStringWithQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
@@ -16133,15 +13741,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Compact encoding and negative value.
-        /// Verifies that negative integers are written correctly as JSON numbers.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingNegativeValue_WritesNumberWithoutQuotes()
+        public void WriteEnumeratedCompactEncodingNegativeValueWritesNumberWithoutQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16153,15 +13757,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with Verbose encoding and negative value.
-        /// Verifies that negative integers are written as JSON strings with quotes.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingNegativeValue_WritesStringWithQuotes()
+        public void WriteEnumeratedVerboseEncodingNegativeValueWritesStringWithQuotes()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
@@ -16173,16 +13773,12 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with int.MinValue.
-        /// Verifies that the minimum integer value is correctly formatted.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void WriteEnumerated_IntMinValue_WritesCorrectly(JsonEncodingType encodingType)
+        public void WriteEnumeratedIntMinValueWritesCorrectly(JsonEncodingType encodingType)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, encodingType);
             encoder.PushStructure(null);
             string expectedValue = int.MinValue.ToString(CultureInfo.InvariantCulture);
@@ -16204,16 +13800,12 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with int.MaxValue.
-        /// Verifies that the maximum integer value is correctly formatted.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact)]
         [TestCase(JsonEncodingType.Verbose)]
-        public void WriteEnumerated_IntMaxValue_WritesCorrectly(JsonEncodingType encodingType)
+        public void WriteEnumeratedIntMaxValueWritesCorrectly(JsonEncodingType encodingType)
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, encodingType);
             encoder.PushStructure(null);
             string expectedValue = int.MaxValue.ToString(CultureInfo.InvariantCulture);
@@ -16235,15 +13827,11 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with null fieldName in Compact encoding.
-        /// Verifies that the value is written without a field name.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_NullFieldNameCompactEncoding_WritesValueWithoutFieldName()
+        public void WriteEnumeratedNullFieldNameCompactEncodingWritesValueWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
@@ -16256,15 +13844,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with null fieldName in Verbose encoding.
-        /// Verifies that the value is written as a string without a field name.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_NullFieldNameVerboseEncoding_WritesStringWithoutFieldName()
+        public void WriteEnumeratedNullFieldNameVerboseEncodingWritesStringWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushArray(null);
             // Act
@@ -16276,15 +13860,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with empty fieldName.
-        /// Verifies that the value is written without a field name prefix.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_EmptyFieldNameCompactEncoding_WritesValueWithoutFieldName()
+        public void WriteEnumeratedEmptyFieldNameCompactEncodingWritesValueWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
@@ -16297,15 +13877,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with fieldName containing special characters.
-        /// Verifies that special characters in field names are properly escaped.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteEnumeratedFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16316,15 +13892,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(":789"));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with whitespace fieldName.
-        /// Verifies that whitespace-only field names are written correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_WhitespaceFieldName_WritesFieldCorrectly()
+        public void WriteEnumeratedWhitespaceFieldNameWritesFieldCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16336,20 +13908,16 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated uses InvariantCulture for number formatting.
-        /// Verifies that the formatted number is culture-independent regardless of current culture.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_UsesInvariantCulture_FormatsNumberCorrectly()
+        public void WriteEnumeratedUsesInvariantCultureFormatsNumberCorrectly()
         {
             // Arrange
-            var currentCulture = CultureInfo.CurrentCulture;
+            CultureInfo currentCulture = CultureInfo.CurrentCulture;
             try
             {
                 // Set a culture that uses different number formatting
                 CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-                var context = CreateMockServiceMessageContext();
+                ServiceMessageContext context = CreateMockServiceMessageContext();
                 using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
                 encoder.PushStructure(null);
                 // Act
@@ -16367,15 +13935,11 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with multiple sequential calls in Compact encoding.
-        /// Verifies that multiple enumerated values are correctly separated and formatted.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_MultipleCallsCompactEncoding_WritesAllValues()
+        public void WriteEnumeratedMultipleCallsCompactEncodingWritesAllValues()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -16395,15 +13959,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with multiple sequential calls in Verbose encoding.
-        /// Verifies that multiple enumerated values are correctly written as strings.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_MultipleCallsVerboseEncoding_WritesAllValuesAsStrings()
+        public void WriteEnumeratedMultipleCallsVerboseEncodingWritesAllValuesAsStrings()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
@@ -16423,15 +13983,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated in array context with Compact encoding.
-        /// Verifies that array elements are written as numbers without field names.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_InArrayContextCompactEncoding_WritesArrayElements()
+        public void WriteEnumeratedInArrayContextCompactEncodingWritesArrayElements()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray("values");
             // Act
@@ -16446,15 +14002,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated in array context with Verbose encoding.
-        /// Verifies that array elements are written as strings without field names.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_InArrayContextVerboseEncoding_WritesArrayElementsAsStrings()
+        public void WriteEnumeratedInArrayContextVerboseEncodingWritesArrayElementsAsStrings()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushArray("values");
             // Act
@@ -16469,11 +14021,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when both parameters are null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_BothParametersNull_ExecutesWithoutException()
+        public void SetMappingTablesBothParametersNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16483,11 +14032,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(null, null));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when namespaceUris is null and serverUris is non-null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_NamespaceUrisNullServerUrisNonNull_ExecutesWithoutException()
+        public void SetMappingTablesNamespaceUrisNullServerUrisNonNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16499,11 +14045,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(null, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when namespaceUris is non-null and serverUris is null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_NamespaceUrisNonNullServerUrisNull_ExecutesWithoutException()
+        public void SetMappingTablesNamespaceUrisNonNullServerUrisNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16515,11 +14058,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, null));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when both parameters are non-null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_BothParametersNonNull_ExecutesWithoutException()
+        public void SetMappingTablesBothParametersNonNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16533,11 +14073,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when namespaceUris is non-null but Context.NamespaceUris is null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_NamespaceUrisNonNullButContextNamespaceUrisNull_ExecutesWithoutException()
+        public void SetMappingTablesNamespaceUrisNonNullButContextNamespaceUrisNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16557,11 +14094,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, null));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when serverUris is non-null but Context.ServerUris is null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_ServerUrisNonNullButContextServerUrisNull_ExecutesWithoutException()
+        public void SetMappingTablesServerUrisNonNullButContextServerUrisNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16581,11 +14115,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(null, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception when both Context URIs are null.
-        /// </summary>
         [Test]
-        public void SetMappingTables_BothContextUrisNull_ExecutesWithoutException()
+        public void SetMappingTablesBothContextUrisNullExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16607,11 +14138,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables executes without exception with valid namespace and server URIs.
-        /// </summary>
         [Test]
-        public void SetMappingTables_ValidNamespaceAndServerUris_ExecutesWithoutException()
+        public void SetMappingTablesValidNamespaceAndServerUrisExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16627,11 +14155,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables can be called multiple times without exception.
-        /// </summary>
         [Test]
-        public void SetMappingTables_CalledMultipleTimes_ExecutesWithoutException()
+        public void SetMappingTablesCalledMultipleTimesExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16651,11 +14176,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(null, null));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables works with empty NamespaceTable and StringTable.
-        /// </summary>
         [Test]
-        public void SetMappingTables_EmptyTables_ExecutesWithoutException()
+        public void SetMappingTablesEmptyTablesExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16667,11 +14189,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables works with multiple entries in tables.
-        /// </summary>
         [Test]
-        public void SetMappingTables_TablesWithMultipleEntries_ExecutesWithoutException()
+        public void SetMappingTablesTablesWithMultipleEntriesExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16693,11 +14212,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables works correctly with Verbose encoding.
-        /// </summary>
         [Test]
-        public void SetMappingTables_VerboseEncoding_ExecutesWithoutException()
+        public void SetMappingTablesVerboseEncodingExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16711,11 +14227,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables can be called after encoding operations.
-        /// </summary>
         [Test]
-        public void SetMappingTables_CalledAfterEncoding_ExecutesWithoutException()
+        public void SetMappingTablesCalledAfterEncodingExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16732,11 +14245,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that SetMappingTables works with matching URIs in both tables.
-        /// </summary>
         [Test]
-        public void SetMappingTables_MatchingUrisInBothTables_ExecutesWithoutException()
+        public void SetMappingTablesMatchingUrisInBothTablesExecutesWithoutException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -16752,12 +14262,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.SetMappingTables(namespaceUris, serverUris));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with a non-null field name, zero value, and compact encoding does not write the field.
-        /// This tests the early return path when IncludeDefaultNumberValues is false.
-        /// </summary>
         [Test]
-        public void WriteUInt32_NonNullFieldNameZeroValueCompactEncoding_DoesNotWriteField()
+        public void WriteUInt32NonNullFieldNameZeroValueCompactEncodingDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16771,12 +14277,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with a non-null field name, zero value, and verbose encoding writes the field.
-        /// In verbose mode, default values are included.
-        /// </summary>
         [Test]
-        public void WriteUInt32_NonNullFieldNameZeroValueVerboseEncoding_WritesField()
+        public void WriteUInt32NonNullFieldNameZeroValueVerboseEncodingWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16792,12 +14294,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with a null field name and zero value in compact encoding writes the value.
-        /// The early return is bypassed because fieldName is null.
-        /// </summary>
         [Test]
-        public void WriteUInt32_NullFieldNameZeroValueCompactEncoding_WritesValue()
+        public void WriteUInt32NullFieldNameZeroValueCompactEncodingWritesValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16811,12 +14309,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("0"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with a non-null field name and non-zero value in compact encoding writes the field.
-        /// Non-zero values are always written regardless of encoding type.
-        /// </summary>
         [Test]
-        public void WriteUInt32_NonNullFieldNameNonZeroValueCompactEncoding_WritesField()
+        public void WriteUInt32NonNullFieldNameNonZeroValueCompactEncodingWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16832,12 +14326,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 correctly writes the maximum uint value (4,294,967,295).
-        /// Verifies handling of the upper boundary value.
-        /// </summary>
         [Test]
-        public void WriteUInt32_MaxValue_WritesCorrectValue()
+        public void WriteUInt32MaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16853,12 +14343,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 correctly writes the minimum uint value (0).
-        /// Verifies handling of the lower boundary value in verbose mode.
-        /// </summary>
         [Test]
-        public void WriteUInt32_MinValue_WritesCorrectValue()
+        public void WriteUInt32MinValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16874,12 +14360,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 uses InvariantCulture for formatting.
-        /// Verifies that large numbers are formatted without locale-specific separators.
-        /// </summary>
         [Test]
-        public void WriteUInt32_LargeValue_UsesInvariantCulture()
+        public void WriteUInt32LargeValueUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -16906,12 +14388,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with an empty field name writes the value without a field name.
-        /// Empty strings are treated as non-null in the early return check.
-        /// </summary>
         [Test]
-        public void WriteUInt32_EmptyFieldName_WritesValue()
+        public void WriteUInt32EmptyFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16925,12 +14403,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("123"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 with a whitespace field name writes the field.
-        /// Whitespace field names are valid and should be written.
-        /// </summary>
         [Test]
-        public void WriteUInt32_WhitespaceFieldName_WritesField()
+        public void WriteUInt32WhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16946,12 +14420,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 properly escapes field names containing special characters.
-        /// Verifies JSON string escaping for field names with quotes and backslashes.
-        /// </summary>
         [Test]
-        public void WriteUInt32_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteUInt32FieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16968,12 +14438,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("789"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 correctly handles multiple calls with different values in compact encoding.
-        /// Verifies that zero values with non-null field names are skipped, while non-zero values are written.
-        /// </summary>
         [Test]
-        public void WriteUInt32_MultipleCallsCompactEncoding_WritesOnlyNonZeroOrNullFieldValues()
+        public void WriteUInt32MultipleCallsCompactEncodingWritesOnlyNonZeroOrNullFieldValues()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -16997,12 +14463,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32 writes all values including zeros in verbose encoding.
-        /// In verbose mode, default values are always included.
-        /// </summary>
         [Test]
-        public void WriteUInt32_MultipleCallsVerboseEncoding_WritesAllValues()
+        public void WriteUInt32MultipleCallsVerboseEncodingWritesAllValues()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -17026,12 +14488,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with value 1, a typical non-boundary positive value.
-        /// Verifies correct handling of small non-zero values.
-        /// </summary>
         [Test]
-        public void WriteUInt32_ValueOne_WritesCorrectValue()
+        public void WriteUInt32ValueOneWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -17047,12 +14505,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with a very long field name.
-        /// Verifies that long field names are handled correctly.
-        /// </summary>
         [Test]
-        public void WriteUInt32_VeryLongFieldName_WritesField()
+        public void WriteUInt32VeryLongFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -17068,12 +14522,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("999"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 in array mode with null field name.
-        /// Verifies that values are written as array elements without field names.
-        /// </summary>
         [Test]
-        public void WriteUInt32_ArrayModeNullFieldName_WritesArrayElement()
+        public void WriteUInt32ArrayModeNullFieldNameWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -17089,16 +14539,12 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("84"));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with various boundary and typical values using parameterized test cases.
-        /// Verifies correct formatting for different numeric values.
-        /// </summary>
         [TestCase(0u, "0")]
         [TestCase(1u, "1")]
         [TestCase(255u, "255")]
         [TestCase(65535u, "65535")]
         [TestCase(4294967295u, "4294967295")]
-        public void WriteUInt32_VariousValues_WritesCorrectFormat(uint value, string expected)
+        public void WriteUInt32VariousValuesWritesCorrectFormat(uint value, string expected)
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -17114,16 +14560,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes null value when DiagnosticInfo is null and fieldName is null.
-        /// Input: null fieldName, null DiagnosticInfo value
-        /// Expected: "null" is written to the JSON output
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NullFieldNameAndNullValue_WritesNull()
+        public void WriteDiagnosticInfoNullFieldNameAndNullValueWritesNull()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushArray(null);
@@ -17134,16 +14575,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("null"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo returns early when fieldName is not null, value is null, and defaults are not included.
-        /// Input: non-null fieldName, null DiagnosticInfo value, IncludeDefaultValues = false (Compact encoding)
-        /// Expected: No output is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NonNullFieldNameNullValueCompactMode_DoesNotWriteField()
+        public void WriteDiagnosticInfoNonNullFieldNameNullValueCompactModeDoesNotWriteField()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17154,16 +14590,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes null when fieldName is not null, value is null, and defaults are included.
-        /// Input: non-null fieldName, null DiagnosticInfo value, IncludeDefaultValues = true (Verbose encoding)
-        /// Expected: Field with null value is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NonNullFieldNameNullValueVerboseMode_WritesNullField()
+        public void WriteDiagnosticInfoNonNullFieldNameNullValueVerboseModeWritesNullField()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17177,16 +14608,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("null"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo returns early when fieldName is not null, value is a null DiagnosticInfo (IsNullDiagnosticInfo = true), and defaults are not included.
-        /// Input: non-null fieldName, DiagnosticInfo with IsNullDiagnosticInfo = true, Compact encoding
-        /// Expected: No output is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NonNullFieldNameIsNullDiagnosticInfoCompactMode_DoesNotWriteField()
+        public void WriteDiagnosticInfoNonNullFieldNameIsNullDiagnosticInfoCompactModeDoesNotWriteField()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17198,16 +14624,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Not.Contain("TestField"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a DiagnosticInfo structure with valid field name.
-        /// Input: non-null fieldName, valid DiagnosticInfo with all properties set
-        /// Expected: Complete DiagnosticInfo structure is written with all fields
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_ValidFieldNameAndValue_WritesCompleteStructure()
+        public void WriteDiagnosticInfoValidFieldNameAndValueWritesCompleteStructure()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17247,16 +14668,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes minimal DiagnosticInfo with only SymbolicId set.
-        /// Input: DiagnosticInfo with only SymbolicId >= 0
-        /// Expected: Only SymbolicId field is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_OnlySymbolicIdSet_WritesOnlySymbolicId()
+        public void WriteDiagnosticInfoOnlySymbolicIdSetWritesOnlySymbolicId()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17280,16 +14696,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes nested DiagnosticInfo (InnerDiagnosticInfo).
-        /// Input: DiagnosticInfo with InnerDiagnosticInfo set
-        /// Expected: InnerDiagnosticInfo is written as nested structure
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_WithInnerDiagnosticInfo_WritesNestedStructure()
+        public void WriteDiagnosticInfoWithInnerDiagnosticInfoWritesNestedStructure()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17314,16 +14725,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("Inner info"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes empty string fieldName correctly.
-        /// Input: empty string fieldName, valid DiagnosticInfo
-        /// Expected: DiagnosticInfo structure is written without field name prefix
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_EmptyStringFieldName_WritesValueWithoutFieldName()
+        public void WriteDiagnosticInfoEmptyStringFieldNameWritesValueWithoutFieldName()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushArray(null);
@@ -17341,16 +14747,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("1"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles whitespace-only fieldName.
-        /// Input: whitespace-only string fieldName, valid DiagnosticInfo
-        /// Expected: Field name is written with whitespace preserved
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_WhitespaceFieldName_WritesFieldWithWhitespace()
+        public void WriteDiagnosticInfoWhitespaceFieldNameWritesFieldWithWhitespace()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17367,16 +14768,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo escapes special characters in fieldName.
-        /// Input: fieldName with special characters, valid DiagnosticInfo
-        /// Expected: Field name is properly escaped
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteDiagnosticInfoFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17394,16 +14790,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""\n"""));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles negative index values correctly.
-        /// Input: DiagnosticInfo with negative SymbolicId, NamespaceUri, Locale, LocalizedText
-        /// Expected: Negative fields are not written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NegativeIndexValues_DoesNotWriteNegativeFields()
+        public void WriteDiagnosticInfoNegativeIndexValuesDoesNotWriteNegativeFields()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17436,16 +14827,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles zero index values correctly.
-        /// Input: DiagnosticInfo with zero SymbolicId, NamespaceUri, Locale, LocalizedText
-        /// Expected: Zero fields are written (>= 0 condition)
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_ZeroIndexValues_WritesZeroFields()
+        public void WriteDiagnosticInfoZeroIndexValuesWritesZeroFields()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17474,16 +14860,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles maximum integer values for index fields.
-        /// Input: DiagnosticInfo with int.MaxValue for index fields
-        /// Expected: Maximum values are written correctly
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_MaxIntegerIndexValues_WritesMaxValues()
+        public void WriteDiagnosticInfoMaxIntegerIndexValuesWritesMaxValues()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17501,16 +14882,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(int.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles StatusCodes.Good for InnerStatusCode correctly.
-        /// Input: DiagnosticInfo with InnerStatusCode = StatusCodes.Good
-        /// Expected: InnerStatusCode is not written (condition: != StatusCodes.Good)
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_InnerStatusCodeGood_DoesNotWriteInnerStatusCode()
+        public void WriteDiagnosticInfoInnerStatusCodeGoodDoesNotWriteInnerStatusCode()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17528,16 +14904,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes InnerStatusCode when it is not StatusCodes.Good.
-        /// Input: DiagnosticInfo with InnerStatusCode = StatusCodes.Bad
-        /// Expected: InnerStatusCode is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_InnerStatusCodeBad_WritesInnerStatusCode()
+        public void WriteDiagnosticInfoInnerStatusCodeBadWritesInnerStatusCode()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17555,16 +14926,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles AdditionalInfo with special characters.
-        /// Input: DiagnosticInfo with AdditionalInfo containing special characters
-        /// Expected: AdditionalInfo is properly escaped
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_AdditionalInfoWithSpecialCharacters_EscapesCorrectly()
+        public void WriteDiagnosticInfoAdditionalInfoWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17584,20 +14950,15 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles very long AdditionalInfo string.
-        /// Input: DiagnosticInfo with very long AdditionalInfo string
-        /// Expected: Complete AdditionalInfo is written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_VeryLongAdditionalInfo_WritesCompleteString()
+        public void WriteDiagnosticInfoVeryLongAdditionalInfoWritesCompleteString()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
-            var longString = new string ('A', 10000);
+            var longString = new string('A', 10000);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 1,
@@ -17610,16 +14971,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain(longString));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles null AdditionalInfo correctly.
-        /// Input: DiagnosticInfo with AdditionalInfo = null
-        /// Expected: AdditionalInfo field is not written
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NullAdditionalInfo_DoesNotWriteAdditionalInfo()
+        public void WriteDiagnosticInfoNullAdditionalInfoDoesNotWriteAdditionalInfo()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17637,16 +14993,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo handles empty string AdditionalInfo.
-        /// Input: DiagnosticInfo with AdditionalInfo = string.Empty
-        /// Expected: AdditionalInfo field is written with empty string
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_EmptyStringAdditionalInfo_WritesEmptyString()
+        public void WriteDiagnosticInfoEmptyStringAdditionalInfoWritesEmptyString()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17664,18 +15015,13 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo correctly formats all integer fields using InvariantCulture.
-        /// Input: DiagnosticInfo with various integer field values
-        /// Expected: All integers are formatted with InvariantCulture
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_IntegerFields_UsesInvariantCulture()
+        public void WriteDiagnosticInfoIntegerFieldsUsesInvariantCulture()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            var previousCulture = CultureInfo.CurrentCulture;
+            CultureInfo previousCulture = CultureInfo.CurrentCulture;
             try
             {
                 CultureInfo.CurrentCulture = new CultureInfo("de-DE");
@@ -17700,16 +15046,11 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo in array context (null fieldName) writes structure correctly.
-        /// Input: null fieldName, valid DiagnosticInfo
-        /// Expected: DiagnosticInfo structure is written as array element
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_NullFieldNameInArray_WritesAsArrayElement()
+        public void WriteDiagnosticInfoNullFieldNameInArrayWritesAsArrayElement()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushArray(null);
@@ -17727,16 +15068,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("1"));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo delegates to private overload with depth = 0.
-        /// Input: valid fieldName and DiagnosticInfo
-        /// Expected: Method executes without error and writes output
-        /// </summary>
         [Test]
-        public void WriteDiagnosticInfo_ValidInput_DelegatesToPrivateOverload()
+        public void WriteDiagnosticInfoValidInputDelegatesToPrivateOverload()
         {
             // Arrange
-            var messageContext = CreateMockServiceMessageContext();
+            ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
@@ -17754,12 +15090,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests WriteSByteArray with empty array in compact mode.
-        /// Expected: Returns early without writing field due to IncludeDefaultValues being false.
-        /// </summary>
         [Test]
-        public void WriteSByteArray_EmptyArrayCompactMode_ReturnsEarlyWithoutWriting()
+        public void WriteSByteArrayEmptyArrayCompactModeReturnsEarlyWithoutWriting()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -17773,12 +15105,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"field":null}"""));
         }
 
-        /// <summary>
-        /// Tests WriteSByteArray with empty array in verbose mode.
-        /// Expected: Writes empty array because IncludeDefaultValues is true.
-        /// </summary>
         [Test]
-        public void WriteSByteArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteSByteArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
@@ -17792,16 +15120,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"field":[]}"""));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray with empty array writes empty JSON array.
-        /// Input: fieldName="Guids", values=empty ArrayOf<Uuid>
-        /// Expected: Empty JSON array is written
-        /// </summary>
         [Test]
-        public void WriteGuidArray_EmptyArray_WritesEmptyArray()
+        public void WriteGuidArrayEmptyArrayWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var emptyArray = new ArrayOf<Uuid>();
             encoder.PushStructure(null);
@@ -17816,13 +15139,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[]"));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodeableArrayAsExtensionObjects with empty array writes empty JSON array.
-        /// Input: fieldName = "TestField", values = empty ArrayOf
-        /// Expected: Field with empty array is written to JSON.
-        /// </summary>
         [Test]
-        public void WriteEncodeableArrayAsExtensionObjects_EmptyArray_WritesEmptyArray()
+        public void WriteEncodeableArrayAsExtensionObjectsEmptyArrayWritesEmptyArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17839,12 +15157,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with non-null field name, default values not included, and zero value returns early without writing.
-        /// Covers the early return optimization path for Compact encoding.
-        /// </summary>
         [Test]
-        public void WriteByte_NonNullFieldNameZeroValueDefaultsNotIncluded_DoesNotWriteField()
+        public void WriteByteNonNullFieldNameZeroValueDefaultsNotIncludedDoesNotWriteField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17860,12 +15174,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with non-null field name, default values not included, and non-zero value writes the field.
-        /// Verifies that non-zero values are always written regardless of encoding type.
-        /// </summary>
         [Test]
-        public void WriteByte_NonNullFieldNameNonZeroValueDefaultsNotIncluded_WritesField()
+        public void WriteByteNonNullFieldNameNonZeroValueDefaultsNotIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17883,12 +15193,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with non-null field name, default values included, and zero value writes the field.
-        /// Verifies Verbose encoding includes default values.
-        /// </summary>
         [Test]
-        public void WriteByte_NonNullFieldNameZeroValueDefaultsIncluded_WritesField()
+        public void WriteByteNonNullFieldNameZeroValueDefaultsIncludedWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17906,12 +15212,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with null field name and zero value writes the value as array element.
-        /// Verifies array context behavior.
-        /// </summary>
         [Test]
-        public void WriteByte_NullFieldNameZeroValue_WritesArrayElement()
+        public void WriteByteNullFieldNameZeroValueWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17925,12 +15227,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[0]"));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with null field name and non-zero value writes the value as array element.
-        /// Verifies array context with non-default value.
-        /// </summary>
         [Test]
-        public void WriteByte_NullFieldNameNonZeroValue_WritesArrayElement()
+        public void WriteByteNullFieldNameNonZeroValueWritesArrayElement()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17944,13 +15242,9 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[42]"));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with byte.MinValue (0) behaves correctly based on encoding type.
-        /// Verifies boundary value handling.
-        /// </summary>
         [TestCase(JsonEncodingType.Compact, false)]
         [TestCase(JsonEncodingType.Verbose, true)]
-        public void WriteByte_MinValue_WritesOrSkipsBasedOnEncoding(JsonEncodingType encoding, bool shouldWrite)
+        public void WriteByteMinValueWritesOrSkipsBasedOnEncoding(JsonEncodingType encoding, bool shouldWrite)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17975,12 +15269,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteByte with byte.MaxValue (255) writes the field correctly.
-        /// Verifies maximum boundary value handling.
-        /// </summary>
         [Test]
-        public void WriteByte_MaxValue_WritesCorrectValue()
+        public void WriteByteMaxValueWritesCorrectValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -17997,12 +15287,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte uses InvariantCulture for formatting.
-        /// Verifies culture-independent output.
-        /// </summary>
         [Test]
-        public void WriteByte_AnyValue_UsesInvariantCulture()
+        public void WriteByteAnyValueUsesInvariantCulture()
         {
             // Arrange
             CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -18029,12 +15315,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteByte with empty string field name writes the value without field name.
-        /// Verifies empty field name handling.
-        /// </summary>
         [Test]
-        public void WriteByte_EmptyStringFieldName_WritesValue()
+        public void WriteByteEmptyStringFieldNameWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18050,12 +15332,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[100]"));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with whitespace field name writes the field with whitespace name.
-        /// Verifies whitespace field name handling.
-        /// </summary>
         [Test]
-        public void WriteByte_WhitespaceFieldName_WritesField()
+        public void WriteByteWhitespaceFieldNameWritesField()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18072,12 +15350,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with field name containing special characters escapes correctly.
-        /// Verifies special character handling in field names.
-        /// </summary>
         [Test]
-        public void WriteByte_FieldNameWithSpecialCharacters_EscapesCorrectly()
+        public void WriteByteFieldNameWithSpecialCharactersEscapesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18094,12 +15368,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""field\"with\\quotes"""));
         }
 
-        /// <summary>
-        /// Tests that WriteByte called multiple times writes multiple fields with correct comma separation.
-        /// Verifies comma handling in JSON output.
-        /// </summary>
         [Test]
-        public void WriteByte_MultipleCalls_WritesMultipleFields()
+        public void WriteByteMultipleCallsWritesMultipleFields()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18124,17 +15394,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"first":10,"second":20,"third":30}"""));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with various byte values writes correctly.
-        /// Verifies correct formatting for different byte values.
-        /// </summary>
         [TestCase((byte)0, "0")]
         [TestCase((byte)1, "1")]
         [TestCase((byte)127, "127")]
         [TestCase((byte)128, "128")]
         [TestCase((byte)254, "254")]
         [TestCase((byte)255, "255")]
-        public void WriteByte_VariousValues_WritesCorrectly(byte value, string expectedString)
+        public void WriteByteVariousValuesWritesCorrectly(byte value, string expectedString)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18150,12 +15416,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByte in array context with multiple values writes correctly.
-        /// Verifies array element handling with multiple values.
-        /// </summary>
         [Test]
-        public void WriteByte_ArrayModeMultipleValues_WritesArrayElements()
+        public void WriteByteArrayModeMultipleValuesWritesArrayElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18169,12 +15431,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[10,20,30]"));
         }
 
-        /// <summary>
-        /// Tests that WriteByte with zero value in Compact mode and null field name still writes.
-        /// Verifies that early return doesn't trigger when fieldName is null.
-        /// </summary>
         [Test]
-        public void WriteByte_CompactModeNullFieldNameZeroValue_WritesValue()
+        public void WriteByteCompactModeNullFieldNameZeroValueWritesValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -18189,14 +15447,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[0]"));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString encodes a valid byte array as Base64 with quotes.
-        /// </summary>
         [Test]
-        public void WriteByteString_ValidByteArray_EncodesAsBase64()
+        public void WriteByteStringValidByteArrayEncodesAsBase64()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var byteString = new ByteString(new byte[] { 1, 2, 3, 4, 5 });
@@ -18211,14 +15466,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString handles an empty byte array correctly.
-        /// </summary>
         [Test]
-        public void WriteByteString_EmptyByteArray_EncodesAsEmptyBase64()
+        public void WriteByteStringEmptyByteArrayEncodesAsEmptyBase64()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var byteString = new ByteString(Array.Empty<byte>());
@@ -18232,14 +15484,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString handles empty string fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteByteString_EmptyFieldName_WritesValue()
+        public void WriteByteStringEmptyFieldNameWritesValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushArray(null);
             var byteString = new ByteString(new byte[] { 1, 2, 3 });
@@ -18254,14 +15503,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString handles whitespace fieldName correctly.
-        /// </summary>
         [Test]
-        public void WriteByteString_WhitespaceFieldName_WritesFieldWithWhitespaceName()
+        public void WriteByteStringWhitespaceFieldNameWritesFieldWithWhitespaceName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var byteString = new ByteString(new byte[] { 1, 2, 3 });
@@ -18279,14 +15525,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString correctly encodes byte arrays with all possible byte values.
-        /// </summary>
         [Test]
-        public void WriteByteString_AllByteValues_EncodesCorrectly()
+        public void WriteByteStringAllByteValuesEncodesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var bytes = new byte[256];
@@ -18307,14 +15550,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString handles single byte arrays correctly.
-        /// </summary>
         [Test]
-        public void WriteByteString_SingleByte_EncodesCorrectly()
+        public void WriteByteStringSingleByteEncodesCorrectly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             var byteString = new ByteString(new byte[] { 255 });
@@ -18329,11 +15569,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated writes numeric value without quotes in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingWithDefinedValue_WritesNumericValueWithoutQuotes()
+        public void WriteEnumeratedCompactEncodingWithDefinedValueWritesNumericValueWithoutQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18352,11 +15589,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated writes EnumName_NumericValue format with quotes in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithDefinedValue_WritesNameAndNumericValueWithQuotes()
+        public void WriteEnumeratedVerboseEncodingWithDefinedValueWritesNameAndNumericValueWithQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18372,11 +15606,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated writes numeric value with quotes for undefined enum value in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithUndefinedValue_WritesNumericValueWithQuotes()
+        public void WriteEnumeratedVerboseEncodingWithUndefinedValueWritesNumericValueWithQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18392,11 +15623,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles zero enum value correctly in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingWithZeroValue_WritesZero()
+        public void WriteEnumeratedCompactEncodingWithZeroValueWritesZero()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18412,11 +15640,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles zero enum value correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithZeroValue_WritesNameAndZero()
+        public void WriteEnumeratedVerboseEncodingWithZeroValueWritesNameAndZero()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18432,11 +15657,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles null field name correctly in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingWithNullFieldName_WritesValueOnly()
+        public void WriteEnumeratedCompactEncodingWithNullFieldNameWritesValueOnly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18453,11 +15675,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles null field name correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithNullFieldName_WritesValueOnly()
+        public void WriteEnumeratedVerboseEncodingWithNullFieldNameWritesValueOnly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18473,11 +15692,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles empty field name correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_EmptyFieldName_WritesValueOnly()
+        public void WriteEnumeratedEmptyFieldNameWritesValueOnly()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18491,11 +15707,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("2"));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles multiple enum values written in sequence.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_MultipleValues_WritesAllWithCommas()
+        public void WriteEnumeratedMultipleValuesWritesAllWithCommas()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18519,11 +15732,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles flags enum correctly in Compact mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_CompactEncodingWithFlagsEnum_WritesNumericValue()
+        public void WriteEnumeratedCompactEncodingWithFlagsEnumWritesNumericValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18539,11 +15749,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles flags enum correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithFlagsEnum_WritesNameAndValue()
+        public void WriteEnumeratedVerboseEncodingWithFlagsEnumWritesNameAndValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18559,11 +15766,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles combined flags correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithCombinedFlags_WritesFormattedName()
+        public void WriteEnumeratedVerboseEncodingWithCombinedFlagsWritesFormattedName()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18579,11 +15783,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated uses InvariantCulture for numeric conversion.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_AnyValue_UsesInvariantCulture()
+        public void WriteEnumeratedAnyValueUsesInvariantCulture()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18609,11 +15810,8 @@ namespace Opc.Ua.UnitTests
             }
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles negative enum value correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_NegativeEnumValue_WritesNegativeNumber()
+        public void WriteEnumeratedNegativeEnumValueWritesNegativeNumber()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18629,11 +15827,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles negative enum value correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithNegativeValue_WritesNumericValueWithQuotes()
+        public void WriteEnumeratedVerboseEncodingWithNegativeValueWritesNumericValueWithQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18649,11 +15844,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles large enum value correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_LargeEnumValue_WritesLargeNumber()
+        public void WriteEnumeratedLargeEnumValueWritesLargeNumber()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18669,11 +15861,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles maximum int value correctly in Verbose mode.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_VerboseEncodingWithMaxValue_WritesNumericValueWithQuotes()
+        public void WriteEnumeratedVerboseEncodingWithMaxValueWritesNumericValueWithQuotes()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18689,11 +15878,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles minimum int value correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_MinIntValue_WritesMinValue()
+        public void WriteEnumeratedMinIntValueWritesMinValue()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18709,11 +15895,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteEnumerated handles whitespace field name correctly.
-        /// </summary>
         [Test]
-        public void WriteEnumerated_WhitespaceFieldName_WritesFieldWithWhitespace()
+        public void WriteEnumeratedWhitespaceFieldNameWritesFieldWithWhitespace()
         {
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
@@ -18729,15 +15912,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles null values array correctly when fieldName is not null and IncludeDefaultValues is false.
-        /// The method should return early and write null.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_NullValuesAndNonNullFieldNameAndDefaultsNotIncluded_WritesNull()
+        public void WriteUInt64ArrayNullValuesAndNonNullFieldNameAndDefaultsNotIncludedWritesNull()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             ArrayOf<ulong> values = default;
             // Act
@@ -18751,15 +15930,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles null values array correctly when fieldName is null.
-        /// The method should write null value without field name.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_NullValuesAndNullFieldName_WritesNullValue()
+        public void WriteUInt64ArrayNullValuesAndNullFieldNameWritesNullValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             ArrayOf<ulong> values = default;
             // Act
@@ -18771,17 +15946,13 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("null"));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes an empty array when values count is zero and IncludeDefaultValues is true.
-        /// Expected result is an empty JSON array with field name.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_EmptyArrayAndDefaultsIncluded_WritesEmptyArray()
+        public void WriteUInt64ArrayEmptyArrayAndDefaultsIncludedWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            var values = ArrayOf<ulong>.Empty;
+            ArrayOf<ulong> values = ArrayOf<ulong>.Empty;
             // Act
             encoder.PushStructure(null);
             encoder.WriteUInt64Array("testField", values);
@@ -18793,15 +15964,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes a single element array correctly.
-        /// Expected result is a JSON array containing one ulong value.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_SingleElement_WritesSingleElementArray()
+        public void WriteUInt64ArraySingleElementWritesSingleElementArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([12345UL]);
             // Act
@@ -18815,15 +15982,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes multiple elements correctly.
-        /// Expected result is a JSON array containing all ulong values.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_MultipleElements_WritesAllElements()
+        public void WriteUInt64ArrayMultipleElementsWritesAllElements()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([100UL, 200UL, 300UL]);
             // Act
@@ -18837,15 +16000,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles ulong.MinValue (0) correctly.
-        /// Expected result is a JSON array containing "0".
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_UInt64MinValue_WritesZero()
+        public void WriteUInt64ArrayUInt64MinValueWritesZero()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([ulong.MinValue]);
             // Act
@@ -18859,15 +16018,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles ulong.MaxValue correctly.
-        /// Expected result is a JSON array containing the maximum ulong value as string.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_UInt64MaxValue_WritesMaxValue()
+        public void WriteUInt64ArrayUInt64MaxValueWritesMaxValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([ulong.MaxValue]);
             // Act
@@ -18881,15 +16036,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes array correctly when fieldName is null (for nested arrays).
-        /// Expected result is array elements without field name prefix.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_NullFieldName_WritesArrayWithoutFieldName()
+        public void WriteUInt64ArrayNullFieldNameWritesArrayWithoutFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([111UL, 222UL]);
             // Act
@@ -18901,15 +16052,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""["111","222"]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes array correctly when fieldName is empty string.
-        /// Expected result is array elements without field name.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_EmptyFieldName_WritesArrayValue()
+        public void WriteUInt64ArrayEmptyFieldNameWritesArrayValue()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([999UL]);
             // Act
@@ -18921,15 +16068,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""["999"]"""));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles fieldName with special characters correctly by escaping them.
-        /// Expected result is properly escaped field name in JSON.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_FieldNameWithSpecialCharacters_EscapesFieldName()
+        public void WriteUInt64ArrayFieldNameWithSpecialCharactersEscapesFieldName()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([123UL]);
             // Act
@@ -18941,15 +16084,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("""test\"Field"""));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles array with various boundary values correctly.
-        /// Expected result is JSON array containing all boundary values.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_BoundaryValues_WritesAllValues()
+        public void WriteUInt64ArrayBoundaryValuesWritesAllValues()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             var values = new ArrayOf<ulong>([0UL, 1UL, ulong.MaxValue - 1, ulong.MaxValue]);
             // Act
@@ -18969,17 +16108,13 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array in verbose mode includes empty arrays (IncludeDefaultValues = true).
-        /// Expected result is an empty JSON array written even when count is zero.
-        /// </summary>
         [Test]
-        public void WriteUInt64Array_VerboseEncodingEmptyArray_WritesEmptyArray()
+        public void WriteUInt64ArrayVerboseEncodingEmptyArrayWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            var values = ArrayOf<ulong>.Empty;
+            ArrayOf<ulong> values = ArrayOf<ulong>.Empty;
             // Act
             encoder.PushStructure(null);
             encoder.WriteUInt64Array("testField", values);
@@ -18991,16 +16126,11 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray writes an empty array when values is empty
-        /// and IncludeDefaultValues is true.
-        /// Expected: Writes the field with empty array [].
-        /// </summary>
         [Test]
-        public void WriteQualifiedNameArray_EmptyArrayVerboseMode_WritesEmptyArray()
+        public void WriteQualifiedNameArrayEmptyArrayVerboseModeWritesEmptyArray()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure("root");
             var emptyArray = new ArrayOf<QualifiedName>();
@@ -19015,16 +16145,11 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[]"));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray returns early when values is empty,
-        /// fieldName is not null, and IncludeDefaultValues is false.
-        /// Expected: Method returns without writing the field.
-        /// </summary>
         [Test]
-        public void WriteQualifiedNameArray_EmptyArrayCompactMode_ReturnsEarly()
+        public void WriteQualifiedNameArrayEmptyArrayCompactModeReturnsEarly()
         {
             // Arrange
-            var context = CreateMockServiceMessageContext();
+            ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure("root");
             var emptyArray = new ArrayOf<QualifiedName>();
@@ -19036,11 +16161,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("{}"));
         }
 
-        /// <summary>
-        /// Tests that PopArray writes closing bracket when nesting level is greater than 1.
-        /// </summary>
         [Test]
-        public void PopArray_NestingLevelGreaterThanOne_WritesClosingBracket()
+        public void PopArrayNestingLevelGreaterThanOneWritesClosingBracket()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19057,11 +16179,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Does.Contain("[[]]"));
         }
 
-        /// <summary>
-        /// Tests that PopArray writes closing bracket when topLevelIsArray is true.
-        /// </summary>
         [Test]
-        public void PopArray_TopLevelIsArray_WritesClosingBracket()
+        public void PopArrayTopLevelIsArrayWritesClosingBracket()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19074,11 +16193,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[]"));
         }
 
-        /// <summary>
-        /// Tests that PopArray writes closing bracket at nesting level 1 when level is not skipped.
-        /// </summary>
         [Test]
-        public void PopArray_NestingLevelOneNotSkipped_WritesClosingBracket()
+        public void PopArrayNestingLevelOneNotSkippedWritesClosingBracket()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19095,11 +16211,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray does not write closing bracket at nesting level 1 when level is skipped.
-        /// </summary>
         [Test]
-        public void PopArray_NestingLevelOneSkipped_DoesNotWriteClosingBracket()
+        public void PopArrayNestingLevelOneSkippedDoesNotWriteClosingBracket()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19112,11 +16225,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Empty);
         }
 
-        /// <summary>
-        /// Tests that PopArray correctly handles multiple nested arrays.
-        /// </summary>
         [Test]
-        public void PopArray_MultipleNestedArrays_WritesCorrectBrackets()
+        public void PopArrayMultipleNestedArraysWritesCorrectBrackets()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19137,11 +16247,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray sets comma required flag after writing closing bracket.
-        /// </summary>
         [Test]
-        public void PopArray_AfterWritingBracket_SetsCommaRequired()
+        public void PopArrayAfterWritingBracketSetsCommaRequired()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19159,11 +16266,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray with array elements writes closing bracket correctly.
-        /// </summary>
         [Test]
-        public void PopArray_WithArrayElements_WritesClosingBracketAfterElements()
+        public void PopArrayWithArrayElementsWritesClosingBracketAfterElements()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19183,13 +16287,10 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray works correctly with empty array at top level.
-        /// </summary>
         [Test]
         [Category("ProductionBugSuspected")]
         [Ignore("ProductionBugSuspected")]
-        public void PopArray_EmptyArrayAtTopLevel_WritesEmptyArrayBrackets()
+        public void PopArrayEmptyArrayAtTopLevelWritesEmptyArrayBrackets()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19202,11 +16303,8 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.EqualTo("[]"));
         }
 
-        /// <summary>
-        /// Tests that PopArray handles arrays with mixed content types.
-        /// </summary>
         [Test]
-        public void PopArray_WithMixedContentTypes_WritesCorrectly()
+        public void PopArrayWithMixedContentTypesWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19226,11 +16324,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray works correctly when called multiple times in sequence.
-        /// </summary>
         [Test]
-        public void PopArray_MultipleSequentialCalls_WritesCorrectStructure()
+        public void PopArrayMultipleSequentialCallsWritesCorrectStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19254,11 +16349,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray with deeply nested structures writes all closing brackets.
-        /// </summary>
         [Test]
-        public void PopArray_DeeplyNestedStructures_WritesAllClosingBrackets()
+        public void PopArrayDeeplyNestedStructuresWritesAllClosingBrackets()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19282,11 +16374,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray in verbose mode produces valid JSON structure.
-        /// </summary>
         [Test]
-        public void PopArray_VerboseMode_ProducesValidJsonStructure()
+        public void PopArrayVerboseModeProducesValidJsonStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19305,11 +16394,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray handles arrays within structures correctly.
-        /// </summary>
         [Test]
-        public void PopArray_ArrayWithinStructure_WritesCorrectJsonStructure()
+        public void PopArrayArrayWithinStructureWritesCorrectJsonStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19332,11 +16418,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray correctly handles array of structures.
-        /// </summary>
         [Test]
-        public void PopArray_ArrayOfStructures_WritesCorrectJsonStructure()
+        public void PopArrayArrayOfStructuresWritesCorrectJsonStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19359,11 +16442,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray at nesting level zero does not throw exception.
-        /// </summary>
         [Test]
-        public void PopArray_AtNestingLevelZero_CompletesWithoutException()
+        public void PopArrayAtNestingLevelZeroCompletesWithoutException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19374,11 +16454,8 @@ namespace Opc.Ua.UnitTests
             Assert.DoesNotThrow(() => encoder.Close());
         }
 
-        /// <summary>
-        /// Tests that PopArray with single element array writes correctly.
-        /// </summary>
         [Test]
-        public void PopArray_SingleElementArray_WritesCorrectly()
+        public void PopArraySingleElementArrayWritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
@@ -19396,11 +16473,8 @@ namespace Opc.Ua.UnitTests
                 """));
         }
 
-        /// <summary>
-        /// Tests that PopArray maintains correct structure when combined with PopStructure.
-        /// </summary>
         [Test]
-        public void PopArray_CombinedWithPopStructure_MaintainsCorrectStructure()
+        public void PopArrayCombinedWithPopStructureMaintainsCorrectStructure()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();

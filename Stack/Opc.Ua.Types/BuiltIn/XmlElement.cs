@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// <param name="outerXml"></param>
         internal XmlElement(string? outerXml)
         {
-            m_outerXml = outerXml;
+            m_outerXml = string.IsNullOrEmpty(outerXml) ? null : outerXml;
         }
 
         /// <summary>

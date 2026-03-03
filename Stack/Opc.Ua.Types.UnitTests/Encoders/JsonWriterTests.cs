@@ -1,0 +1,291 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Buffers;
+using System.Linq;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+using Opc.Ua.Types;
+
+namespace Opc.Ua.UnitTests
+{
+    /// <summary>
+    /// Unit tests for the <see cref = "JsonParser"/> class.
+    /// </summary>
+    [TestFixture]
+    public class JsonWriterTests
+    {
+        [Test]
+        public void WriteBadVariantThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+            try
+            {
+                writer.WriteVariant(JsonProperties.Value, badVariant);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteBadVariantValuesThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var badVariant = new Variant(
+                default,
+                TypeInfo.Arrays.DiagnosticInfo,
+                new[] { new DiagnosticInfo() }.ToArrayOf());
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+            try
+            {
+                writer.WriteVariant(JsonProperties.Value, badVariant);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteBooleanValuesWithLengthExceedingThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 4
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+            try
+            {
+                ArrayOf<bool> b = new bool[6].ToArrayOf();
+                writer.WriteBooleanArray(JsonProperties.Value, b);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteByteStringWithLengthExceedingThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = 4
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                var bytes = ByteString.From(new byte[6]);
+                writer.WriteByteString(JsonProperties.Value, bytes);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteByteValuesWithLengthExceedingThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 4
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                ArrayOf<byte> bytes = new byte[6].ToArrayOf();
+                writer.WriteByteArray(JsonProperties.Value, bytes);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteDiagnosticInfosWithNestingLevelsExceedingThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 1
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                writer.WriteDiagnosticInfo(JsonProperties.Value, new DiagnosticInfo
+                {
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            InnerDiagnosticInfo = new DiagnosticInfo()
+                        }
+                    }
+                });
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteLocalDateTime()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            DateTime expected = DateTime.UtcNow;
+            var buffers = new PooledBufferWriter();
+
+            using (var writer = new JsonWriter(buffers, messageContext))
+            {
+                writer.WriteDateTime(JsonProperties.Value, expected);
+            }
+
+            var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            DateTime result = reader.ReadDateTime(JsonProperties.Value);
+
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteStringWithLengthExceedingThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 4
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                writer.WriteString(JsonProperties.Value, "123456");
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteStructureThrowsIfNestingLimitsExceeded()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 1
+            };
+            var buffer = new PooledBufferWriter();
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                writer.WriteEncodeable(JsonProperties.Value, CreateType);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteVariantThrowsIfNestingLimitsExceeded()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 1
+            };
+            var buffer = new PooledBufferWriter();
+            var variant = new Variant(new DataValue(new Variant(new DataValue(new Variant(1)))));
+            using var writer = new JsonWriter(buffer, messageContext);
+
+            try
+            {
+                writer.WriteVariant(JsonProperties.Value, variant);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        public static Argument CreateType => new()
+        {
+            Description = LocalizedText.From("Test"),
+            Value = Enumerable.Repeat(new BrowseDescription
+            {
+                NodeId = new NodeId(5),
+                ReferenceTypeId = new NodeId(5),
+                IncludeSubtypes = false
+            }, 100).ToArrayOf()
+        };
+    }
+}
