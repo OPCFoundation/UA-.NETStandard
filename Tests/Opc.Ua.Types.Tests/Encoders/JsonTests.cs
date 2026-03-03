@@ -40,6 +40,10 @@ namespace Opc.Ua.UnitTests
     /// Unit tests for the <see cref = "JsonParser"/> class.
     /// </summary>
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class JsonEncodeDecodeTests
     {
         [Test]
@@ -52,13 +56,13 @@ namespace Opc.Ua.UnitTests
             bool expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteBoolean(JsonProperties.Value, expected);
+                encoder.WriteBoolean(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            bool result = reader.ReadBoolean(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            bool result = decoder.ReadBoolean(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -74,13 +78,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteBooleanArray(JsonProperties.Value, expected);
+                encoder.WriteBooleanArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<bool> result = reader.ReadBooleanArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<bool> result = decoder.ReadBooleanArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -115,13 +119,13 @@ namespace Opc.Ua.UnitTests
             byte expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteByte(JsonProperties.Value, expected);
+                encoder.WriteByte(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            byte result = reader.ReadByte(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            byte result = decoder.ReadByte(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -135,13 +139,13 @@ namespace Opc.Ua.UnitTests
             ByteString expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteByteString(JsonProperties.Value, expected);
+                encoder.WriteByteString(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ByteString result = reader.ReadByteString(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ByteString result = decoder.ReadByteString(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -155,13 +159,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteByteStringArray(JsonProperties.Value, expected);
+                encoder.WriteByteStringArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<ByteString> result = reader.ReadByteStringArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<ByteString> result = decoder.ReadByteStringArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -195,13 +199,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteByteArray(JsonProperties.Value, expected);
+                encoder.WriteByteArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<byte> result = decoder.ReadByteArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -244,13 +248,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDataValueArray(JsonProperties.Value, expected);
+                encoder.WriteDataValueArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<DataValue> result = reader.ReadDataValueArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<DataValue> result = decoder.ReadDataValueArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -305,13 +309,13 @@ namespace Opc.Ua.UnitTests
             DateTime expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDateTime(JsonProperties.Value, expected);
+                encoder.WriteDateTime(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = reader.ReadDateTime(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            DateTime result = decoder.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -325,13 +329,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDateTimeArray(JsonProperties.Value, expected);
+                encoder.WriteDateTimeArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -361,13 +365,13 @@ namespace Opc.Ua.UnitTests
             DiagnosticInfo expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDiagnosticInfo(JsonProperties.Value, expected);
+                encoder.WriteDiagnosticInfo(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -381,13 +385,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDiagnosticInfoArray(JsonProperties.Value, expected);
+                encoder.WriteDiagnosticInfoArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<DiagnosticInfo> result = reader.ReadDiagnosticInfoArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -409,13 +413,13 @@ namespace Opc.Ua.UnitTests
             double expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDouble(JsonProperties.Value, expected);
+                encoder.WriteDouble(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            double result = reader.ReadDouble(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            double result = decoder.ReadDouble(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -438,13 +442,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDoubleArray(JsonProperties.Value, expected);
+                encoder.WriteDoubleArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<double> result = reader.ReadDoubleArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<double> result = decoder.ReadDoubleArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -492,13 +496,13 @@ namespace Opc.Ua.UnitTests
             StructureType expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteEnumerated(JsonProperties.Value, expected);
+                encoder.WriteEnumerated(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            StructureType result = reader.ReadEnumerated<StructureType>(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            StructureType result = decoder.ReadEnumerated<StructureType>(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -514,35 +518,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext, JsonEncoderOptions.Verbose))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteEnumeratedArray(JsonProperties.Value, expected);
+                encoder.WriteEnumeratedArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<StructureType> result = reader.ReadEnumeratedArray<StructureType>(JsonProperties.Value);
-
-            Assert.That(result, Is.EqualTo(expected));
-        }
-
-        [Test]
-        [TestCase(StructureType.Structure, 0)]
-        [TestCase(StructureType.Structure, 1000)]
-        [TestCase(StructureType.StructureWithOptionalFields, 4)]
-        public void WriteAndReadEnumeratedArrayCompact(StructureType value, int length)
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
-
-            using (var writer = new JsonWriter(buffers, messageContext, JsonEncoderOptions.Compact))
-            {
-                writer.WriteEnumeratedArray(JsonProperties.Value, expected);
-            }
-
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<StructureType> result = reader.ReadEnumeratedArray<StructureType>(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<StructureType> result = decoder.ReadEnumeratedArray<StructureType>(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -575,13 +557,13 @@ namespace Opc.Ua.UnitTests
             ExpandedNodeId expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteExpandedNodeId(JsonProperties.Value, expected);
+                encoder.WriteExpandedNodeId(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExpandedNodeId result = decoder.ReadExpandedNodeId(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -595,13 +577,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteExpandedNodeIdArray(JsonProperties.Value, expected);
+                encoder.WriteExpandedNodeIdArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<ExpandedNodeId> result = reader.ReadExpandedNodeIdArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<ExpandedNodeId> result = decoder.ReadExpandedNodeIdArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -631,13 +613,13 @@ namespace Opc.Ua.UnitTests
             ExtensionObject expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteExtensionObject(JsonProperties.Value, expected);
+                encoder.WriteExtensionObject(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExtensionObject result = decoder.ReadExtensionObject(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -651,13 +633,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteExtensionObjectArray(JsonProperties.Value, expected);
+                encoder.WriteExtensionObjectArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<ExtensionObject> result = reader.ReadExtensionObjectArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<ExtensionObject> result = decoder.ReadExtensionObjectArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -695,13 +677,13 @@ namespace Opc.Ua.UnitTests
             float expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteFloat(JsonProperties.Value, expected);
+                encoder.WriteFloat(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            float result = reader.ReadFloat(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            float result = decoder.ReadFloat(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -724,13 +706,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteFloatArray(JsonProperties.Value, expected);
+                encoder.WriteFloatArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<float> result = reader.ReadFloatArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<float> result = decoder.ReadFloatArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -777,13 +759,13 @@ namespace Opc.Ua.UnitTests
             Uuid expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteGuid(JsonProperties.Value, expected);
+                encoder.WriteGuid(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Uuid result = reader.ReadGuid(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Uuid result = decoder.ReadGuid(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -797,13 +779,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteGuidArray(JsonProperties.Value, expected);
+                encoder.WriteGuidArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<Uuid> result = reader.ReadGuidArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<Uuid> result = decoder.ReadGuidArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -837,13 +819,13 @@ namespace Opc.Ua.UnitTests
             int expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt32(JsonProperties.Value, expected);
+                encoder.WriteInt32(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            int result = reader.ReadInt32(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            int result = decoder.ReadInt32(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -863,13 +845,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt32Array(JsonProperties.Value, expected);
+                encoder.WriteInt32Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<int> result = reader.ReadInt32Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<int> result = decoder.ReadInt32Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -909,13 +891,13 @@ namespace Opc.Ua.UnitTests
             LocalizedText expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteLocalizedText(JsonProperties.Value, expected);
+                encoder.WriteLocalizedText(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            LocalizedText result = reader.ReadLocalizedText(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            LocalizedText result = decoder.ReadLocalizedText(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -929,13 +911,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteLocalizedTextArray(JsonProperties.Value, expected);
+                encoder.WriteLocalizedTextArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<LocalizedText> result = reader.ReadLocalizedTextArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<LocalizedText> result = decoder.ReadLocalizedTextArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -969,13 +951,13 @@ namespace Opc.Ua.UnitTests
             long expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt64(JsonProperties.Value, expected);
+                encoder.WriteInt64(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            long result = reader.ReadInt64(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            long result = decoder.ReadInt64(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -995,13 +977,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt64Array(JsonProperties.Value, expected);
+                encoder.WriteInt64Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<long> result = reader.ReadInt64Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<long> result = decoder.ReadInt64Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1041,13 +1023,13 @@ namespace Opc.Ua.UnitTests
             Variant expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteVariant(JsonProperties.Value, expected);
+                encoder.WriteVariant(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Variant result = reader.ReadVariant(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Variant result = decoder.ReadVariant(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1061,13 +1043,13 @@ namespace Opc.Ua.UnitTests
             NodeId expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteNodeId(JsonProperties.Value, expected);
+                encoder.WriteNodeId(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            NodeId result = reader.ReadNodeId(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            NodeId result = decoder.ReadNodeId(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1081,13 +1063,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteNodeIdArray(JsonProperties.Value, expected);
+                encoder.WriteNodeIdArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<NodeId> result = reader.ReadNodeIdArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<NodeId> result = decoder.ReadNodeIdArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1117,13 +1099,13 @@ namespace Opc.Ua.UnitTests
             QualifiedName expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteQualifiedName(JsonProperties.Value, expected);
+                encoder.WriteQualifiedName(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            QualifiedName result = decoder.ReadQualifiedName(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1137,13 +1119,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteQualifiedNameArray(JsonProperties.Value, expected);
+                encoder.WriteQualifiedNameArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<QualifiedName> result = reader.ReadQualifiedNameArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<QualifiedName> result = decoder.ReadQualifiedNameArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1177,13 +1159,13 @@ namespace Opc.Ua.UnitTests
             sbyte expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteSByte(JsonProperties.Value, expected);
+                encoder.WriteSByte(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            sbyte result = reader.ReadSByte(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            sbyte result = decoder.ReadSByte(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1203,13 +1185,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteSByteArray(JsonProperties.Value, expected);
+                encoder.WriteSByteArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<sbyte> result = decoder.ReadSByteArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1253,13 +1235,13 @@ namespace Opc.Ua.UnitTests
             short expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt16(JsonProperties.Value, expected);
+                encoder.WriteInt16(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            short result = reader.ReadInt16(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            short result = decoder.ReadInt16(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1279,13 +1261,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteInt16Array(JsonProperties.Value, expected);
+                encoder.WriteInt16Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<short> result = reader.ReadInt16Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<short> result = decoder.ReadInt16Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1325,13 +1307,13 @@ namespace Opc.Ua.UnitTests
             StatusCode expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteStatusCode(JsonProperties.Value, expected);
+                encoder.WriteStatusCode(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            StatusCode result = reader.ReadStatusCode(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            StatusCode result = decoder.ReadStatusCode(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1345,13 +1327,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteStatusCodeArray(JsonProperties.Value, expected);
+                encoder.WriteStatusCodeArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<StatusCode> result = reader.ReadStatusCodeArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<StatusCode> result = decoder.ReadStatusCodeArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1383,13 +1365,13 @@ namespace Opc.Ua.UnitTests
             string expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteString(JsonProperties.Value, expected);
+                encoder.WriteString(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            string result = reader.ReadString(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            string result = decoder.ReadString(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1406,13 +1388,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteStringArray(JsonProperties.Value, expected);
+                encoder.WriteStringArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<string> result = reader.ReadStringArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<string> result = decoder.ReadStringArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1424,12 +1406,12 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             var expected = new Argument();
             var buffers = new PooledBufferWriter();
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteEncodeableAsExtensionObject(JsonProperties.Value, expected);
+                encoder.WriteEncodeableAsExtensionObject(JsonProperties.Value, expected);
             }
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Argument result = decoder.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
 
             Assert.That(CoreUtils.IsEqual(result, expected), Is.True);
         }
@@ -1445,13 +1427,13 @@ namespace Opc.Ua.UnitTests
             uint expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt32(JsonProperties.Value, expected);
+                encoder.WriteUInt32(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            uint result = reader.ReadUInt32(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            uint result = decoder.ReadUInt32(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1469,13 +1451,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt32Array(JsonProperties.Value, expected);
+                encoder.WriteUInt32Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<uint> result = decoder.ReadUInt32Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1515,13 +1497,13 @@ namespace Opc.Ua.UnitTests
             ulong expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt64(JsonProperties.Value, expected);
+                encoder.WriteUInt64(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ulong result = reader.ReadUInt64(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ulong result = decoder.ReadUInt64(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1539,13 +1521,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt64Array(JsonProperties.Value, expected);
+                encoder.WriteUInt64Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<ulong> result = reader.ReadUInt64Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<ulong> result = decoder.ReadUInt64Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1585,13 +1567,13 @@ namespace Opc.Ua.UnitTests
             ushort expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt16(JsonProperties.Value, expected);
+                encoder.WriteUInt16(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ushort result = reader.ReadUInt16(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ushort result = decoder.ReadUInt16(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1609,13 +1591,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteUInt16Array(JsonProperties.Value, expected);
+                encoder.WriteUInt16Array(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<ushort> result = reader.ReadUInt16Array(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<ushort> result = decoder.ReadUInt16Array(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1651,13 +1633,13 @@ namespace Opc.Ua.UnitTests
             Variant expected = value;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteVariant(JsonProperties.Value, expected);
+                encoder.WriteVariant(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Variant result = reader.ReadVariant(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Variant result = decoder.ReadVariant(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1671,13 +1653,13 @@ namespace Opc.Ua.UnitTests
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteVariantArray(JsonProperties.Value, expected);
+                encoder.WriteVariantArray(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<Variant> result = reader.ReadVariantArray(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<Variant> result = decoder.ReadVariantArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1691,13 +1673,13 @@ namespace Opc.Ua.UnitTests
             var expected = new Variant(Enumerable.Repeat(value, length).ToArray());
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteVariant(JsonProperties.Value, expected);
+                encoder.WriteVariant(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Variant result = reader.ReadVariant(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Variant result = decoder.ReadVariant(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1717,38 +1699,48 @@ namespace Opc.Ua.UnitTests
             TestWriteAndReadVariant(new Variant(value));
         }
 
-        private static void TestWriteAndReadDataValue(in DataValue expected)
+        private void TestWriteAndReadDataValue(in DataValue expected)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteDataValue(JsonProperties.Value, expected);
+                encoder.WriteDataValue(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DataValue result = reader.ReadDataValue(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            DataValue result = decoder.ReadDataValue(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
 
-        private static void TestWriteAndReadVariant(in Variant expected)
+        private void TestWriteAndReadVariant(in Variant expected)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
-                writer.WriteVariant(JsonProperties.Value, expected);
+                encoder.WriteVariant(JsonProperties.Value, expected);
             }
 
-            using var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            Variant result = reader.ReadVariant(JsonProperties.Value);
+            using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Variant result = decoder.ReadVariant(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
+        }
+
+        internal IDecoder CreateDecoder(ReadOnlySequence<byte> buffers, IServiceMessageContext messageContext)
+        {
+            return new JsonParser(buffers, messageContext);
+        }
+
+        internal IEncoder CreateEncoder(IBufferWriter<byte> buffer, IServiceMessageContext messageContext)
+        {
+            return new JsonWriter(buffer, messageContext);
         }
     }
 }

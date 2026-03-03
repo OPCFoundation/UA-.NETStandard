@@ -34,8 +34,9 @@ using System.Runtime.Serialization;
 using System.Xml.XPath;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Types;
 
-namespace Opc.Ua.Types
+namespace Opc.Ua.Tests
 {
     /// <summary>
     /// Built in type test cases
@@ -1170,10 +1171,10 @@ namespace Opc.Ua.Types
                 yield return new TestCaseData(
                     Variant.From(new[]
                     {
-                    XmlElement.From("<a/>"),
-                    XmlElement.From("<b/>"),
-                    XmlElement.From("<c/>"),
-                    XmlElement.From("<d/>")
+                    XmlElement.From("<a />"),
+                    XmlElement.From("<b />"),
+                    XmlElement.From("<c />"),
+                    XmlElement.From("<d />")
                     }.ToMatrixOf(2, 2)),
                     BuiltInType.XmlElement);
                 yield return new TestCaseData(
@@ -1465,5 +1466,11 @@ namespace Opc.Ua.Types
         Value2 = 2,
         Value3 = 3,
         LargeValue = 1000000
+    }
+
+    public enum TestNumericEnum
+    {
+        Item100 = 100,
+        Item200 = 200
     }
 }

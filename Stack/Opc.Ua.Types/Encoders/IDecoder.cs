@@ -228,6 +228,18 @@ namespace Opc.Ua
         T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new();
 
         /// <summary>
+        /// Read the encodeable as an extension object from the stream.
+        /// The encodeable is wrapped in an extension object if the field
+        /// in a structure is abstract or allows subtypes. While the returned
+        /// value is of type T, it is likely a subtype of T.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        T ReadEncodeableAsExtensionObject<T>(string fieldName)
+            where T : IEncodeable;
+
+        /// <summary>
         /// Reads an enumerated value from the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enum to be read</typeparam>
@@ -382,10 +394,22 @@ namespace Opc.Ua
             where T : IEncodeable;
 
         /// <summary>
+        /// Read the list of encodeables as extension objects from the
+        /// stream. The structure is wrapped in an extension object if
+        /// the field in a structure is abstract or allows subtypes.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+            where T : IEncodeable;
+
+        /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enum to be read</typeparam>
-        ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum;
+        ArrayOf<T> ReadEnumeratedArray<T>(string fieldName)
+            where T : struct, Enum;
 
         /// <summary>
         /// Reads a variant value from the stream with the specified TypeInfo.

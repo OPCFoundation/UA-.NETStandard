@@ -5220,7 +5220,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_ValidInputsLeaveOpenFalse_EncodesSuccessfully()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5234,7 +5234,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_ValidInputsLeaveOpenTrue_EncodesSuccessfully()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5249,7 +5249,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_LeaveOpenTrue_StreamRemainsOpen()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5264,7 +5264,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_LeaveOpenFalse_StreamCanBeClosed()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5278,7 +5278,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_EmptyStream_WritesData()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5293,7 +5293,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_StreamWithExistingData_AppendsData()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             using var stream = new MemoryStream();
             stream.Write([1, 2, 3, 4, 5], 0, 5);
             long initialLength = stream.Length;
@@ -5309,7 +5309,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeMessage_FileStream_EncodesSuccessfully()
         {
             // Arrange
-            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = BuiltInTypeTestCases.CreateMockEncodeable();
             string tempFile = Path.GetTempFileName();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -5831,7 +5831,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteRawBytes_OffsetPlusCountExceedsBufferLength_ThrowsArgumentException()
+        public void WriteRawBytes_OffsetPlusCountExceedsBufferLength_Throws()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5844,11 +5844,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 2, 2));
+            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 2, 2));
         }
 
         [Test]
-        public void WriteRawBytes_OffsetExceedsBufferLength_ThrowsArgumentException()
+        public void WriteRawBytes_OffsetExceedsBufferLength_ThrowsException()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5862,11 +5862,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 4, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 4, 0));
         }
 
         [Test]
-        public void WriteRawBytes_CountExceedsBufferLength_ThrowsArgumentException()
+        public void WriteRawBytes_CountExceedsBufferLength_Throws()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5879,11 +5879,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 0, 5));
+            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 0, 5));
         }
 
         [Test]
-        public void WriteRawBytes_MaxIntegerOffsetAndCount_ThrowsArgumentException()
+        public void WriteRawBytes_MaxIntegerOffsetAndCount_Throws()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -5896,7 +5896,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
+            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
         }
 
         [Test]
@@ -9984,7 +9984,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ScalarVariants))]
         public void WriteVariantValueWithScalarRawRoundTripsCorrectly(
             Variant variant)
         {
@@ -9994,7 +9994,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ScalarVariants))]
         public void WriteVariantValueWithScalarRoundTripsCorrectly(
             Variant variant)
         {
@@ -10130,7 +10130,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ArrayVariants))]
         public void WriteVariantValueWithArraySetsArrayBitInEncodingByte(Variant variant)
         {
             byte[] result = EncodeVariantValue(variant);
@@ -10140,7 +10140,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ArrayVariants))]
         public void WriteVariantValueWithArrayRoundTripsCorrectly(Variant variant)
         {
             Variant decoded = RoundTripVariantValue(variant, false);
@@ -10149,7 +10149,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ArrayVariants))]
         public void WriteVariantValueWithArrayRawRoundTripsCorrectly(Variant variant)
         {
             Variant decoded = RoundTripVariantValue(variant, true);
@@ -10158,7 +10158,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(MatrixVariantValueTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.MatrixVariants))]
         public void WriteVariantValueWithMatrixSetsEncodingBits(
             Variant variant, BuiltInType expectedBuiltInType)
         {
@@ -10432,208 +10432,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             return decoder.ReadVariantValue(null, variant.TypeInfo);
         }
 
-        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
-        {
-            yield return new TestCaseData(Variant.From(true));
-            yield return new TestCaseData(Variant.From((sbyte)-42));
-            yield return new TestCaseData(Variant.From((byte)255));
-            yield return new TestCaseData(Variant.From((short)-1234));
-            yield return new TestCaseData(Variant.From((ushort)65535));
-            yield return new TestCaseData(Variant.From(123456));
-            yield return new TestCaseData(Variant.From(123456u));
-            yield return new TestCaseData(Variant.From(123456789L));
-            yield return new TestCaseData(Variant.From(123456789uL));
-            yield return new TestCaseData(Variant.From(3.14f));
-            yield return new TestCaseData(Variant.From(2.718));
-            yield return new TestCaseData(Variant.From("hello"));
-            yield return new TestCaseData(Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
-            yield return new TestCaseData(Variant.From(new Uuid(Guid.Empty)));
-            yield return new TestCaseData(Variant.From(new NodeId(1)));
-            yield return new TestCaseData(Variant.From(new ExpandedNodeId(1)));
-            yield return new TestCaseData(Variant.From(new QualifiedName("q")));
-            yield return new TestCaseData(Variant.From(new LocalizedText("en", "t")));
-            yield return new TestCaseData(Variant.From(new ExtensionObject(ExpandedNodeId.Null)));
-            yield return new TestCaseData(Variant.From(new DataValue(Variant.From(1))));
-            yield return new TestCaseData(Variant.From(ByteString.From([1, 2])));
-            yield return new TestCaseData(Variant.From(TestEnum.Value1));
-            yield return new TestCaseData(Variant.From(new StatusCode(0x80010000u)));
-        }
-
-        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
-        {
-            yield return new TestCaseData(Variant.From(s_booleanArray));
-            yield return new TestCaseData(Variant.From(new sbyte[] { 1, -1 }));
-            yield return new TestCaseData(Variant.From(new byte[] { 1, 2 }));
-            yield return new TestCaseData(Variant.From(new short[] { 1, -1 }));
-            yield return new TestCaseData(Variant.From(new ushort[] { 1, 2 }));
-            yield return new TestCaseData(Variant.From(new int[] { 1, -1 }));
-            yield return new TestCaseData(Variant.From(new uint[] { 1, 2 }));
-            yield return new TestCaseData(Variant.From(new long[] { 1, -1 }));
-            yield return new TestCaseData(Variant.From(new ulong[] { 1, 2 }));
-            yield return new TestCaseData(Variant.From(s_floatArray));
-            yield return new TestCaseData(Variant.From(s_doubleArray));
-            yield return new TestCaseData(Variant.From(s_stringArray));
-            yield return new TestCaseData(Variant.From([new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)]));
-            yield return new TestCaseData(Variant.From([new Uuid(Guid.Empty)]));
-            yield return new TestCaseData(Variant.From([new NodeId(1)]));
-            yield return new TestCaseData(Variant.From([new ExpandedNodeId(1)]));
-            yield return new TestCaseData(Variant.From([StatusCodes.Good]));
-            yield return new TestCaseData(Variant.From([new QualifiedName("q")]));
-            yield return new TestCaseData(Variant.From([new LocalizedText("en", "t")]));
-            yield return new TestCaseData(Variant.From([new ExtensionObject(ExpandedNodeId.Null)]));
-            yield return new TestCaseData(Variant.From([new DataValue(Variant.From(1))]));
-            yield return new TestCaseData(Variant.From([Variant.From(1)]));
-            yield return new TestCaseData(Variant.From([ByteString.From([1, 2])]));
-            yield return new TestCaseData(Variant.From([TestEnum.Value1, TestEnum.Value2]));
-        }
-
-        private static System.Collections.IEnumerable MatrixVariantValueTestCases()
-        {
-            yield return new TestCaseData(
-                Variant.From(s_booleanArray.ToMatrixOf(2, 2)),
-                BuiltInType.Boolean);
-            yield return new TestCaseData(
-                Variant.From(new sbyte[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.SByte);
-            yield return new TestCaseData(
-                Variant.From(new byte[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.Byte);
-            yield return new TestCaseData(
-                Variant.From(new short[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int16);
-            yield return new TestCaseData(
-                Variant.From(new ushort[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt16);
-            yield return new TestCaseData(
-                Variant.From(new int[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int32);
-            yield return new TestCaseData(
-                Variant.From(new uint[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt32);
-            yield return new TestCaseData(
-                Variant.From(new long[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int64);
-            yield return new TestCaseData(
-                Variant.From(new ulong[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt64);
-            yield return new TestCaseData(
-                Variant.From(s_floatArray.ToMatrixOf(2, 2)),
-                BuiltInType.Float);
-            yield return new TestCaseData(
-                Variant.From(s_doubleArray.ToMatrixOf(2, 2)),
-                BuiltInType.Double);
-            yield return new TestCaseData(
-                Variant.From(s_stringArray.ToMatrixOf(2, 2)),
-                BuiltInType.String);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 4, 0, 0, 0, DateTimeKind.Utc)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.DateTime);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    ByteString.From(new byte[] { 1 }),
-                    ByteString.From(new byte[] { 2 }),
-                    ByteString.From(new byte[] { 3 }),
-                    ByteString.From(new byte[] { 4 })
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ByteString);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    XmlElement.From("<a/>"),
-                    XmlElement.From("<b/>"),
-                    XmlElement.From("<c/>"),
-                    XmlElement.From("<d/>")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.XmlElement);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new NodeId(1),
-                    new NodeId(2),
-                    new NodeId(3),
-                    new NodeId(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.NodeId);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ExpandedNodeId(1),
-                    new ExpandedNodeId(2),
-                    new ExpandedNodeId(3),
-                    new ExpandedNodeId(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ExpandedNodeId);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    StatusCodes.Good,
-                    StatusCodes.Bad,
-                    StatusCodes.Good,
-                    StatusCodes.Bad
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.StatusCode);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new QualifiedName("a"),
-                    new QualifiedName("b"),
-                    new QualifiedName("c"),
-                    new QualifiedName("d")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.QualifiedName);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new LocalizedText("en", "a"),
-                    new LocalizedText("en", "b"),
-                    new LocalizedText("en", "c"),
-                    new LocalizedText("en", "d")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.LocalizedText);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ExtensionObject);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new DataValue(Variant.From(1)),
-                    new DataValue(Variant.From(2)),
-                    new DataValue(Variant.From(3)),
-                    new DataValue(Variant.From(4))
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.DataValue);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    Variant.From(1),
-                    Variant.From(2),
-                    Variant.From(3),
-                    Variant.From(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.Variant);
-            yield return new TestCaseData(
-                Variant.From(ArrayOf.Wrapped(
-                    TestEnum.Value1,
-                    TestEnum.Value2,
-                    TestEnum.Value2,
-                    TestEnum.Value3)
-                .ToMatrix(2, 2)),
-                BuiltInType.Int32);
-        }
-
         /// <summary>
         /// Creates a mock IServiceMessageContext for testing.
         /// </summary>
@@ -10664,189 +10462,5 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = int.MaxValue
             };
         }
-
-        /// <summary>
-        /// Helper class to simulate a non-seekable stream for testing.
-        /// </summary>
-        private sealed class NonSeekableMemoryStream : MemoryStream
-        {
-            public override bool CanSeek => m_canSeek;
-
-            public override long Seek(long offset, SeekOrigin origin)
-            {
-                if (!m_canSeek)
-                {
-                    throw new NotSupportedException("This stream does not support seeking.");
-                }
-                return base.Seek(offset, origin);
-            }
-
-            internal void ResetAndMakeSeekable()
-            {
-                m_canSeek = true;
-                Position = 0;
-            }
-
-            private bool m_canSeek;
-        }
-
-        /// <summary>
-        /// Creates a mock IEncodeable for testing.
-        /// </summary>
-        private static Mock<IEncodeable> CreateMockEncodeable()
-        {
-            var mockMessage = new Mock<IEncodeable>();
-            var binaryEncodingId = new ExpandedNodeId(Guid.NewGuid());
-            mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
-            mockMessage.Setup(m => m.TypeId).Returns(binaryEncodingId);
-            mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            return mockMessage;
-        }
-
-        private sealed class TestEncodeable : IEncodeable
-        {
-            private static readonly ExpandedNodeId s_typeId = new(1, 0);
-            private static readonly ExpandedNodeId s_binaryEncodingId = new(2, 0);
-            private static readonly ExpandedNodeId s_xmlEncodingId = new(3, 0);
-
-            public TestEncodeable()
-                : this(0)
-            {
-            }
-
-            public TestEncodeable(int value)
-            {
-                Value = value;
-            }
-
-            public int Value { get; }
-
-            public ExpandedNodeId TypeId => s_typeId;
-
-            public ExpandedNodeId BinaryEncodingId => s_binaryEncodingId;
-
-            public ExpandedNodeId XmlEncodingId => s_xmlEncodingId;
-
-            public void Encode(IEncoder encoder)
-            {
-                encoder.WriteInt32(null, Value);
-            }
-
-            public void Decode(IDecoder decoder)
-            {
-                decoder.ReadInt32(null);
-            }
-
-            public bool IsEqual(IEncodeable encodeable)
-            {
-                return false;
-            }
-
-            public object Clone()
-            {
-                return new TestEncodeable(Value);
-            }
-        }
-
-        private sealed class TestEncodeableType : EncodeableType<TestEncodeable>
-        {
-            public override System.Xml.XmlQualifiedName XmlName
-                => new("TestEncodeable", Namespaces.OpcUaXsd);
-
-            public override IEncodeable CreateInstance()
-            {
-                return new TestEncodeable();
-            }
-        }
-
-        private enum TestByteEnum : byte
-        {
-            Zero = 0,
-            One = 1,
-            Max = byte.MaxValue
-        }
-
-        private enum TestSByteEnum : sbyte
-        {
-            Min = sbyte.MinValue,
-            MinusOne = -1,
-            Zero = 0,
-            One = 1,
-            Max = sbyte.MaxValue
-        }
-
-        private enum TestInt16Enum : short
-        {
-            Min = short.MinValue,
-            MinusOne = -1,
-            Zero = 0,
-            One = 1,
-            Max = short.MaxValue
-        }
-
-        private enum TestUInt16Enum : ushort
-        {
-            Zero = 0,
-            One = 1,
-            Max = ushort.MaxValue
-        }
-
-        private enum TestInt32Enum
-        {
-            Min = int.MinValue,
-            MinusOne = -1,
-            Zero = 0,
-            One = 1,
-            Max = int.MaxValue
-        }
-
-        private enum TestUInt32Enum : uint
-        {
-            Zero = 0,
-            One = 1,
-            Max = uint.MaxValue
-        }
-
-        private enum TestInt64Enum : long
-        {
-            Min = long.MinValue,
-            MinusOne = -1,
-            Zero = 0,
-            One = 1,
-            Max = long.MaxValue
-        }
-
-        private enum TestUInt64Enum : ulong
-        {
-            Zero = 0,
-            One = 1,
-            Max = ulong.MaxValue
-        }
-
-        [Flags]
-        private enum TestFlagsEnum
-        {
-            None = 0,
-            Flag1 = 1,
-            Flag2 = 2,
-            Flag3 = 4,
-            Flag4 = 8,
-            Combined = Flag1 | Flag2 | Flag3
-        }
-
-        private enum TestEnum
-        {
-            NegativeValue = -1,
-            Zero = 0,
-            Value1 = 1,
-            Value2 = 2,
-            Value3 = 3,
-            LargeValue = 1000000
-        }
-
-        private static readonly bool[] s_booleanArray = [true, false, true, false];
-        private static readonly double[] s_doubleArray = [1.0, 2.0, 3.0, 4.0];
-        private static readonly string[] s_stringArray = ["a", "b", "c", "d"];
-        private static readonly float[] s_floatArray = [1.0f, 2.0f, 3.0f, 4.0f];
     }
 }

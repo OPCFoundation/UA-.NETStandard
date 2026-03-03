@@ -36,12 +36,16 @@ using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.Types;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "JsonParser"/> class.
     /// </summary>
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class JsonParserTests
     {
         [Test]
@@ -982,7 +986,7 @@ namespace Opc.Ua.UnitTests
             string json = $@"""{Convert.ToBase64String(guid.ToByteArray())}""";
             using JsonParser reader = NewDecoder(Body(json));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(Uuid.Empty));
+            Assert.That(result, Is.EqualTo(guid));
         }
 
         [Test]
@@ -2283,6 +2287,28 @@ namespace Opc.Ua.UnitTests
             using JsonParser reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new Variant(new XmlElement(str))));
+        }
+
+        [Test]
+        [TestCase(StructureType.Structure, 0)]
+        [TestCase(StructureType.Structure, 1000)]
+        [TestCase(StructureType.StructureWithOptionalFields, 4)]
+        public void WriteAndReadEnumeratedArrayCompact(StructureType value, int length)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expected = Enumerable.Repeat(value, length).ToArrayOf();
+            var buffers = new PooledBufferWriter();
+
+            using (var encoder = new JsonWriter(buffers, messageContext, JsonEncoderOptions.Compact))
+            {
+                encoder.WriteEnumeratedArray(JsonProperties.Value, expected);
+            }
+
+            using var decoder = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ArrayOf<StructureType> result = decoder.ReadEnumeratedArray<StructureType>(JsonProperties.Value);
+
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         private static string Body(string value)

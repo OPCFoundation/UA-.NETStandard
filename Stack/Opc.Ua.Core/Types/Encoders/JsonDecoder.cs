@@ -1418,6 +1418,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public T ReadEncodeableAsExtensionObject<T>(string fieldName) where T : IEncodeable
+        {
+            var extensionObject = ReadExtensionObject(fieldName);
+            if (extensionObject.TryGetEncodeable(out T value))
+            {
+                return value;
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
         public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
@@ -2132,6 +2143,33 @@ namespace Opc.Ua
                 {
                     m_stack.Push(token[ii]);
                     values[ii] = ReadExtensionObject(null);
+                }
+                finally
+                {
+                    m_stack.Pop();
+                }
+            }
+
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+            where T : IEncodeable
+        {
+            if (!ReadArrayField(fieldName, out List<object> token))
+            {
+                return default;
+            }
+
+            var values = new T[token.Count];
+
+            for (int ii = 0; ii < token.Count; ii++)
+            {
+                try
+                {
+                    m_stack.Push(token[ii]);
+                    values[ii] = ReadEncodeableAsExtensionObject<T>(null);
                 }
                 finally
                 {

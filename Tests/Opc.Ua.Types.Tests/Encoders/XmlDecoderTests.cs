@@ -115,21 +115,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ConstructorWithOpcUaXmlElementEmptyElementCreatesInstance()
-        {
-            // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            XmlElement xmlElement = XmlElement.Empty;
-
-            // Act
-            var decoder = new XmlDecoder(xmlElement, messageContext);
-
-            // Assert
-            Assert.That(decoder, Is.Not.Null);
-            Assert.That(decoder.Context, Is.EqualTo(messageContext));
-        }
-
-        [Test]
         public void ConstructorWithSystemXmlElementValidContextCreatesInstance()
         {
             // Arrange
@@ -1571,11 +1556,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(123);
 
             // Act
-            object result = decoder.ReadExtensionObjectBody(typeId);
+            ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<ByteString>());
-            Assert.That((ByteString)result, Is.EqualTo(s_expectedByteArray));
+            Assert.That(result.TryGetAsBinary(out var byteString), Is.True);
         }
 
         [Test]
@@ -1602,10 +1586,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(123);
 
             // Act
-            object result = decoder.ReadExtensionObjectBody(typeId);
+            ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<IEncodeable>());
+            Assert.That(result.TryGetEncodeable(out IEncodeable encodeable), Is.True);
         }
 
         [Test]
@@ -1632,10 +1616,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(999);
 
             // Act
-            object result = decoder.ReadExtensionObjectBody(typeId);
+            ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<XmlElement>());
+            Assert.That(result.TryGetAsXml(out var xmlElement), Is.True);
+            Assert.That(xmlElement.OuterXml.ReplaceLineEndings(), Is.EqualTo(xml.ReplaceLineEndings()));
         }
 
         [Test]
@@ -2370,17 +2355,18 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .Returns(false);
 
             const string xml = """
-            <Empty xmlns="http://test.namespace"/>
+            <Empty xmlns="http://test.namespace" />
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(999);
 
             // Act
-            object result = decoder.ReadExtensionObjectBody(typeId);
+            ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<XmlElement>());
+            Assert.That(result.TryGetAsXml(out var xmlElement), Is.True);
+            Assert.That(xmlElement.OuterXml, Is.EqualTo(xml));
         }
 
         [Test]

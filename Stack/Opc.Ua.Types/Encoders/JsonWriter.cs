@@ -92,7 +92,7 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonWriter>();
             m_options = options ?? JsonEncoderOptions.Verbose;
             m_stream = null;
             m_writer = writer;
@@ -109,7 +109,7 @@ namespace Opc.Ua
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonWriter>();
             m_options = options ?? JsonEncoderOptions.Verbose;
 
             if (stream == null)
@@ -872,7 +872,7 @@ namespace Opc.Ua
             }
 
             using var stream = new MemoryStream(buffer, true);
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream);
+            using var encoder = new JsonWriter(stream, context);
             // encode message
             encoder.EncodeMessage(message);
             int length = encoder.Close();

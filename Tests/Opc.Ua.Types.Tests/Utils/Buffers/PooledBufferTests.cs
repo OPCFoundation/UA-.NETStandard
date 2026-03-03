@@ -31,9 +31,13 @@ using System;
 using System.Buffers;
 using NUnit.Framework;
 
-namespace Opc.Ua
+namespace Opc.Ua.Types.Buffers.Tests
 {
     [TestFixture]
+    [Category("Buffers")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable(ParallelScope.All)]
     public class PooledBufferTests
     {
         [Test]

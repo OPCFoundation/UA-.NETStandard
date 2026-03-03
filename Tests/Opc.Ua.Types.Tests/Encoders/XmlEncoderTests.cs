@@ -5996,7 +5996,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(ScalarVariantRoundTripTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.ScalarVariants))]
         public void WriteVariantValueWithScalarRoundTripsCorrectly(Variant variant)
         {
             Variant decoded = RoundTripVariantValueFromXml(variant);
@@ -6117,7 +6117,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [TestCaseSource(nameof(MatrixVariantRoundTripTestCases))]
+        [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.MatrixVariants))]
         public void WriteVariantValueWithMatrixRoundTripsCorrectly(
             Variant variant, BuiltInType expectedBuiltInType)
         {
@@ -7084,22 +7084,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 "XmlElement", "TestElem");
         }
 
-        private static System.Collections.IEnumerable ScalarVariantRoundTripTestCases()
-        {
-            yield return new TestCaseData(Variant.From(true));
-            yield return new TestCaseData(Variant.From((sbyte)-42));
-            yield return new TestCaseData(Variant.From((byte)255));
-            yield return new TestCaseData(Variant.From((short)-1234));
-            yield return new TestCaseData(Variant.From((ushort)65535));
-            yield return new TestCaseData(Variant.From(123456));
-            yield return new TestCaseData(Variant.From(123456u));
-            yield return new TestCaseData(Variant.From(123456789L));
-            yield return new TestCaseData(Variant.From(123456789uL));
-            yield return new TestCaseData(Variant.From(3.14f));
-            yield return new TestCaseData(Variant.From(2.718));
-            yield return new TestCaseData(Variant.From("hello"));
-        }
-
         private static System.Collections.IEnumerable ArrayVariantValueTestCases()
         {
             yield return new TestCaseData(
@@ -7166,150 +7150,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                "ListOfInt32");
         }
 
-        private static System.Collections.IEnumerable MatrixVariantRoundTripTestCases()
-        {
-            yield return new TestCaseData(
-                Variant.From(s_booleanMatrixElements.ToMatrixOf(2, 2)),
-                BuiltInType.Boolean);
-            yield return new TestCaseData(
-                Variant.From(new sbyte[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.SByte);
-            yield return new TestCaseData(
-                Variant.From(new byte[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.Byte);
-            yield return new TestCaseData(
-                Variant.From(new short[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int16);
-            yield return new TestCaseData(
-                Variant.From(new ushort[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt16);
-            yield return new TestCaseData(
-                Variant.From(new int[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int32);
-            yield return new TestCaseData(
-                Variant.From(new uint[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt32);
-            yield return new TestCaseData(
-                Variant.From(new long[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
-                BuiltInType.Int64);
-            yield return new TestCaseData(
-                Variant.From(new ulong[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
-                BuiltInType.UInt64);
-            yield return new TestCaseData(
-                Variant.From(s_floatMatrixElements.ToMatrixOf(2, 2)),
-                BuiltInType.Float);
-            yield return new TestCaseData(
-                Variant.From(s_doubleMatrixElements.ToMatrixOf(2, 2)),
-                BuiltInType.Double);
-            yield return new TestCaseData(
-                Variant.From(s_stringMatrixElements.ToMatrixOf(2, 2)),
-                BuiltInType.String);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2024, 1, 4, 0, 0, 0, DateTimeKind.Utc)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.DateTime);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ByteString(new byte[] { 1 }),
-                    new ByteString(new byte[] { 2 }),
-                    new ByteString(new byte[] { 3 }),
-                    new ByteString(new byte[] { 4 })
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ByteString);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    XmlElement.From("<a />"),
-                    XmlElement.From("<b />"),
-                    XmlElement.From("<c />"),
-                    XmlElement.From("<d />")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.XmlElement);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new NodeId(1),
-                    new NodeId(2),
-                    new NodeId(3),
-                    new NodeId(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.NodeId);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ExpandedNodeId(1),
-                    new ExpandedNodeId(2),
-                    new ExpandedNodeId(3),
-                    new ExpandedNodeId(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ExpandedNodeId);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    StatusCodes.Good,
-                    StatusCodes.Bad,
-                    StatusCodes.Good,
-                    StatusCodes.Bad
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.StatusCode);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new QualifiedName("a"),
-                    new QualifiedName("b"),
-                    new QualifiedName("c"),
-                    new QualifiedName("d")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.QualifiedName);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new LocalizedText("en", "a"),
-                    new LocalizedText("en", "b"),
-                    new LocalizedText("en", "c"),
-                    new LocalizedText("en", "d")
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.LocalizedText);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null),
-                    new ExtensionObject(ExpandedNodeId.Null)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.ExtensionObject);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new DataValue(Variant.From(1)),
-                    new DataValue(Variant.From(2)),
-                    new DataValue(Variant.From(3)),
-                    new DataValue(Variant.From(4))
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.DataValue);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    Variant.From(1),
-                    Variant.From(2),
-                    Variant.From(3),
-                    Variant.From(4)
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.Variant);
-            yield return new TestCaseData(
-                CreateVariantWithTypeInfo(
-                    s_enumMatrixElements.ToMatrixOf(2, 2),
-                    BuiltInType.Enumeration,
-                    ValueRanks.TwoDimensions),
-                BuiltInType.Int32);
-        }
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [GeneratedRegex(@"Value>([^<]*)<")]
         internal static partial Regex REValue();
@@ -7329,75 +7169,57 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static readonly float[] s_floatArray = [1.0f, 2.0f];
         private static readonly double[] s_doubleArray = [1.0, 2.0];
         private static readonly string[] s_stringArray = ["a", "b"];
-        private static readonly bool[] s_booleanMatrixElements = [true, false, true, false];
-        private static readonly float[] s_floatMatrixElements = [1.0f, 2.0f, 3.0f, 4.0f];
-        private static readonly double[] s_doubleMatrixElements = [1.0, 2.0, 3.0, 4.0];
-        private static readonly string[] s_stringMatrixElements = ["a", "b", "c", "d"];
-        private static readonly int[] s_enumMatrixElements = [1, 2, 1, 2];
-    }
 
-    internal sealed class TestEncodeable : IEncodeable
-    {
-        public ExpandedNodeId TypeId => ExpandedNodeId.Null;
-        public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
-        public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
-
-        public void Encode(IEncoder encoder)
+        private sealed class TestEncodeable2 : IEncodeable
         {
+            public ExpandedNodeId TypeId => ExpandedNodeId.Null;
+            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeable();
+            }
         }
 
-        public void Decode(IDecoder decoder)
+        internal sealed class TestEncodeableWithNamespace : IEncodeable
         {
+            private static readonly ExpandedNodeId s_typeId = new(1, "urn:missing-namespace");
+
+            public ExpandedNodeId TypeId => s_typeId;
+            public ExpandedNodeId BinaryEncodingId => s_typeId;
+            public ExpandedNodeId XmlEncodingId => s_typeId;
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithNamespace();
+            }
         }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            return false;
-        }
-
-        public object Clone()
-        {
-            return new TestEncodeable();
-        }
-    }
-
-    internal sealed class TestEncodeableWithNamespace : IEncodeable
-    {
-        private static readonly ExpandedNodeId s_typeId = new(1, "urn:missing-namespace");
-
-        public ExpandedNodeId TypeId => s_typeId;
-        public ExpandedNodeId BinaryEncodingId => s_typeId;
-        public ExpandedNodeId XmlEncodingId => s_typeId;
-
-        public void Encode(IEncoder encoder)
-        {
-        }
-
-        public void Decode(IDecoder decoder)
-        {
-        }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            return false;
-        }
-
-        public object Clone()
-        {
-            return new TestEncodeableWithNamespace();
-        }
-    }
-
-    internal enum TestEnum
-    {
-        Value1 = 1,
-        Value2 = 2,
-        Value3 = 3
-    }
-
-    internal enum TestNumericEnum
-    {
-        Item100 = 100,
-        Item200 = 200
     }
 }

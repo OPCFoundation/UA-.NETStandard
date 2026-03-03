@@ -29,8 +29,6 @@
 
 #nullable enable
 
-namespace Opc.Ua.Encoders;
-
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -39,6 +37,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+
+namespace Opc.Ua;
 
 /// <summary>
 /// Reads sequence using sequence reader

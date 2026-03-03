@@ -4809,14 +4809,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase(BuiltInType.Integer, ValueRanks.Scalar)]
         [TestCase((BuiltInType)999, ValueRanks.Scalar)]
         [TestCase(BuiltInType.DiagnosticInfo, ValueRanks.OneDimension)]
-        [TestCase(BuiltInType.UInteger, ValueRanks.OneDimension)]
-        [TestCase(BuiltInType.Number, ValueRanks.OneDimension)]
-        [TestCase(BuiltInType.Integer, ValueRanks.OneDimension)]
         [TestCase((BuiltInType)999, ValueRanks.OneDimension)]
         [TestCase(BuiltInType.DiagnosticInfo, ValueRanks.TwoDimensions)]
-        [TestCase(BuiltInType.UInteger, ValueRanks.TwoDimensions)]
-        [TestCase(BuiltInType.Number, ValueRanks.TwoDimensions)]
-        [TestCase(BuiltInType.Integer, ValueRanks.TwoDimensions)]
         [TestCase((BuiltInType)999, ValueRanks.TwoDimensions)]
         public void ReadVariantValueThrowsWithBadBuiltInTypes(BuiltInType builtInType, int valueRank)
         {

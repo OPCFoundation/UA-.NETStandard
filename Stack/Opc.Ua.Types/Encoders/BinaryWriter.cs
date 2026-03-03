@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 #nullable enable
-namespace Opc.Ua.Encoders;
 
 using System;
 using System.Buffers;
@@ -37,6 +36,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+namespace Opc.Ua;
 
 /// <summary>
 /// Write data to a buffer writer using UA binary encoder

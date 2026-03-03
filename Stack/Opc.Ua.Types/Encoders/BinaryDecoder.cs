@@ -950,6 +950,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public T ReadEncodeableAsExtensionObject<T>(string fieldName)
+            where T : IEncodeable
+        {
+            var extensionObject = ReadExtensionObject(fieldName);
+            if (extensionObject.TryGetEncodeable<T>(out T value))
+            {
+                return value;
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
         public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
         {
             return EnumHelper.Int32ToEnum<T>(SafeReadInt32());
@@ -1474,6 +1486,27 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+            where T : IEncodeable
+        {
+            int length = ReadArrayLength();
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            var values = new T[length];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                values[ii] = ReadEncodeableAsExtensionObject<T>(null);
+            }
+
+            return values;
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string fieldName)
             where T : IEncodeable, new()
         {
@@ -1585,10 +1618,10 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return Variant.From(ReadDataValue(null));
                     case BuiltInType.Variant:
-                    case BuiltInType.DiagnosticInfo:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
+                    case BuiltInType.DiagnosticInfo:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
                             "Unsupported built in type for Variant content ({0}).",

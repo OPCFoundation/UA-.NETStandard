@@ -32,9 +32,13 @@ using System.Buffers;
 using System.Linq;
 using NUnit.Framework;
 
-namespace Opc.Ua
+namespace Opc.Ua.Types.Buffers.Tests
 {
     [TestFixture]
+    [Category("Buffers")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable(ParallelScope.All)]
     public class PooledBufferWriterTests
     {
         [Test]

@@ -40,6 +40,10 @@ namespace Opc.Ua.UnitTests
     /// Unit tests for the <see cref = "JsonParser"/> class.
     /// </summary>
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class JsonWriterTests
     {
         [Test]

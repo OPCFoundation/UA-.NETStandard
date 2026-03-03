@@ -1045,6 +1045,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public T ReadEncodeableAsExtensionObject<T>(string fieldName)
+            where T : IEncodeable
+        {
+            var extensionObject = ReadExtensionObject(fieldName);
+            if (extensionObject.TryGetEncodeable(out T value))
+            {
+                return value;
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
         public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
         {
             T value = default;
@@ -1773,6 +1785,35 @@ namespace Opc.Ua
                 while (MoveToElement("ExtensionObject"))
                 {
                     values.Add(ReadExtensionObject("ExtensionObject"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+            where T : IEncodeable
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new List<T>();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("ExtensionObject"))
+                {
+                    values.Add(ReadEncodeableAsExtensionObject<T>("ExtensionObject"));
                 }
 
                 // check the length.
