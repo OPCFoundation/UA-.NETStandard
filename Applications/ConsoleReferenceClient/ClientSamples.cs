@@ -1355,7 +1355,7 @@ namespace Quickstarts
             IServiceMessageContext messageContext,
             string name,
             DataValue value,
-            JsonEncodingType jsonEncodingType)
+            JsonEncoderOptions jsonEncodingType = null)
         {
             string textbuffer;
             using (var jsonEncoder = new JsonEncoder(messageContext, jsonEncodingType))

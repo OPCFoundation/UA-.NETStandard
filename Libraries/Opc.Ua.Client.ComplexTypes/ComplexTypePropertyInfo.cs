@@ -30,6 +30,8 @@
 using System;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Text;
+using System.Xml.Linq;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -90,7 +92,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public void SetValue(object o, Variant v)
         {
-            PropertyInfo.SetValue(o, v.AsBoxedObject());
+            if (TypeInfo == TypeInfo.Scalars.Variant)
+            {
+                PropertyInfo.SetValue(o, v);
+                return;
+            }
+            PropertyInfo.SetValue(o, v.AsBoxedObject(true));
         }
 
         /// <inheritdoc cref="PropertyInfo.PropertyType"/>

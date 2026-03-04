@@ -60,11 +60,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConvertToUniversalTime()
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-            Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
-            JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
+            Span<char> valueString = stackalloc char[JsonEncoderOld.DateTimeRoundTripKindLength];
+            JsonEncoderOld.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
             _ = valueString[..charsWritten];
 #else
-            _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
+            _ = JsonEncoderOld.ConvertUniversalTimeToString(m_dateTime);
 #endif
         }
 

@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Encoding
                 !HasSingleDataSetMessage &&
                 !IsMetaDataMessage;
 
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, topLevelIsArray, stream);
+            using var encoder = new JsonEncoderOld(messageContext, JsonEncodingType.Verbose, topLevelIsArray, stream);
             if (IsMetaDataMessage)
             {
                 EncodeNetworkMessageHeader(encoder);
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using var jsonDecoder = new JsonDecoder(json, messageContext);
+            using var jsonDecoder = new JsonDecoderOld(json, messageContext);
             // 1. decode network message header (PublisherId & DataSetClassId)
             DecodeNetworkMessageHeader(jsonDecoder);
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
-        private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
+        private void DecodeNetworkMessageHeader(JsonDecoderOld jsonDecoder)
         {
             if (jsonDecoder.ReadField(nameof(MessageId), out _))
             {
@@ -440,7 +440,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the jsonDecoder content as a MetaData message
         /// </summary>
-        private void DecodeMetaDataMessage(JsonDecoder jsonDecoder)
+        private void DecodeMetaDataMessage(JsonDecoderOld jsonDecoder)
         {
             try
             {
@@ -458,7 +458,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode the stream from decoder parameter and produce a Dataset
         /// </summary>
         private void DecodeSubscribedDataSets(
-            JsonDecoder jsonDecoder,
+            JsonDecoderOld jsonDecoder,
             IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
@@ -528,10 +528,10 @@ namespace Opc.Ua.PubSub.Encoding
                         messagesListName = kFieldMessages;
                     }
                 }
-                else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
+                else if (jsonDecoder.ReadField(JsonDecoderOld.RootArrayName, out messagesToken))
                 {
                     messagesList = messagesToken as List<object>;
-                    messagesListName = JsonDecoder.RootArrayName;
+                    messagesListName = JsonDecoderOld.RootArrayName;
                 }
                 else
                 {

@@ -2472,7 +2472,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort dataSetWriterIdValue = 0;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoder(jsonMessage, context);
+            using var jsonDecoder = new JsonDecoderOld(jsonMessage, context);
             if (jsonDecoder.ReadField(MetaDataMessageId, out object token))
             {
                 messageIdValue = jsonDecoder.ReadString(MetaDataMessageId);
@@ -2670,7 +2670,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = m_messageContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoder(jsonMessage, context);
+            using var jsonDecoder = new JsonDecoderOld(jsonMessage, context);
             if (jsonNetworkMessage.HasNetworkMessageHeader)
             {
                 NetworkMessageFailOptions failOptions = VerifyNetworkMessageEncoding(
@@ -2702,7 +2702,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static NetworkMessageFailOptions VerifyNetworkMessageEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoder jsonDecoder)
+            JsonDecoderOld jsonDecoder)
         {
             string publisherIdValue = null;
 
@@ -2769,7 +2769,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static DataSetMessageFailOptions VerifyDataSetMessagesEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoder jsonDecoder)
+            JsonDecoderOld jsonDecoder)
         {
             ushort dataSetWriterIdValue = 0;
             uint sequenceNumberValue = 0;
@@ -2795,9 +2795,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messagesListName = NetworkMessageMessages;
                 }
             }
-            else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
+            else if (jsonDecoder.ReadField(JsonDecoderOld.RootArrayName, out messagesToken))
             {
-                messagesListName = JsonDecoder.RootArrayName;
+                messagesListName = JsonDecoderOld.RootArrayName;
             }
             // else this is a SingleDataSetMessage encoded as the content json
             if (!string.IsNullOrEmpty(messagesListName))
@@ -2831,7 +2831,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
                     }
 
-                    bool wasPushed = jsonDecoder.PushArray(JsonDecoder.RootArrayName, index++);
+                    bool wasPushed = jsonDecoder.PushArray(JsonDecoderOld.RootArrayName, index++);
                     if (wasPushed)
                     {
                         if (jsonDecoder.ReadField(DataSetMessageDataSetWriterId, out token))
@@ -3184,7 +3184,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field data
         /// </summary>
         private static object DecodeFieldData(
-            JsonDecoder jsonDecoder,
+            JsonDecoderOld jsonDecoder,
             FieldMetaData fieldMetaData,
             string fieldName)
         {
@@ -3220,7 +3220,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field by type
         /// </summary>
         private static object DecodeFieldByType(
-            JsonDecoder jsonDecoder,
+            JsonDecoderOld jsonDecoder,
             byte builtInType,
             string fieldName)
         {

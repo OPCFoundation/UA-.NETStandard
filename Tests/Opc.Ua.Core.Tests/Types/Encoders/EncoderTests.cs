@@ -572,18 +572,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var stream = new MemoryStream();
             string text;
             using (var encoder = new JsonEncoder(
-                new ServiceMessageContext(Telemetry),
-                JsonEncodingType.Verbose,
-                false,
                 stream,
-                true))
+                new ServiceMessageContext(Telemetry)))
             {
                 text = WriteByteStringData(encoder);
             }
 
             stream.Position = 0;
             var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-            using var decoder = new JsonDecoder(jsonTextReader, new ServiceMessageContext(Telemetry));
+            using var decoder = new JsonDecoderOld(jsonTextReader, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 

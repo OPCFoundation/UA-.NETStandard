@@ -44,12 +44,12 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public sealed class JsonEncoder : IJsonEncoder
+    public sealed class JsonEncoderOld : IJsonEncoder
     {
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public JsonEncoder(
+        public JsonEncoderOld(
             IServiceMessageContext context,
             JsonEncodingType encoding,
             bool topLevelIsArray = false,
@@ -58,7 +58,7 @@ namespace Opc.Ua
             int streamSize = kStreamWriterBufferSize)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonEncoderOld>();
             m_stream = stream;
             m_leaveOpen = leaveOpen;
             m_topLevelIsArray = topLevelIsArray;
@@ -84,14 +84,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public JsonEncoder(
+        public JsonEncoderOld(
             IServiceMessageContext context,
             JsonEncodingType encoding,
             StreamWriter writer,
             bool topLevelIsArray = false)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonEncoderOld>();
             m_topLevelIsArray = topLevelIsArray;
             EncodingToUse = encoding;
             IncludeDefaultValues = encoding == JsonEncodingType.Verbose;
@@ -147,7 +147,7 @@ namespace Opc.Ua
             }
 
             using var stream = new MemoryStream(buffer, true);
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream);
+            using var encoder = new JsonEncoderOld(context, JsonEncodingType.Verbose, false, stream);
             // encode message
             encoder.EncodeMessage(message);
             int length = encoder.Close();

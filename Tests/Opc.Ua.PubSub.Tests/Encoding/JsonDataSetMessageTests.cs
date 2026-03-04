@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static string EncodeMessage(PubSubEncoding.JsonDataSetMessage message, JsonEncodingType encodingType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var encoder = new JsonEncoder(
+            var encoder = new JsonEncoderOld(
                 new ServiceMessageContext(telemetry),
                 encodingType);
             message.Encode(encoder);

@@ -37,7 +37,7 @@ using Opc.Ua.Types;
 namespace Opc.Ua.UnitTests
 {
     /// <summary>
-    /// Unit tests for the <see cref = "JsonParser"/> class.
+    /// Unit tests for the <see cref = "JsonDecoder"/> class.
     /// </summary>
     [TestFixture]
     [Category("Encoders")]
@@ -1735,12 +1735,12 @@ namespace Opc.Ua.UnitTests
 
         internal IDecoder CreateDecoder(ReadOnlySequence<byte> buffers, IServiceMessageContext messageContext)
         {
-            return new JsonParser(buffers, messageContext);
+            return new JsonDecoder(buffers, messageContext);
         }
 
         internal IEncoder CreateEncoder(IBufferWriter<byte> buffer, IServiceMessageContext messageContext)
         {
-            return new JsonWriter(buffer, messageContext);
+            return new JsonEncoder(buffer, messageContext);
         }
     }
 }

@@ -44,12 +44,12 @@ namespace Opc.Ua
     /// <summary>
     /// Writes types as json
     /// </summary>
-    public sealed class JsonWriter : IEncoder
+    public sealed class JsonEncoder : IEncoder
     {
         /// <summary>
         /// Create a new encoder
         /// </summary>
-        public JsonWriter(
+        public JsonEncoder(
             Stream stream,
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new encoder over a <see cref="IBufferWriter{T}"/>
         /// </summary>
-        public JsonWriter(
+        public JsonEncoder(
             IBufferWriter<byte> writer,
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
@@ -76,7 +76,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new encoder over internally managed memory
         /// </summary>
-        public JsonWriter(
+        public JsonEncoder(
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
             : this(context, null, options)
@@ -86,13 +86,13 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new encoder over a <see cref="Utf8JsonWriter"/>
         /// </summary>
-        public JsonWriter(
+        public JsonEncoder(
             Utf8JsonWriter writer,
             IServiceMessageContext context,
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonWriter>();
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
             m_stream = null;
             m_writer = writer;
@@ -103,13 +103,13 @@ namespace Opc.Ua
         /// <summary>
         /// Create an encoder over a stream or optionally create internal buffer
         /// </summary>
-        private JsonWriter(
+        private JsonEncoder(
             IServiceMessageContext context,
             Stream? stream = null,
             JsonEncoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonWriter>();
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_options = options ?? JsonEncoderOptions.Verbose;
 
             if (stream == null)
@@ -872,7 +872,7 @@ namespace Opc.Ua
             }
 
             using var stream = new MemoryStream(buffer, true);
-            using var encoder = new JsonWriter(stream, context);
+            using var encoder = new JsonEncoder(stream, context);
             // encode message
             encoder.EncodeMessage(message);
             int length = encoder.Close();

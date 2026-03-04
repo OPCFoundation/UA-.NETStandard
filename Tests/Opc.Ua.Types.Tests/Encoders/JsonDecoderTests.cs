@@ -39,7 +39,7 @@ using Opc.Ua.Types;
 namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
-    /// Unit tests for the <see cref = "JsonParser"/> class.
+    /// Unit tests for the <see cref = "JsonDecoder"/> class.
     /// </summary>
     [TestFixture]
     [Category("Encoders")]
@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadBooleanArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<bool> result = reader.ReadBooleanArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<bool>()));
         }
@@ -59,7 +59,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadBooleanArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<bool> result = reader.ReadBooleanArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<bool>()));
         }
@@ -67,7 +67,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadBooleanWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             bool result = reader.ReadBoolean(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(false));
         }
@@ -75,7 +75,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringArrayWithBadArrayValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ false, false ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ false, false ]"));
             ArrayOf<ByteString> result = reader.ReadByteStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ByteString>()));
         }
@@ -83,7 +83,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<ByteString> result = reader.ReadByteStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ByteString>()));
         }
@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<ByteString> result = reader.ReadByteStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ByteString>()));
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringWithBadArrayValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ false, false ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ false, false ]"));
             ByteString result = reader.ReadByteString(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ByteString.Empty));
         }
@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringWithBadStringValueReturnsEmptyByteString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""%#a"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""%#a"""));
             ByteString result = reader.ReadByteString(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ByteString.Empty));
         }
@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringWithInvalidTypeValue1()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             ByteString result = reader.ReadByteString(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ByteString.Empty));
         }
@@ -123,7 +123,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteStringWithInvalidTypeValue2()
         {
-            using JsonParser reader = NewDecoder(Body("[ {}, {} ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ {}, {} ]"));
             ArrayOf<ByteString> result = reader.ReadByteStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ByteString>()));
         }
@@ -131,7 +131,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<byte>()));
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadByteArrayWithBase64String()
         {
             byte[] buffer = Uuid.NewUuid().ToByteArray();
-            using JsonParser reader = NewDecoder(Body($@"""{Convert.ToBase64String(buffer)}"""));
+            using JsonDecoder reader = NewDecoder(Body($@"""{Convert.ToBase64String(buffer)}"""));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(buffer));
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithByteValue()
         {
-            using JsonParser reader = NewDecoder(Body("55"));
+            using JsonDecoder reader = NewDecoder(Body("55"));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo("7"u8.ToArray()));
         }
@@ -156,7 +156,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<byte>()));
         }
@@ -164,7 +164,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithNullValue()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<byte>()));
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithObjectValue()
         {
-            using JsonParser reader = NewDecoder(Body(Body("[0,1]")));
+            using JsonDecoder reader = NewDecoder(Body(Body("[0,1]")));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<byte>()));
         }
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteArrayWithShortValue()
         {
-            using JsonParser reader = NewDecoder(Body("555"));
+            using JsonDecoder reader = NewDecoder(Body("555"));
             ArrayOf<byte> result = reader.ReadByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<byte>()));
         }
@@ -188,7 +188,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadByteWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             byte result = reader.ReadByte(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(byte)));
         }
@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataTimeArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
         }
@@ -204,7 +204,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<DataValue> result = reader.ReadDataValueArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DataValue>()));
         }
@@ -214,7 +214,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             byte[] buffer = Uuid.NewUuid().ToByteArray();
             string json = $$"""[{"UaType":15, "Value":["{{Convert.ToBase64String(buffer)}}"], "Dimensions": 0}]""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             ArrayOf<DataValue> result = reader.ReadDataValueArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf<DataValue>.Empty));
         }
@@ -222,7 +222,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenArrayContainsMixOfValuesAndExtremeValue()
         {
-            using JsonParser reader = NewDecoder(Body($"[1, true, {kExtremeValue}]"));
+            using JsonDecoder reader = NewDecoder(Body($"[1, true, {kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -230,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenArrayContainsMultipleExtremeArray()
         {
-            using JsonParser reader = NewDecoder(Body($"[{kExtremeValue}, {kExtremeValue}, {kExtremeValue}]"));
+            using JsonDecoder reader = NewDecoder(Body($"[{kExtremeValue}, {kExtremeValue}, {kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenArrayContainsSingleExtremeValue()
         {
-            using JsonParser reader = NewDecoder(Body($"[{kExtremeValue}]"));
+            using JsonDecoder reader = NewDecoder(Body($"[{kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -246,7 +246,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenEmptyArray()
         {
-            using JsonParser reader = NewDecoder(Body("[]"));
+            using JsonDecoder reader = NewDecoder(Body("[]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -254,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenLocalizedTextObject()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"Text": "text"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"Text": "text"}"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null)));
         }
@@ -262,7 +262,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenEmptyObject()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ "{}"));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ "{}"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null)));
         }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenNull()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -278,7 +278,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("123"));
+            using JsonDecoder reader = NewDecoder(Body("123"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenNumericValueIsExtremeValue()
         {
-            using JsonParser reader = NewDecoder(Body(kExtremeValue));
+            using JsonDecoder reader = NewDecoder(Body(kExtremeValue));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -294,7 +294,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWhenString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""value"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""value"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -302,7 +302,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidServerPicoseconds()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -310,7 +310,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithServerPicosecondsButNoServerTimestamp()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 123 }));
         }
@@ -318,7 +318,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithServerPicosecondsButNoServerTimestampStrict()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 0 }));
         }
@@ -326,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidServerTimestamp()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "ServerTimestamp": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "ServerTimestamp": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -334,7 +334,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidSourcePicoseconds()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -342,7 +342,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithSourcePicosecondsButNoServerTimestamp()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 123 }));
         }
@@ -350,7 +350,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithSourcePicosecondsButNoServerTimestampStrict()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 0 }));
         }
@@ -358,7 +358,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidSourceTimestamp()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "SourceTimestamp": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "SourceTimestamp": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -366,7 +366,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidStatusCode()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -374,7 +374,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidVariantValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Value": {"UaType":15, "Value":"AAAA=", "Dimensions": 0}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Value": {"UaType":15, "Value":"AAAA=", "Dimensions": 0}}"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null)));
         }
@@ -384,7 +384,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             byte[] buffer = Uuid.NewUuid().ToByteArray();
             string json = /*lang=json,strict*/ $$"""{"UaType":15, "Value":["{{Convert.ToBase64String(buffer)}}"], "Dimensions": [0]}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDateTimeArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
         }
@@ -400,7 +400,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDateTimeArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
         }
@@ -408,7 +408,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDateTimeWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             DateTime result = reader.ReadDateTime(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(DateTime.MinValue));
         }
@@ -419,7 +419,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DateTime now = DateTime.Now;
             string json = $@"""{now.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                     CultureInfo.InvariantCulture)}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             DateTime result = reader.ReadDateTime(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(now));
         }
@@ -427,7 +427,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<DiagnosticInfo> result = reader.ReadDiagnosticInfoArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DiagnosticInfo>()));
         }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("""[ "", "" ]"""));
+            using JsonDecoder reader = NewDecoder(Body("""[ "", "" ]"""));
             ArrayOf<DiagnosticInfo> result = reader.ReadDiagnosticInfoArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<DiagnosticInfo>()));
         }
@@ -443,7 +443,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[]"));
+            using JsonDecoder reader = NewDecoder(Body("[]"));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -453,7 +453,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var writer = new JsonWriter(messageContext);
+            var writer = new JsonEncoder(messageContext);
             writer.WriteDiagnosticInfo(JsonProperties.Value, new DiagnosticInfo
             {
                 InnerDiagnosticInfo = new DiagnosticInfo
@@ -468,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             try
             {
                 messageContext.MaxEncodingNestingLevels = 2;
-                using var reader = new JsonParser(str, messageContext);
+                using var reader = new JsonDecoder(str, messageContext);
                 DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             }
             catch (ServiceResultException sre)
@@ -482,7 +482,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidAdditionalInfo()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "AdditionalInfo": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "AdditionalInfo": false }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -490,7 +490,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidInnerDiagnosticInfo()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "InnerDiagnosticInfo": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "InnerDiagnosticInfo": false }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -498,7 +498,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidInnerStatusCode()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "InnerStatusCode": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "InnerStatusCode": [] }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -506,7 +506,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidLocale()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Locale": {} }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Locale": {} }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -514,7 +514,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidLocalizedText()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "LocalizedText": {} }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "LocalizedText": {} }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -522,7 +522,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidNamespaceUri()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "NamespaceUri": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "NamespaceUri": false }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -530,7 +530,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoWithObjectWithInvalidSymbolicId()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "SymbolicId": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "SymbolicId": [] }"""));
             DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -538,7 +538,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<double> result = reader.ReadDoubleArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<double>()));
         }
@@ -546,7 +546,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<double> result = reader.ReadDoubleArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<double>()));
         }
@@ -554,7 +554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleWithDoubleString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""0.123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""0.123"""));
             double result = reader.ReadDouble(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(0.123));
         }
@@ -562,7 +562,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             double result = reader.ReadDouble(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(double)));
         }
@@ -570,7 +570,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleWithNaNString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""NaN"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""NaN"""));
             double result = reader.ReadDouble(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(double.NaN));
         }
@@ -578,7 +578,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDoubleWithNonDoubleString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Json"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Json"""));
             double result = reader.ReadDouble(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(double)));
         }
@@ -586,7 +586,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedFromObjectElementReturnsDefaultEnumValue()
         {
-            using JsonParser reader = NewDecoder(Body(Body(@"""Sign""")));
+            using JsonDecoder reader = NewDecoder(Body(Body(@"""Sign""")));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.None));
         }
@@ -594,7 +594,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedFromSimpleString1()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Third"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Third"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.Third));
         }
@@ -602,7 +602,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<TestEnum> result = reader.ReadEnumeratedArray<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<TestEnum>()));
         }
@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ {}, {} ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ {}, {} ]"));
             ArrayOf<TestEnum> result = reader.ReadEnumeratedArray<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<TestEnum>()));
         }
@@ -618,7 +618,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{}"));
+            using JsonDecoder reader = NewDecoder(Body("{}"));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.None));
         }
@@ -626,7 +626,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithNull()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.None));
         }
@@ -634,7 +634,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithOpcUaEnumerationString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Bonkers_2"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Bonkers_2"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.None));
         }
@@ -642,7 +642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithSimpleString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Second"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Second"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.Second));
         }
@@ -650,7 +650,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithSimpleStringLowercase()
         {
-            using JsonParser reader = NewDecoder(Body(@"""second"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""second"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.Second));
         }
@@ -658,7 +658,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEnumeratedWithWrongStringReturnsDefaultEnumValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Avro"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Avro"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(TestEnum.None));
         }
@@ -666,7 +666,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdNumeric()
         {
-            using JsonParser reader = NewDecoder(Body(@"""i=123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""i=123"""));
             ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExpandedNodeId(123)));
         }
@@ -674,7 +674,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdNumericWithNamespaceIndex()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ns=2;i=123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ns=2;i=123"""));
             ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExpandedNodeId(123, 2)));
         }
@@ -682,7 +682,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdNumericWithNamespaceUri()
         {
-            using JsonParser reader = NewDecoder(Body(@"""nsu=http://ourl/;i=123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""nsu=http://ourl/;i=123"""));
             ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExpandedNodeId(123, 0, namespaceUri: "http://ourl/")));
         }
@@ -690,7 +690,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""s=abcd"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""s=abcd"""));
             ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExpandedNodeId("abcd", 0)));
         }
@@ -698,7 +698,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdStringBadGuid()
         {
-            using JsonParser reader = NewDecoder(Body(@"""g={ddd}"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""g={ddd}"""));
             ExpandedNodeId result = reader.ReadExpandedNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExpandedNodeId.Null));
         }
@@ -706,7 +706,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdValuesNumericWhenNegative()
         {
-            using JsonParser reader = NewDecoder(Body("[-123]"));
+            using JsonDecoder reader = NewDecoder(Body("[-123]"));
             ArrayOf<ExpandedNodeId> result = reader.ReadExpandedNodeIdArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf<ExpandedNodeId>.Empty));
         }
@@ -714,7 +714,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExpandedNodeIdArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<ExpandedNodeId> result = reader.ReadExpandedNodeIdArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ExpandedNodeId>()));
         }
@@ -722,7 +722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<ExtensionObject> result = reader.ReadExtensionObjectArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ExtensionObject>()));
         }
@@ -730,7 +730,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("""[ "", "" ]"""));
+            using JsonDecoder reader = NewDecoder(Body("""[ "", "" ]"""));
             ArrayOf<ExtensionObject> result = reader.ReadExtensionObjectArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ExtensionObject>()));
         }
@@ -738,7 +738,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenBodyNull()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -747,7 +747,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadExtensionObjectWithUnknownJsonBody()
         {
             const string json = /*lang=json,strict*/ """{"UaTypeId": "i=131", "Test": {} }""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), json)));
         }
@@ -755,7 +755,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsEmptyBinary()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaBody": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaBody": [] }"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(ExpandedNodeId.Null, ByteString.Empty)));
         }
@@ -763,7 +763,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsEmptyBinaryReturnsEmptyByteString()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=131", "UaBody": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=131", "UaBody": [] }"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), ByteString.Empty)));
         }
@@ -771,7 +771,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsEmptyXmlReturnsEmptyXmlElement()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 2, "UaTypeId": "i=131", "UaBody": ""}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 2, "UaTypeId": "i=131", "UaBody": ""}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), XmlElement.Empty)));
         }
@@ -779,7 +779,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsInvalid()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 10, "UaTypeId": "i=131", "UaBody": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 10, "UaTypeId": "i=131", "UaBody": [] }"""));
             try
             {
                 ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
@@ -796,7 +796,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadExtensionObjectWhenBinaryIsBase64String()
         {
             string bytes = Convert.ToBase64String([1, 2, 3]);
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ $$"""{"UaEncoding": 1, "UaTypeId": "i=131", "UaBody": "{{bytes}}" }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ $$"""{"UaEncoding": 1, "UaTypeId": "i=131", "UaBody": "{{bytes}}" }"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), ByteString.From(1, 2, 3))));
         }
@@ -804,7 +804,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenBinaryIsByteArray()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": 131, "UaBody": [1, 2, 3] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": 131, "UaBody": [1, 2, 3] }"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), ByteString.From(1, 2, 3))));
         }
@@ -812,7 +812,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsXml()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 2, "UaTypeId": 131, "UaBody": "123"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 2, "UaTypeId": 131, "UaBody": "123"}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), new XmlElement("123"))));
         }
@@ -821,7 +821,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadExtensionObjectWhenEncodingIsNone()
         {
             const string json = /*lang=json,strict*/ """{"UaEncoding": 0, "Hello": 123}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(NodeId.Null, json)));
         }
@@ -830,7 +830,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadExtensionObjectWhenEncodingIsNoneButWithUaBody()
         {
             const string json = /*lang=json,strict*/ """{"UaEncoding": 0, "UaTypeId": 131, "UaBody": 123}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), "123")));
         }
@@ -838,7 +838,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsNotByte()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=131", "UaEncoding": 12.7, "UaBody": 123}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=131", "UaEncoding": 12.7, "UaBody": 123}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -846,7 +846,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsObject()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=131", "UaEncoding": {}, "UaBody": 123}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=131", "UaEncoding": {}, "UaBody": 123}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -854,7 +854,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsUnknownWithJsonElementIntegerBody()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Unknown", "UaTypeId": 131, "UaBody": 123}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Unknown", "UaTypeId": 131, "UaBody": 123}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -862,7 +862,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenEncodingIsXmlWithInvalidBody()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": 131, "UaBody": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": 131, "UaBody": false }"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -870,7 +870,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenNull()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -878,7 +878,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWhenTypeIdIsNullReturnsNull()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaBody": 123}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaBody": 123}"""));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -886,7 +886,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadExtensionObjectWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("1"));
+            using JsonDecoder reader = NewDecoder(Body("1"));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ExtensionObject.Null));
         }
@@ -894,7 +894,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<float> result = reader.ReadFloatArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<float>()));
         }
@@ -902,7 +902,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<float> result = reader.ReadFloatArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<float>()));
         }
@@ -910,7 +910,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatWithFloatString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""0.123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""0.123"""));
             float result = reader.ReadFloat(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(0.123f));
         }
@@ -918,7 +918,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             float result = reader.ReadFloat(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(float)));
         }
@@ -926,7 +926,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatWithNaNString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""NaN"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""NaN"""));
             float result = reader.ReadFloat(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(float.NaN));
         }
@@ -934,7 +934,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadFloatWithNonFloatString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""Json"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""Json"""));
             float result = reader.ReadFloat(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(float)));
         }
@@ -942,7 +942,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidFromEmptyStringElementReturnsEmptyGuid()
         {
-            using JsonParser reader = NewDecoder(Body(@""""""));
+            using JsonDecoder reader = NewDecoder(Body(@""""""));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Uuid.Empty));
         }
@@ -950,7 +950,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidFromNonStringElementReturnsEmptyGuid()
         {
-            using JsonParser reader = NewDecoder(Body("[]"));
+            using JsonDecoder reader = NewDecoder(Body("[]"));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Uuid.Empty));
         }
@@ -958,7 +958,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<Uuid> result = reader.ReadGuidArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<Uuid>()));
         }
@@ -966,7 +966,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ {} ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ {} ]"));
             ArrayOf<Uuid> result = reader.ReadGuidArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<Uuid>()));
         }
@@ -974,7 +974,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidWhenBadString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""h e l l o"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""h e l l o"""));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Uuid.Empty));
         }
@@ -984,7 +984,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var guid = Uuid.NewUuid();
             string json = $@"""{Convert.ToBase64String(guid.ToByteArray())}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(guid));
         }
@@ -992,7 +992,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadGuidWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("1"));
+            using JsonDecoder reader = NewDecoder(Body("1"));
             Uuid result = reader.ReadGuid(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Uuid.Empty));
         }
@@ -1000,7 +1000,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt16ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<short> result = reader.ReadInt16Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<short>()));
         }
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt16ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<short> result = reader.ReadInt16Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<short>()));
         }
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt16WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             short result = reader.ReadInt16(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(short)));
         }
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt32ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<int> result = reader.ReadInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<int>()));
         }
@@ -1032,7 +1032,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt32ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<int> result = reader.ReadInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<int>()));
         }
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt32WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             int result = reader.ReadInt32(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(int)));
         }
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64AsNumericValue()
         {
-            using JsonParser reader = NewDecoder(Body("-1234"));
+            using JsonDecoder reader = NewDecoder(Body("-1234"));
             long result = reader.ReadInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(-1234L));
         }
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64AsNumericValueStrictThrows()
         {
-            using JsonParser reader = NewDecoder(Body("-1234"), true);
+            using JsonDecoder reader = NewDecoder(Body("-1234"), true);
             try
             {
                 reader.ReadInt64(JsonProperties.Value);
@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64AsNumericValueWhenFloat()
         {
-            using JsonParser reader = NewDecoder(Body("-1.234"));
+            using JsonDecoder reader = NewDecoder(Body("-1.234"));
             long result = reader.ReadInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(0L));
         }
@@ -1080,7 +1080,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64FromBadStringElement()
         {
-            using JsonParser reader = NewDecoder(Body(@"""xabc"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""xabc"""));
             long result = reader.ReadInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(long)));
         }
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64FromNonStringElement()
         {
-            using JsonParser reader = NewDecoder(Body("[]"));
+            using JsonDecoder reader = NewDecoder(Body("[]"));
             long result = reader.ReadInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(long)));
         }
@@ -1096,7 +1096,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<long> result = reader.ReadInt64Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<long>()));
         }
@@ -1104,7 +1104,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<long> result = reader.ReadInt64Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<long>()));
         }
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadInt64WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             long result = reader.ReadInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(long)));
         }
@@ -1120,7 +1120,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextStringWhenEmpty()
         {
-            using JsonParser reader = NewDecoder(Body(@""""""));
+            using JsonDecoder reader = NewDecoder(Body(@""""""));
             LocalizedText result = reader.ReadLocalizedText(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(LocalizedText.Null));
         }
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextArrayWithBadObjectValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """[{"Locale": false}]"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[{"Locale": false}]"""));
             ArrayOf<LocalizedText> result = reader.ReadLocalizedTextArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<LocalizedText>()));
         }
@@ -1136,7 +1136,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<LocalizedText> result = reader.ReadLocalizedTextArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<LocalizedText>()));
         }
@@ -1144,7 +1144,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ 1, 1 ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ 1, 1 ]"));
             ArrayOf<LocalizedText> result = reader.ReadLocalizedTextArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<LocalizedText>()));
         }
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextWithBadObjectValue1()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"Locale": false}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"Locale": false}"""));
             LocalizedText result = reader.ReadLocalizedText(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(LocalizedText.Null));
         }
@@ -1160,7 +1160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextWithBadObjectValue2()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"Locale": "test", "Text": false}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"Locale": "test", "Text": false}"""));
             LocalizedText result = reader.ReadLocalizedText(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(LocalizedText.Null));
         }
@@ -1168,7 +1168,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadLocalizedTextWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("1"));
+            using JsonDecoder reader = NewDecoder(Body("1"));
             LocalizedText result = reader.ReadLocalizedText(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(LocalizedText.Null));
         }
@@ -1178,7 +1178,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             const string json = "[]";
-            using JsonParser reader = NewDecoder(json);
+            using JsonDecoder reader = NewDecoder(json);
 
             // Act
             bool result = reader.TryGetMessageFromElement(reader.Root, out Argument message);
@@ -1193,7 +1193,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             const string json = /*lang=json,strict*/ """{ "test": 1 }""";
-            using JsonParser reader = NewDecoder(json);
+            using JsonDecoder reader = NewDecoder(json);
 
             // Act
             bool result = reader.TryGetMessageFromElement(reader.Root, out Argument message);
@@ -1208,7 +1208,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             const string json = /*lang=json,strict*/ """{ "UaTypeId": {} }""";
-            using JsonParser reader = NewDecoder(json);
+            using JsonDecoder reader = NewDecoder(json);
 
             // Act
             bool result = reader.TryGetMessageFromElement(reader.Root, out Argument message);
@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             const string json = /*lang=json,strict*/ """{ "UaTypeId": "ns=2;r=32", "UaBody": 1 }""";
-            using JsonParser reader = NewDecoder(json);
+            using JsonDecoder reader = NewDecoder(json);
 
             // Act
             bool result = reader.TryGetMessageFromElement(reader.Root, out Argument message);
@@ -1238,7 +1238,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             const string json = /*lang=json,strict*/ """{ "UaBody": 1 }""";
-            using JsonParser reader = NewDecoder(json);
+            using JsonDecoder reader = NewDecoder(json);
 
             // Act
             bool result = reader.TryGetMessageFromElement(reader.Root, out Argument message);
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("1234"));
+            using JsonDecoder reader = NewDecoder(Body("1234"));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new NodeId(1234)));
         }
@@ -1259,7 +1259,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdNumericWhenNegative()
         {
-            using JsonParser reader = NewDecoder(Body("-123"));
+            using JsonDecoder reader = NewDecoder(Body("-123"));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdString1()
         {
-            using JsonParser reader = NewDecoder(Body(@"""i=1234"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""i=1234"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new NodeId(1234)));
         }
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdString2()
         {
-            using JsonParser reader = NewDecoder(Body(@"""s=abcd"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""s=abcd"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new NodeId("abcd", 0)));
         }
@@ -1283,7 +1283,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdStringBadGuid()
         {
-            using JsonParser reader = NewDecoder(Body(@"""g={ddd}"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""g={ddd}"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdValuesNumericWhenNegative()
         {
-            using JsonParser reader = NewDecoder(Body("[-123]"));
+            using JsonDecoder reader = NewDecoder(Body("[-123]"));
             ArrayOf<NodeId> result = reader.ReadNodeIdArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf<NodeId>.Empty));
         }
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<NodeId> result = reader.ReadNodeIdArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<NodeId>()));
         }
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadByteStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 3, "Id": {} }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 3, "Id": {} }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1315,7 +1315,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadGuidIdValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 2, "Id": {} }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 2, "Id": {} }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1323,7 +1323,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadIdType()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": [], "Namespace": 1 }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": [], "Namespace": 1 }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadNumericIdValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 0, "Id": {} }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 0, "Id": {} }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1339,7 +1339,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadObjectNamespaceUri()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 1, "Namespace": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 1, "Namespace": [] }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1347,7 +1347,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadNodeIdWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 1, "Id": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "IdType": 1, "Id": false }"""));
             NodeId result = reader.ReadNodeId(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
@@ -1355,7 +1355,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("123"));
+            using JsonDecoder reader = NewDecoder(Body("123"));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
@@ -1363,7 +1363,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameString()
         {
-            using JsonParser reader = NewDecoder(Body(@"""name"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""name"""));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.From("name")));
         }
@@ -1371,7 +1371,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameString1()
         {
-            using JsonParser reader = NewDecoder(Body(@"""123"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""123"""));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.From("123")));
         }
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameArrayWithBadObjectValue1()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Name": "test", "Uri": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Name": "test", "Uri": [] }"""));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
@@ -1387,7 +1387,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameArrayWithBadObjectValue2()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Name": false, "Uri": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Name": false, "Uri": [] }"""));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
@@ -1395,7 +1395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<QualifiedName> result = reader.ReadQualifiedNameArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<QualifiedName>()));
         }
@@ -1403,7 +1403,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ 1, 1 ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ 1, 1 ]"));
             ArrayOf<QualifiedName> result = reader.ReadQualifiedNameArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<QualifiedName>()));
         }
@@ -1411,7 +1411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadQualifiedNameWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("1"));
+            using JsonDecoder reader = NewDecoder(Body("1"));
             QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
@@ -1419,7 +1419,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<sbyte>()));
         }
@@ -1428,7 +1428,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadSByteArrayWithBase64String()
         {
             byte[] buffer = Uuid.NewUuid().ToByteArray();
-            using JsonParser reader = NewDecoder(Body($@"""{Convert.ToBase64String(buffer)}"""));
+            using JsonDecoder reader = NewDecoder(Body($@"""{Convert.ToBase64String(buffer)}"""));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(buffer.Select(b => (sbyte)b).ToArray()));
         }
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithByteValue()
         {
-            using JsonParser reader = NewDecoder(Body("-55"));
+            using JsonDecoder reader = NewDecoder(Body("-55"));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new sbyte[] { -55 }));
         }
@@ -1444,7 +1444,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<sbyte>()));
         }
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithNullValue()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<sbyte>()));
         }
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithObjectValue()
         {
-            using JsonParser reader = NewDecoder(Body(Body("[0,1]")));
+            using JsonDecoder reader = NewDecoder(Body(Body("[0,1]")));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<sbyte>()));
         }
@@ -1468,7 +1468,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteArrayWithShortValue()
         {
-            using JsonParser reader = NewDecoder(Body("555"));
+            using JsonDecoder reader = NewDecoder(Body("555"));
             ArrayOf<sbyte> result = reader.ReadSByteArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<sbyte>()));
         }
@@ -1476,7 +1476,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadSByteWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{}"));
+            using JsonDecoder reader = NewDecoder(Body("{}"));
             sbyte result = reader.ReadSByte(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(sbyte)));
         }
@@ -1484,7 +1484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStatusCodeArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<StatusCode> result = reader.ReadStatusCodeArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<StatusCode>()));
         }
@@ -1492,7 +1492,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStatusCodeArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("""[ "_________" ]"""));
+            using JsonDecoder reader = NewDecoder(Body("""[ "_________" ]"""));
             ArrayOf<StatusCode> result = reader.ReadStatusCodeArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<StatusCode>()));
         }
@@ -1500,7 +1500,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStatusCodeWithBadObjectValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Code": false }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Code": false }"""));
             StatusCode result = reader.ReadStatusCode(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -1508,7 +1508,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStatusCodeWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             StatusCode result = reader.ReadStatusCode(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStringArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<string> result = reader.ReadStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<string>()));
         }
@@ -1524,7 +1524,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStringArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ false, false, false ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ false, false, false ]"));
             ArrayOf<string> result = reader.ReadStringArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<string>()));
         }
@@ -1532,7 +1532,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStringWhenNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("1234"));
+            using JsonDecoder reader = NewDecoder(Body("1234"));
             string result = reader.ReadString(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(null));
         }
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadStringWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("false"));
+            using JsonDecoder reader = NewDecoder(Body("false"));
             string result = reader.ReadString(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(null));
         }
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable("argument", new Argument());
             string buffer = writer.CloseAndReturnText();
-            using JsonParser reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
+            using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, new Argument()), Is.True);
         }
@@ -1561,7 +1561,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableArrayAsExtensionObjectsWhenBodyNullAndNullTypeId()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """[{"UaEncoding": 1, "UaBody": null}]"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[{"UaEncoding": 1, "UaBody": null}]"""));
             try
             {
                 reader.ReadEncodeableArrayAsExtensionObjects<Argument>(JsonProperties.Value);
@@ -1577,7 +1577,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableArrayAsExtensionObjectsWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<Argument> result = reader.ReadEncodeableArrayAsExtensionObjects<Argument>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<Argument>()));
         }
@@ -1585,7 +1585,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenBodyEmpty()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": []}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": []}"""));
             try
             {
                 reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
@@ -1601,7 +1601,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenBodyNull()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": null}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": null}"""));
             try
             {
                 reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
@@ -1617,7 +1617,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenBodyNullAndNullTypeId()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaBody": null}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaBody": null}"""));
             try
             {
                 reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
@@ -1633,7 +1633,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEmptyObjectIsMissingEncoding()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=296", "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, new Argument()), Is.True);
         }
@@ -1641,7 +1641,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEncodingIsInvalidType()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": [], "UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": [], "UaTypeId": "i=296", "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1649,7 +1649,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEncodingIsInvalidValue()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 10, "UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 10, "UaTypeId": "i=296", "UaBody": {}}"""));
             try
             {
                 Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
@@ -1665,7 +1665,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEncodingIsNone()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "None", "UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "None", "UaTypeId": "i=296", "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1673,7 +1673,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEncodingIsNoneAndNullTypeId()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 0, "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 0, "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1681,7 +1681,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenEncodingIsNullTreatsNullAsZero()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": null, "UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": null, "UaTypeId": "i=296", "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, new Argument()), Is.True);
         }
@@ -1689,7 +1689,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenNoBodyOrTypeId()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 0, "Test": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 0, "Test": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1697,7 +1697,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenNull()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWhenValueIsMissingEncoding()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=33", "UaEncoding": 3, "UaBody": null}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=33", "UaEncoding": 3, "UaBody": null}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1725,7 +1725,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             writer.PopNamespace();
             string xml = writer.CloseAndReturnText();
             string buffer = JavaScriptEncoder.Default.Encode(xml);
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ $$"""{"UaTypeId": "i=296","UaEncoding": 2, "UaBody": "{{buffer}}"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ $$"""{"UaTypeId": "i=296","UaEncoding": 2, "UaBody": "{{buffer}}"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, expected), Is.True);
         }
@@ -1742,7 +1742,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             string buffer = writer.CloseAndReturnText();
             buffer = buffer[..(buffer.Length / 2)];
-            using JsonParser reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
+            using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1750,7 +1750,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithBadBinaryEncoding2()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "binary", "UaTypeId": "i=296", "UaBody": {}}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "binary", "UaTypeId": "i=296", "UaBody": {}}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1758,7 +1758,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1766,7 +1766,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithBadXmlEncoding1()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": "d d d d d"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": "d d d d d"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1774,7 +1774,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithBadXmlEncoding2()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": false}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": false}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1791,7 +1791,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable(null, expected);
             var buffer = writer.CloseAndReturnText();
-            using JsonParser reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
+            using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, expected), Is.True);
         }
@@ -1799,7 +1799,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithEmptyXmlEncoding()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "xml", "UaTypeId": "i=296", "UaBody": ""}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "xml", "UaTypeId": "i=296", "UaBody": ""}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1807,7 +1807,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableAsExtensionObjectWithXmlEncoding()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": "<Argument/>"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": "Xml", "UaTypeId": "i=296", "UaBody": "<Argument/>"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(result, Is.Null);
         }
@@ -1815,7 +1815,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<Argument> result = reader.ReadEncodeableArray<Argument>(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<Argument>()));
         }
@@ -1823,7 +1823,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadEncodeableArrayWithArrayOfArguments()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """[ { "Name": "test", "ValueRank": [] }, {} ]"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[ { "Name": "test", "ValueRank": [] }, {} ]"""));
             ArrayOf<Argument> result = reader.ReadEncodeableArray<Argument>(JsonProperties.Value);
             Assert.That(result.Count, Is.EqualTo(2));
         }
@@ -1831,7 +1831,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt16ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<ushort> result = reader.ReadUInt16Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ushort>()));
         }
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt16ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<ushort> result = reader.ReadUInt16Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ushort>()));
         }
@@ -1847,7 +1847,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt16WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             ushort result = reader.ReadUInt16(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ushort)));
         }
@@ -1855,7 +1855,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<uint>()));
         }
@@ -1863,7 +1863,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<uint>()));
         }
@@ -1871,7 +1871,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32ArrayWithNoBody()
         {
-            using JsonParser reader = NewDecoder("{}");
+            using JsonDecoder reader = NewDecoder("{}");
             ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<uint>()));
         }
@@ -1879,7 +1879,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32ArrayWithNoValue()
         {
-            using JsonParser reader = NewDecoder(Body("{}"));
+            using JsonDecoder reader = NewDecoder(Body("{}"));
             ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<uint>()));
         }
@@ -1887,7 +1887,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32ArrayWithNullValue()
         {
-            using JsonParser reader = NewDecoder(Body("null"));
+            using JsonDecoder reader = NewDecoder(Body("null"));
             ArrayOf<uint> result = reader.ReadUInt32Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<uint>()));
         }
@@ -1895,7 +1895,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt32WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             uint result = reader.ReadUInt32(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(uint)));
         }
@@ -1903,7 +1903,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64AsNumericValue()
         {
-            using JsonParser reader = NewDecoder(Body("1234"));
+            using JsonDecoder reader = NewDecoder(Body("1234"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(1234));
         }
@@ -1911,7 +1911,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64AsNumericValueStrictThrows()
         {
-            using JsonParser reader = NewDecoder(Body("1234"), true);
+            using JsonDecoder reader = NewDecoder(Body("1234"), true);
             try
             {
                 reader.ReadUInt64(JsonProperties.Value);
@@ -1927,7 +1927,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64()
         {
-            using JsonParser reader = NewDecoder(Body("""
+            using JsonDecoder reader = NewDecoder(Body("""
             "1234"
             """));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
@@ -1937,7 +1937,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64AsNumericValueWhenFloat()
         {
-            using JsonParser reader = NewDecoder(Body("1.234"));
+            using JsonDecoder reader = NewDecoder(Body("1.234"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ulong)));
         }
@@ -1945,7 +1945,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64AsNumericValueWhenNegative()
         {
-            using JsonParser reader = NewDecoder(Body("-1234"));
+            using JsonDecoder reader = NewDecoder(Body("-1234"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ulong)));
         }
@@ -1953,7 +1953,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64FromBadStringElement()
         {
-            using JsonParser reader = NewDecoder(Body(@"""xabc"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""xabc"""));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ulong)));
         }
@@ -1961,7 +1961,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64FromNonStringElement()
         {
-            using JsonParser reader = NewDecoder(Body("[]"));
+            using JsonDecoder reader = NewDecoder(Body("[]"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ulong)));
         }
@@ -1969,7 +1969,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64ArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<ulong> result = reader.ReadUInt64Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ulong>()));
         }
@@ -1977,7 +1977,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64ArrayWithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("[ { }, { } ]"));
+            using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
             ArrayOf<ulong> result = reader.ReadUInt64Array(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<ulong>()));
         }
@@ -1985,7 +1985,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadUInt64WithInvalidTypeValue()
         {
-            using JsonParser reader = NewDecoder(Body("{ }"));
+            using JsonDecoder reader = NewDecoder(Body("{ }"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(default(ulong)));
         }
@@ -1994,7 +1994,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadVariantArrayWithDiagnosticInfo()
         {
             var buffer = Uuid.NewUuid().ToByteString();
-            using JsonParser reader = NewDecoder(Body($$"""{"UaType":25, "Value": ["{{buffer.ToBase64()}}"]}"""));
+            using JsonDecoder reader = NewDecoder(Body($$"""{"UaType":25, "Value": ["{{buffer.ToBase64()}}"]}"""));
             try
             {
                 reader.ReadVariant(JsonProperties.Value);
@@ -2010,7 +2010,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantArrayWithBadDimensions()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """[{"UaType":4, "Value": [], "Dimensions": [ {}, {} ]}]"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[{"UaType":4, "Value": [], "Dimensions": [ {}, {} ]}]"""));
             ArrayOf<Variant> result = reader.ReadVariantArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf<Variant>.Empty));
         }
@@ -2018,7 +2018,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantArrayWithBadStringValue()
         {
-            using JsonParser reader = NewDecoder(Body(@"""ääää"""));
+            using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
             ArrayOf<Variant> result = reader.ReadVariantArray(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(ArrayOf.Empty<Variant>()));
         }
@@ -2026,7 +2026,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithBadDimensions1()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":4, "Value": [], "Dimensions": [ {}, {} ]}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":4, "Value": [], "Dimensions": [ {}, {} ]}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2034,7 +2034,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithBadDimensions2()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"DataType": 4, "Value": [], "Dimensions": [ {}, {} ]}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"DataType": 4, "Value": [], "Dimensions": [ {}, {} ]}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2044,7 +2044,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"UaType":[], "Value":"{{buffer.ToBase64()}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             try
             {
                 Variant result = reader.ReadVariant(JsonProperties.Value);
@@ -2062,7 +2062,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"type": "BadType", "body":"{{buffer.ToBase64()}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2072,7 +2072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"type": 99, "body":"{{buffer.ToBase64()}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2082,7 +2082,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"UaType":2345, "Value":"{{buffer.ToBase64()}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             try
             {
                 reader.ReadVariant(JsonProperties.Value);
@@ -2105,7 +2105,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"UaType":{{uaType}}, "Value":"{{buffer.ToBase64()}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             try
             {
                 reader.ReadVariant(JsonProperties.Value);
@@ -2121,7 +2121,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithBadXmlElementStringPerformsNoValidation()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value":"a a a a a a a"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value":"a a a a a a a"}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.From(XmlElement.From("a a a a a a a"))));
         }
@@ -2129,7 +2129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithBadXmlElementNotStringType()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value":false}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value":false}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2137,7 +2137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithBadXmlElementNotStringTypeArray()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value": [false, false]}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":16, "Value": [false, false]}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2147,7 +2147,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             byte[] buffer = Uuid.NewUuid().ToByteArray();
             string json = $$"""{"UaType":15, "Value":"{{Convert.ToBase64String(buffer)}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new Variant((ByteString)buffer)));
         }
@@ -2157,7 +2157,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var buffer = Uuid.NewUuid().ToByteString();
             string json = $$"""{"UaType":15, "Value":["{{buffer.ToBase64()}}"], "Dimensions": 0}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2165,7 +2165,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithNullType()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":0, "Value": null}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":0, "Value": null}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2173,7 +2173,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithNullTypeAndArray()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":0, "Value": [ {} ]}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":0, "Value": [ {} ]}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2181,7 +2181,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithNumericValueFromExtremeValue()
         {
-            using JsonParser reader = NewDecoder(Body(kExtremeValue));
+            using JsonDecoder reader = NewDecoder(Body(kExtremeValue));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2189,7 +2189,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithPlainArray()
         {
-            using JsonParser reader = NewDecoder(Body("[1, 2, 3]"));
+            using JsonDecoder reader = NewDecoder(Body("[1, 2, 3]"));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2197,7 +2197,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithSingleDimensionsThrowsWhenStrict()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":4, "Value": [], "Dimensions": [ 1 ]}"""), true);
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":4, "Value": [], "Dimensions": [ 1 ]}"""), true);
             try
             {
                 Variant result = reader.ReadVariant(JsonProperties.Value);
@@ -2213,7 +2213,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithInt64ValueFromNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("\"9223372036854775807\""));
+            using JsonDecoder reader = NewDecoder(Body("\"9223372036854775807\""));
             Variant result = reader.ReadVariantValue(JsonProperties.Value, TypeInfo.Scalars.Int64);
             Assert.That(result, Is.EqualTo(new Variant(9223372036854775807L)));
         }
@@ -2221,7 +2221,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithUInt64ValueFromNumeric()
         {
-            using JsonParser reader = NewDecoder(Body("\"9223372036854775808\""));
+            using JsonDecoder reader = NewDecoder(Body("\"9223372036854775808\""));
             Variant result = reader.ReadVariantValue(JsonProperties.Value, TypeInfo.Scalars.UInt64);
             Assert.That(result, Is.EqualTo(new Variant(9223372036854775808ul)));
         }
@@ -2229,7 +2229,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithUnknownJsonObject()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"ff": "xxx"}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"ff": "xxx"}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result.IsNull, Is.True);
         }
@@ -2237,7 +2237,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithInvalidTypeThrows()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":32, "Value":1}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":32, "Value":1}"""));
             try
             {
                 Variant result = reader.ReadVariant(JsonProperties.Value);
@@ -2253,7 +2253,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadVariantWithoutTypeReturnsNull()
         {
-            using JsonParser reader = NewDecoder(Body(/*lang=json,strict*/ """{"DataType": "Funny", "Value":1}"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"DataType": "Funny", "Value":1}"""));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
@@ -2263,7 +2263,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             XmlElement xml = BuiltInTypeTestCases.SerializeXml(new Argument());
             string json = $$"""{"UaType":16, "Value":"{{JavaScriptEncoder.Default.Encode(xml.OuterXml)}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new Variant(xml)));
         }
@@ -2273,7 +2273,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             string now = DateTime.Now.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
             string json = $$"""{"UaType":16, "Value":"{{now}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new Variant(new XmlElement(now))));
         }
@@ -2284,7 +2284,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var guid = Uuid.NewUuid();
             string str = Convert.ToBase64String(guid.ToByteArray());
             string json = $$"""{"UaType":16, "Value":"{{str}}"}""";
-            using JsonParser reader = NewDecoder(Body(json));
+            using JsonDecoder reader = NewDecoder(Body(json));
             Variant result = reader.ReadVariant(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new Variant(new XmlElement(str))));
         }
@@ -2300,12 +2300,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
             var buffers = new PooledBufferWriter();
 
-            using (var encoder = new JsonWriter(buffers, messageContext, JsonEncoderOptions.Compact))
+            using (var encoder = new JsonEncoder(buffers, messageContext, JsonEncoderOptions.Compact))
             {
                 encoder.WriteEnumeratedArray(JsonProperties.Value, expected);
             }
 
-            using var decoder = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            using var decoder = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
             ArrayOf<StructureType> result = decoder.ReadEnumeratedArray<StructureType>(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
@@ -2320,11 +2320,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
         }
 
-        private static JsonParser NewDecoder(string json, bool strict = false)
+        private static JsonDecoder NewDecoder(string json, bool strict = false)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            return new JsonParser(json, messageContext, new JsonDecoderOptions
+            return new JsonDecoder(json, messageContext, new JsonDecoderOptions
             {
                 ParseStrict = strict
             });

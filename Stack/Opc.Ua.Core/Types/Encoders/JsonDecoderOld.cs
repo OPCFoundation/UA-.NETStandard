@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a JSON stream.
     /// </summary>
-    public class JsonDecoder : IJsonDecoder
+    public class JsonDecoderOld : IJsonDecoder
     {
         /// <summary>
         /// The name of the Root array if the json is defined as an array
@@ -79,10 +79,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="json">The JSON encoded string.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(string json, IServiceMessageContext context)
+        public JsonDecoderOld(string json, IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoderOld>();
             m_nestingLevel = 0;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
@@ -95,10 +95,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="reader">The text reader.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(JsonTextReader reader, IServiceMessageContext context)
+        public JsonDecoderOld(JsonTextReader reader, IServiceMessageContext context)
         {
             Context = context;
-            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoderOld>();
             m_nestingLevel = 0;
             m_reader = reader;
             m_root = ReadObject();
@@ -143,7 +143,7 @@ namespace Opc.Ua
                     buffer.Count);
             }
 
-            using var decoder = new JsonDecoder(
+            using var decoder = new JsonDecoderOld(
                 Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count),
                 context);
             return decoder.DecodeMessage<T>();

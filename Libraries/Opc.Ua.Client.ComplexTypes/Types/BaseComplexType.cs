@@ -28,15 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -282,18 +279,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        protected void EncodeProperty(
-            IEncoder encoder,
-            string name,
-            ComplexTypePropertyInfo property)
-        {
-            encoder.WriteVariantValue(name, property.GetValue(this));
-        }
-
-        /// <summary>
-        /// Encode a property based on the property type and value rank.
-        /// </summary>
         protected void EncodeProperty(IEncoder encoder, ComplexTypePropertyInfo property)
         {
             EncodeProperty(encoder, property.Name, property);
@@ -308,6 +293,47 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Encode a property based on the property type and value rank.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        protected void EncodeProperty(
+            IEncoder encoder,
+            string name,
+            ComplexTypePropertyInfo property)
+        {
+            Variant variant = property.GetValue(this);
+            switch (property.TypeInfo.BuiltInType)
+            {
+                // IEncodeable types are handled by type property as BuiltInType.Null
+                case BuiltInType.Null:
+                    if (property.TypeInfo.IsScalar)
+                    {
+                        if (variant.TryGetStructure(out IEncodeable structure))
+                        {
+                            encoder.WriteEncodeable(name, structure);
+                            break;
+                        }
+                    }
+                    else if (property.TypeInfo.IsArray)
+                    {
+                        if (variant.TryGetStructure(out ArrayOf<IEncodeable> structures))
+                        {
+                            encoder.WriteEncodeableArray(name, structures);
+                            break;
+                        }
+                    }
+                    encoder.WriteVariant(name, variant);
+                    break;
+                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                    encoder.WriteVariant(name, variant);
+                    break;
+                default:
+                    encoder.WriteVariantValue(name, variant);
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -316,7 +342,36 @@ namespace Opc.Ua.Client.ComplexTypes
             string name,
             ComplexTypePropertyInfo property)
         {
-            decoder.ReadVariantValue(name, property.TypeInfo);
+            Variant variant;
+            switch (property.TypeInfo.BuiltInType)
+            {
+                // IEncodeable types are handled by type property as BuiltInType.Null
+                case BuiltInType.Null:
+                    if (property.TypeInfo.IsScalar)
+                    {
+                        IEncodeable encodeable =
+                            decoder.ReadEncodeable<IEncodeable>(name, TypeId);
+                        variant = Variant.FromStructure(encodeable);
+                    }
+                    else if (property.TypeInfo.IsArray)
+                    {
+                        ArrayOf<IEncodeable> encodeables =
+                            decoder.ReadEncodeableArray<IEncodeable>(name, TypeId);
+                        variant = Variant.FromStructure(encodeables);
+                    }
+                    else
+                    {
+                        variant = decoder.ReadVariant(name);
+                    }
+                    break;
+                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                    variant = decoder.ReadVariant(name);
+                    break;
+                default:
+                    variant = decoder.ReadVariantValue(name, property.TypeInfo);
+                    break;
+            }
+            property.SetValue(this, variant);
         }
 
         /// <summary>

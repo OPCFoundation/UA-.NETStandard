@@ -37,7 +37,7 @@ using Opc.Ua.Types;
 namespace Opc.Ua.UnitTests
 {
     /// <summary>
-    /// Unit tests for the <see cref = "JsonParser"/> class.
+    /// Unit tests for the <see cref = "JsonDecoder"/> class.
     /// </summary>
     [TestFixture]
     [Category("Encoders")]
@@ -53,7 +53,7 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
                 writer.WriteVariant(JsonProperties.Value, badVariant);
@@ -76,7 +76,7 @@ namespace Opc.Ua.UnitTests
                 TypeInfo.Arrays.DiagnosticInfo,
                 new[] { new DiagnosticInfo() }.ToArrayOf());
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
                 writer.WriteVariant(JsonProperties.Value, badVariant);
@@ -98,7 +98,7 @@ namespace Opc.Ua.UnitTests
                 MaxArrayLength = 4
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
                 ArrayOf<bool> b = new bool[6].ToArrayOf();
@@ -121,7 +121,7 @@ namespace Opc.Ua.UnitTests
                 MaxByteStringLength = 4
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {
@@ -145,7 +145,7 @@ namespace Opc.Ua.UnitTests
                 MaxArrayLength = 4
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {
@@ -169,7 +169,7 @@ namespace Opc.Ua.UnitTests
                 MaxEncodingNestingLevels = 1
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {
@@ -200,12 +200,12 @@ namespace Opc.Ua.UnitTests
             DateTime expected = DateTime.UtcNow;
             var buffers = new PooledBufferWriter();
 
-            using (var writer = new JsonWriter(buffers, messageContext))
+            using (var writer = new JsonEncoder(buffers, messageContext))
             {
                 writer.WriteDateTime(JsonProperties.Value, expected);
             }
 
-            var reader = new JsonParser(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
             DateTime result = reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
@@ -220,7 +220,7 @@ namespace Opc.Ua.UnitTests
                 MaxStringLength = 4
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {
@@ -243,7 +243,7 @@ namespace Opc.Ua.UnitTests
                 MaxEncodingNestingLevels = 1
             };
             var buffer = new PooledBufferWriter();
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {
@@ -267,7 +267,7 @@ namespace Opc.Ua.UnitTests
             };
             var buffer = new PooledBufferWriter();
             var variant = new Variant(new DataValue(new Variant(new DataValue(new Variant(1)))));
-            using var writer = new JsonWriter(buffer, messageContext);
+            using var writer = new JsonEncoder(buffer, messageContext);
 
             try
             {

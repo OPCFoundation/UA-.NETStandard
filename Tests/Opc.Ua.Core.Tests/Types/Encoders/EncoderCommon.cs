@@ -603,13 +603,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     var xmlWriter = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
-                    var encoder = new JsonEncoder(
-                        context,
-                        jsonEncoding,
-                        topLevelIsArray,
+                    return new JsonEncoder(
                         stream,
-                        true);
-                    return encoder;
+                        context,
+                        jsonEncoding == JsonEncodingType.Verbose ? JsonEncoderOptions.Verbose : JsonEncoderOptions.Compact);
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(encoderType),
@@ -636,7 +633,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-                    return new JsonDecoder(jsonTextReader, context);
+                    return new JsonDecoderOld(jsonTextReader, context);
                 default:
                     return null;
             }

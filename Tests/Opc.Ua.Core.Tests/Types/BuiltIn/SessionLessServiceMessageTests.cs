@@ -31,7 +31,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 ServerUris = serverUris
             };
             string result;
-            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
             {
                 var envelope = new SessionLessServiceMessage
                 {

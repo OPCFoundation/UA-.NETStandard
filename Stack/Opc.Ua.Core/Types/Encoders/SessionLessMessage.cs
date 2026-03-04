@@ -57,7 +57,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context);
+            using var decoder = new JsonDecoderOld(Encoding.UTF8.GetString(buffer), context);
             // decode the actual message.
             var message = new SessionLessServiceMessage();
             message.Decode(decoder);
@@ -87,7 +87,7 @@ namespace Opc.Ua
             }
 
             // create encoder.
-            var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, leaveOpen);
+            var encoder = new JsonEncoder(stream, context, JsonEncoderOptions.Verbose);
             try
             {
                 long start = stream.Position;
@@ -120,6 +120,10 @@ namespace Opc.Ua
                 if (leaveOpen)
                 {
                     stream.Position = 0;
+                }
+                else
+                {
+                    stream.Dispose();
                 }
                 encoder.Dispose();
             }

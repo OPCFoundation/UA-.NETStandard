@@ -46,7 +46,7 @@ namespace Opc.Ua
     /// <summary>
     /// Parse json into opc ua types
     /// </summary>
-    public sealed class JsonParser : IDecoder
+    public sealed class JsonDecoder : IDecoder
     {
         /// <summary>
         /// Root element
@@ -54,26 +54,16 @@ namespace Opc.Ua
         public JsonElement Root => m_document.RootElement;
 
         /// <summary>
-        /// Update namespace table
-        /// </summary>
-        public bool UpdateNamespaceTable { get; set; }
-
-        /// <summary>
-        /// Parse strict and throw in case of wrong data is found.
-        /// </summary>
-        public bool ParseStrict { get; set; }
-
-        /// <summary>
         /// Create decoder over utf8json buffer
         /// </summary>
-        public JsonParser(
+        public JsonDecoder(
             in ReadOnlySequence<byte> utf8Json,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
-            m_logger = context.Telemetry.CreateLogger<JsonParser>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
                 m_document = JsonDocument.Parse(
@@ -90,14 +80,14 @@ namespace Opc.Ua
         /// <summary>
         /// Create decoder with a stream
         /// </summary>
-        public JsonParser(
+        public JsonDecoder(
             Stream stream,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
-            m_logger = context.Telemetry.CreateLogger<JsonParser>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
                 m_document = JsonDocument.Parse(
@@ -114,14 +104,14 @@ namespace Opc.Ua
         /// <summary>
         /// Create decoder from json string
         /// </summary>
-        public JsonParser(
+        public JsonDecoder(
             string json,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
-            m_logger = context.Telemetry.CreateLogger<JsonParser>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
                 m_document = JsonDocument.Parse(
@@ -143,14 +133,14 @@ namespace Opc.Ua
         /// desired nesting limits and that the document is well
         /// formed.
         /// </remarks>
-        internal JsonParser(
+        internal JsonDecoder(
             JsonDocument document,
             IServiceMessageContext context,
             JsonDecoderOptions? options = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
-            m_logger = context.Telemetry.CreateLogger<JsonParser>();
+            m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             m_document = document;
             m_stack.Push(m_document.RootElement);
         }
@@ -204,7 +194,7 @@ namespace Opc.Ua
                 {
                     string uri = namespaceUris.GetString(ii);
 
-                    if (UpdateNamespaceTable)
+                    if (m_options.UpdateNamespaceTable)
                     {
                         namespaceMappings[ii] =
                             Context.NamespaceUris.GetIndexOrAppend(uri);
@@ -231,7 +221,7 @@ namespace Opc.Ua
                 {
                     string uri = serverUris.GetString(ii);
 
-                    if (UpdateNamespaceTable)
+                    if (m_options.UpdateNamespaceTable)
                     {
                         serverMappings[ii] =
                             Context.ServerUris.GetIndexOrAppend(uri);
@@ -287,7 +277,7 @@ namespace Opc.Ua
                     buffer.Length);
             }
 
-            using var decoder = new JsonParser(buffer, context);
+            using var decoder = new JsonDecoder(buffer, context);
             return decoder.DecodeMessage<T>();
         }
 
