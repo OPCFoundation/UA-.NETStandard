@@ -245,7 +245,8 @@ namespace Opc.Ua
             // lookup message type.
             Type actualType =
                 Context.Factory.GetSystemType(absoluteId)
-                ?? throw ServiceResultException.Create(
+                ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Cannot decode message with type id: {0}.",
                     absoluteId);

@@ -172,6 +172,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public string ListenerId { get; private set; }
 
+        internal byte[] ServerChannelCertificate { get; set; }
+
         /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
@@ -302,6 +304,8 @@ namespace Opc.Ua.Bindings
                 m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
             }
 #endif
+            // save the server certificate so it can be used in the secure channel context.
+            ServerChannelCertificate = serverCertificate.RawData;
 
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
@@ -484,10 +488,13 @@ namespace Opc.Ua.Bindings
                         return;
                     }
                 }
+
                 var secureChannelContext = new SecureChannelContext(
-                        ListenerId,
-                        endpoint,
-                        RequestEncoding.Binary);
+                    ListenerId,
+                    endpoint,
+                    RequestEncoding.Binary,
+                    context.Connection.ClientCertificate?.RawData,
+                    ServerChannelCertificate);
 
                 IServiceResponse output =
                     await m_callback.ProcessRequestAsync(

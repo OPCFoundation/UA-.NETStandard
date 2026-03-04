@@ -207,6 +207,8 @@ namespace Opc.Ua
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                     securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                     continue;
                 }
                 if (applicationCertificate.CertificateType.TryGetIdentifier(out uint identifier))
@@ -215,23 +217,39 @@ namespace Opc.Ua
                     {
                         case ObjectTypes.EccNistP256ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
                             break;
                         case ObjectTypes.EccNistP384ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
                             securityPolicies.Add(SecurityPolicies.ECC_nistP384);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve25519ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve25519);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve448ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve448);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_ChaChaPoly);
                             break;
                         case ObjectTypes.RsaMinApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.Basic128Rsa15);
@@ -242,6 +260,8 @@ namespace Opc.Ua
                             securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                             securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                             securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                            securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                             goto case ObjectTypes.RsaMinApplicationCertificateType;
                     }
                 }

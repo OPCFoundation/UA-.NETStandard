@@ -756,7 +756,7 @@ namespace Opc.Ua.Gds.Server
                 return false;
             }
             curve =
-                EccUtils.GetCurveFromCertificateTypeId(certificateType)
+                CryptoUtils.GetCurveFromCertificateTypeId(certificateType)
                 ?? throw new ServiceResultException(
                     StatusCodes.BadNotSupported,
                     $"The certificate type {certificateType} is not supported.");

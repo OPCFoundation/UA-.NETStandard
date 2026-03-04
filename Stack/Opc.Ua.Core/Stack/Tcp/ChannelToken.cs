@@ -37,6 +37,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public sealed class ChannelToken : IDisposable
     {
+        private bool m_disposed;
+
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
@@ -51,17 +53,18 @@ namespace Opc.Ua.Bindings
         {
             if (!m_disposed)
             {
-                if (disposing)
+                if (ServerHmac != null)
                 {
-                    Utils.SilentDispose(ClientHmac);
-                    Utils.SilentDispose(ServerHmac);
-                    Utils.SilentDispose(ClientEncryptor);
-                    Utils.SilentDispose(ServerEncryptor);
+                    ServerHmac.Dispose();
+                    ServerHmac = null;
                 }
-                ClientHmac = null;
-                ServerHmac = null;
-                ClientEncryptor = null;
-                ServerEncryptor = null;
+
+                if (ClientHmac != null)
+                {
+                    ClientHmac.Dispose();
+                    ClientHmac = null;
+                }
+
                 m_disposed = true;
             }
         }
@@ -124,6 +127,21 @@ namespace Opc.Ua.Bindings
             (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
+        /// The SecurityPolicy used to encrypt and sign the messages.
+        /// </summary>
+        public SecurityPolicyInfo SecurityPolicy { get; set; }
+
+        /// <summary>
+        /// The secret used to compute the keys.
+        /// </summary>
+        internal byte[] Secret { get; set; }
+
+        /// <summary>
+        /// The previous server nonce used to compute the keys.
+        /// </summary>
+        internal byte[] PreviousSecret { get; set; }
+
+        /// <summary>
         /// The nonce provided by the client.
         /// </summary>
         public byte[] ClientNonce { get; set; }
@@ -136,53 +154,41 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
-        public byte[] ClientSigningKey { get; set; }
+        internal byte[] ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
-        public byte[] ClientEncryptingKey { get; set; }
+        internal byte[] ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
-        public byte[] ClientInitializationVector { get; set; }
+        internal byte[] ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
-        public byte[] ServerSigningKey { get; set; }
+        internal byte[] ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
-        public byte[] ServerEncryptingKey { get; set; }
+        internal byte[] ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
-        public byte[] ServerInitializationVector { get; set; }
+        internal byte[] ServerInitializationVector { get; set; }
 
         /// <summary>
-        /// The SymmetricAlgorithm object used by the client to encrypt messages.
+        /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
-        public SymmetricAlgorithm ClientEncryptor { get; set; }
+        internal HMAC ServerHmac { get; set; }
 
         /// <summary>
-        /// The SymmetricAlgorithm object used by the server to encrypt messages.
+        /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
-        public SymmetricAlgorithm ServerEncryptor { get; set; }
-
-        /// <summary>
-        /// The HMAC object used by the client to sign messages.
-        /// </summary>
-        public HMAC ClientHmac { get; set; }
-
-        /// <summary>
-        /// The HMAC object used by the server to sign messages.
-        /// </summary>
-        public HMAC ServerHmac { get; set; }
-
-        private bool m_disposed;
+        internal HMAC ClientHmac { get; set; }
     }
 }

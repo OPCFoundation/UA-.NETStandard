@@ -34,6 +34,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -551,6 +552,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce(ClientCertificate);
 
+            if (renew)
+            {
+                token.PreviousSecret = CurrentToken?.Secret;
+            }
+
             // construct the request.
             var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -565,6 +571,12 @@ namespace Opc.Ua.Bindings
             // encode the request.
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
+            ClientChannelCertificate = ClientCertificate?.RawData;
+            ServerChannelCertificate = ServerCertificate?.RawData;
+
+            m_oscRequestSignature = null;
+            byte[] signature;
+
             // write the asymmetric message.
             BufferCollection? chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
@@ -572,7 +584,18 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 ClientCertificateChain,
                 ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length));
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                m_oscRequestSignature,
+                out signature);
+
+            // don't keep signature if secure channel enhancements are not used.
+            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+
+            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelRequest ({(renew ? "RENEW" : "OPEN")})");
+            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
+            CryptoTrace.Finish("SendOpenSecureChannelRequest");
 
             // save token.
             m_requestedToken = token;
@@ -627,13 +650,32 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber;
             try
             {
+                byte[] signature;
+                
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
                     out channelId,
                     out serverCertificate,
                     out requestId,
-                    out sequenceNumber);
+                    out sequenceNumber,
+                    (State == TcpChannelState.Opening) ? m_oscRequestSignature : null,
+                    out signature);
+
+                if (State == TcpChannelState.Opening)
+                {
+                    ChannelThumbprint = signature;
+                }
+
+                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelResponse ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
+                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(messageBody)}");
+                CryptoTrace.WriteLine($"messageBody.Offset={messageBody.Offset}");
+                CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
+                CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+                CryptoTrace.Finish("ProcessOpenSecureChannelResponse");
             }
             catch (Exception e)
             {
@@ -1753,5 +1795,6 @@ namespace Opc.Ua.Bindings
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+        private byte[]? m_oscRequestSignature;
     }
 }

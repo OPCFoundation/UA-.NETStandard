@@ -251,6 +251,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public string GlobalChannelId { get; private set; }
 
+        /// <inheritdoc/>
+        internal byte[] ChannelThumbprint { get; set; }
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate { get; protected set; }
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate { get; protected set; }
+
         /// <summary>
         /// Raised when the state of the channel changes.
         /// </summary>
@@ -284,7 +293,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            bool isLegacy = !EccUtils.IsEccPolicy(SecurityPolicyUri);
+            bool isLegacy = SecurityPolicy.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = isLegacy
@@ -333,8 +342,8 @@ namespace Opc.Ua.Bindings
             // Accept the first sequence number depending on security policy
             if (m_firstReceivedSequenceNumber &&
                 (
-                    !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                    !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
+                    (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
             {
                 m_remoteSequenceNumber = sequenceNumber;
                 m_firstReceivedSequenceNumber = false;
@@ -355,8 +364,8 @@ namespace Opc.Ua.Bindings
                 // only one rollover per token is allowed and with valid values depending on security policy
                 if (!m_sequenceRollover &&
                     (
-                        !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                        (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                        !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
+                        (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;
@@ -630,6 +639,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
+
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
