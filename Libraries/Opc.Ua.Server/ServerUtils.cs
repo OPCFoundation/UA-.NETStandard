@@ -496,7 +496,9 @@ namespace Opc.Ua.Server
 
             ServiceResult translatedError = error;
 
-            if ((context.DiagnosticsMask & DiagnosticsMasks.LocalizedText) != 0)
+            // Only translate if ServiceLocalizedText is set, as DiagnosticInfo only uses
+            // the translation for ServiceLocalizedText, not OperationLocalizedText
+            if ((context.DiagnosticsMask & DiagnosticsMasks.ServiceLocalizedText) != 0)
             {
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
