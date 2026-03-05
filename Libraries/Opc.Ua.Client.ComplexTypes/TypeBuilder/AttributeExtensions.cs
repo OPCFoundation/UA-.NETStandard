@@ -271,8 +271,10 @@ namespace Opc.Ua.Client.ComplexTypes
             return (uint)builtInType switch
             {
                 // supertypes of numbers
-                DataTypes.Integer or DataTypes.UInteger or DataTypes.Number or DataTypes
-                    .Decimal => BuiltInType.Variant,
+                DataTypes.Integer or
+                DataTypes.UInteger or
+                DataTypes.Number or
+                DataTypes.Decimal => BuiltInType.Variant,
                 _ => TypeInfo.GetBuiltInType(datatypeId)
             };
         }

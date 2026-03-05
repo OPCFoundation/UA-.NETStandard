@@ -122,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static void CheckDecodedNodeIds(
             ServiceMessageContext context,
-            JsonDecoderOld decoder,
+            JsonDecoder decoder,
             int index)
         {
             NodeId n0 = decoder.ReadNodeId("D0");
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static void CheckDecodedExpandedNodeIds(
             ServiceMessageContext context,
-            JsonDecoderOld decoder,
+            JsonDecoder decoder,
             int index)
         {
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static void CheckDecodedQualfiiedNames(
             ServiceMessageContext context,
-            JsonDecoderOld decoder,
+            JsonDecoder decoder,
             int index)
         {
             QualifiedName n0 = decoder.ReadQualifiedName("D0");
@@ -373,8 +373,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext(telemetry);
 
-            using var decoder = new JsonDecoderOld(data, context);
-            decoder.UpdateNamespaceTable = true;
+            using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true
+            });
             CheckDecodedNodeIds(context, decoder, index);
         }
 
@@ -408,7 +410,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
-            using var encoder = new JsonEncoderOld(context, jsonEncoding);
+            using var encoder = new JsonEncoder(context,
+                jsonEncoding == JsonEncodingType.Verbose ?
+                JsonEncoderOptions.Verbose :
+                JsonEncoderOptions.Compact);
             encoder.WriteNodeId("D0", new NodeId(2263));
             encoder.WriteNodeId(
                 "D1",
@@ -471,8 +476,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext(telemetry);
 
-            using var decoder = new JsonDecoderOld(data, context);
-            decoder.UpdateNamespaceTable = true;
+            using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true
+            });
             CheckDecodedExpandedNodeIds(context, decoder, index);
         }
 
@@ -521,7 +528,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
 
-            using var encoder = new JsonEncoderOld(context, jsonEncoding);
+            using var encoder = new JsonEncoder(context,
+                jsonEncoding == JsonEncodingType.Verbose ?
+                JsonEncoderOptions.Verbose :
+                JsonEncoderOptions.Compact);
             encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
             encoder.WriteExpandedNodeId(
                 "D1",
@@ -596,8 +606,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext(telemetry);
 
-            using var decoder = new JsonDecoderOld(data, context);
-            decoder.UpdateNamespaceTable = true;
+            using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true
+            });
             CheckDecodedQualfiiedNames(context, decoder, 0);
         }
 
@@ -634,7 +646,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using var encoder = new JsonEncoderOld(context2, jsonEncoding);
+            using var encoder = new JsonEncoder(context2,
+                jsonEncoding == JsonEncodingType.Verbose ?
+                JsonEncoderOptions.Verbose :
+                JsonEncoderOptions.Compact);
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteQualifiedName("D0", QualifiedName.From("ServerStatus"));
@@ -691,8 +706,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using var decoder = new JsonDecoderOld(data, context2);
-            decoder.UpdateNamespaceTable = false;
+            using var decoder = new JsonDecoder(data, context2, new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true
+            });
             decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
             CheckDecodedQualfiiedNames(context2, decoder, 0);
         }
@@ -714,7 +731,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext(telemetry);
 
-            using var decoder = new JsonDecoderOld(data, context);
+            using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
             var a1 = v1.GetInt64Matrix();
             Assert.AreEqual(2, a1.Dimensions.Length);
@@ -754,7 +771,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext(telemetry);
 
-            using var encoder = new JsonEncoderOld(context, jsonEncoding);
+            using var encoder = new JsonEncoder(context,
+                jsonEncoding == JsonEncodingType.Verbose ?
+                JsonEncoderOptions.Verbose :
+                JsonEncoderOptions.Compact);
             encoder.WriteVariantValue(
                 "D0",
                 new int[,]
@@ -811,7 +831,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var decoder = new JsonDecoderOld(data, context);
+            using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
             Assert.IsTrue(eo.TryGetEncodeable(out Range range));
@@ -872,7 +892,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var encoder = new JsonEncoderOld(context, JsonEncodingType.Compact);
+            using var encoder = new JsonEncoder(context, JsonEncoderOptions.Compact);
             encoder.WriteExtensionObject(
                 "D0",
                 new ExtensionObject(new Range { High = 9876.5432 }));
@@ -932,7 +952,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var decoder = new JsonDecoderOld(data, context);
+            using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
             Assert.IsTrue(eo.TryGetEncodeable(out Range range));
@@ -994,7 +1014,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var encoder = new JsonEncoderOld(context, JsonEncodingType.Verbose);
+            using var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
             encoder.WriteExtensionObject(
                 "D0",
                 new ExtensionObject(new Range { Low = 0, High = 9876.5432 }));
@@ -1054,7 +1074,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var decoder = new JsonDecoderOld(data, context);
+            using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
             Assert.IsTrue(eo.TryGetEncodeable(out Range range));
@@ -1104,7 +1124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using var decoder = new JsonDecoderOld(data, context);
+            using var decoder = new JsonDecoder(data, context);
             var range = decoder.ReadEncodeable<Range>("D0");
             Assert.IsNotNull(range);
             Assert.AreEqual(0, range.Low);

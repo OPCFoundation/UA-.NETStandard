@@ -375,7 +375,6 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the encodeable objects to be read
         /// </typeparam>
-        /// <param name="fieldName">The encodeable array field name</param>
         /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
         ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new();
 
@@ -384,9 +383,6 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the encodeable objects to be read
         /// </typeparam>
-        /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="encodeableTypeId">The TypeId for the
-        /// <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
         ArrayOf<T> ReadEncodeableArray<T>(
             string fieldName,
@@ -398,11 +394,21 @@ namespace Opc.Ua
         /// stream. The structure is wrapped in an extension object if
         /// the field in a structure is abstract or allows subtypes.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="fieldName"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
         ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
             where T : IEncodeable;
+
+        /// <summary>
+        /// Read a matrix of structures (fields inside a structure).
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>A matrix of types of type <see cref="IEncodeable"/></returns>
+        MatrixOf<T> ReadEncodeableMatrix<T>(
+            string fieldName,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Reads an enumerated value array from the stream.

@@ -39,6 +39,7 @@ using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
+
     /// <summary>
     /// Adapts typed arrays to flattened variant representation.
     /// The layout is like a <see cref="ReadOnlyMemory{T}"/>.
@@ -51,7 +52,8 @@ namespace Opc.Ua
         IEquatable<MatrixOf<T>>,
         IEquatable<IEnumerable<T>>,
         IEquatable<ReadOnlyMemory<T>>,
-        IEquatable<T[]>
+        IEquatable<T[]>,
+        INullable
     {
         /// <summary>
         /// Empty array

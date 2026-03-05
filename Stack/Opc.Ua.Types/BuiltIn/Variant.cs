@@ -58,6 +58,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     public readonly struct Variant :
+        INullable,
         IFormattable,
         IEquatable<Variant>,
         IEquatable<bool>,
@@ -7293,6 +7294,47 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the inner value is default or null
+        /// </summary>
+        /// <returns></returns>
+        public bool ValueIsDefaultOrNull
+        {
+            get
+            {
+                if (TypeInfo.IsScalar)
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.Null:
+                            return true;
+                        case BuiltInType.Boolean:
+                        case BuiltInType.SByte:
+                        case BuiltInType.Byte:
+                        case BuiltInType.Int16:
+                        case BuiltInType.UInt16:
+                        case BuiltInType.Enumeration:
+                        case BuiltInType.Int32:
+                        case BuiltInType.UInt32:
+                        case BuiltInType.Int64:
+                        case BuiltInType.UInt64:
+                        case BuiltInType.Float:
+                        case BuiltInType.DateTime:
+                        case BuiltInType.Double:
+                        case BuiltInType.StatusCode:
+                            return m_union.UInt64 == 0;
+                        case BuiltInType.Guid:
+                            return GetGuid() == Uuid.Empty;
+                    }
+                }
+                if (m_value is INullable nullable)
+                {
+                    return nullable.IsNull;
+                }
+                return m_value is null;
+            }
+        }
+
+        /// <summary>
         /// Convert to a variant from an xml stream. Used during initialization
         /// of values from string values.
         /// </summary>
@@ -7692,17 +7734,9 @@ namespace Opc.Ua
 #endif
                 }
             }
-            if (returnLegacyTypes)
+            if (returnLegacyTypes && m_value is IConvertableToArray convertible)
             {
-                if (m_value is IConvertableToMatrix convertibleMatrix)
-                {
-                    return convertibleMatrix.ToMatrix(m_typeInfo.BuiltInType);
-                }
-
-                if (m_value is IConvertableToArray convertible)
-                {
-                    return convertible.ToArray();
-                }
+                return convertible.ToArray();
             }
             return m_value;
         }

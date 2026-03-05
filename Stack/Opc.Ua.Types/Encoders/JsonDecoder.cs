@@ -878,6 +878,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(
+            string fieldName,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            if (TryGetEncodeableMatrixFromElement(
+                GetPropertyElement(fieldName),
+                encodeableTypeId,
+                out MatrixOf<T> values))
+            {
+                return values;
+            }
+            return DefaultOrThrow(values);
+        }
+
+        /// <inheritdoc/>
         public ushort ReadUInt16(string fieldName)
         {
             if (TryGetUInt16FromElement(
@@ -2784,6 +2799,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Get structure matrix from element
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private bool TryGetEncodeableMatrixFromElement<T>(
+            JsonElement element,
+            ExpandedNodeId encodeableTypeId,
+            out MatrixOf<T> values) where T : IEncodeable
+        {
+            m_stack.Push(element);
+            try
+            {
+                if (TryGetInt32ArrayFromElement(
+                        GetPropertyElement(JsonProperties.Dimensions),
+                        out ArrayOf<int> dimensions) &&
+                    TryGetEncodeableArrayFromElement<T>(
+                        GetPropertyElement(JsonProperties.Array),
+                        encodeableTypeId,
+                        out ArrayOf<T> structures))
+                {
+                    values = structures.ToMatrix(dimensions);
+                    return true;
+                }
+                values = default;
+                return false;
+            }
+            finally
+            {
+                m_stack.Pop();
+            }
+        }
+
+        /// <summary>
         /// Get unsigned short from element
         /// </summary>
         private static bool TryGetUInt16FromElement(JsonElement element, out ushort value)
@@ -3004,7 +3051,7 @@ namespace Opc.Ua
         private bool TryGetVariantValueFromElement(
             JsonElement element,
             TypeInfo typeInfo,
-            bool readMatrixAsArrayObject,
+            bool readRawValue,
             out Variant value,
             JsonElement dimensionElement = default)
         {
@@ -3302,7 +3349,7 @@ namespace Opc.Ua
             else
             {
                 // This is the top element we are currently reading
-                if (readMatrixAsArrayObject)
+                if (readRawValue)
                 {
                     m_stack.Push(element);
                     element = GetPropertyElement(JsonProperties.Array);
@@ -3474,7 +3521,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    if (readMatrixAsArrayObject)
+                    if (readRawValue)
                     {
                         // Pop the array object
                         m_stack.Pop();
@@ -3690,7 +3737,7 @@ namespace Opc.Ua
             switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
-                    if (UpdateNamespaceTable)
+                    if (m_options.UpdateNamespaceTable)
                     {
                         TryGetStringArrayFromElement(
                             GetPropertyElement("NamespaceUris"),

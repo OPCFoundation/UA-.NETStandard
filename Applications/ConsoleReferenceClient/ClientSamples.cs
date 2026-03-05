@@ -522,7 +522,7 @@ namespace Quickstarts
                 };
                 var desiredEventType = new LiteralOperand
                 {
-                    Value = new Variant(ObjectTypeIds.ExclusiveLevelAlarmType)
+                    Value = Variant.From(ObjectTypeIds.ExclusiveLevelAlarmType)
                 };
 
                 whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
@@ -1199,7 +1199,7 @@ namespace Quickstarts
                                         uaClient.Session.MessageContext,
                                         variableId.ToString(),
                                         value,
-                                        JsonEncodingType.Compact);
+                                        JsonEncoderOptions.Compact);
                                     m_logger.LogInformation("{Value}", valueString);
                                 }
                                 else
@@ -1232,7 +1232,7 @@ namespace Quickstarts
                                     uaClient.Session.MessageContext,
                                     variableIds[ii].ToString(),
                                     value,
-                                    JsonEncodingType.Compact);
+                                    JsonEncoderOptions.Compact);
                                 m_logger.LogInformation("{Value}", valueString);
                             }
                             else

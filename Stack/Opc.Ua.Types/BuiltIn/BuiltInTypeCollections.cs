@@ -2457,49 +2457,4 @@ namespace Opc.Ua
             return clone;
         }
     }
-
-    /// <summary>
-    /// A collection of encodeable objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfEncodeable",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Encodeable")]
-    public class IEncodeableCollection : List<IEncodeable>
-    {
-        /// <inheritdoc/>
-        public IEncodeableCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public IEncodeableCollection(IEnumerable<IEncodeable> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public IEncodeableCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static IEncodeableCollection ToIEncodeableCollection(ArrayOf<IEncodeable> values)
-        {
-            return [.. values];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator IEncodeableCollection(IEncodeable[] values)
-        {
-            return ToIEncodeableCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator IEncodeableCollection(ArrayOf<IEncodeable> values)
-        {
-            return ToIEncodeableCollection(values);
-        }
-    }
 }

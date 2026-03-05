@@ -60,8 +60,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public Variant Instance { get; set; }
         public string ExpectedCompact { get; set; }
         public string ExpectedVerbose { get; set; }
-        public string ExpectedReversible { get; set; }
-        public string ExpectedNonReversible { get; set; }
         public bool IncludeDefaultValue{ get; set; }
 
         public string ToString(string format, IFormatProvider formatProvider)
@@ -102,26 +100,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Add(
             BuiltInType builtInType,
             object instance,
-            string expectedReversible,
-            string expectedNonReversible)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedReversible,
-                    ExpectedVerbose = expectedNonReversible
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible,
             string expectedCompact,
             string expectedVerbose)
         {
@@ -130,8 +108,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     BuiltInType = builtInType,
                     Instance = VariantHelper.CastFromWithReflectionFallback(instance),
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose
                 });
@@ -140,28 +116,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Add(
             BuiltInType builtInType,
             object instance,
-            string expectedReversible,
-            string expectedNonReversible,
-            bool includeDefaultValue)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedReversible,
-                    ExpectedVerbose = expectedNonReversible,
-                    IncludeDefaultValue = includeDefaultValue
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible,
             string expectedCompact,
             string expectedVerbose,
             bool includeDefaultValue)
@@ -171,8 +125,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     BuiltInType = builtInType,
                     Instance = VariantHelper.CastFromWithReflectionFallback(instance),
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose,
                     IncludeDefaultValue = includeDefaultValue

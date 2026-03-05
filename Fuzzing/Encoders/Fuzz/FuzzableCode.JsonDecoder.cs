@@ -119,7 +119,7 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using var decoder = new JsonDecoderOld(json, MessageContext);
+                using var decoder = new JsonDecoder(json, MessageContext);
                 return decoder.DecodeMessage<IEncodeable>();
             }
             catch (ServiceResultException sre)

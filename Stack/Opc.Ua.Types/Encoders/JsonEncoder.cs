@@ -718,6 +718,28 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable
+        {
+            if (values.IsNull)
+            {
+                WriteNull(fieldName);
+                return;
+            }
+            m_writer.WritePropertyName(fieldName);
+            StartObject();
+            WriteInt32Array(JsonProperties.Dimensions, values.Dimensions);
+            m_writer.WritePropertyName(JsonProperties.Array);
+            StartArray(values.Count);
+            for (int i = 0; i < values.Count; i++)
+            {
+                WriteEncodeable(values.Span[i]);
+            }
+            EndArray();
+            EndObject();
+        }
+
+        /// <inheritdoc/>
         public void WriteUInt16(string fieldName, ushort value)
         {
             if (WriteValueProperty(fieldName, value))
@@ -820,6 +842,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string fieldName, Variant value)
         {
+            if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
+            {
+                return;
+            }
             if (value.IsNull)
             {
                 WriteNull(fieldName);
@@ -832,7 +858,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
-            if (value.IsEmpty)
+            if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
@@ -901,6 +927,11 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteByteString(ByteString value)
         {
+            if (value.IsNull)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             CheckByteStringLength(value.Length);
             m_writer.WriteStringValue(value.ToBase64());
         }
@@ -956,8 +987,11 @@ namespace Opc.Ua
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
                 }
-                m_writer.WritePropertyName(JsonProperties.Value);
-                WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
+                if (!m_options.IgnoreDefaultValues || !value.WrappedValue.ValueIsDefaultOrNull)
+                {
+                    m_writer.WritePropertyName(JsonProperties.Value);
+                    WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
+                }
             }
             // Now write the remainder of the data value fields
             if (value.StatusCode != StatusCodes.Good)
@@ -1389,7 +1423,6 @@ namespace Opc.Ua
             {
                 WriteString(JsonProperties.Locale, value.Locale);
             }
-
             EndObject();
         }
 
@@ -1664,13 +1697,21 @@ namespace Opc.Ua
         /// </summary>
         private void WriteVariant(Variant value, bool suppressUaType)
         {
+            if (value.IsNull)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             if (!suppressUaType)
             {
                 WriteVariantUaTypeByte(value);
             }
-            m_writer.WritePropertyName(JsonProperties.Value);
-            WriteVariantContents(value, false, suppressUaType);
+            if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
+            {
+                m_writer.WritePropertyName(JsonProperties.Value);
+                WriteVariantContents(value, false, suppressUaType);
+            }
             EndObject();
         }
 
@@ -1732,7 +1773,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantContents(
             Variant value,
-            bool writeMatrixAsArrayObject,
+            bool writeRawValue,
             bool suppressUaType)
         {
             // write scalar.
@@ -1926,7 +1967,7 @@ namespace Opc.Ua
             else
             {
                 int[] dim;
-                if (writeMatrixAsArrayObject)
+                if (writeRawValue)
                 {
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
                     StartObject();
@@ -2024,7 +2065,7 @@ namespace Opc.Ua
                 }
 
                 WriteInt32Array(JsonProperties.Dimensions, dim);
-                if (writeMatrixAsArrayObject)
+                if (writeRawValue)
                 {
                     EndObject();
                 }

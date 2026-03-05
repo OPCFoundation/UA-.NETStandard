@@ -46,6 +46,7 @@ namespace Opc.Ua
     /// Xml Element
     /// </summary>
     public readonly struct XmlElement :
+        INullable,
         IEquatable<string>,
         IEquatable<XmlElementNode>,
         IEquatable<XElement>,
@@ -63,6 +64,11 @@ namespace Opc.Ua
         /// null, <c>false</c> otherwise.
         /// </summary>
         public bool IsEmpty => string.IsNullOrEmpty(m_outerXml);
+
+        /// <summary>
+        /// Is null
+        /// </summary>
+        public bool IsNull => m_outerXml == null;
 
         /// <summary>
         /// Returns <c>true</c> if this element is

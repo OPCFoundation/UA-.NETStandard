@@ -83,6 +83,7 @@ namespace Opc.Ua
         IEquatable<string>, IComparable<string>,
         IEquatable<Guid>, IComparable<Guid>,
         IEquatable<ByteString>, IComparable<ByteString>,
+        INullable,
         IComparable,
         IFormattable
     {

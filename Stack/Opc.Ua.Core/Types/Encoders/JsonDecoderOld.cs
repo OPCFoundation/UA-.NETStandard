@@ -36,6 +36,7 @@ using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua
 {
@@ -2231,6 +2232,25 @@ namespace Opc.Ua
             }
 
             return values;
+        }
+
+        /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (!PushStructure(fieldName))
+            {
+                return default;
+            }
+            try
+            {
+                ArrayOf<int> dimensions = ReadInt32Array("Dimensions");
+                return ReadEncodeableArray<T>("Array", encodeableTypeId).ToMatrix(dimensions);
+            }
+            finally
+            {
+                m_stack.Pop();
+            }
         }
 
         /// <inheritdoc/>

@@ -151,15 +151,6 @@ namespace Opc.Ua.Test
     public class DataGenerator
     {
         /// <summary>
-        /// Obsolete constructor
-        /// </summary>
-        [Obsolete("Use DataGenerator(ITelemetryContext) instead.")]
-        public DataGenerator(IRandomSource random)
-            : this(random, null)
-        {
-        }
-
-        /// <summary>
         /// Initializes the data generator.
         /// </summary>
         public DataGenerator(IRandomSource random, ITelemetryContext telemetry)
@@ -525,7 +516,7 @@ namespace Opc.Ua.Test
 
                 if (!element.IsNull)
                 {
-                    value[ii] = (T)element.AsBoxedObject();
+                    value[ii] = (T)element.AsBoxedObject(true);
                 }
             }
 
@@ -815,7 +806,7 @@ namespace Opc.Ua.Test
         /// Returns a random variant containing a scalar or array value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
+        public Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
         {
             if (builtInType == BuiltInType.Null)
             {

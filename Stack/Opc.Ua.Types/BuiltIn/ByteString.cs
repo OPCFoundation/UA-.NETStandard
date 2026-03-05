@@ -58,7 +58,8 @@ namespace Opc.Ua
         IEquatable<ReadOnlyMemory<byte>>, IComparable<ReadOnlyMemory<byte>>,
         IEquatable<byte[]>, IComparable<byte[]>,
         IEquatable<ArrayOf<byte>>, IComparable<ArrayOf<byte>>,
-        IEquatable<ReadOnlySequence<byte>>
+        IEquatable<ReadOnlySequence<byte>>,
+        INullable
     {
         /// <summary>
         /// Returns an empty ByteString.

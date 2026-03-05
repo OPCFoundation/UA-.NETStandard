@@ -59,6 +59,7 @@ namespace Opc.Ua
     /// </remarks>
     public readonly struct ExtensionObject :
         IFormattable,
+        INullable,
         IEquatable<ExtensionObject>
     {
         /// <summary>

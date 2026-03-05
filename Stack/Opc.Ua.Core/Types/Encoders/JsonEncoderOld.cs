@@ -1651,6 +1651,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values) where T : IEncodeable
+        {
+            PushStructure(fieldName);
+            WriteInt32Array("Dimensions", values.Dimensions);
+            WriteEncodeableArray("Array", values.ToArrayOf());
+            PopStructure();
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
         {
             if (CheckForSimpleFieldNull(fieldName, values))

@@ -632,8 +632,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
-                    var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-                    return new JsonDecoderOld(jsonTextReader, context);
+                    return new JsonDecoder(stream, context);
                 default:
                     return null;
             }

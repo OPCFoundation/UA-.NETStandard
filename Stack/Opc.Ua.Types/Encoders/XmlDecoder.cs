@@ -1892,6 +1892,37 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            CheckAndIncrementNestingLevel();
+            MatrixOf<T> value = default;
+            try
+            {
+                if (BeginField(fieldName, true))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    int[] dimensions = ReadInt32Array("Dimensions").ToArray();
+                    if (BeginField("Elements", true))
+                    {
+                        value = ReadEncodeableArray<T>(null, encodeableTypeId).ToMatrix(dimensions);
+                        EndField("Elements");
+                    }
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+            return value;
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
         {
             if (BeginField(fieldName, true, out bool isNil))

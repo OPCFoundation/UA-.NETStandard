@@ -98,11 +98,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [DatapointSource]
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection
         {
-            { BuiltInType.Boolean, false, "false", null, null, "false" },
+            { BuiltInType.Boolean, false, null, "false" },
             { BuiltInType.Boolean, true, "true", null },
-            { BuiltInType.Byte, (byte)0, "0", null, null, "0" },
+            { BuiltInType.Byte, (byte)0, null, "0" },
             { BuiltInType.Byte, (byte)88, "88", null },
-            { BuiltInType.SByte, (sbyte)0, "0", null, null, "0" },
+            { BuiltInType.SByte, (sbyte)0, null, "0" },
             { BuiltInType.UInt16, (ushort)12345, "12345", null },
             { BuiltInType.Int16, (short)-12345, "-12345", null },
             { BuiltInType.UInt32, (uint)1234567, "1234567", null },
@@ -372,44 +372,32 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 body += $"\"{builtInType}\":" + expected;
                             }
                         }
-                        else if (jsonEncoding != JsonEncodingType.Compact)
+                        else if (jsonEncoding == JsonEncodingType.Verbose)
                         {
-                            object o = property.GetValue(structure);
+                            Variant o = property.GetValue(structure);
                             string oText = o.ToString().ToLowerInvariant();
-                            if (property.Name == "DateTime")
+                            switch (o.TypeInfo.BuiltInType)
                             {
-                                oText = "\"0001-01-01T00:00:00Z\"";
-                            }
-                            else if (property.Name == "StatusCode")
-                            {
-                                oText = "{}";
-                            }
-                            else if (property.Name is "ByteString" or "XmlElement")
-                            {
-                                oText = "null";
-                            }
-                            else if (property.Name == "LocalizedText")
-                            {
-                                oText = "{}";
-                            }
-                            else if (property.Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
-                            {
-                                if (jsonEncoding == JsonEncodingType.Verbose)
-                                {
-                                    oText = "\"\"";
-                                }
-                                else
-                                {
-                                    oText = "{}";
-                                }
-                            }
-                            else if (property.Name == "Guid")
-                            {
-                                oText = "\"00000000-0000-0000-0000-000000000000\"";
-                            }
-                            else if (property.Name is "UInt64" or "Int64")
-                            {
-                                oText = "\"" + oText + "\"";
+                                case BuiltInType.Boolean:
+                                case BuiltInType.Byte:
+                                case BuiltInType.SByte:
+                                case BuiltInType.UInt16:
+                                case BuiltInType.Int16:
+                                case BuiltInType.UInt32:
+                                case BuiltInType.Int32:
+                                case BuiltInType.Float:
+                                case BuiltInType.Double:
+                                    break;
+                                case BuiltInType.DateTime:
+                                    oText = "\"0001-01-01T00:00:00Z\"";
+                                    break;
+                                case BuiltInType.UInt64:
+                                case BuiltInType.Int64:
+                                    oText = "\"" + oText + "\"";
+                                    break;
+                                default:
+                                    oText = "null";
+                                    break;
                             }
 
                             if (oText != null)

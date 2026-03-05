@@ -322,6 +322,11 @@ namespace Opc.Ua.Client.ComplexTypes
                             break;
                         }
                     }
+                    else if (variant.TryGetStructure(out MatrixOf<IEncodeable> structures))
+                    {
+                        encoder.WriteEncodeableMatrix(name, structures);
+                        break;
+                    }
                     encoder.WriteVariant(name, variant);
                     break;
                 case BuiltInType.Variant when property.TypeInfo.IsScalar:
@@ -361,7 +366,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else
                     {
-                        variant = decoder.ReadVariant(name);
+                        MatrixOf<IEncodeable> encodeables =
+                            decoder.ReadEncodeableMatrix<IEncodeable>(name, TypeId);
+                        variant = Variant.FromStructure(encodeables);
                     }
                     break;
                 case BuiltInType.Variant when property.TypeInfo.IsScalar:

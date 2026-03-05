@@ -7170,31 +7170,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static readonly double[] s_doubleArray = [1.0, 2.0];
         private static readonly string[] s_stringArray = ["a", "b"];
 
-        private sealed class TestEncodeable2 : IEncodeable
-        {
-            public ExpandedNodeId TypeId => ExpandedNodeId.Null;
-            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
-            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
-
-            public void Encode(IEncoder encoder)
-            {
-            }
-
-            public void Decode(IDecoder decoder)
-            {
-            }
-
-            public bool IsEqual(IEncodeable encodeable)
-            {
-                return false;
-            }
-
-            public object Clone()
-            {
-                return new TestEncodeable();
-            }
-        }
-
         internal sealed class TestEncodeableWithNamespace : IEncodeable
         {
             private static readonly ExpandedNodeId s_typeId = new(1, "urn:missing-namespace");

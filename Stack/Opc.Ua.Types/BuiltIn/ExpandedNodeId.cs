@@ -42,6 +42,7 @@ namespace Opc.Ua
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
     public readonly struct ExpandedNodeId :
+        INullable,
         IComparable,
         IEquatable<ExpandedNodeId>,
         IEquatable<NodeId>,

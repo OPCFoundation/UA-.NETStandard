@@ -463,14 +463,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             var variant = new VariantCollection
             {
-                new Variant(4L),
-                new Variant("test"),
-                new Variant(s_value),
-                new Variant(new long[] { 1, 2, 3, 4, 5 }),
-                new Variant(s_valueArray),
+                Variant.From(4L),
+                Variant.From("test"),
+                Variant.From(s_value),
+                Variant.From(new long[] { 1, 2, 3, 4, 5 }),
+                Variant.From(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
-                //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(s_valueArray0,  TypeInfo.Arrays.Enumeration)
+                //Variant.From(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
+                new Variant(s_valueArray0, TypeInfo.Arrays.Enumeration)
             };
             EncodeDecodeDataValue(
                 encoderType,
@@ -579,8 +579,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             stream.Position = 0;
-            var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-            using var decoder = new JsonDecoderOld(jsonTextReader, new ServiceMessageContext(Telemetry));
+            using var decoder = new JsonDecoder(stream, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 

@@ -411,7 +411,7 @@ namespace Opc.Ua
                 var spanContextParameter = new KeyValuePair
                 {
                     Key = QualifiedName.From("SpanContext"),
-                    Value = new Variant(new SpanContextDataType
+                    Value = Variant.FromStructure(new SpanContextDataType
                     {
 #if NET8_0_OR_GREATER
                         SpanId = BitConverter.ToUInt64(spanId),

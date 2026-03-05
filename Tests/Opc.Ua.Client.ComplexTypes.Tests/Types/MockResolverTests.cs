@@ -676,7 +676,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (randomValues)
                     {
-                        value = DataGenerator.GetRandomVariant();
+                        value = DataGenerator.GetRandomVariant(builtInType, false);
                     }
                     else
                     {

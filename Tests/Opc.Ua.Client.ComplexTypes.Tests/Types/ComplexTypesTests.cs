@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     Assert.AreEqual(unionType.SwitchField, 0);
                     Assert.AreEqual(unionType.GetPropertyTypes().Count, propertyBuiltInTypes);
                     Assert.AreEqual(unionType.GetPropertyCount(), propertyBuiltInTypes);
-                    Assert.Null(unionType.Value);
+                    Assert.IsTrue(unionType.Value.IsNull);
                     break;
             }
             var encodeable = emittedType as IEncodeable;
@@ -121,21 +121,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
-                object obj = baseType[i];
+                Variant obj = baseType[i];
                 if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
-                        Assert.NotNull(obj);
+                        Assert.IsFalse(obj.IsNull);
                     }
                     else
                     {
-                        Assert.Null(obj);
+                        Assert.IsTrue(obj.IsNull);
                     }
                 }
                 else
                 {
-                    Assert.NotNull(obj);
+                    Assert.IsFalse(obj.IsNull);
                 }
             }
         }

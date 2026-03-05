@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Variant GetValue(object o)
         {
-            return new Variant(PropertyInfo.GetValue(o), TypeInfo);
+            return new Variant(PropertyInfo.GetValue(o));
         }
 
         /// <summary>

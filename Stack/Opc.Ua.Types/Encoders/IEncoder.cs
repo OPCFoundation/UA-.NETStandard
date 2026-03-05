@@ -358,14 +358,15 @@ namespace Opc.Ua
         void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values);
 
         /// <summary>
-        /// Writes an encodeable object array to the stream.
+        /// Writes an array of structures of type T (a field inside another
+        /// structure)
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
             where T : IEncodeable;
 
         /// <summary>
-        /// Writes an encodeable object array to the stream as extension objects.
+        /// Writes an array of structures to the stream as extension objects.
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
@@ -392,6 +393,14 @@ namespace Opc.Ua
         /// arrays while this method also handles scalar values.
         /// </remarks>
         void WriteVariantValue(string fieldName, Variant value);
+
+        /// <summary>
+        /// Writes a matrix of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable;
 
         /// <summary>
         /// Encode the switch field for a union.

@@ -61,6 +61,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     public readonly struct QualifiedName :
+        INullable,
         IFormattable,
         IComparable,
         IEquatable<QualifiedName>, IComparable<QualifiedName>,

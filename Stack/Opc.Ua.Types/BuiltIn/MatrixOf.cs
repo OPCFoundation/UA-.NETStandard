@@ -50,7 +50,8 @@ namespace Opc.Ua
         IConvertableToMatrix,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
-        IEquatable<ArrayOf<T>>
+        IEquatable<ArrayOf<T>>,
+        INullable
     {
         /// <summary>
         /// Empty matrix

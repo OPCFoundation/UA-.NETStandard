@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using var jsonEncoder = new JsonEncoderOld(m_context, JsonEncodingType.Compact);
+            using var jsonEncoder = new JsonEncoder(m_context, JsonEncoderOptions.Compact);
             TestEncoding(jsonEncoder);
             _ = jsonEncoder.CloseAndReturnText();
         }
@@ -192,24 +192,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
-            using (var jsonEncoder = new JsonEncoderOld(
-                m_context,
-                JsonEncodingType.Compact,
-                false,
+            using (var jsonEncoder = new JsonEncoder(
                 memoryStream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 _ = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoderOld(
-                m_context,
-                JsonEncodingType.Compact,
-                false,
+            using (var jsonEncoder = new JsonEncoder(
                 memoryStream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 if (toArray)
@@ -233,24 +227,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int length1;
             int length2;
             stream.Position = 0;
-            using (var jsonEncoder = new JsonEncoderOld(
-                m_context,
-                JsonEncodingType.Compact,
-                false,
+            using (var jsonEncoder = new JsonEncoder(
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length1 = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoderOld(
-                m_context,
-                JsonEncodingType.Compact,
-                false,
+            using (var jsonEncoder = new JsonEncoder(
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length2 = jsonEncoder.Close();

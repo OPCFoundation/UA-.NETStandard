@@ -57,7 +57,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using var decoder = new JsonDecoderOld(Encoding.UTF8.GetString(buffer), context);
+            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context);
             // decode the actual message.
             var message = new SessionLessServiceMessage();
             message.Decode(decoder);

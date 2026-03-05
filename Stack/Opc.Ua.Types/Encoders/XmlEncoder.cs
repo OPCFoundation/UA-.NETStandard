@@ -753,7 +753,7 @@ namespace Opc.Ua
 
                     m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
 
-                    WriteVariantValue(null, value);
+                    WriteVariantValue(null, value, false);
 
                     m_writer.WriteEndElement();
 
@@ -1582,23 +1582,35 @@ namespace Opc.Ua
                         values.Count);
                 }
 
-                // get name for type being encoded.
-                XmlQualifiedName xmlName =
-                    TypeInfo.GetXmlName(typeof(T))
-                    ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
-
-                PushNamespace(xmlName.Namespace);
-
                 // encode each element in the array.
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(xmlName.Name, values[ii]);
+                    WriteEncodeable(values[ii]);
                 }
-
-                PopNamespace();
 
                 EndField(fieldName);
             }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable
+        {
+            CheckAndIncrementNestingLevel();
+
+            if (BeginField("Matrix", values.IsNull, true, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                if (!values.IsNull)
+                {
+                    WriteInt32Array("Dimensions", values.Dimensions);
+                    WriteEncodeableArray("Elements", values.ToArrayOf());
+                }
+                PopNamespace();
+                EndField("Matrix");
+            }
+
+            m_nestingLevel--;
         }
 
         /// <inheritdoc/>
@@ -1649,6 +1661,92 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteVariantValue(string fieldName, Variant value)
+        {
+            WriteVariantValue(fieldName, value, true);
+        }
+
+        /// <summary>
+        /// Writes the body of an ExtensionObject to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteExtensionObjectBody(ExtensionObject extensionObject)
+        {
+            // nothing to do for null bodies.
+            if (!extensionObject.IsNull)
+            {
+                // encode byte body.
+                if (extensionObject.TryGetAsBinary(out ByteString bytes))
+                {
+                    m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
+                    m_writer.WriteString(
+                        bytes.ToBase64(Base64FormattingOptions.InsertLineBreaks));
+                    m_writer.WriteEndElement();
+                }
+                // encode xml body.
+                else if (extensionObject.TryGetAsXml(out XmlElement xml))
+                {
+                    using var reader = XmlReader.Create(
+                        new StringReader(xml.OuterXml),
+                        CoreUtils.DefaultXmlReaderSettings());
+                    m_writer.WriteNode(reader, false);
+                }
+                else if (extensionObject.TryGetEncodeable(out IEncodeable encodeable))
+                {
+                    // encode extension object in xml.
+                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
+                    m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
+                    encodeable.Encode(this);
+                    m_writer.WriteEndElement();
+                }
+                else
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        CoreUtils.Format(
+                            "Don't know how to encode extension object body with type '{0}'.",
+                            extensionObject));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes an Variant array to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
+        {
+            if (BeginField(fieldName, values.IsNull, true, true))
+            {
+                // check the length.
+                if (!values.IsNull &&
+                    Context.MaxArrayLength > 0 &&
+                    Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                if (!values.IsNull)
+                {
+                    for (int ii = 0; ii < values.Count; ii++)
+                    {
+                        WriteVariant("Variant", new Variant(values[ii]));
+                    }
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <summary>
+        /// Write a variant value in raw mode (content as it would be encoded
+        /// if each encoder call would be called) or as variant encoding
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteVariantValue(string fieldName, Variant value, bool writeRawValue)
         {
             if (fieldName != null && BeginField(fieldName, false, false))
             {
@@ -2077,79 +2175,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes the body of an ExtensionObject to the stream.
+        /// Write encodeable structure
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteExtensionObjectBody(ExtensionObject extensionObject)
+        /// <typeparam name="T"></typeparam>
+        /// <param name="encodeable"></param>
+        private void WriteEncodeable<T>(T encodeable) where T : IEncodeable
         {
-            // nothing to do for null bodies.
-            if (!extensionObject.IsNull)
-            {
-                // encode byte body.
-                if (extensionObject.TryGetAsBinary(out ByteString bytes))
-                {
-                    m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
-                    m_writer.WriteString(
-                        bytes.ToBase64(Base64FormattingOptions.InsertLineBreaks));
-                    m_writer.WriteEndElement();
-                }
-                // encode xml body.
-                else if (extensionObject.TryGetAsXml(out XmlElement xml))
-                {
-                    using var reader = XmlReader.Create(
-                        new StringReader(xml.OuterXml),
-                        CoreUtils.DefaultXmlReaderSettings());
-                    m_writer.WriteNode(reader, false);
-                }
-                else if (extensionObject.TryGetEncodeable(out IEncodeable encodeable))
-                {
-                    // encode extension object in xml.
-                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
-                    m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
-                    encodeable.Encode(this);
-                    m_writer.WriteEndElement();
-                }
-                else
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingError,
-                        CoreUtils.Format(
-                            "Don't know how to encode extension object body with type '{0}'.",
-                            extensionObject));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Writes an Variant array to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
-        {
-            if (BeginField(fieldName, values.IsNull, true, true))
-            {
-                // check the length.
-                if (!values.IsNull &&
-                    Context.MaxArrayLength > 0 &&
-                    Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                if (!values.IsNull)
-                {
-                    for (int ii = 0; ii < values.Count; ii++)
-                    {
-                        WriteVariant("Variant", new Variant(values[ii]));
-                    }
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-            }
+            // get name for type being encoded.
+            XmlQualifiedName xmlName =
+                TypeInfo.GetXmlName(encodeable, Context)
+                ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
+            PushNamespace(xmlName.Namespace);
+            WriteEncodeable(xmlName.Name, encodeable);
+            PopNamespace();
         }
 
         /// <summary>

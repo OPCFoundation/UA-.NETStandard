@@ -82,6 +82,7 @@ namespace Opc.Ua
     /// </para>
     /// </example>
     public readonly struct LocalizedText :
+        INullable,
         IEquatable<LocalizedText>,
         IFormattable
     {
@@ -92,9 +93,16 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns true if the text is a null or empty string.
+        /// Returns true even if the locale is a value != null or empty.
         /// </summary>
         public bool IsNullOrEmpty
             => m_translation == null && string.IsNullOrEmpty(m_text);
+
+        /// <summary>
+        /// Returns true if the localized text is null
+        /// </summary>
+        public bool IsNull
+            => m_translation == null && m_text == null && m_locale == null;
 
         /// <summary>
         /// Default constructor

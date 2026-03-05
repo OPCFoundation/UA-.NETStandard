@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
-            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant();
+            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
             EncodeDecodeComplexType(
                 EncoderContext,
                 memoryStreamType,
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 emittedType);
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
-            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant();
+            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
             EncodeDecodeComplexType(
                 EncoderContext,
                 memoryStreamType,
@@ -198,7 +198,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out
                 .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
-            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant();
+            baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
             EncodeDecodeComplexType(
                 EncoderContext,
                 memoryStreamType,
@@ -247,7 +247,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // Serialize/Encode an ExtensionObject succeeds with a context available
             using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
-                _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
+                _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject, new Newtonsoft.Json.JsonSerializerSettings
+                {
+                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore // Uses equality which does not work with Variant.
+                });
             }
 
             // Serialize/Encode a Variant succeeds with a context available

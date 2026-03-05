@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 #if NET6_0_OR_GREATER
@@ -953,8 +952,8 @@ namespace Opc.Ua
         public T ReadEncodeableAsExtensionObject<T>(string fieldName)
             where T : IEncodeable
         {
-            var extensionObject = ReadExtensionObject(fieldName);
-            if (extensionObject.TryGetEncodeable<T>(out T value))
+            ExtensionObject extensionObject = ReadExtensionObject(fieldName);
+            if (extensionObject.TryGetEncodeable(out T value))
             {
                 return value;
             }
@@ -1486,6 +1485,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public MatrixOf<T> ReadEncodeableMatrix<T>(
+            string fieldName,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            ArrayOf<int> dimensions = ReadInt32Array(null);
+            return ReadEncodeableArray<T>(null, encodeableTypeId).ToMatrix(dimensions);
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
             where T : IEncodeable
         {
@@ -1551,8 +1559,8 @@ namespace Opc.Ua
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             // read the encoding byte if we do not have the type info.
-            bool isRaw = !typeInfo.IsUnknown;
-            if (!isRaw)
+            bool readRawValue = !typeInfo.IsUnknown;
+            if (!readRawValue)
             {
                 byte encodingByte = SafeReadByte();
                 typeInfo = TypeInfo.Create(
@@ -1703,7 +1711,16 @@ namespace Opc.Ua
             }
             else
             {
-                int[] ReadDims() => ReadInt32Array(null).ToArray();
+                int[] dim = null;
+                // read the dimensions for array encoding before the array.
+                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
+                if (readRawValue)
+                {
+                    dim = ReadInt32Array(null).ToArray();
+                }
+                // read the dimensions for variant encoding after the array.
+                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
+                int[] ReadDims() => dim ?? ReadInt32Array(null).ToArray();
                 switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:

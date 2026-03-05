@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             foreach (ServiceResult serviceResult in serviceResults)
             {
-                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult), serviceResult.ToString());
             }
 
             // check if complex type is properly decoded

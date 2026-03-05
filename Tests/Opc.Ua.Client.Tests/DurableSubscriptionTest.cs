@@ -812,7 +812,7 @@ namespace Opc.Ua.Client.Tests
                         BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
                     },
                     new LiteralOperand {
-                        Value = new Variant(ObjectTypeIds.BaseEventType) }
+                        Value = Variant.From(ObjectTypeIds.BaseEventType) }
                 ]);
 
             return new MonitoredItem(Session.MessageContext.Telemetry)

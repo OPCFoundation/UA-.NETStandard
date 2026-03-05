@@ -301,7 +301,7 @@ namespace Opc.Ua.PubSub.Encoding
                                     if (dataSetMetaData?.Fields[index]
                                         .BuiltInType == (byte)BuiltInType.StatusCode)
                                     {
-                                        dataValue = new DataValue(new Variant(StatusCodes.Good));
+                                        dataValue = new DataValue(Variant.From(StatusCodes.Good));
                                     }
                                 }
 
@@ -371,7 +371,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 .BuiltInType == (byte)BuiltInType.StatusCode)
                             {
                                 dataValues.Add(
-                                    new DataValue(new Variant(StatusCodes.Good)));
+                                    new DataValue(Variant.From(StatusCodes.Good)));
                             }
                             else
                             {

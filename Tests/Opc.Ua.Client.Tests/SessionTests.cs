@@ -510,10 +510,10 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
-            var serverArray1 = new DataValue(new Variant(["http://server1", "http://server2"]));
-            var namespaceArray2 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
-            var serverArray2 = new DataValue(new Variant(["http://server1", "http://server2", "http://server3"]));
+            var namespaceArray1 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var serverArray1 = new DataValue(Variant.From(["http://server1", "http://server2"]));
+            var namespaceArray2 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            var serverArray2 = new DataValue(Variant.From(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
