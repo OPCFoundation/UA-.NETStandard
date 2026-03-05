@@ -1484,7 +1484,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false);
-            var cache = new Dictionary<NodeId, List<object>>
+            var cache = new Dictionary<NodeId, Variant[]>
             {
                 [node.NodeId] = []
             };
@@ -1496,9 +1496,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(metadata.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
             Assert.That(metadata.RolePermissions, Is.Not.Null);
             Assert.That(metadata.UserRolePermissions, Is.Not.Null);
-
+            var cache2 = new Dictionary<NodeId, List<object>>
+            {
+                [node.NodeId] = []
+            };
             var syncManager = (INodeManager3)manager.SyncNodeManager;
-            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache, true);
+            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache2, true);
             Assert.That(syncMetadata, Is.Not.Null);
         }
 

@@ -93,7 +93,7 @@ namespace Quickstarts.ReferenceServer
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers;
+            var nodeManagers = new List<INodeManager>();
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
             if (ProvisioningMode)
@@ -105,7 +105,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                nodeManagers =
+                asyncNodeManagers =
                 [
                     // create the custom node manager.
                     new ReferenceNodeManager(

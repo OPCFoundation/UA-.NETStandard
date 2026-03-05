@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -34,6 +36,13 @@ namespace Opc.Ua.Server
     /// </summary>
     public interface IConfigurationNodeManager : INodeManager3
     {
+        /// <summary>
+        /// Raised when the <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
+        /// property of any <see cref="NamespaceMetadataState"/> node changes.
+        /// Subscribers should invalidate any cached role-permission validation results.
+        /// </summary>
+        event EventHandler DefaultPermissionsChanged;
+
         /// <summary>
         /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
@@ -48,6 +57,11 @@ namespace Opc.Ua.Server
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
         /// </summary>
         NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri);
+
+        /// <summary>
+        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified namespace index
+        /// </summary>
+        NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex);
 
         /// <summary>
         /// Determine if the impersonated user has admin access.
