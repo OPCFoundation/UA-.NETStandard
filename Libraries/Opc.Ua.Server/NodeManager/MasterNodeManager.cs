@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
                 = server.MainNodeManagerFactory.CreateConfigurationNodeManager();
 
             RegisterNodeManager(
-                configurationAndDiagnosticsManager.ToAsyncNodeManager(),
+                configurationAndDiagnosticsManager,
                 registeredManagers,
                 namespaceManagers);
 
@@ -307,10 +307,11 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IDiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IDiagnosticsNodeManager;
+            => m_nodeManagers[0] as IDiagnosticsNodeManager;
+
         /// <inheritdoc/>
         public IConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IConfigurationNodeManager;
+            => m_nodeManagers[0] as IConfigurationNodeManager;
 
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)

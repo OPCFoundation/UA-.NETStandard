@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CreateSession);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CreateSession, ct).ConfigureAwait(false);
             ISession session = null;
             try
             {
@@ -560,7 +560,7 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    ServerInternal.SessionManager.CloseSession(session.Id);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, ct).ConfigureAwait(false);
                 }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -674,7 +674,7 @@ namespace Opc.Ua.Server
             StatusCodeCollection results = null;
             DiagnosticInfoCollection diagnosticInfos = null;
 
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.ActivateSession, ct).ConfigureAwait(false);
 
             try
             {
@@ -833,7 +833,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CloseSession);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CloseSession, ct).ConfigureAwait(false);
             try
             {
                 ISession session = ServerInternal.SessionManager
@@ -873,13 +873,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<CancelResponse> CancelAsync(
+        public override async ValueTask<CancelResponse> CancelAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint requestHandle,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Cancel);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Cancel, ct).ConfigureAwait(false);
             CancelResponse response;
             try
             {
@@ -909,7 +909,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<CancelResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
@@ -921,7 +921,7 @@ namespace Opc.Ua.Server
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Browse);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Browse, ct).ConfigureAwait(false);
 
             try
             {
@@ -971,7 +971,7 @@ namespace Opc.Ua.Server
             ByteStringCollection continuationPoints,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.BrowseNext);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.BrowseNext, ct).ConfigureAwait(false);
 
             try
             {
@@ -1013,13 +1013,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
+        public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.RegisterNodes);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.RegisterNodes, ct).ConfigureAwait(false);
             RegisterNodesResponse response;
             try
             {
@@ -1052,17 +1052,17 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<RegisterNodesResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
+        public override async ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.UnregisterNodes);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.UnregisterNodes, ct).ConfigureAwait(false);
             UnregisterNodesResponse response;
             try
             {
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<UnregisterNodesResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
@@ -1105,10 +1105,11 @@ namespace Opc.Ua.Server
             BrowsePathCollection browsePaths,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.TranslateBrowsePathsToNodeIds);
+                RequestType.TranslateBrowsePathsToNodeIds,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1166,7 +1167,7 @@ namespace Opc.Ua.Server
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Read);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Read, ct).ConfigureAwait(false);
 
             try
             {
@@ -1219,7 +1220,7 @@ namespace Opc.Ua.Server
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryRead);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryRead, ct).ConfigureAwait(false);
 
             try
             {
@@ -1282,7 +1283,7 @@ namespace Opc.Ua.Server
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Write);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Write, ct).ConfigureAwait(false);
 
             try
             {
@@ -1327,7 +1328,7 @@ namespace Opc.Ua.Server
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryUpdate);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryUpdate, ct).ConfigureAwait(false);
 
             try
             {
@@ -1378,10 +1379,11 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.CreateSubscription);
+                RequestType.CreateSubscription,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1427,10 +1429,11 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.TransferSubscriptions);
+                RequestType.TransferSubscriptions,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1473,10 +1476,11 @@ namespace Opc.Ua.Server
             UInt32Collection subscriptionIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.DeleteSubscriptions);
+                RequestType.DeleteSubscriptions,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1518,7 +1522,7 @@ namespace Opc.Ua.Server
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Publish);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Publish, ct).ConfigureAwait(false);
 
             try
             {
@@ -1580,14 +1584,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<RepublishResponse> RepublishAsync(
+        public override async ValueTask<RepublishResponse> RepublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Republish);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Republish, ct).ConfigureAwait(false);
             RepublishResponse response;
             try
             {
@@ -1620,11 +1624,11 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<RepublishResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public override async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1635,10 +1639,12 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.ModifySubscription);
+                RequestType.ModifySubscription,
+                ct).ConfigureAwait(false);
+
             ModifySubscriptionResponse response;
             try
             {
@@ -1680,21 +1686,23 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<ModifySubscriptionResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
+        public override async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.SetPublishingMode);
+                RequestType.SetPublishingMode,
+                ct).ConfigureAwait(false);
+
             SetPublishingModeResponse response;
             try
             {
@@ -1732,11 +1740,11 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<SetPublishingModeResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+        public override async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1745,7 +1753,7 @@ namespace Opc.Ua.Server
             UInt32Collection linksToRemove,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.SetTriggering);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.SetTriggering, ct).ConfigureAwait(false);
             SetTriggeringResponse response;
             try
             {
@@ -1800,7 +1808,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<SetTriggeringResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
@@ -1812,10 +1820,11 @@ namespace Opc.Ua.Server
             MonitoredItemCreateRequestCollection itemsToCreate,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.CreateMonitoredItems);
+                RequestType.CreateMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1861,10 +1870,11 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequestCollection itemsToModify,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.ModifyMonitoredItems);
+                RequestType.ModifyMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1909,10 +1919,11 @@ namespace Opc.Ua.Server
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.DeleteMonitoredItems);
+                RequestType.DeleteMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1957,10 +1968,11 @@ namespace Opc.Ua.Server
             UInt32Collection monitoredItemIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.SetMonitoringMode);
+                RequestType.SetMonitoringMode,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -2009,7 +2021,7 @@ namespace Opc.Ua.Server
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Call);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Call, ct).ConfigureAwait(false);
 
             try
             {
@@ -2405,11 +2417,13 @@ namespace Opc.Ua.Server
         /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual OperationContext ValidateRequest(
+        protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            RequestType requestType)
+            RequestType requestType,
+            CancellationToken cancellationToken = default)
         {
             base.ValidateRequest(requestHeader);
 
@@ -2418,8 +2432,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
 
-            OperationContext context = ServerInternal.SessionManager
-                .ValidateRequest(requestHeader, secureChannelContext, requestType);
+            OperationContext context = await ServerInternal.SessionManager
+                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, cancellationToken).ConfigureAwait(false);
 
             if (ServerUtils.EventLog.IsEnabled())
             {
@@ -2825,10 +2839,11 @@ namespace Opc.Ua.Server
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
-                m_serverInternal.CreateServerObject(
+                await m_serverInternal.CreateServerObjectAsync(
                     eventManager,
                     resourceManager,
-                    requestManager);
+                    requestManager,
+                    cancellationToken).ConfigureAwait(false);
 
                 // do any additional processing now that the node manager is up and running.
                 OnNodeManagerStarted(m_serverInternal);
@@ -2836,12 +2851,12 @@ namespace Opc.Ua.Server
                 // create the manager responsible for aggregates.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
                 m_serverInternal.SetAggregateManager(
-                    CreateAggregateManager(m_serverInternal, configuration));
+                    await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for modelling rules.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
                 m_serverInternal.SetModellingRulesManager(
-                    CreateModellingRulesManager(m_serverInternal, configuration));
+                    await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
@@ -3170,166 +3185,204 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         /// <returns>The manager.</returns>
-        protected virtual AggregateManager CreateAggregateManager(
+        protected virtual async ValueTask<AggregateManager> CreateAggregateManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             var manager = new AggregateManager(server);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Interpolative,
                 BrowseNames.AggregateFunction_Interpolative,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Average,
                 BrowseNames.AggregateFunction_Average,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_TimeAverage,
                 BrowseNames.AggregateFunction_TimeAverage,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_TimeAverage2,
                 BrowseNames.AggregateFunction_TimeAverage2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Total,
                 BrowseNames.AggregateFunction_Total,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Total2,
                 BrowseNames.AggregateFunction_Total2,
-                Aggregators.CreateStandardCalculator);
-
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Minimum,
                 BrowseNames.AggregateFunction_Minimum,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Maximum,
                 BrowseNames.AggregateFunction_Maximum,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MinimumActualTime,
                 BrowseNames.AggregateFunction_MinimumActualTime,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MaximumActualTime,
                 BrowseNames.AggregateFunction_MaximumActualTime,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Range,
                 BrowseNames.AggregateFunction_Range,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Minimum2,
                 BrowseNames.AggregateFunction_Minimum2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Maximum2,
                 BrowseNames.AggregateFunction_Maximum2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MinimumActualTime2,
                 BrowseNames.AggregateFunction_MinimumActualTime2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MaximumActualTime2,
                 BrowseNames.AggregateFunction_MaximumActualTime2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Range2,
                 BrowseNames.AggregateFunction_Range2,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Count,
                 BrowseNames.AggregateFunction_Count,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_AnnotationCount,
                 BrowseNames.AggregateFunction_AnnotationCount,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationInStateZero,
                 BrowseNames.AggregateFunction_DurationInStateZero,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
                 BrowseNames.AggregateFunction_DurationInStateNonZero,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
                 BrowseNames.AggregateFunction_NumberOfTransitions,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Start,
                 BrowseNames.AggregateFunction_Start,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_End,
                 BrowseNames.AggregateFunction_End,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Delta,
                 BrowseNames.AggregateFunction_Delta,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StartBound,
                 BrowseNames.AggregateFunction_StartBound,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_EndBound,
                 BrowseNames.AggregateFunction_EndBound,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DeltaBounds,
                 BrowseNames.AggregateFunction_DeltaBounds,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationGood,
                 BrowseNames.AggregateFunction_DurationGood,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationBad,
                 BrowseNames.AggregateFunction_DurationBad,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_PercentGood,
                 BrowseNames.AggregateFunction_PercentGood,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_PercentBad,
                 BrowseNames.AggregateFunction_PercentBad,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_WorstQuality,
                 BrowseNames.AggregateFunction_WorstQuality,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_WorstQuality2,
                 BrowseNames.AggregateFunction_WorstQuality2,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 BrowseNames.AggregateFunction_StandardDeviationPopulation,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_VariancePopulation,
                 BrowseNames.AggregateFunction_VariancePopulation,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 BrowseNames.AggregateFunction_StandardDeviationSample,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_VarianceSample,
                 BrowseNames.AggregateFunction_VarianceSample,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
             return manager;
         }
@@ -3339,28 +3392,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation Token</param>
         /// <returns>The manager.</returns>
-        protected virtual ModellingRulesManager CreateModellingRulesManager(
+        protected virtual async ValueTask<ModellingRulesManager> CreateModellingRulesManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             var manager = new ModellingRulesManager(server);
 
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_Mandatory,
-                BrowseNames.ModellingRule_Mandatory);
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_Optional,
-                BrowseNames.ModellingRule_Optional);
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_ExposesItsArray,
-                BrowseNames.ModellingRule_ExposesItsArray);
-            manager.RegisterModellingRule(
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_Mandatory, BrowseNames.ModellingRule_Mandatory, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_Optional, BrowseNames.ModellingRule_Optional, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_ExposesItsArray, BrowseNames.ModellingRule_ExposesItsArray, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(
                 ObjectIds.ModellingRule_OptionalPlaceholder,
-                BrowseNames.ModellingRule_OptionalPlaceholder);
-            manager.RegisterModellingRule(
+                BrowseNames.ModellingRule_OptionalPlaceholder,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(
                 ObjectIds.ModellingRule_MandatoryPlaceholder,
-                BrowseNames.ModellingRule_MandatoryPlaceholder);
+                BrowseNames.ModellingRule_MandatoryPlaceholder,
+                cancellationToken).ConfigureAwait(false);
 
             return manager;
         }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -89,16 +90,19 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="modellingRuleId">The id of the modelling rule.</param>
         /// <param name="modellingRuleName">The name of the modelling rule.</param>
-        public void RegisterModellingRule(
+        /// <param name="cancellationToken">A cancellation token.</param>
+        public async ValueTask RegisterModellingRuleAsync(
             NodeId modellingRuleId,
-            string modellingRuleName)
+            string modellingRuleName,
+            CancellationToken cancellationToken = default)
         {
             lock (m_lock)
             {
                 m_modellingRules[modellingRuleId] = modellingRuleName;
             }
 
-            m_server?.DiagnosticsNodeManager.AddModellingRule(modellingRuleId, modellingRuleName);
+            await m_server.DiagnosticsNodeManager.AddModellingRuleAsync(modellingRuleId, modellingRuleName, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
