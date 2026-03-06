@@ -241,7 +241,7 @@ namespace Opc.Ua
             // create encoder.
             using var encoder = new BinaryEncoder(context);
             // encode message
-            encoder.EncodeMessage(message);
+            encoder.EncodeMessage(message, message.BinaryEncodingId);
 
             // close encoder.
             return encoder.CloseAndReturnBuffer();
@@ -258,21 +258,19 @@ namespace Opc.Ua
             IServiceMessageContext context,
             bool leaveOpen)
         {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
             // create encoder.
             using var encoder = new BinaryEncoder(stream, context, leaveOpen);
             // encode message
-            encoder.EncodeMessage(message);
+            encoder.EncodeMessage(message, message.TypeId);
         }
 
-        /// <summary>
-        /// Encodes a message with its header.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="message"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public void EncodeMessage<T>(T message) where T : IEncodeable
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
         {
             if (EqualityComparer<T>.Default.Equals(message, default))
             {
@@ -288,7 +286,38 @@ namespace Opc.Ua
             WriteNodeId(null, typeId);
 
             // write the message.
-            WriteEncodeable(null, message);
+            WriteEncodeable(null, message, encodeableTypeId);
+
+            // check that the max message size was not exceeded.
+            if (Context.MaxMessageSize > 0 &&
+                Context.MaxMessageSize < (int)(m_ostrm.Position - start))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    (int)(m_ostrm.Position - start));
+            }
+        }
+
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message) where T : IEncodeable, new()
+        {
+            if (EqualityComparer<T>.Default.Equals(message, default))
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            long start = m_ostrm.Position;
+
+            // convert the namespace uri to an index.
+            var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, Context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId(null, typeId);
+
+            // write the message.
+            WriteEncodeable(null, message, message.TypeId);
 
             // check that the max message size was not exceeded.
             if (Context.MaxMessageSize > 0 &&
@@ -321,129 +350,91 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
+        /// <inheritdoc/>
         public EncodingType EncodingType => EncodingType.Binary;
 
-        /// <summary>
-        /// The message context associated with the encoder.
-        /// </summary>
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
-        /// <summary>
-        /// Binary Encoder always produces reversible encoding.
-        /// </summary>
-        public bool UseReversibleEncoding => true;
-
-        /// <summary>
-        /// Pushes a namespace onto the namespace stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
             // not used in the binary encoding.
         }
 
-        /// <summary>
-        /// Pops a namespace from the namespace stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PopNamespace()
         {
             // not used in the binary encoding.
         }
 
-        /// <summary>
-        /// Writes a boolean to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteBoolean(string fieldName, bool value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a sbyte to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteSByte(string fieldName, sbyte value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a byte to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteByte(string fieldName, byte value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a short to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteInt16(string fieldName, short value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a ushort to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteUInt16(string fieldName, ushort value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes an int to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteInt32(string fieldName, int value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a uint to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteUInt32(string fieldName, uint value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a long to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteInt64(string fieldName, long value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a ulong to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteUInt64(string fieldName, ulong value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a float to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteFloat(string fieldName, float value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a double to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteDouble(string fieldName, double value)
         {
             m_writer.Write(value);
         }
 
-        /// <summary>
-        /// Writes a string to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public void WriteString(string fieldName, string value)
         {
             if (value == null)
@@ -500,9 +491,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes a UTC date/time to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteDateTime(string fieldName, DateTime value)
         {
             value = CoreUtils.ToOpcUaUniversalTime(value);
@@ -528,32 +517,35 @@ namespace Opc.Ua
             m_writer.Write(ticks);
         }
 
-        /// <summary>
-        /// Writes a GUID to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteGuid(string fieldName, Uuid value)
         {
             m_writer.Write(value.ToByteArray());
         }
 
-        /// <summary>
-        /// Writes a byte string to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteByteString(string fieldName, ByteString value)
         {
             if (value.IsEmpty)
             {
-                WriteInt32(null, -1);
+                WriteInt32(null, value.IsNull ? -1 : 0);
                 return;
             }
 
-            WriteByteString(fieldName, value.Span);
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    Context.MaxByteStringLength,
+                    value.Length);
+            }
+
+            WriteInt32(null, value.Length);
+            m_writer.Write(value.Span);
         }
 
-        /// <summary>
-        /// Writes a byte string to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             // == compares memory reference, comparing to empty means we compare to the default
@@ -605,9 +597,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an XmlElement to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
             if (value.IsEmpty)
@@ -619,9 +609,7 @@ namespace Opc.Ua
             WriteString(fieldName, value.OuterXml);
         }
 
-        /// <summary>
-        /// Writes an NodeId to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteNodeId(string fieldName, NodeId value)
         {
             // write a null node id.
@@ -648,9 +636,7 @@ namespace Opc.Ua
             WriteNodeIdBody(encoding, value, namespaceIndex);
         }
 
-        /// <summary>
-        /// Writes an ExpandedNodeId to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
             // write a null node id.
@@ -708,25 +694,19 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an StatusCode to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteStatusCode(string fieldName, StatusCode value)
         {
             WriteUInt32(null, value.Code);
         }
 
-        /// <summary>
-        /// Writes a DiagnosticInfo to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
             WriteDiagnosticInfo(value, 0);
         }
 
-        /// <summary>
-        /// Writes an QualifiedName to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteQualifiedName(string fieldName, QualifiedName value)
         {
             ushort namespaceIndex = value.NamespaceIndex;
@@ -740,9 +720,7 @@ namespace Opc.Ua
             WriteString(null, value.Name);
         }
 
-        /// <summary>
-        /// Writes an LocalizedText to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteLocalizedText(string fieldName, LocalizedText value)
         {
             // check for null.
@@ -780,9 +758,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an Variant to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteVariant(string fieldName, Variant value)
         {
             CheckAndIncrementNestingLevel();
@@ -797,9 +773,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an DataValue array to the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void WriteDataValue(string fieldName, DataValue value)
         {
             // check for null.
@@ -877,10 +851,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an ExtensionObject to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
         {
             // check for null.
@@ -987,12 +958,27 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeable<T>(string fieldName, T value)
+            where T : IEncodeable, new()
         {
             if (EqualityComparer<T>.Default.Equals(value, default))
             {
                 // create a default object if a null object specified.
-                if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
+                value = new T();
+            }
+            WriteEncodeable(value);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeable<T>(
+            string fieldName,
+            T value,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            if (EqualityComparer<T>.Default.Equals(value, default))
+            {
+                // create a default object if a null object specified.
+                if (!Context.Factory.TryGetEncodeableType(encodeableTypeId, out IEncodeableType activator))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadEncodingError,
                         "Cannot create default instance of type T because activator is not registered.");
@@ -1423,7 +1409,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
-            where T : IEncodeable
+            where T : IEncodeable, new()
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1439,8 +1425,27 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableArray<T>(
+            string fieldName,
+            ArrayOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            // write length.
+            if (WriteArrayLength(values))
+            {
+                return;
+            }
+
+            // write contents.
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                WriteEncodeable(null, values[ii], encodeableTypeId);
+            }
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
-            where T : IEncodeable
+            where T : IEncodeable, new()
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
             if (values.IsNull)
@@ -1452,6 +1457,24 @@ namespace Opc.Ua
 
             WriteInt32Array(null, values.Dimensions);
             WriteEncodeableArray(null, values.ToArrayOf());
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(
+            string fieldName,
+            MatrixOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
+            if (values.IsNull)
+            {
+                WriteInt32(null, -1); // Dimensions
+                WriteInt32(null, -1); // values
+                return;
+            }
+
+            WriteInt32Array(null, values.Dimensions);
+            WriteEncodeableArray(null, values.ToArrayOf(), encodeableTypeId);
         }
 
         /// <inheritdoc/>

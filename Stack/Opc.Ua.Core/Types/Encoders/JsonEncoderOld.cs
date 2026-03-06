@@ -34,7 +34,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Types;
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 using System.Buffers;
 #endif
@@ -149,14 +148,33 @@ namespace Opc.Ua
             using var stream = new MemoryStream(buffer, true);
             using var encoder = new JsonEncoderOld(context, JsonEncodingType.Verbose, false, stream);
             // encode message
-            encoder.EncodeMessage(message);
+            encoder.EncodeMessage(message, message.TypeId);
             int length = encoder.Close();
 
             return new ArraySegment<byte>(buffer, 0, length);
         }
 
         /// <inheritdoc/>
-        public void EncodeMessage<T>(T message) where T : IEncodeable
+        public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (EqualityComparer<T>.Default.Equals(message, default))
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            // convert the namespace uri to an index.
+            var typeId = ExpandedNodeId.ToNodeId(encodeableTypeId, Context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId("TypeId", typeId);
+
+            // write the message.
+            WriteEncodeable("Body", message, encodeableTypeId);
+        }
+
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
             if (EqualityComparer<T>.Default.Equals(message, default))
             {
@@ -889,7 +907,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                WriteEncodeable("Body", encodeable);
+                WriteEncodeable("Body", encodeable, typeId);
             }
             else if (value.TryGetAsJson(out string text))
             {
@@ -917,13 +935,63 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+            where T : IEncodeable
         {
             WriteExtensionObject(fieldName, new ExtensionObject(value));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable, new()
+        {
+            bool isNull = EqualityComparer<T>.Default.Equals(value, default);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
+            {
+                return;
+            }
+
+            if (m_nestingLevel == 0 &&
+                (m_commaRequired || m_topLevelIsArray) &&
+                (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "With Array as top level, encodeables with fieldname will create invalid json");
+            }
+
+            if (m_nestingLevel == 0 &&
+                !m_commaRequired &&
+                string.IsNullOrWhiteSpace(fieldName) &&
+                !m_topLevelIsArray)
+            {
+                m_writer.Flush();
+                if (m_writer.BaseStream.Length == 1) //Opening "{"
+                {
+                    m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
+                }
+                m_dontWriteClosing = true;
+            }
+
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                PushStructure(fieldName);
+
+                value?.Encode(this);
+
+                PopStructure();
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
         {
             bool isNull = EqualityComparer<T>.Default.Equals(value, default);
 
@@ -1651,7 +1719,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values) where T : IEncodeable
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable, new()
         {
             PushStructure(fieldName);
             WriteInt32Array("Dimensions", values.Dimensions);
@@ -1660,7 +1729,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            PushStructure(fieldName);
+            WriteInt32Array("Dimensions", values.Dimensions);
+            WriteEncodeableArray("Array", values.ToArrayOf(), encodeableTypeId);
+            PopStructure();
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable, new()
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -1708,6 +1788,62 @@ namespace Opc.Ua
                 for (int ii = 0; ii < values.Count; ii++)
                 {
                     WriteEncodeable(null, values[ii]);
+                }
+
+                PopArray();
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (CheckForSimpleFieldNull(fieldName, values))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(fieldName) && m_nestingLevel == 0 && !m_topLevelIsArray)
+            {
+                m_writer.Flush();
+                if (m_writer.BaseStream.Length == 1) //Opening "{"
+                {
+                    m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
+                }
+
+                m_nestingLevel++;
+                PushArray(fieldName);
+
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteEncodeable(null, values[ii], encodeableTypeId);
+                }
+
+                PopArray();
+                m_dontWriteClosing = true;
+                m_nestingLevel--;
+            }
+            else if (!string.IsNullOrWhiteSpace(fieldName) &&
+                m_nestingLevel == 0 &&
+                m_topLevelIsArray)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "With Array as top level, encodeables array with fieldname will create invalid json");
+            }
+            else
+            {
+                PushArray(fieldName);
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteEncodeable(null, values[ii], encodeableTypeId);
                 }
 
                 PopArray();

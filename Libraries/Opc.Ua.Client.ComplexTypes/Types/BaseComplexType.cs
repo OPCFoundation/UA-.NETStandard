@@ -306,28 +306,29 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 case BuiltInType.Null:
+                    ExpandedNodeId dataTypeId =
+                        property.GetDataTypeId(encoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
                     {
-                        if (variant.TryGetStructure(out IEncodeable structure))
-                        {
-                            encoder.WriteEncodeable(name, structure);
-                            break;
-                        }
+                        encoder.WriteEncodeable(
+                            name,
+                            variant.GetStructure<IEncodeable>(),
+                            dataTypeId);
                     }
                     else if (property.TypeInfo.IsArray)
                     {
-                        if (variant.TryGetStructure(out ArrayOf<IEncodeable> structures))
-                        {
-                            encoder.WriteEncodeableArray(name, structures);
-                            break;
-                        }
+                        encoder.WriteEncodeableArray(
+                            name,
+                            variant.GetStructureArray<IEncodeable>(),
+                            dataTypeId);
                     }
-                    else if (variant.TryGetStructure(out MatrixOf<IEncodeable> structures))
+                    else
                     {
-                        encoder.WriteEncodeableMatrix(name, structures);
-                        break;
+                        encoder.WriteEncodeableMatrix(
+                            name,
+                            variant.GetStructureMatrix<IEncodeable>(),
+                            dataTypeId);
                     }
-                    encoder.WriteVariant(name, variant);
                     break;
                 case BuiltInType.Variant when property.TypeInfo.IsScalar:
                     encoder.WriteVariant(name, variant);
@@ -352,22 +353,24 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 case BuiltInType.Null:
+                    ExpandedNodeId dataTypeId =
+                        property.GetDataTypeId(decoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
                     {
                         IEncodeable encodeable =
-                            decoder.ReadEncodeable<IEncodeable>(name, TypeId);
+                            decoder.ReadEncodeable<IEncodeable>(name, dataTypeId);
                         variant = Variant.FromStructure(encodeable);
                     }
                     else if (property.TypeInfo.IsArray)
                     {
                         ArrayOf<IEncodeable> encodeables =
-                            decoder.ReadEncodeableArray<IEncodeable>(name, TypeId);
+                            decoder.ReadEncodeableArray<IEncodeable>(name, dataTypeId);
                         variant = Variant.FromStructure(encodeables);
                     }
                     else
                     {
                         MatrixOf<IEncodeable> encodeables =
-                            decoder.ReadEncodeableMatrix<IEncodeable>(name, TypeId);
+                            decoder.ReadEncodeableMatrix<IEncodeable>(name, dataTypeId);
                         variant = Variant.FromStructure(encodeables);
                     }
                     break;

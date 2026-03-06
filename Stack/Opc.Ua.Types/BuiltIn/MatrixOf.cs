@@ -69,9 +69,7 @@ namespace Opc.Ua
         /// <summary>
         /// Dimensions
         /// </summary>
-#pragma warning disable RCS1085 // Use auto-implemented property
-        public int[] Dimensions => m_dimensions;
-#pragma warning restore RCS1085 // Use auto-implemented property
+        public int[] Dimensions => m_dimensions ?? [];
 
         /// <summary>
         /// Array as span
@@ -150,9 +148,14 @@ namespace Opc.Ua
         {
             m_memory = values;
             // Validate dimensions
+            if (dimensions == null)
+            {
+                throw new ArgumentNullException(nameof(dimensions));
+            }
             if (dimensions.Length == 0)
             {
-                throw new ArgumentException("Rank of zero not allowed as matrix.",
+                throw new ArgumentException(
+                    "A matrix cannot have 0 dimensions. It must have at least 2 to be a matrix.",
                     nameof(dimensions));
             }
             int length = dimensions.Length == 1 ?
@@ -160,8 +163,9 @@ namespace Opc.Ua
                 dimensions.Aggregate((a, b) => a * b);
             if (length != m_memory.Length)
             {
-                throw new ArgumentException("The number of elements in the array " +
-                    "does not match the provided dimensions.", nameof(dimensions));
+                throw new ArgumentException(
+                    "The number of elements in the array does not match the provided dimensions.",
+                    nameof(dimensions));
             }
             m_dimensions = [.. dimensions];
         }
@@ -229,17 +233,22 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(in MatrixOf<T> other, IEqualityComparer<T> comparer)
         {
-            return Equals(other.m_memory.Span, other.m_dimensions, comparer);
+            return Equals(other.m_memory.Span, other.Dimensions, comparer);
         }
 
         /// <inheritdoc/>
         public bool Equals(in ArrayOf<T> other, IEqualityComparer<T> comparer)
         {
-            if (m_dimensions.Length != 1 || m_dimensions[0] != other.Count)
+            if (IsNull && other.IsNull)
+            {
+                return true;
+            }
+            int[] dimensions = Dimensions;
+            if (dimensions.Length != 1 || dimensions[0] != other.Count)
             {
                 return false;
             }
-            return Equals(other.Span, m_dimensions, comparer);
+            return Equals(other.Span, dimensions, comparer);
         }
 
         /// <inheritdoc/>
@@ -253,7 +262,7 @@ namespace Opc.Ua
             {
                 return other.IsEmpty;
             }
-            if (!dim.SequenceEqual(m_dimensions))
+            if (!dim.SequenceEqual(Dimensions))
             {
                 return false;
             }
@@ -336,121 +345,121 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static explicit operator Array(MatrixOf<T> array)
+        public static explicit operator Array?(MatrixOf<T> array)
         {
             return array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,] array)
+        public static implicit operator MatrixOf<T>(T[,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,](MatrixOf<T> array)
+        public static explicit operator T[,]?(MatrixOf<T> array)
         {
-            return (T[,])array.CreateArrayInstance();
+            return (T[,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,] array)
+        public static implicit operator MatrixOf<T>(T[,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,](MatrixOf<T> array)
+        public static explicit operator T[,,]?(MatrixOf<T> array)
         {
-            return (T[,,])array.CreateArrayInstance();
+            return (T[,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,])array.CreateArrayInstance();
+            return (T[,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,])array.CreateArrayInstance();
+            return (T[,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,,])array.CreateArrayInstance();
+            return (T[,,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,,,])array.CreateArrayInstance();
+            return (T[,,,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,,,,])array.CreateArrayInstance();
+            return (T[,,,,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,,,,,])array.CreateArrayInstance();
+            return (T[,,,,,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        public static implicit operator MatrixOf<T>(T[,,,,,,,,,] array)
+        public static implicit operator MatrixOf<T>(T[,,,,,,,,,]? array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         /// <inheritdoc/>
-        public static explicit operator T[,,,,,,,,,](MatrixOf<T> array)
+        public static explicit operator T[,,,,,,,,,]?(MatrixOf<T> array)
         {
-            return (T[,,,,,,,,,])array.CreateArrayInstance();
+            return (T[,,,,,,,,,]?)array.CreateArrayInstance();
         }
 
         /// <inheritdoc/>
-        Array IConvertableToArray.ToArray()
+        Array? IConvertableToArray.ToArray()
         {
             return CreateArrayInstance();
         }
@@ -458,7 +467,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         Matrix IConvertableToMatrix.ToMatrix(BuiltInType builtInType)
         {
-            return new Matrix(CreateArrayInstance(), builtInType, m_dimensions);
+            return new Matrix(CreateArrayInstance(), builtInType, Dimensions);
         }
 
         /// <summary>
@@ -476,7 +485,15 @@ namespace Opc.Ua
         /// <returns></returns>
         public ArrayOf<T> ToArrayOf(out int[] dimensions)
         {
-            dimensions = m_dimensions;
+            dimensions = Dimensions;
+            if (IsNull)
+            {
+                return default;
+            }
+            if (IsEmpty)
+            {
+                return [];
+            }
             return new ArrayOf<T>(m_memory);
         }
 
@@ -488,21 +505,29 @@ namespace Opc.Ua
         /// <returns></returns>
         public MatrixOf<TResult> ConvertAll<TResult>(Func<T, TResult> transform)
         {
+            if (IsNull)
+            {
+                return default;
+            }
             var values = new TResult[m_memory.Length];
             for (int i = 0; i < m_memory.Length; i++)
             {
                 values[i] = transform(m_memory.Span[i]);
             }
-            return values.ToMatrixOf(m_dimensions);
+            return values.ToMatrixOf(Dimensions);
         }
 
         /// <summary>
         /// Get as multidimensional array which is missing the type
         /// </summary>
         /// <returns>A multi dimensional array object</returns>
-        public Array CreateArrayInstance()
+        public Array? CreateArrayInstance()
         {
-            int[] dim = m_dimensions;
+            if (IsNull)
+            {
+                return null;
+            }
+            int[] dim = Dimensions;
             if (dim.Length <= 1)
             {
                 return m_memory.ToArray();
@@ -533,11 +558,11 @@ namespace Opc.Ua
         /// <returns></returns>
         public static MatrixOf<T> CreateFromArray(Array array)
         {
-            return new(array);
+            return array == null ? default : new(array);
         }
 
         private readonly ReadOnlyMemory<T> m_memory;
-        private readonly int[] m_dimensions;
+        private readonly int[]? m_dimensions;
     }
 
     /// <summary>
@@ -571,7 +596,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> From<T>(Array array)
         {
-            return MatrixOf<T>.CreateFromArray(array);
+            return array == null ? default : MatrixOf<T>.CreateFromArray(array);
         }
 
         /// <summary>

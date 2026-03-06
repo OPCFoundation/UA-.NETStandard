@@ -32,12 +32,10 @@ using System;
 using System.Runtime.CompilerServices;
 #else
 using System.Globalization;
-using System.Runtime.CompilerServices;
 #endif
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Helper methods to work with enum types
     /// </summary>
@@ -57,6 +55,26 @@ namespace Opc.Ua
             }
 #endif
             return (T)(object)value;
+        }
+
+        /// <summary>
+        /// Cast to enum array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Int32ToEnum<T>(this ArrayOf<int> values)
+            where T : struct, Enum
+        {
+            return values.ConvertAll(Int32ToEnum<T>);
+        }
+
+        /// <summary>
+        /// Cast to enum matrix
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> Int32ToEnum<T>(this MatrixOf<int> values)
+            where T : struct, Enum
+        {
+            return values.ConvertAll(Int32ToEnum<T>);
         }
 
         /// <summary>
@@ -95,6 +113,126 @@ namespace Opc.Ua
                     CultureInfo.InvariantCulture);
             }
 #endif
+        }
+
+        /// <summary>
+        /// Cast from enum array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<int> EnumToInt32<T>(this ArrayOf<T> values)
+            where T : struct, Enum
+        {
+            return values.ConvertAll(EnumToInt32);
+        }
+
+        /// <summary>
+        /// Cast from enum matrix
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<int> EnumToInt32<T>(this MatrixOf<T> values)
+            where T : struct, Enum
+        {
+            return values.ConvertAll(EnumToInt32);
+        }
+
+        /// <summary>
+        /// Cast from enum array
+        /// </summary>
+        public static ArrayOf<int> EnumArrayToInt32Array(Array values)
+        {
+            if (values == null)
+            {
+                return default;
+            }
+            int[] array = new int[values.Length];
+            // Convert array of enum values to array of int values
+            for (int i = 0; i < values.Length; i++)
+            {
+                array[i] = (int)(object)values.GetValue(i);
+            }
+            return array;
+        }
+
+        /// <summary>
+        /// Cast from enum matrix
+        /// </summary>
+        public static MatrixOf<int> EnumArrayToInt32Matrix(Array values)
+        {
+            if (values == null)
+            {
+                return default;
+            }
+            // Get dimensions from the multi-dimensional array
+            int[] dimensions = new int[values.Rank];
+            for (int i = 0; i < values.Rank; i++)
+            {
+                dimensions[i] = values.GetLength(i);
+            }
+
+            // Convert all enum values to int, iterating in row-major order
+            int[] array = new int[values.Length];
+            int index = 0;
+            foreach (object value in values)
+            {
+                array[index++] = (int)value;
+            }
+            return array.ToMatrixOf(dimensions);
+        }
+
+        /// <summary>
+        /// Cast to enum
+        /// </summary>
+        public static object Int32ToEnum(int value, Type type)
+        {
+            return Enum.ToObject(type, value);
+        }
+
+        /// <summary>
+        /// Cast to enum array
+        /// </summary>
+        public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
+        {
+            if (values.IsNull)
+            {
+                return null;
+            }
+            Array array = Array.CreateInstance(type, values.Count);
+            // Convert array of int values to array of enum values
+            for (int i = 0; i < values.Count; i++)
+            {
+                array.SetValue(Enum.ToObject(type, values.Span[i]), i);
+            }
+            return array;
+        }
+
+        /// <summary>
+        /// Cast to enum matrix
+        /// </summary>
+        public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
+        {
+            if (values.IsNull)
+            {
+                return null;
+            }
+
+            int[] dim = values.Dimensions;
+            Array array = Array.CreateInstance(type, dim);
+            // Convert the matrix with dimensions into an multi dimensional Array of enum values
+            int[] indexes = new int[dim.Length];
+            foreach (int element in values.Span)
+            {
+                array.SetValue(Enum.ToObject(type, element), indexes);
+                for (int dimension = indexes.Length - 1; dimension >= 0; dimension--)
+                {
+                    indexes[dimension]++;
+                    if (indexes[dimension] < dim[dimension])
+                    {
+                        break;
+                    }
+                    indexes[dimension] = 0;
+                }
+            }
+            return array;
         }
     }
 }

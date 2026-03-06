@@ -641,7 +641,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName dataEncoding,
                 ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
-                ref global::System.DateTime timestamp)
+                ref global::Opc.Ua.DateTimeUtc timestamp)
             {
                 lock (Lock)
                 {
@@ -686,7 +686,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName dataEncoding,
                 ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
-                ref global::System.DateTime timestamp)
+                ref global::Opc.Ua.DateTimeUtc timestamp)
             {
                 lock (Lock)
                 {
@@ -778,7 +778,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.QualifiedName dataEncoding,
                     ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     lock (Lock)
                     {
@@ -801,7 +801,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.QualifiedName dataEncoding,
                     ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     lock (Lock)
                     {
@@ -829,7 +829,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.ISystemContext context,
                     ref {{Tokens.DataType}} newValue,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     {{Tokens.ListOfUpdateChildrenChangeMasks}}
                 }
@@ -840,7 +840,7 @@ namespace Opc.Ua.SourceGeneration
                 private void UpdateParent(
                     global::Opc.Ua.ISystemContext context,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     Timestamp = timestamp;
                     m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
@@ -853,16 +853,16 @@ namespace Opc.Ua.SourceGeneration
                 private void UpdateChildVariableStatus(
                     global::Opc.Ua.BaseVariableState child,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     if (child == null)
                     {
                         return;
                     }
                     child.StatusCode = statusCode;
-                    if (timestamp == global::System.DateTime.MinValue)
+                    if (timestamp == global::Opc.Ua.DateTimeUtc.MinValue)
                     {
-                        timestamp = global::System.DateTime.UtcNow;
+                        timestamp = global::Opc.Ua.DateTimeUtc.Now;
                     }
                     child.Timestamp = timestamp;
                 }

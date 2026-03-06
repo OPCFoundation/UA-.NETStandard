@@ -365,7 +365,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             int[] expected = [1, 2, 3];
             var arrayOf = new ArrayOf<int>(expected);
-            int[] array = arrayOf.ToArray();
+            int[]? array = arrayOf.ToArray();
+            Assert.That(array, Is.Not.Null);
             Assert.That(array, Is.EquivalentTo(expected));
         }
 
@@ -436,7 +437,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitConversionToArrayTest()
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
-            int[] array = (int[])arrayOf;
+            int[]? array = (int[]?)arrayOf;
+            Assert.That(array!, Is.Not.Null);
             int[] expected = [1, 2, 3];
             Assert.That(array, Is.EquivalentTo(expected));
         }

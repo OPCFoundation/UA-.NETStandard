@@ -280,9 +280,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void EncodeMessage<T>(T message) where T : IEncodeable
+        public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (message == null)
+            if (EqualityComparer<T>.Default.Equals(message, default))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -291,6 +291,23 @@ namespace Opc.Ua
 
             // write the message.
             WriteEncodeable(typeof(T).Name, message);
+
+            PopNamespace();
+        }
+
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (EqualityComparer<T>.Default.Equals(message, default))
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            // write the message.
+            WriteEncodeable(typeof(T).Name, message, encodeableTypeId);
 
             PopNamespace();
         }
@@ -847,7 +864,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable, new()
+        {
+            WriteEncodeable(fieldName, value, default);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
 
@@ -1569,7 +1593,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
+        public void WriteEncodeableArray<T>(
+            string fieldName,
+            ArrayOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (BeginField(fieldName, values.IsNull, true, true))
             {
@@ -1593,8 +1620,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
-            where T : IEncodeable
+        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable, new()
+        {
+            WriteEncodeableArray(fieldName, values, default);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(
+            string fieldName,
+            MatrixOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
 
@@ -1604,13 +1640,20 @@ namespace Opc.Ua
                 if (!values.IsNull)
                 {
                     WriteInt32Array("Dimensions", values.Dimensions);
-                    WriteEncodeableArray("Elements", values.ToArrayOf());
+                    WriteEncodeableArray("Elements", values.ToArrayOf(), encodeableTypeId);
                 }
                 PopNamespace();
                 EndField("Matrix");
             }
 
             m_nestingLevel--;
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable, new()
+        {
+            WriteEncodeableMatrix(fieldName, values, default);
         }
 
         /// <inheritdoc/>
@@ -2186,7 +2229,7 @@ namespace Opc.Ua
                 TypeInfo.GetXmlName(encodeable, Context)
                 ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
             PushNamespace(xmlName.Namespace);
-            WriteEncodeable(xmlName.Name, encodeable);
+            WriteEncodeable(xmlName.Name, encodeable, encodeable.TypeId);
             PopNamespace();
         }
 

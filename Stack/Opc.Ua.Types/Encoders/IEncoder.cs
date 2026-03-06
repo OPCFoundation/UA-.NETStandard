@@ -77,7 +77,14 @@ namespace Opc.Ua
         /// Encodes a message with its header.
         /// </summary>
         /// <typeparam name="T">The type of the message</typeparam>
-        void EncodeMessage<T>(T message) where T : IEncodeable;
+        void EncodeMessage<T>(T message) where T : IEncodeable, new();
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        /// <typeparam name="T">The type of the message</typeparam>
+        void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable;
 
         /// <summary>
         /// Writes a boolean to the stream.
@@ -216,6 +223,13 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the encodeable</typeparam>
         void WriteEncodeable<T>(string fieldName, T value)
+            where T : IEncodeable, new();
+
+        /// <summary>
+        /// Writes an encodeable object to the stream.
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable;
 
         /// <summary>
@@ -363,7 +377,17 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
-            where T : IEncodeable;
+            where T : IEncodeable, new();
+
+        /// <summary>
+        /// Writes an array of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArray<T>(
+            string fieldName,
+            ArrayOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Writes an array of structures to the stream as extension objects.
@@ -400,7 +424,17 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
-            where T : IEncodeable;
+            where T : IEncodeable, new();
+
+        /// <summary>
+        /// Writes a matrix of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        void WriteEncodeableMatrix<T>(
+            string fieldName,
+            MatrixOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Encode the switch field for a union.

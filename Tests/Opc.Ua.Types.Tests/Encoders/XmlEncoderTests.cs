@@ -525,7 +525,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             TestEncodeable message = null;
 
             // Act & Assert
-            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => encoder.EncodeMessage(message));
+            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
+                () => encoder.EncodeMessage(message));
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.ParamName, Is.EqualTo("message"));
         }

@@ -903,13 +903,17 @@ namespace Opc.Ua.Schema.Model
                     }
                     return MakeReturnType(stringValue.AsStringLiteral());
                 case BasicDataType.DateTime:
-                    if (decodedValue is not DateTime dateTimeValue ||
-                        dateTimeValue == DateTime.MinValue)
+                    if (decodedValue is DateTime dt)
                     {
-                        return MakeReturnType("global::System.DateTime.MinValue");
+                        decodedValue = (DateTimeUtc)dt;
+                    }
+                    if (decodedValue is not DateTimeUtc dateTimeValue ||
+                        dateTimeValue.IsNull)
+                    {
+                        return MakeReturnType("global::Opc.Ua.DateTimeUtc.MinValue");
                     }
                     return MakeReturnType(CoreUtils.Format(
-                        "global::System.DateTime.ParseExact(\"{0:yyyy-MM-dd HH:mm:ss}\", \"yyyy-MM-dd HH:mm:ss\", global::System.Globalization.CultureInfo.InvariantCulture)",
+                        "global::Opc.Ua.DateTimeUtc.From(\"{0:yyyy-MM-dd HH:mm:ss}\")",
                         dateTimeValue));
                 case BasicDataType.Guid:
                     if (decodedValue is Uuid uuid)
@@ -1103,7 +1107,7 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.Guid:
                     return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.Uuid>()");
                 case BasicDataType.DateTime:
-                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::System.DateTime>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.DateTimeUtc>()");
                 case BasicDataType.ByteString:
                     return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.ByteString>()");
                 case BasicDataType.XmlElement:
@@ -1313,7 +1317,7 @@ namespace Opc.Ua.Schema.Model
                         "string" :
                         "string?";
                 case BasicDataType.DateTime:
-                    return "global::System.DateTime";
+                    return "global::Opc.Ua.DateTimeUtc";
                 case BasicDataType.Guid:
                     return "global::Opc.Ua.Uuid";
                 case BasicDataType.ByteString:

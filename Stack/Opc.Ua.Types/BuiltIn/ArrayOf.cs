@@ -372,14 +372,16 @@ namespace Opc.Ua
             return FromList(list);
         }
 
-        // /// <inheritdoc/>
-        // public static explicit operator List<T>(ArrayOf<T> array)
-        // {
-        //     return array.ToList();
-        // }
+#if ENABLE_WHEN_COLLECTIONS_REMOVED
+        /// <inheritdoc/>
+        public static explicit operator List<T>(ArrayOf<T> array)
+        {
+            return array.ToList();
+        }
+#endif
 
         /// <inheritdoc/>
-        public static explicit operator T[](ArrayOf<T> array)
+        public static explicit operator T[]?(ArrayOf<T> array)
         {
             return array.ToArray();
         }
@@ -403,7 +405,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        Array IConvertableToArray.ToArray()
+        Array? IConvertableToArray.ToArray()
         {
             return ToArray();
         }
@@ -412,9 +414,9 @@ namespace Opc.Ua
         /// Get as typed one dimensional array
         /// </summary>
         /// <returns></returns>
-        public T[] ToArray()
+        public T[]? ToArray()
         {
-            return m_memory.ToArray();
+            return IsNull ? null : m_memory.ToArray();
         }
 
         /// <summary>
@@ -459,7 +461,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public MatrixOf<T> ToMatrix(ArrayOf<int> dimensions)
         {
-            return new(m_memory, dimensions.ToArray());
+            return new(m_memory, dimensions.ToArray() ?? [m_memory.Length]);
         }
 
         /// <summary>
@@ -548,7 +550,7 @@ namespace Opc.Ua
         /// Convert to array
         /// </summary>
         /// <returns></returns>
-        Array ToArray();
+        Array? ToArray();
     }
 
     /// <summary>

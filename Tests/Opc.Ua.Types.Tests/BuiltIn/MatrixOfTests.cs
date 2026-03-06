@@ -61,32 +61,32 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateMatrixFromArrayTest()
         {
-            int[,] array = new int[,] { { 1, 2 }, { 3, 4 } };
+            int[,]? array = new int[,] { { 1, 2 }, { 3, 4 } };
             var matrix = MatrixOf.From<int>(array);
             int[] dimensions = [2, 2];
             int[] expected = [1, 2, 3, 4];
 
             Assert.That(matrix.Count, Is.EqualTo(4));
-            Assert.That(matrix.Dimensions, Is.EquivalentTo(dimensions));
-            Assert.That(matrix.Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(matrix.Dimensions, Is.EqualTo(dimensions));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
         public void CreateMatrixFromReadOnlyMemoryTest()
         {
-            int[] array = [1, 2, 3, 4];
+            int[]? array = [1, 2, 3, 4];
             var memory = new ReadOnlyMemory<int>(array);
             int[] dimensions = [2, 2];
             var matrix = memory.ToMatrixOf(dimensions);
             Assert.That(matrix.Count, Is.EqualTo(4));
-            Assert.That(matrix.Dimensions, Is.EquivalentTo(dimensions));
-            Assert.That(matrix.Span.ToArray(), Is.EquivalentTo(array));
+            Assert.That(matrix.Dimensions, Is.EqualTo(dimensions));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(array));
         }
 
         [Test]
         public void EnumeratorTest()
         {
-            int[] array = [1, 1, 1, 1];
+            int[]? array = [1, 1, 1, 1];
             int[] dimensions = [2, 2];
             MatrixOf<int> matrix = array.ToMatrixOf(dimensions);
             Assert.That(matrix.Count, Is.EqualTo(4));
@@ -99,7 +99,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateMatrixShouldThrowWithEmptyDimensionTest()
         {
-            int[] array = [1, 2, 3, 4];
+            int[]? array = [1, 2, 3, 4];
             var memory = new ReadOnlyMemory<int>(array);
             int[] dimensions = Array.Empty<int>();
             Assert.Throws<ArgumentException>(
@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateMatrixShouldThrowWithInvalidDimensionTest()
         {
-            int[] array = [1, 2, 3, 4];
+            int[]? array = [1, 2, 3, 4];
             var memory = new ReadOnlyMemory<int>(array);
             int[] dimensions = [2, 1];
             Assert.Throws<ArgumentException>(
@@ -132,7 +132,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsMatrixWithDifferentDimensionsTest()
         {
             var matrix1 = MatrixOf<int>.CreateFromArray(new int[,] { { 1, 2 }, { 3, 4 } });
-            int[] array = [1, 2, 3, 4];
+            int[]? array = [1, 2, 3, 4];
             var memory = new ReadOnlyMemory<int>(array);
             int[] dimensions = [4, 1];
             var matrix2 = new MatrixOf<int>(memory, dimensions);
@@ -142,7 +142,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsArrayOfTest()
         {
-            int[] array = [1, 2, 3, 4];
+            int[]? array = [1, 2, 3, 4];
             var matrix = MatrixOf<int>.CreateFromArray(array);
             var arrayOf = new ArrayOf<int>([1, 2, 3, 4]);
             Assert.That(matrix.Equals(arrayOf), Is.True);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             MatrixOf<string> converted = matrix.ConvertAll(
                 x => x.ToString(CultureInfo.InvariantCulture));
             string[] expected = ["1", "2", "3", "4"];
-            Assert.That(converted.Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(converted.Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -220,8 +220,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,] { { 1, 2 }, { 3, 4 } });
-            int[,] array = (int[,])matrix.CreateArrayInstance();
-            Assert.That(array, Is.EquivalentTo(new int[,] { { 1, 2 }, { 3, 4 } }));
+            int[,]? array = (int[,]?)matrix.CreateArrayInstance();
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(new int[,] { { 1, 2 }, { 3, 4 } }));
         }
 
         [Test]
@@ -229,8 +230,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arrayOf = [0, 1, 2, 3, 4, 5];
             var matrix = (MatrixOf<int>)arrayOf;
-            int[] array = (int[])matrix.CreateArrayInstance();
-            Assert.That(array, Is.EquivalentTo(arrayOf.ToArray()));
+            int[]? array = (int[]?)matrix.CreateArrayInstance();
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(arrayOf.ToArray()));
             Assert.That(arrayOf == matrix, Is.True);
             Assert.That(arrayOf != matrix, Is.False);
         }
@@ -241,8 +243,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ArrayOf<int> arrayOf = [0, 1, 2, 3, 4, 5];
             // TODO var variant = new Variant(arrayOf);
             // TODO ref var matrix = ref variant.AsMatrixOf<int>();
-            int[] array = (int[])arrayOf.ToMatrix().CreateArrayInstance();
-            Assert.That(array, Is.EquivalentTo(arrayOf.ToArray()));
+            int[]? array = (int[]?)arrayOf.ToMatrix().CreateArrayInstance();
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(arrayOf.ToArray()));
         }
 
         [Test]
@@ -250,8 +253,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,] { { 1, 2 }, { 3, 4 } });
-            var array = (Array)matrix;
-            Assert.That(array, Is.EquivalentTo(new int[,] { { 1, 2 }, { 3, 4 } }));
+            var array = (Array?)matrix;
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(new int[,] { { 1, 2 }, { 3, 4 } }));
         }
 
         [Test]
@@ -259,7 +263,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
             int[] expected = [1, 2, 3, 4];
-            Assert.That(matrix.Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -267,8 +271,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,] { { 1, 2 }, { 3, 4 } });
-            int[,] array = (int[,])matrix;
-            Assert.That(array, Is.EquivalentTo(new int[,] { { 1, 2 }, { 3, 4 } }));
+            int[,]? array = (int[,]?)matrix;
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(new int[,] { { 1, 2 }, { 3, 4 } }));
         }
 
         [Test]
@@ -276,7 +281,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = new int[,,] { { { 1, 2 }, { 3, 4 } } };
             int[] expected = [1, 2, 3, 4];
-            Assert.That(matrix.Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -284,8 +289,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,,] { { { 1, 2 }, { 3, 4 } } });
-            int[,,] array = (int[,,])matrix;
-            Assert.That(array, Is.EquivalentTo(new int[,,] { { { 1, 2 }, { 3, 4 } } }));
+            int[,,]? array = (int[,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(new int[,,] { { { 1, 2 }, { 3, 4 } } }));
         }
 
         [Test]
@@ -293,7 +299,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = new int[,,,] { { { { 1, 2 }, { 3, 4 } } } };
             int[] expected = [1, 2, 3, 4];
-            Assert.That(matrix.Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -301,8 +307,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,,,] { { { { 1, 2 }, { 3, 4 } } } });
-            int[,,,] array = (int[,,,])matrix;
-            Assert.That(array, Is.EquivalentTo(
+            int[,,,]? array = (int[,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
+            Assert.That(array, Is.EqualTo(
                 new int[,,,] { { { { 1, 2 }, { 3, 4 } } } }));
         }
 
@@ -313,11 +320,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [5, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,] array = (int[,,,,])matrix;
+            int[,,,,]? array = (int[,,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(5));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(5));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -327,11 +335,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [6, 1, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,,] array = (int[,,,,,])matrix;
+            int[,,,,,]? array = (int[,,,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(6));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(6));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -341,11 +350,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [7, 1, 1, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,,,] array = (int[,,,,,,])matrix;
+            int[,,,,,,]? array = (int[,,,,,,]?)matrix;
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(7));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(7));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -355,11 +364,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [8, 1, 1, 1, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,,,,] array = (int[,,,,,,,])matrix;
+            int[,,,,,,,]? array = (int[,,,,,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(8));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(8));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -369,11 +379,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [9, 1, 1, 1, 1, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,,,,,] array = (int[,,,,,,,,])matrix;
+            int[,,,,,,,,]? array = (int[,,,,,,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(9));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(9));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -383,11 +394,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(expected);
             int[] dimensions = [10, 1, 1, 1, 1, 1, 1, 1, 1, 1];
             var matrix = new MatrixOf<int>(memory, dimensions);
-            int[,,,,,,,,,] array = (int[,,,,,,,,,])matrix;
+            int[,,,,,,,,,]? array = (int[,,,,,,,,,]?)matrix;
+            Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array.Length, Is.EqualTo(10));
-            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(array!.Length, Is.EqualTo(10));
+            Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
     }
 }

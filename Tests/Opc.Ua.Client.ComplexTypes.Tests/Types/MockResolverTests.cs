@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-                .Where(b => b is > BuiltInType.Null and <= BuiltInType.DiagnosticInfo)
+                .Where(b => b is > BuiltInType.Null and < BuiltInType.DiagnosticInfo)
                 .Select(b => new TestType(b)))
         {
             { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -337,7 +337,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockArrayTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockSingleTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             TestType typeDescription,
             bool randomValues,
@@ -701,13 +701,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 int[] dimensions = new int[valueRank];
                 if (builtInType > 0)
                 {
+                    Array array = null;
                     if (randomValues)
                     {
                         for (int ii = 0; ii < dimensions.Length; ii++)
                         {
                             dimensions[ii] = (DataGenerator.GetRandomInt32() & 3) + 1;
                         }
-                        Array array = TypeInfo.CreateArray(builtInType, dimensions);
+                        array = TypeInfo.CreateArray(builtInType, dimensions);
                         int[] indices = new int[valueRank];
                         for (int ii = 0; ii < array.Length; ii++)
                         {
@@ -715,12 +716,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             array.SetValue(rndValue, indices);
                             Iterate(dimensions, indices);
                         }
-                        value = new Variant(array);
                     }
                     else
                     {
-                        value = new Variant(TypeInfo.CreateArray(builtInType, dimensions));
+                        array = TypeInfo.CreateArray(builtInType, dimensions);
                     }
+
+                    value = CreateVariantForMatrixOf(array.GetType().GetElementType(), array);
                 }
                 else
                 {
@@ -736,7 +738,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         }
                     }
 
-                    value = new Variant(array);
+                    // Create a matrix of valueType from array and initialize the variant using Variant.FromStructure
+                    value = CreateVariantForStructureMatrix(valueType, array);
                 }
             }
             testType[field.Name] = value;
@@ -928,6 +931,32 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
+        }
+
+        public static Variant CreateVariantForStructureMatrix(Type type, Array array)
+        {
+            return (Variant)typeof(MockResolverTests)
+                .GetMethod(nameof(CreateVariantForStructureMatrixT))
+                .MakeGenericMethod([type])
+                .Invoke(null, [array]);
+        }
+
+        public static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
+        {
+            return Variant.FromStructure<T>(MatrixOf.From<T>(array));
+        }
+
+        public static Variant CreateVariantForMatrixOf(Type type, Array array)
+        {
+            return (Variant)typeof(MockResolverTests)
+                .GetMethod(nameof(CreateVariantForMatrixOfT))
+                .MakeGenericMethod([type])
+                .Invoke(null, [array]);
+        }
+
+        public static Variant CreateVariantForMatrixOfT<T>(Array array)
+        {
+            return new Variant(MatrixOf.From<T>(array));
         }
     }
 

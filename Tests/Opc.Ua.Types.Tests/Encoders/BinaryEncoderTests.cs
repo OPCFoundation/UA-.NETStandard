@@ -59,7 +59,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
             Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Binary));
-            Assert.That(encoder.UseReversibleEncoding, Is.True);
         }
 
         [Test]
@@ -146,7 +145,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.EncodeMessage(mockMessage.Object);
+            encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             // Assert
             Assert.That(encoder.Position, Is.GreaterThan(0));
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -175,7 +174,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
             Assert.That(encoder.Position, Is.GreaterThan(0));
         }
 
@@ -228,7 +228,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
 
         [Test]
@@ -248,7 +248,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
 
         [Test]
@@ -270,7 +270,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.EncodeMessage(mockMessage.Object);
+            encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
@@ -297,7 +297,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.EncodeMessage(mockMessage.Object);
+            encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             // Assert
             Assert.That(encoder.Position, Is.GreaterThan(0));
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -325,7 +325,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(ex.Message, Does.Contain("MaxMessageSize"));
         }
@@ -347,7 +348,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
 
         [Test]
@@ -373,7 +374,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
             var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
 
         [TestCase(double.MinValue)]
@@ -8953,7 +8954,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteByteStringArray_EmptyByteStrings_WritesMinusOne()
+        public void WriteByteStringArray_EmptyByteStrings_WriteZero()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -8969,7 +8970,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             int arrayLength = BitConverter.ToInt32(result, 0);
             Assert.That(arrayLength, Is.EqualTo(1));
             int elementLength = BitConverter.ToInt32(result, 4);
-            Assert.That(elementLength, Is.EqualTo(-1));
+            Assert.That(elementLength, Is.EqualTo(0));
         }
 
         [Test]
@@ -8997,7 +8998,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[9], Is.EqualTo(0xBB));
             // Second element (empty)
             int element2Length = BitConverter.ToInt32(result, 10);
-            Assert.That(element2Length, Is.EqualTo(-1));
+            Assert.That(element2Length, Is.EqualTo(0));
             // Third element (non-empty)
             int element3Length = BitConverter.ToInt32(result, 14);
             Assert.That(element3Length, Is.EqualTo(1));
@@ -9815,7 +9816,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encoder = new BinaryEncoder(messageContext);
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteEncodeable<TestEncodeable>("Test", null));
+                () => encoder.WriteEncodeable<TestEncodeable>("Test", null, new ExpandedNodeId("unk", 0)));
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
         }

@@ -1979,12 +1979,20 @@ namespace Opc.Ua
                     value = ReadVariantValue();
 
                     // Allow reading with unknown type info
-                    if (!typeInfo.IsUnknown && value.TypeInfo != typeInfo)
+                    if (!typeInfo.IsUnknown && !value.IsNull)
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Error reading value as variant. Type mismatch: Expected {0} != Actual {1}",
-                            typeInfo, value.TypeInfo);
+                        if (typeInfo.BuiltInType == BuiltInType.Enumeration)
+                        {
+                            typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
+                        }
+
+                        if (value.TypeInfo != typeInfo)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Error reading value as variant. Type mismatch: Expected {0} != Actual {1}",
+                                typeInfo, value.TypeInfo);
+                        }
                     }
 
                     PopNamespace();

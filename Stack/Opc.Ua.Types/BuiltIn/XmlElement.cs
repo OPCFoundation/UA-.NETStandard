@@ -113,7 +113,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(string? other)
         {
-            return string.Equals(m_outerXml, other, StringComparison.Ordinal);
+            return Equals(From(other));
         }
 
         /// <inheritdoc/>
@@ -153,10 +153,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            return string.Equals(
-                m_outerXml,
-                other.OuterXml,
-                StringComparison.Ordinal);
+            return Equals(other.OuterXml);
         }
 
         /// <inheritdoc/>
@@ -232,7 +229,11 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(XmlElement other)
         {
-            return string.Equals(m_outerXml, other.OuterXml, StringComparison.Ordinal);
+            if (other.IsEmpty)
+            {
+                return IsEmpty;
+            }
+            return XNode.DeepEquals(other.AsXElement(), AsXElement());
         }
 
         /// <inheritdoc/>
@@ -341,6 +342,17 @@ namespace Opc.Ua
             using var stream = new MemoryStream(
                 Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
             return XElement.Load(stream, LoadOptions.SetBaseUri);
+        }
+
+        /// <summary>
+        /// Try to normalize the string without parsing
+        /// </summary>
+        private static string? Normalize(string? s)
+        {
+            return s == null ? s : s
+                .Replace("\r", string.Empty, StringComparison.Ordinal)
+                .Replace("\n", string.Empty, StringComparison.Ordinal)
+                .Replace(" ", string.Empty, StringComparison.Ordinal);
         }
 
 #pragma warning disable IDE0032 // Use auto property

@@ -1160,16 +1160,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
             List<byte> buffer =
             [
+                // Dimensions array [2, 1]
+                .. BitConverter.GetBytes(2), // dimensions count
+                .. BitConverter.GetBytes(2), // dim 0
+                .. BitConverter.GetBytes(1),  // dim 1
                 // Elements (2*1 = 2 TestEncodeable values)
                 .. BitConverter.GetBytes(2), // Array count
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
                 0x0, // encoding mask
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
-                0x0, // encoding mask
-                // Dimensions array [2, 1]
-                .. BitConverter.GetBytes(2), // dimensions count
-                .. BitConverter.GetBytes(2), // dim 0
-                .. BitConverter.GetBytes(1)  // dim 1
+                0x0  // encoding mask
             ];
 
             var decoder = new BinaryDecoder([.. buffer], messageContext);
@@ -1198,9 +1198,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             List<byte> buffer =
             [
                 // Dimensions array [0]
-                .. BitConverter.GetBytes(0), // empty array
                 .. BitConverter.GetBytes(1), // dimensions count
-                .. BitConverter.GetBytes(0) // dim 0 = 0
+                .. BitConverter.GetBytes(0), // dim 0 = 0
+                .. BitConverter.GetBytes(0)  // empty array
             ];
 
             var decoder = new BinaryDecoder([.. buffer], messageContext);
@@ -4786,7 +4786,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadVariantValueReturnsNullForNegativeOneDimension()
+        public void ReadVariantValueReturnsValueIsDefaultOrNullForNegativeOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4798,7 +4798,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result.IsNull, Is.True);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.ValueIsDefaultOrNull, Is.True);
         }
 
         [Test]
@@ -6452,8 +6453,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             int[] dimensions)
         {
             using var encoder = new BinaryEncoder(messageContext);
-            writeArray(encoder);
             encoder.WriteInt32Array(null, dimensions);
+            writeArray(encoder);
             return encoder.CloseAndReturnBuffer();
         }
 

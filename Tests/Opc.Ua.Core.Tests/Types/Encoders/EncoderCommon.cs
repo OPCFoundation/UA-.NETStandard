@@ -157,9 +157,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [DatapointSource]
         public static readonly EncodingType[] EncoderTypes =
 #if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
-        Enum.GetValues<EncodingType>();
+            Enum.GetValues<EncodingType>();
 #else
-        (EncodingType[])Enum.GetValues(typeof(EncodingType));
+            (EncodingType[])Enum.GetValues(typeof(EncodingType));
 #endif
 
         public static readonly EncodingTypeGroup[] EncodingTypesJson =
@@ -168,23 +168,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose =
+        public static readonly EncodingTypeGroup[] EncodingTypesJsonVerbose =
         [
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        ];
-
-        public static readonly EncodingTypeGroup[] EncodingTypesReversibleCompact =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        ];
-
-        public static readonly EncodingTypeGroup[] EncodingTypesNonReversibleVerbose =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
+        ];
+
+        public static readonly EncodingTypeGroup[] EncodingTypesJsonBinaryXmlAndJsonCompact =
+        [
+            new EncodingTypeGroup(EncodingType.Binary),
+            new EncodingTypeGroup(EncodingType.Xml),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll =
@@ -195,13 +188,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        ];
 
         /// <summary>
         /// Encode data value and return encoded string.
@@ -516,6 +502,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 NUnit.Framework.Assert.Fail("Invalid xml data: " + ex.Message);
             }
             return Encoding.UTF8.GetString(xml);
+        }
+
+        /// <summary>
+        /// Format binary data
+        /// </summary>
+        public static string PrettifyAndValidateBinary(byte[] buffer, bool outputFormatted = false)
+        {
+            return CoreUtils.ToHexString(buffer);
         }
 
         /// <summary>

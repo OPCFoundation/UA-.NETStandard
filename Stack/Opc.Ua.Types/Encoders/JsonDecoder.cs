@@ -1181,12 +1181,12 @@ namespace Opc.Ua
             switch (element.ValueKind)
             {
                 case JsonValueKind.Null or JsonValueKind.Undefined:
-                    value = ByteString.Empty;
+                    value = default;
                     return true;
                 case JsonValueKind.String:
                     if (!element.TryGetBytesFromBase64(out byte[]? result))
                     {
-                        value = ByteString.Empty;
+                        value = default;
                         return false;
                     }
                     value = ByteString.From(result);
@@ -1196,13 +1196,13 @@ namespace Opc.Ua
                         element,
                         out ArrayOf<byte> array))
                     {
-                        value = ByteString.Empty;
+                        value = default;
                         return false;
                     }
                     value = ByteString.From(array.Span);
                     return true;
                 default:
-                    value = ByteString.Empty;
+                    value = default;
                     return false;
             }
         }
@@ -2712,21 +2712,23 @@ namespace Opc.Ua
         internal bool TryGetEncodeableFromElement<T>(T encodeable, JsonElement element)
             where T : IEncodeable
         {
-            m_stack.Push(element);
-            try
+            switch (element.ValueKind)
             {
-                switch (element.ValueKind)
-                {
-                    case JsonValueKind.Null or JsonValueKind.Undefined:
-                        return true;
-                    default:
+                case JsonValueKind.Null or JsonValueKind.Undefined:
+                    return true;
+                case JsonValueKind.Object:
+                    m_stack.Push(element);
+                    try
+                    {
                         encodeable.Decode(this);
                         return true;
-                }
-            }
-            finally
-            {
-                m_stack.Pop();
+                    }
+                    finally
+                    {
+                        m_stack.Pop();
+                    }
+                default:
+                    return false;
             }
         }
 
@@ -2807,26 +2809,36 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId,
             out MatrixOf<T> values) where T : IEncodeable
         {
-            m_stack.Push(element);
-            try
+            switch (element.ValueKind)
             {
-                if (TryGetInt32ArrayFromElement(
-                        GetPropertyElement(JsonProperties.Dimensions),
-                        out ArrayOf<int> dimensions) &&
-                    TryGetEncodeableArrayFromElement<T>(
-                        GetPropertyElement(JsonProperties.Array),
-                        encodeableTypeId,
-                        out ArrayOf<T> structures))
-                {
-                    values = structures.ToMatrix(dimensions);
+                case JsonValueKind.Null or JsonValueKind.Undefined:
+                    values = default;
                     return true;
-                }
-                values = default;
-                return false;
-            }
-            finally
-            {
-                m_stack.Pop();
+                case JsonValueKind.Object:
+                    m_stack.Push(element);
+                    try
+                    {
+                        if (TryGetInt32ArrayFromElement(
+                                GetPropertyElement(JsonProperties.Dimensions),
+                                out ArrayOf<int> dimensions) &&
+                            TryGetEncodeableArrayFromElement<T>(
+                                GetPropertyElement(JsonProperties.Array),
+                                encodeableTypeId,
+                                out ArrayOf<T> structures))
+                        {
+                            values = structures.ToMatrix(dimensions);
+                            return true;
+                        }
+                        values = default;
+                        return false;
+                    }
+                    finally
+                    {
+                        m_stack.Pop();
+                    }
+                default:
+                    values = default;
+                    return false;
             }
         }
 
@@ -3087,7 +3099,7 @@ namespace Opc.Ua
                         out ushort v):
                         value = Variant.From(v);
                         return true;
-                    case BuiltInType.Int32 when TryGetInt32FromElement(
+                    case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32FromElement(
                         element,
                         out int v):
                         value = Variant.From(v);
@@ -3230,7 +3242,7 @@ namespace Opc.Ua
                         out ArrayOf<ushort> v):
                         value = Variant.From(v);
                         return true;
-                    case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
+                    case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32ArrayFromElement(
                         element,
                         out ArrayOf<int> v):
                         value = Variant.From(v);
@@ -3348,20 +3360,26 @@ namespace Opc.Ua
             }
             else
             {
-                // This is the top element we are currently reading
                 if (readRawValue)
                 {
+                    // If reading raw value, then the eleemnt we are reading is encoded
+                    // using array encoding with both Array and Dimensions properties
+                    // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
                     m_stack.Push(element);
                     element = GetPropertyElement(JsonProperties.Array);
+                    dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
                 }
-                if (dimensionElement.ValueKind == JsonValueKind.Undefined)
+                else if (dimensionElement.ValueKind == JsonValueKind.Undefined)
                 {
-                    // Read dimensions from the parent object, pop back to parent
-                    // get dimension and push back parent to the stack.
+                    // If we read a variant, then the dimenions is part of the parent
+                    // object (e.g. DataValue or Variant. To read pop back to parent
+                    // get dimension and push back parent to the stack. But only if
+                    // the dimension element was not passed already (short cut)
                     JsonElement parent = m_stack.Pop();
                     dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
                     m_stack.Push(parent);
                 }
+
                 // Read dimension array
                 if (!TryGetInt32ArrayFromElement(
                     dimensionElement,
@@ -3403,7 +3421,7 @@ namespace Opc.Ua
                             out ArrayOf<ushort> v):
                             value = Variant.From(v.ToMatrix(dims));
                             return true;
-                        case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
+                        case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32ArrayFromElement(
                             element,
                             out ArrayOf<int> v):
                             value = Variant.From(v.ToMatrix(dims));

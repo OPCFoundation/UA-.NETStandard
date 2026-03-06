@@ -61,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType)
         {
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeArray(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType)
         {
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeMatrix(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType)
         {

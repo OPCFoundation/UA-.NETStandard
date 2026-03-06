@@ -64,7 +64,7 @@ namespace Opc.Ua.Fuzzing
             if (encodeable != null)
             {
                 using var encoder = new JsonEncoder(MessageContext, JsonEncoderOptions.Verbose);
-                encoder.EncodeMessage(encodeable);
+                encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
         }
@@ -106,7 +106,7 @@ namespace Opc.Ua.Fuzzing
             if (encodeable != null)
             {
                 using var encoder = new JsonEncoder(MessageContext, JsonEncoderOptions.Verbose);
-                encoder.EncodeMessage(encodeable);
+                encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
         }

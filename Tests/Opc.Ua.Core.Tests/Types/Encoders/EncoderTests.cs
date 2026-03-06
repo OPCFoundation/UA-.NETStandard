@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultVariantInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeAsVariantInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -206,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeBoundaryValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeArrayAsRandomVariantInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType,
             bool useBoundaryValues,
             int arrayLength)
@@ -264,7 +264,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeZeroLengthArrayAsVariantInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -457,7 +457,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeVariantCollectionInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -591,7 +591,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Repeat(kArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
             [ValueSource(
-                nameof(EncodingTypesAllButJsonNonReversible))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesAll))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -754,7 +754,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Repeat(kArrayRepeats)]
         public void ReEncodeVariantMatrixInDataValue(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -788,9 +788,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("Matrix")]
         [Repeat(kArrayRepeats)]
-        public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleVerboseJson(
+        public void EncodeBuiltInTypeMatrixAsVariantInDataValueToVerboseJson(
             [ValueSource(
-                nameof(EncodingTypesJsonNonReversibleVerbose))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonVerbose))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;

@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Category("ComplexTypes")]
         public void ReEncodeComplexType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureType structureType)
         {
@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Category("ComplexTypes")]
         public void ReEncodeStructureWithOptionalFieldsComplexType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter)
         {
@@ -184,7 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Category("ComplexTypes")]
         public void ReEncodeUnionComplexType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter)
         {

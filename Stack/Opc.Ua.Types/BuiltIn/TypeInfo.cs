@@ -180,6 +180,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a new type info with the built in type and current
+        /// value rank
+        /// </summary>
+        /// <param name="builtInType">The new built in type</param>
+        /// <returns></returns>
+        public TypeInfo WithBuiltInType(BuiltInType builtInType)
+        {
+            return new TypeInfo(builtInType, m_valueRank);
+        }
+
+        /// <summary>
+        /// Creates a new type info with the built in type and new value
+        /// rank.
+        /// </summary>
+        /// <param name="valueRank">The new value rank</param>
+        /// <returns></returns>
+        public TypeInfo WithValueRank(int valueRank)
+        {
+            return new TypeInfo(BuiltInType, valueRank);
+        }
+
+        /// <summary>
         /// Construct the object with a built-in type and a value rank.
         /// Uses static TypeInfo definitions if available.
         /// </summary>

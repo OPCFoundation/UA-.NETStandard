@@ -239,7 +239,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void EncodeMessage<T>(T message) where T : IEncodeable
+        public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
             if (EqualityComparer<T>.Default.Equals(message, default!))
             {
@@ -250,10 +250,29 @@ namespace Opc.Ua
             var typeId = ExpandedNodeId.ToNodeId(message.TypeId, Context.NamespaceUris);
 
             // write the type id.
-            WriteNodeId("TypeId", typeId);
+            WriteNodeId(JsonProperties.UaTypeId, typeId);
 
             // write the message.
-            WriteEncodeable("Body", message);
+            WriteEncodeable(JsonProperties.UaBody, message);
+        }
+
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (EqualityComparer<T>.Default.Equals(message, default!))
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            // convert the namespace uri to an index.
+            var typeId = ExpandedNodeId.ToNodeId(encodeableTypeId, Context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId(JsonProperties.UaTypeId, typeId);
+
+            // write the message.
+            WriteEncodeable(JsonProperties.UaBody, message, encodeableTypeId);
         }
 
         /// <inheritdoc/>
@@ -668,6 +687,13 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodeable<T>(string fieldName, T value)
+            where T : IEncodeable, new()
+        {
+            WriteEncodeable(fieldName, value, default);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
             if (EqualityComparer<T>.Default.Equals(value, default!))
@@ -709,7 +735,16 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
-            where T : IEncodeable
+            where T : IEncodeable, new()
+        {
+            WriteEncodeableArray(fieldName, values, default);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableArray<T>(
+            string fieldName,
+            ArrayOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -719,7 +754,16 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
-            where T : IEncodeable
+            where T : IEncodeable, new()
+        {
+            WriteEncodeableMatrix(fieldName, values, default);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableMatrix<T>(
+            string fieldName,
+            MatrixOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (values.IsNull)
             {
@@ -900,7 +944,7 @@ namespace Opc.Ua
             using var stream = new MemoryStream(buffer, true);
             using var encoder = new JsonEncoder(stream, context);
             // encode message
-            encoder.EncodeMessage(message);
+            encoder.EncodeMessage(message, message.TypeId);
             int length = encoder.Close();
 
             return new ArraySegment<byte>(buffer, 0, length);
@@ -1511,19 +1555,20 @@ namespace Opc.Ua
         /// </summary>
         private void WriteStatusCode(StatusCode value)
         {
-            if (value == StatusCodes.Good)
-            {
-                m_writer.WriteNullValue();
-                return;
-            }
+            // This is intentional, StatusCode type is not nullable and
+            // the default (Good) is represented by an empty object
+            // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.2
             StartObject();
-            WriteUInt32(JsonProperties.Code, value.Code);
-            if (m_options == JsonEncoderOptions.Verbose)
+            if (value != StatusCodes.Good)
             {
-                string symbolicId = value.SymbolicId;
-                if (!string.IsNullOrEmpty(symbolicId))
+                WriteUInt32(JsonProperties.Code, value.Code);
+                if (m_options == JsonEncoderOptions.Verbose)
                 {
-                    WriteString(JsonProperties.Symbol, symbolicId);
+                    string symbolicId = value.SymbolicId;
+                    if (!string.IsNullOrEmpty(symbolicId))
+                    {
+                        WriteString(JsonProperties.Symbol, symbolicId);
+                    }
                 }
             }
             EndObject();
@@ -1566,7 +1611,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteEncodeable<T>(T value) where T : IEncodeable
+        private void WriteEncodeable<T>(T value)
+            where T : IEncodeable
         {
             StartObject();
             value.Encode(this);
@@ -1594,7 +1640,8 @@ namespace Opc.Ua
         /// Write structure as extension object values
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private void WriteEncodeableArrayAsExtensionObjects<T>(ArrayOf<T> values) where T : IEncodeable
+        private void WriteEncodeableArrayAsExtensionObjects<T>(ArrayOf<T> values)
+            where T : IEncodeable
         {
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -1890,6 +1937,7 @@ namespace Opc.Ua
                         WriteUInt16Array(value.GetUInt16Array());
                         break;
                     case BuiltInType.Int32:
+                    case BuiltInType.Enumeration:
                         WriteInt32Array(value.GetInt32Array());
                         break;
                     case BuiltInType.UInt32:
@@ -1943,9 +1991,6 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         WriteDataValueArray(value.GetDataValueArray());
                         break;
-                    case BuiltInType.Enumeration:
-                        WriteInt32Array(value.GetInt32Array());
-                        break;
                     case BuiltInType.Variant:
                         WriteVariantArray(value.GetVariantArray(), suppressUaType);
                         break;
@@ -1991,6 +2036,7 @@ namespace Opc.Ua
                         WriteUInt16Array(value.GetUInt16Matrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.Int32:
+                    case BuiltInType.Enumeration:
                         WriteInt32Array(value.GetInt32Matrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.UInt32:
@@ -2043,9 +2089,6 @@ namespace Opc.Ua
                         break;
                     case BuiltInType.DataValue:
                         WriteDataValueArray(value.GetDataValueMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Enumeration:
-                        WriteInt32Array(value.GetInt32Matrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.Variant:
                         WriteVariantArray(value.GetVariantMatrix().ToArrayOf(out dim), suppressUaType);

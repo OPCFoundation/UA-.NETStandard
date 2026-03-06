@@ -223,6 +223,7 @@ namespace Opc.Ua
             { typeof(Variant), typeof(SerializableVariant) },
             { typeof(LocalizedText), typeof(SerializableLocalizedText) },
             { typeof(ByteString), typeof(SerializableByteString) },
+            { typeof(DateTimeUtc), typeof(DateTime) },
             { typeof(XmlElementCollection), typeof(SerializableXmlElementCollection) }
         };
     }

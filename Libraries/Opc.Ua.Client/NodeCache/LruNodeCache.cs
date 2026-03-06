@@ -601,7 +601,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool IsTypeHierarchyLoaded(ArrayOf<NodeId> typeIds)
         {
-            var types = new Queue<NodeId>(typeIds.ToArray().Where(nodeId => !nodeId.IsNull));
+            var types = new Queue<NodeId>(typeIds.Filter(nodeId => !nodeId.IsNull).ToList());
             while (types.TryDequeue(out NodeId typeId))
             {
                 if (!m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))

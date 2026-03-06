@@ -1268,10 +1268,10 @@ namespace Opc.Ua.Client.ComplexTypes
             bool allowSubTypes = IsAllowSubTypes(structureDefinition);
 
             // check all types
-            var typeList = new List<Type>();
+            var typeList = new List<(bool, Type)>();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                Type newType = await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(
+                (bool isEnum, Type newType) = await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(
                     false);
                 if (newType == null && !IsRecursiveDataType(localDataTypeId, field.DataType))
                 {
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
-                    typeList.Add(newType);
+                    typeList.Add((isEnum, newType));
                 }
             }
 
@@ -1305,7 +1305,7 @@ namespace Opc.Ua.Client.ComplexTypes
             fieldBuilder.AddTypeIdAttribute(complexTypeId, binaryEncodingId, xmlEncodingId);
 
             int order = 1;
-            List<Type>.Enumerator typeListEnumerator = typeList.GetEnumerator();
+            List<(bool, Type)>.Enumerator typeListEnumerator = typeList.GetEnumerator();
             foreach (StructureField field in structureDefinition.Fields)
             {
                 _ = typeListEnumerator.MoveNext();
@@ -1321,11 +1321,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     fieldBuilder.AddField(
                         field,
                         fieldBuilder.GetStructureType(field.ValueRank),
-                        order);
+                        order,
+                        allowSubTypes);
                 }
                 else
                 {
-                    fieldBuilder.AddField(field, typeListEnumerator.Current, order);
+                    (bool isEnum, Type fieldType) = typeListEnumerator.Current;
+                    fieldBuilder.AddField(field, fieldType, order, allowSubTypes, isEnum);
                 }
                 order++;
             }
@@ -1369,7 +1371,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
         /// <exception cref="DataTypeNotSupportedException"></exception>
-        private async Task<Type> GetFieldTypeAsync(
+        private async Task<(bool isEnum, Type fieldType)> GetFieldTypeAsync(
             StructureField field,
             bool allowSubTypes,
             CancellationToken ct = default)
@@ -1399,19 +1401,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     field.DataType = superType;
                     return await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);
                 }
-                return null;
+                return (false, null);
             }
 
+            bool isEnum = fieldType.IsEnum;
             if (field.ValueRank == ValueRanks.OneDimension)
             {
-                return fieldType.MakeArrayType();
+                return (isEnum, fieldType.MakeArrayType());
             }
             else if (field.ValueRank >= ValueRanks.TwoDimensions)
             {
-                return fieldType.MakeArrayType(field.ValueRank);
+                return (isEnum, fieldType.MakeArrayType(field.ValueRank));
             }
 
-            return fieldType;
+            return (isEnum, fieldType);
         }
 
         /// <summary>

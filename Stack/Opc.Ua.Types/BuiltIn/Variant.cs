@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1370,7 +1371,8 @@ namespace Opc.Ua
         /// Converts the variant to a enum array value or returns the default.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default) where T : struct, Enum
+        public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default)
+            where T : struct, Enum
         {
             return TryGet(out ArrayOf<T> v) ? v : defaultValue;
         }
@@ -2964,7 +2966,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(string value)
         {
-            return value is null ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -2994,7 +2996,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ByteString value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3077,7 +3079,9 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(T value, bool copy = false)
             where T : IEncodeable
         {
-            return value is null ? default : new Variant(new ExtensionObject(value, copy));
+            return value is null ?
+                new Variant(ExtensionObject.Null) :
+                new Variant(new ExtensionObject(value, copy));
         }
 
         /// <summary>
@@ -3087,7 +3091,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(DataValue value)
         {
-            return value is null ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3107,7 +3111,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<bool> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3117,7 +3121,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<sbyte> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3127,7 +3131,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<byte> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3137,7 +3141,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<short> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3147,7 +3151,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ushort> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3157,7 +3161,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<int> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3170,7 +3174,7 @@ namespace Opc.Ua
         {
             // All enum arrays are stored as int32 arrays, so we
             // need to convert them to int32 if needed.
-            return value.IsNull ? default : new Variant(
+            return new Variant(
                 default,
                 TypeInfo.Arrays.Enumeration,
                 value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
@@ -3194,7 +3198,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<uint> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3204,7 +3208,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<long> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3214,7 +3218,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ulong> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3224,7 +3228,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<float> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3234,7 +3238,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<double> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3244,7 +3248,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<string> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3254,7 +3258,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<DateTime> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3264,7 +3268,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<Uuid> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3274,7 +3278,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ByteString> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3284,7 +3288,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<XmlElement> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3294,7 +3298,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<NodeId> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3304,7 +3308,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<ExpandedNodeId> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3314,7 +3318,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<StatusCode> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3324,7 +3328,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<QualifiedName> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3334,7 +3338,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<LocalizedText> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3344,7 +3348,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<ExtensionObject> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3368,7 +3372,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<DataValue> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3378,7 +3382,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<Variant> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3388,7 +3392,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<bool> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3398,7 +3402,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<sbyte> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3408,7 +3412,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<byte> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3418,7 +3422,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<short> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3428,7 +3432,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ushort> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3438,7 +3442,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<int> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3451,7 +3455,7 @@ namespace Opc.Ua
         {
             // All enum matrices are stored as int32 matrices, so we
             // need to convert them to int32
-            return value.IsNull ? default : new Variant(
+            return new Variant(
                 default,
                 TypeInfo.Create(BuiltInType.Enumeration, value.Dimensions.Length),
                 value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
@@ -3464,7 +3468,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<uint> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3474,7 +3478,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<long> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3484,7 +3488,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ulong> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3494,7 +3498,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<float> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3504,7 +3508,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<double> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3514,7 +3518,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<string> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3524,7 +3528,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<DateTime> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3534,7 +3538,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<Uuid> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3544,7 +3548,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ByteString> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3554,7 +3558,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<XmlElement> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3564,7 +3568,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<NodeId> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3574,7 +3578,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<ExpandedNodeId> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3584,7 +3588,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<StatusCode> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3594,7 +3598,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<QualifiedName> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3604,7 +3608,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<LocalizedText> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3614,7 +3618,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<ExtensionObject> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3638,7 +3642,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<DataValue> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -3648,7 +3652,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<Variant> value)
         {
-            return value.IsNull ? default : new Variant(value);
+            return new Variant(value);
         }
 
         /// <summary>
@@ -7335,6 +7339,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the inner value is default or null
+        /// </summary>
+        /// <returns></returns>
+        public static Variant CreateDefault(TypeInfo typeInfo)
+        {
+            return new Variant(default, typeInfo, null);
+        }
+
+        /// <summary>
         /// Convert to a variant from an xml stream. Used during initialization
         /// of values from string values.
         /// </summary>
@@ -7613,7 +7626,8 @@ namespace Opc.Ua
         /// <param name="value">The Enum value to set this Variant to</param>
         /// <param name="enumType">The Enum type</param>
         /// <exception cref="ServiceResultException"></exception>
-        internal static Variant FromEnumeration(object value, Type enumType)
+        [Experimental("UA_NETStandard_1")]
+        public static Variant FromEnumeration(object value, Type enumType)
         {
 #if NET8_0_OR_GREATER
             Union data = default;
@@ -7653,6 +7667,50 @@ namespace Opc.Ua
 #else
             return new Variant(default, TypeInfo.Scalars.Enumeration, value);
 #endif
+        }
+
+        /// <summary>
+        /// From enumeration
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static Variant FromEnumeration(int value, Type enumType = null)
+        {
+#if NET8_0_OR_GREATER
+            Union data = default;
+            data.Int32 = value;
+            return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
+#else
+            return new Variant(default, TypeInfo.Scalars.Enumeration, value);
+#endif
+        }
+
+        /// <summary>
+        /// From enumeration array
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static Variant FromEnumeration(ArrayOf<int> value, Type enumType = null)
+        {
+            if (value.IsNull)
+            {
+                return default;
+            }
+            return new Variant(default, TypeInfo.Arrays.Enumeration, value);
+        }
+
+        /// <summary>
+        /// From enumeration matrix
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static Variant FromEnumeration(MatrixOf<int> value, Type enumType = null)
+        {
+            if (value.IsNull)
+            {
+                return default;
+            }
+            return new Variant(
+                default,
+                TypeInfo.Create(BuiltInType.Enumeration, value.Dimensions.Length),
+                value);
         }
 
         /// <summary>

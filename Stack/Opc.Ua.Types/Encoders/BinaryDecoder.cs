@@ -1490,7 +1490,12 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             ArrayOf<int> dimensions = ReadInt32Array(null);
-            return ReadEncodeableArray<T>(null, encodeableTypeId).ToMatrix(dimensions);
+            ArrayOf<T> array = ReadEncodeableArray<T>(null, encodeableTypeId);
+            if (dimensions.IsEmpty)
+            {
+                return default;
+            }
+            return array.ToMatrix(dimensions);
         }
 
         /// <inheritdoc/>

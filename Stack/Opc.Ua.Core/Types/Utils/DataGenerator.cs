@@ -840,49 +840,49 @@ namespace Opc.Ua.Test
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
-                    return new Variant(GetRandomArray<bool>(true, length, true));
+                    return Variant.From(GetRandomArray<bool>(true, length, true));
                 case BuiltInType.SByte:
-                    return new Variant(GetRandomArray<sbyte>(true, length, true));
+                    return Variant.From(GetRandomArray<sbyte>(true, length, true));
                 case BuiltInType.Byte:
-                    return new Variant(GetRandomArray<byte>(true, length, true));
+                    return Variant.From(GetRandomArray<byte>(true, length, true));
                 case BuiltInType.Int16:
-                    return new Variant(GetRandomArray<short>(true, length, true));
+                    return Variant.From(GetRandomArray<short>(true, length, true));
                 case BuiltInType.UInt16:
-                    return new Variant(GetRandomArray<ushort>(true, length, true));
+                    return Variant.From(GetRandomArray<ushort>(true, length, true));
                 case BuiltInType.Int32:
-                    return new Variant(GetRandomArray<int>(true, length, true));
+                    return Variant.From(GetRandomArray<int>(true, length, true));
                 case BuiltInType.UInt32:
-                    return new Variant(GetRandomArray<uint>(true, length, true));
+                    return Variant.From(GetRandomArray<uint>(true, length, true));
                 case BuiltInType.Int64:
-                    return new Variant(GetRandomArray<long>(true, length, true));
+                    return Variant.From(GetRandomArray<long>(true, length, true));
                 case BuiltInType.UInt64:
-                    return new Variant(GetRandomArray<ulong>(true, length, true));
+                    return Variant.From(GetRandomArray<ulong>(true, length, true));
                 case BuiltInType.Float:
-                    return new Variant(GetRandomArray<float>(true, length, true));
+                    return Variant.From(GetRandomArray<float>(true, length, true));
                 case BuiltInType.Double:
-                    return new Variant(GetRandomArray<double>(true, length, true));
+                    return Variant.From(GetRandomArray<double>(true, length, true));
                 case BuiltInType.String:
-                    return new Variant(GetRandomArray<string>(true, length, true));
+                    return Variant.From(GetRandomArray<string>(true, length, true));
                 case BuiltInType.DateTime:
-                    return new Variant(GetRandomArray<DateTime>(true, length, true));
+                    return Variant.From(GetRandomArray<DateTime>(true, length, true));
                 case BuiltInType.Guid:
-                    return new Variant(GetRandomArray<Uuid>(true, length, true));
+                    return Variant.From(GetRandomArray<Uuid>(true, length, true));
                 case BuiltInType.ByteString:
-                    return new Variant(GetRandomArray<ByteString>(true, length, true));
+                    return Variant.From(GetRandomArray<ByteString>(true, length, true));
                 case BuiltInType.XmlElement:
-                    return new Variant(GetRandomArray<XmlElement>(true, length, true));
+                    return Variant.From(GetRandomArray<XmlElement>(true, length, true));
                 case BuiltInType.NodeId:
-                    return new Variant(GetRandomArray<NodeId>(true, length, true));
+                    return Variant.From(GetRandomArray<NodeId>(true, length, true));
                 case BuiltInType.ExpandedNodeId:
-                    return new Variant(GetRandomArray<ExpandedNodeId>(true, length, true));
+                    return Variant.From(GetRandomArray<ExpandedNodeId>(true, length, true));
                 case BuiltInType.QualifiedName:
-                    return new Variant(GetRandomArray<QualifiedName>(true, length, true));
+                    return Variant.From(GetRandomArray<QualifiedName>(true, length, true));
                 case BuiltInType.LocalizedText:
-                    return new Variant(GetRandomArray<LocalizedText>(true, length, true));
+                    return Variant.From(GetRandomArray<LocalizedText>(true, length, true));
                 case BuiltInType.StatusCode:
-                    return new Variant(GetRandomArray<StatusCode>(true, length, true));
+                    return Variant.From(GetRandomArray<StatusCode>(true, length, true));
                 case BuiltInType.Variant:
-                    return new Variant(GetRandomArray<Variant>(true, length, true));
+                    return Variant.From(GetRandomVariantArray(true, length, true));
                 case BuiltInType.Null:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
@@ -891,7 +891,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Enumeration:
-                    return new Variant(GetRandomScalar(builtInType));
+                    return Variant.From(GetRandomScalar(builtInType));
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {builtInType}");
@@ -1015,17 +1015,22 @@ namespace Opc.Ua.Test
             int length,
             bool fixedLength)
         {
-            Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
-            if (array == null)
+            if (length < 0)
             {
                 return Array.Empty<Variant>();
             }
-            var variants = new Variant[array.Length];
+
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+
+            var variants = new Variant[length];
             var typeInfo = TypeInfo.CreateScalar(builtInType);
 
             for (int ii = 0; ii < variants.Length; ii++)
             {
-                variants[ii] = new Variant(array.GetValue(ii), typeInfo);
+                variants[ii] = GetRandomVariant(false);
             }
 
             return variants;

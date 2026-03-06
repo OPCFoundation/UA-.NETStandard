@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 Type fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
-                fieldBuilder.AddField(field, fieldType, i++);
+                fieldBuilder.AddField(field, fieldType, i++, fieldType.IsEnum);
             }
             Type complexType = fieldBuilder.CreateType();
             if (context != null)
@@ -322,11 +322,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    _ = PrettifyAndValidateJson(buffer);
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
                     break;
                 case EncodingType.Xml:
-                    _ = PrettifyAndValidateXml(buffer);
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
