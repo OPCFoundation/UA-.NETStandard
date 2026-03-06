@@ -104,6 +104,7 @@ namespace Opc.Ua.Server
 
             // initialize diagnostics.
             DateTime now = DateTime.UtcNow;
+            m_lastContactTickCount = HiResClock.TickCount64;
             SessionDiagnostics = new SessionDiagnosticsDataType
             {
                 SessionId = default,
@@ -260,9 +261,8 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return SessionDiagnostics.ClientLastContactTime.AddMilliseconds(
-                            SessionDiagnostics.ActualSessionTimeout
-                        ) < DateTime.UtcNow;
+                    return HiResClock.TickCount64 - m_lastContactTickCount >
+                        (long)SessionDiagnostics.ActualSessionTimeout;
                 }
             }
         }
@@ -277,6 +277,21 @@ namespace Opc.Ua.Server
                 lock (DiagnosticsLock)
                 {
                     return SessionDiagnostics.ClientLastContactTime;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// Used for timeout calculations that are immune to system time changes.
+        /// </summary>
+        public long LastContactTickCount
+        {
+            get
+            {
+                lock (DiagnosticsLock)
+                {
+                    return m_lastContactTickCount;
                 }
             }
         }
@@ -594,6 +609,7 @@ namespace Opc.Ua.Server
                 lock (DiagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    m_lastContactTickCount = HiResClock.TickCount64;
                 }
 
                 // indicate whether the user context has changed.
@@ -1120,6 +1136,7 @@ namespace Opc.Ua.Server
                 if (!error)
                 {
                     SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    m_lastContactTickCount = HiResClock.TickCount64;
                 }
 
                 SessionDiagnostics.TotalRequestCount.TotalCount++;
@@ -1263,5 +1280,6 @@ namespace Opc.Ua.Server
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
+        private long m_lastContactTickCount;
     }
 }
