@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -494,6 +495,169 @@ namespace Opc.Ua.Client.Tests
                         {
                             await session.CloseAsync().ConfigureAwait(false);
                         }
+                        session.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"Failed to close session: {ex.Message}");
+                    }
+                })).ToList();
+                await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Load test a server with multiple sessions subscribing to events.
+        /// Verifies that event handling remains responsive under load with many concurrent
+        /// event subscriptions, addressing the performance issue where server becomes
+        /// unresponsive as the number of monitored items increases.
+        /// </summary>
+        [Test]
+        [Explicit]
+        [Order(120)]
+        public async Task ServerEventSubscribeLoadTestAsync()
+        {
+            const int sessionCount = 10;
+            const int subscriptionsPerSession = 5;
+            const int publishingInterval = 100;
+            const int eventCount = 500;
+            const int testDurationSeconds = 30;
+
+            var sessions = new ConcurrentBag<ISession>();
+            long eventsReceived = 0;
+
+            using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+
+            try
+            {
+                TestContext.Out.WriteLine($"Creating {sessionCount} sessions with {subscriptionsPerSession} event subscriptions each.");
+
+                // Create sessions with event subscriptions in parallel.
+                var createSessionTasks = new List<Task>();
+                for (int i = 0; i < sessionCount; i++)
+                {
+                    createSessionTasks.Add(Task.Run(async () =>
+                    {
+                        ISession session = await ClientFixture.ConnectAsync(
+                            ServerUrl,
+                            SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                        sessions.Add(session);
+
+                        for (int j = 0; j < subscriptionsPerSession; j++)
+                        {
+                            var subscription = new Subscription(session.DefaultSubscription)
+                            {
+                                PublishingInterval = publishingInterval
+                            };
+
+                            // Build an event filter for the base event type.
+                            var eventFilter = new EventFilter();
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.EventId));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.EventType));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.SourceNode));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.SourceName));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.Time));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.Message));
+                            eventFilter.AddSelectClause(
+                                ObjectTypes.BaseEventType,
+                                QualifiedName.From(BrowseNames.Severity));
+
+                            // Monitor the Server node for events.
+                            var monitoredItem = new MonitoredItem(subscription.DefaultItem)
+                            {
+                                StartNodeId = ObjectIds.Server,
+                                AttributeId = Attributes.EventNotifier,
+                                MonitoringMode = MonitoringMode.Reporting,
+                                Filter = eventFilter,
+                                QueueSize = (uint)eventCount
+                            };
+
+                            subscription.FastEventCallback = (sub, notification, _) =>
+                            {
+                                Interlocked.Add(ref eventsReceived, notification.Events.Count);
+                            };
+
+                            subscription.AddItem(monitoredItem);
+                            session.AddSubscription(subscription);
+                            await subscription.CreateAsync().ConfigureAwait(false);
+                        }
+                    }, testCts.Token));
+                }
+
+                await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
+
+                int totalSubscriptions = sessionCount * subscriptionsPerSession;
+                TestContext.Out.WriteLine(
+                    $"Created {totalSubscriptions} event subscriptions across {sessionCount} sessions.");
+                TestContext.Out.WriteLine($"Generating {eventCount} events on the server...");
+
+                // Generate events directly on the server to stress-test event delivery.
+                IServerInternal serverInternal = ReferenceServer.CurrentInstance;
+                ISystemContext serverContext = serverInternal.DefaultSystemContext;
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < eventCount; i++)
+                {
+                    var e = new BaseEventState(null);
+                    e.Initialize(
+                        serverContext,
+                        null,
+                        EventSeverity.Medium,
+                        new LocalizedText($"LoadTest event {i}"));
+                    serverInternal.ReportEvent(serverContext, e);
+                }
+
+                sw.Stop();
+                TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
+                    $"({(double)eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
+
+                // Wait for subscriptions to deliver the events.
+                // Allow several publishing intervals for notifications to be processed.
+                await Task.Delay(publishingInterval * 20).ConfigureAwait(false);
+
+                long expectedTotal = (long)eventCount * totalSubscriptions;
+                long received = Interlocked.Read(ref eventsReceived);
+
+                TestContext.Out.WriteLine($"Expected event notifications : {expectedTotal}");
+                TestContext.Out.WriteLine($"Received event notifications : {received}");
+
+                double receiveRatio = expectedTotal > 0 ? (double)received / expectedTotal : 0;
+                TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
+
+                NUnit.Framework.Assert.That(
+                    received,
+                    Is.GreaterThan(0),
+                    "No event notifications were received.");
+
+                NUnit.Framework.Assert.That(
+                    receiveRatio,
+                    Is.GreaterThan(0.99),
+                    "The event notification receive ratio is too low.");
+            }
+            finally
+            {
+                // Cleanup all sessions.
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (session.Connected)
+                        {
+                            await session.CloseAsync().ConfigureAwait(false);
+                        }
+
                         session.Dispose();
                     }
                     catch (Exception ex)

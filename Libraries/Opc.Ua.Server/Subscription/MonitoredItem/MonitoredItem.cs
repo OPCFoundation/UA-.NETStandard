@@ -1036,6 +1036,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(instance));
             }
 
+            EventFilter filter;
+            IList<string> preferredLocales;
+
             lock (m_lock)
             {
                 // this method should only be called for objects or views.
@@ -1062,28 +1065,56 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // construct the context to use for the event filter.
-                var context = new FilterContext(
-                    m_server.NamespaceUris,
-                    m_server.TypeTree,
-                    Session?.PreferredLocales,
-                    m_server.Telemetry);
-
                 // event filter must be specified.
-                if (m_filterToUse is not EventFilter filter)
+                if (m_filterToUse is not EventFilter f)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-                // apply filter.
-                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
+                filter = f;
+                preferredLocales = Session?.PreferredLocales;
+
+                // construct the context to use for the event filter.
+                var filterContext = new FilterContext(
+                    m_server.NamespaceUris,
+                    m_server.TypeTree,
+                    preferredLocales,
+                    m_server.Telemetry);
+
+                // apply filter - must be done inside the lock to protect m_filteredRetainConditionIds.
+                if (!bypassFilter && !CanSendFilteredAlarm(filterContext, filter, instance))
+                {
+                    return;
+                }
+            }
+
+            // fetch the event fields outside the lock to reduce contention.
+            // GetEventFields traverses the event node hierarchy to read attribute values
+            // for each select clause in the filter, which can be expensive under load.
+            var context = new FilterContext(
+                m_server.NamespaceUris,
+                m_server.TypeTree,
+                preferredLocales,
+                m_server.Telemetry);
+
+            EventFieldList fields = GetEventFields(context, filter, instance);
+
+            lock (m_lock)
+            {
+                // Re-check queue state since it may have changed while reading event fields outside the lock.
+                if (m_eventQueueHandler == null)
                 {
                     return;
                 }
 
-                // fetch the event fields.
-                EventFieldList fields = GetEventFields(context, filter, instance);
-                QueueEvent(fields);
+                if (m_eventQueueHandler.SetQueueOverflowIfFull())
+                {
+                    return;
+                }
+
+                m_eventQueueHandler.QueueEvent(fields);
+                m_readyToPublish = true;
+                m_readyToTrigger = true;
             }
         }
 
