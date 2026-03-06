@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Server
             }
 
             EventFilter filter;
-            IList<string> preferredLocales;
+            FilterContext context;
 
             lock (m_lock)
             {
@@ -1072,17 +1072,17 @@ namespace Opc.Ua.Server
                 }
 
                 filter = f;
-                preferredLocales = Session?.PreferredLocales;
 
                 // construct the context to use for the event filter.
-                var filterContext = new FilterContext(
+                // Capture preferred locales inside the lock so the context reflects the current session state.
+                context = new FilterContext(
                     m_server.NamespaceUris,
                     m_server.TypeTree,
-                    preferredLocales,
+                    Session?.PreferredLocales,
                     m_server.Telemetry);
 
                 // apply filter - must be done inside the lock to protect m_filteredRetainConditionIds.
-                if (!bypassFilter && !CanSendFilteredAlarm(filterContext, filter, instance))
+                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
                 {
                     return;
                 }
@@ -1091,17 +1091,14 @@ namespace Opc.Ua.Server
             // fetch the event fields outside the lock to reduce contention.
             // GetEventFields traverses the event node hierarchy to read attribute values
             // for each select clause in the filter, which can be expensive under load.
-            var context = new FilterContext(
-                m_server.NamespaceUris,
-                m_server.TypeTree,
-                preferredLocales,
-                m_server.Telemetry);
-
+            // The FilterContext is immutable after construction and can be safely reused here.
             EventFieldList fields = GetEventFields(context, filter, instance);
 
             lock (m_lock)
             {
                 // Re-check queue state since it may have changed while reading event fields outside the lock.
+                // Both the overflow check and the enqueue are atomic with respect to m_lock, so there is
+                // no race condition between them.
                 if (m_eventQueueHandler == null)
                 {
                     return;

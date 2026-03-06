@@ -624,8 +624,9 @@ namespace Opc.Ua.Client.Tests
                     $"({(double)eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
 
                 // Wait for subscriptions to deliver the events.
-                // Allow several publishing intervals for notifications to be processed.
-                await Task.Delay(publishingInterval * 20).ConfigureAwait(false);
+                // Allow enough publishing intervals for all notifications to be sent and acknowledged.
+                const int publishingIntervalsToWait = 20;
+                await Task.Delay(publishingInterval * publishingIntervalsToWait).ConfigureAwait(false);
 
                 long expectedTotal = (long)eventCount * totalSubscriptions;
                 long received = Interlocked.Read(ref eventsReceived);
