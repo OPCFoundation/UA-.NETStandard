@@ -1491,7 +1491,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                if (DateTime.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (HiResClock.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
                     return;
                 }
@@ -1515,7 +1515,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadOutOfService;
                 }
 
-                if (DateTime.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (HiResClock.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
                     // diagnostic nodes already scanned.
                     return ServiceResult.Good;
@@ -1621,7 +1621,7 @@ namespace Opc.Ua.Server
                     {
                         m_doScanBusy = true;
 
-                        m_lastDiagnosticsScanTime = DateTime.UtcNow;
+                        m_lastDiagnosticsScanTime = HiResClock.UtcNow;
 
                         // update server diagnostics.
                         UpdateServerDiagnosticsSummary();

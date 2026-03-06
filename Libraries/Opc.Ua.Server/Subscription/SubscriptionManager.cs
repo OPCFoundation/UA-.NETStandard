@@ -2061,7 +2061,7 @@ namespace Opc.Ua.Server
 
                 while (true)
                 {
-                    DateTime start = DateTime.UtcNow;
+                    DateTime start = HiResClock.UtcNow;
 
                     SessionPublishQueue[] queues = null;
                     ISubscription[] abandonedSubscriptions = null;
