@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
             // always add the core node manager to the second of the list.
             ICoreNodeManager coreNodeManager = server.MainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex);
 
-            m_nodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
+            m_nodeManagers.Add(coreNodeManager);
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -303,7 +303,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
+        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1] as ICoreNodeManager;
 
         /// <inheritdoc/>
         public IDiagnosticsNodeManager DiagnosticsNodeManager

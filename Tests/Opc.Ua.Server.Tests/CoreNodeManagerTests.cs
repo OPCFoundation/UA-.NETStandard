@@ -36,9 +36,9 @@ using Quickstarts.ReferenceServer;
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
-    [Category("CoreNodeManager2")]
+    [Category("CoreNodeManager")]
     [Parallelizable]
-    public class CoreNodeManager2Tests
+    public class CoreNodeManagerTests
     {
         [Test]
         public async Task ImportNodes_IsInternal_UpdatesDiagnosticsAsync()
@@ -59,8 +59,8 @@ namespace Opc.Ua.Server.Tests
                         MaxDurableNotificationQueueSize = 100
                     }
                 };
-                var nodeManager = new CoreNodeManager2(server.CurrentInstance, config);
-                nodeManager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+                var nodeManager = new CoreNodeManager(server.CurrentInstance, config);
+                await nodeManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
                 // Create a node in Namespace 0 that also exists in DiagnosticsNodeManager (e.g. Server Object)
                 // Note: We need a node that exists in DiagnosticsNodeManager. StandardServer populates it with BaseNodes.
@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests
                 serverNode.AddReference(ReferenceTypeIds.HasComponent, false, targetNodeId);
 
                 // Act - isInternal = false
-                nodeManager.ImportNodes(server.CurrentInstance.DefaultSystemContext, [serverNode], false);
+                await nodeManager.ImportNodesAsync(server.CurrentInstance.DefaultSystemContext, [serverNode], false).ConfigureAwait(false);
 
                 // Assert
                 // Check if DiagnosticsNodeManager has the reference
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests
                 };
                 serverNode2.AddReference(ReferenceTypeIds.HasComponent, false, targetNodeId);
 
-                nodeManager.ImportNodes(server.CurrentInstance.DefaultSystemContext, [serverNode2], true);
+                await nodeManager.ImportNodesAsync(server.CurrentInstance.DefaultSystemContext, [serverNode2], true).ConfigureAwait(false);
 
                 // Assert
                 Assert.That(diagNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, targetNodeId), Is.False,
