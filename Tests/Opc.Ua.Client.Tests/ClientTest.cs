@@ -966,7 +966,7 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy, string userTokenPolicy)
         {
 
-            UserIdentity userIdentity = new UserIdentity("user1", "Password123!"u8);
+            UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
