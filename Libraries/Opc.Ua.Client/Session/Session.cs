@@ -1294,7 +1294,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
-                    tokenSecurityPolicyUri,
+                    m_userTokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
