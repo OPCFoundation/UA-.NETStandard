@@ -507,7 +507,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTime(string fieldName, DateTime value)
+        public void WriteDateTime(string fieldName, DateTimeUtc value)
         {
             WriteDateTime(fieldName, value, EscapeOptions.None);
         }
@@ -808,7 +808,7 @@ namespace Opc.Ua
                         EscapeOptions.NoFieldNameEscape);
                 }
 
-                if (value.SourceTimestamp != DateTime.MinValue)
+                if (value.SourceTimestamp != DateTimeUtc.MinValue)
                 {
                     WriteDateTime(
                         "SourceTimestamp",
@@ -821,7 +821,7 @@ namespace Opc.Ua
                     }
                 }
 
-                if (value.ServerTimestamp != DateTime.MinValue)
+                if (value.ServerTimestamp != DateTimeUtc.MinValue)
                 {
                     WriteDateTime(
                         "ServerTimestamp",
@@ -1387,7 +1387,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -1404,7 +1404,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (values[ii] <= DateTime.MinValue)
+                if (values[ii] <= DateTimeUtc.MinValue)
                 {
                     WriteSimpleFieldNull(null);
                 }
@@ -2364,20 +2364,20 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a UTC date/time to the stream. Reduce escape overhead for fieldname.
         /// </summary>
-        private void WriteDateTime(string fieldName, DateTime value, EscapeOptions escapeOptions)
+        private void WriteDateTime(string fieldName, DateTimeUtc value, EscapeOptions escapeOptions)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
+            if (fieldName != null && !IncludeDefaultValues && value == DateTimeUtc.MinValue)
             {
                 WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             escapeOptions |= EscapeOptions.NoValueEscape;
-            if (value <= DateTime.MinValue)
+            if (value <= DateTimeUtc.MinValue)
             {
                 WriteSimpleField(fieldName, "\"0001-01-01T00:00:00Z\"", escapeOptions);
             }
-            else if (value >= DateTime.MaxValue)
+            else if (value >= DateTimeUtc.MaxValue)
             {
                 WriteSimpleField(fieldName, "\"9999-12-31T23:59:59Z\"", escapeOptions);
             }
@@ -2385,7 +2385,7 @@ namespace Opc.Ua
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
-                ConvertUniversalTimeToString(value, valueString, out int charsWritten);
+                ConvertUniversalTimeToString((DateTime)value, valueString, out int charsWritten);
                 WriteSimpleFieldAsSpan(
                     fieldName,
                     valueString[..charsWritten],
@@ -2393,7 +2393,7 @@ namespace Opc.Ua
 #else
                 WriteSimpleField(
                     fieldName,
-                    ConvertUniversalTimeToString(value),
+                    ConvertUniversalTimeToString((DateTime)value),
                     escapeOptions | EscapeOptions.Quotes);
 #endif
             }

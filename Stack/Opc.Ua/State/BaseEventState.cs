@@ -69,8 +69,8 @@ namespace Opc.Ua
                 }
             }
 
-            m_time = PropertyState<DateTime>.With<VariantBuilder>(this, DateTime.UtcNow);
-            m_receiveTime = PropertyState<DateTime>.With<VariantBuilder>(this, DateTime.UtcNow);
+            m_time = PropertyState<DateTimeUtc>.With<VariantBuilder>(this, DateTimeUtc.Now);
+            m_receiveTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(this, DateTimeUtc.Now);
             m_severity = PropertyState<ushort>.With<VariantBuilder>(this, (ushort)severity);
             m_message = PropertyState<LocalizedText>.With<VariantBuilder>(this, message);
         }

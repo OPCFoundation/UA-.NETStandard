@@ -75,7 +75,7 @@ namespace Opc.Ua
         IEquatable<float>,
         IEquatable<double>,
         IEquatable<string>,
-        IEquatable<DateTime>,
+        IEquatable<DateTimeUtc>,
         IEquatable<Uuid>,
         IEquatable<ByteString>,
         IEquatable<XmlElement>,
@@ -99,7 +99,7 @@ namespace Opc.Ua
         IEquatable<ArrayOf<float>>,
         IEquatable<ArrayOf<double>>,
         IEquatable<ArrayOf<string>>,
-        IEquatable<ArrayOf<DateTime>>,
+        IEquatable<ArrayOf<DateTimeUtc>>,
         IEquatable<ArrayOf<Uuid>>,
         IEquatable<ArrayOf<ByteString>>,
         IEquatable<ArrayOf<XmlElement>>,
@@ -124,7 +124,7 @@ namespace Opc.Ua
         IEquatable<MatrixOf<float>>,
         IEquatable<MatrixOf<double>>,
         IEquatable<MatrixOf<string>>,
-        IEquatable<MatrixOf<DateTime>>,
+        IEquatable<MatrixOf<DateTimeUtc>>,
         IEquatable<MatrixOf<Uuid>>,
         IEquatable<MatrixOf<ByteString>>,
         IEquatable<MatrixOf<XmlElement>>,
@@ -258,10 +258,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="DateTime"/> value
+        /// Creates a new variant with a <see cref="DateTimeUtc"/> value
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/> value of the Variant</param>
-        public Variant(DateTime value)
+        /// <param name="value">The <see cref="DateTimeUtc"/> value of the Variant</param>
+        public Variant(DateTimeUtc value)
         {
             m_union.DateTime = value;
             m_typeInfo = TypeInfo.Scalars.DateTime;
@@ -500,10 +500,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="DateTime"/>-array value
+        /// Creates a new variant with a <see cref="DateTimeUtc"/>-array value
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-array value of the Variant</param>
-        public Variant(ArrayOf<DateTime> value)
+        /// <param name="value">The <see cref="DateTimeUtc"/>-array value of the Variant</param>
+        public Variant(ArrayOf<DateTimeUtc> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.DateTime;
@@ -777,10 +777,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="DateTime"/>-matrix value
+        /// Creates a new variant with a <see cref="DateTimeUtc"/>-matrix value
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-matrix value of the Variant</param>
-        public Variant(MatrixOf<DateTime> value)
+        /// <param name="value">The <see cref="DateTimeUtc"/>-matrix value of the Variant</param>
+        public Variant(MatrixOf<DateTimeUtc> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Create(
@@ -1063,8 +1063,8 @@ namespace Opc.Ua
                         .GetHashCode(m_value as float[]),
                     BuiltInType.Double => SequenceEqualityComparer<double>.Default
                         .GetHashCode(m_value as double[]),
-                    BuiltInType.DateTime => DateTimeArrayComparer.Default
-                        .GetHashCode(m_value as DateTime[]),
+                    BuiltInType.DateTime => ArrayEqualityComparer<DateTimeUtc>.Default
+                        .GetHashCode(m_value as DateTimeUtc[]),
                     BuiltInType.StatusCode => ArrayEqualityComparer<StatusCode>.Default
                         .GetHashCode(m_value as StatusCode[]),
                     BuiltInType.Guid => SequenceEqualityComparer<Uuid>.Default
@@ -1232,11 +1232,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts the variant to a DateTime value or returns the default.
+        /// Converts the variant to a DateTimeUtc value or returns the default.
         /// </summary>
-        public DateTime GetDateTime(DateTime defaultValue = default)
+        public DateTimeUtc GetDateTime(DateTimeUtc defaultValue = default)
         {
-            return TryGet(out DateTime v) ? v : defaultValue;
+            return TryGet(out DateTimeUtc v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1437,11 +1437,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts the variant to a DateTime-array value or returns the default.
+        /// Converts the variant to a DateTimeUtc-array value or returns the default.
         /// </summary>
-        public ArrayOf<DateTime> GetDateTimeArray(ArrayOf<DateTime> defaultValue = default)
+        public ArrayOf<DateTimeUtc> GetDateTimeArray(ArrayOf<DateTimeUtc> defaultValue = default)
         {
-            return TryGet(out ArrayOf<DateTime> v) ? v : defaultValue;
+            return TryGet(out ArrayOf<DateTimeUtc> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1649,11 +1649,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts the variant to a DateTime-matrix value or returns the default.
+        /// Converts the variant to a DateTimeUtc-matrix value or returns the default.
         /// </summary>
-        public MatrixOf<DateTime> GetDateTimeMatrix(MatrixOf<DateTime> defaultValue = default)
+        public MatrixOf<DateTimeUtc> GetDateTimeMatrix(MatrixOf<DateTimeUtc> defaultValue = default)
         {
-            return TryGet(out MatrixOf<DateTime> v) ? v : defaultValue;
+            return TryGet(out MatrixOf<DateTimeUtc> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1962,11 +1962,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Try convert the variant to a <see cref="DateTime"/> value.
+        /// Try convert the variant to a <see cref="DateTimeUtc"/> value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/> value to get
+        /// <param name="value">The <see cref="DateTimeUtc"/> value to get
         /// </param>
-        public bool TryGet(out DateTime value)
+        public bool TryGet(out DateTimeUtc value)
         {
             return TryGetScalar(in m_union.DateTime, out value, BuiltInType.DateTime);
         }
@@ -2345,11 +2345,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Try convert the variant to a <see cref="DateTime"/>-array value.
+        /// Try convert the variant to a <see cref="DateTimeUtc"/>-array value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-array value to get
+        /// <param name="value">The <see cref="DateTimeUtc"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<DateTime> value)
+        public bool TryGet(out ArrayOf<DateTimeUtc> value)
         {
             return TryGetArray(out value, BuiltInType.DateTime);
         }
@@ -2671,11 +2671,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Try convert the variant to a <see cref="DateTime"/>-matrix value.
+        /// Try convert the variant to a <see cref="DateTimeUtc"/>-matrix value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-matrix value to get
+        /// <param name="value">The <see cref="DateTimeUtc"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<DateTime> value)
+        public bool TryGet(out MatrixOf<DateTimeUtc> value)
         {
             return TryGetMatrix(out value, BuiltInType.DateTime);
         }
@@ -2970,11 +2970,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a Variant from a <see cref="DateTime"/> value.
+        /// Create a Variant from a <see cref="DateTimeUtc"/> value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/> value to set
+        /// <param name="value">The <see cref="DateTimeUtc"/> value to set
         /// this Variant to</param>
-        public static Variant From(DateTime value)
+        public static Variant From(DateTimeUtc value)
         {
             return new Variant(value);
         }
@@ -3252,11 +3252,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a Variant from a <see cref="DateTime"/>-array value.
+        /// Create a Variant from a <see cref="DateTimeUtc"/>-array value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-array value to set
+        /// <param name="value">The <see cref="DateTimeUtc"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(ArrayOf<DateTime> value)
+        public static Variant From(ArrayOf<DateTimeUtc> value)
         {
             return new Variant(value);
         }
@@ -3522,11 +3522,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a Variant from a <see cref="DateTime"/>-matrix value.
+        /// Create a Variant from a <see cref="DateTimeUtc"/>-matrix value.
         /// </summary>
-        /// <param name="value">The <see cref="DateTime"/>-matrix value to set
+        /// <param name="value">The <see cref="DateTimeUtc"/>-matrix value to set
         /// this Variant to</param>
-        public static Variant From(MatrixOf<DateTime> value)
+        public static Variant From(MatrixOf<DateTimeUtc> value)
         {
             return new Variant(value);
         }
@@ -3752,9 +3752,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a DateTime value to a Variant object.
+        /// Converts a DateTimeUtc value to a Variant object.
         /// </summary>
-        public static implicit operator Variant(DateTime value)
+        public static implicit operator Variant(DateTimeUtc value)
         {
             return From(value);
         }
@@ -3936,9 +3936,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a DateTime-array value to a Variant object.
+        /// Converts a DateTimeUtc-array value to a Variant object.
         /// </summary>
-        public static implicit operator Variant(ArrayOf<DateTime> value)
+        public static implicit operator Variant(ArrayOf<DateTimeUtc> value)
         {
             return From(value);
         }
@@ -4128,9 +4128,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a DateTime-matrix value to a Variant object.
+        /// Converts a DateTimeUtc-matrix value to a Variant object.
         /// </summary>
-        public static implicit operator Variant(MatrixOf<DateTime> value)
+        public static implicit operator Variant(MatrixOf<DateTimeUtc> value)
         {
             return From(value);
         }
@@ -4320,11 +4320,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a DateTime value to a Variant object.
+        /// Converts a DateTimeUtc value to a Variant object.
         /// </summary>
-        public static explicit operator DateTime(Variant value)
+        public static explicit operator DateTimeUtc(Variant value)
         {
-            return value.TryGet(out DateTime v) ? v : throw CannotCast<DateTime>();
+            return value.TryGet(out DateTimeUtc v) ? v : throw CannotCast<DateTimeUtc>();
         }
 
         /// <summary>
@@ -4504,11 +4504,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a Variant to a DateTime-array value.
+        /// Converts a Variant to a DateTimeUtc-array value.
         /// </summary>
-        public static explicit operator ArrayOf<DateTime>(Variant value)
+        public static explicit operator ArrayOf<DateTimeUtc>(Variant value)
         {
-            return value.TryGet(out ArrayOf<DateTime> v) ? v : throw CannotCast<ArrayOf<DateTime>>();
+            return value.TryGet(out ArrayOf<DateTimeUtc> v) ? v : throw CannotCast<ArrayOf<DateTimeUtc>>();
         }
 
         /// <summary>
@@ -4696,11 +4696,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a Variant to a DateTime-matrix value.
+        /// Converts a Variant to a DateTimeUtc-matrix value.
         /// </summary>
-        public static explicit operator MatrixOf<DateTime>(Variant value)
+        public static explicit operator MatrixOf<DateTimeUtc>(Variant value)
         {
-            return value.TryGet(out MatrixOf<DateTime> v) ? v : throw CannotCast<MatrixOf<DateTime>>();
+            return value.TryGet(out MatrixOf<DateTimeUtc> v) ? v : throw CannotCast<MatrixOf<DateTimeUtc>>();
         }
 
         /// <summary>
@@ -5299,7 +5299,7 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return XmlConvert.ToString(GetDouble());
                 case BuiltInType.DateTime:
-                    return XmlConvert.ToString(GetDateTime(), XmlDateTimeSerializationMode.Unspecified);
+                    return XmlConvert.ToString((DateTime)GetDateTime(), XmlDateTimeSerializationMode.Unspecified);
                 case BuiltInType.Guid:
                     return GetGuid().ToString();
                 case BuiltInType.NodeId:
@@ -5328,7 +5328,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts to a Variant with DateTime
+        /// Converts to a Variant with DateTimeUtc
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
         /// <exception cref="ServiceResultException"></exception>
@@ -5339,7 +5339,7 @@ namespace Opc.Ua
                 case BuiltInType.DateTime:
                     return this;
                 case BuiltInType.String:
-                    return XmlConvert.ToDateTime(GetString(), XmlDateTimeSerializationMode.Unspecified);
+                    return (DateTimeUtc)XmlConvert.ToDateTime(GetString(), XmlDateTimeSerializationMode.Unspecified);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -5734,10 +5734,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(DateTime value)
+        public bool Equals(DateTimeUtc value)
         {
-            return TryGet(out DateTime v) &&
-                DateTimeComparer.Default.Equals(v, value);
+            return TryGet(out DateTimeUtc v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -5881,9 +5880,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(ArrayOf<DateTime> value)
+        public bool Equals(ArrayOf<DateTimeUtc> value)
         {
-            return TryGet(out ArrayOf<DateTime> v) && v == value;
+            return TryGet(out ArrayOf<DateTimeUtc> v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -6032,9 +6031,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(MatrixOf<DateTime> value)
+        public bool Equals(MatrixOf<DateTimeUtc> value)
         {
-            return TryGet(out MatrixOf<DateTime> v) && v == value;
+            return TryGet(out MatrixOf<DateTimeUtc> v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -6272,13 +6271,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, DateTime value)
+        public static bool operator ==(Variant a, DateTimeUtc value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, DateTime value)
+        public static bool operator !=(Variant a, DateTimeUtc value)
         {
             return !a.Equals(value);
         }
@@ -6560,13 +6559,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ArrayOf<DateTime> value)
+        public static bool operator ==(Variant a, ArrayOf<DateTimeUtc> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ArrayOf<DateTime> value)
+        public static bool operator !=(Variant a, ArrayOf<DateTimeUtc> value)
         {
             return !a.Equals(value);
         }
@@ -6860,13 +6859,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, MatrixOf<DateTime> value)
+        public static bool operator ==(Variant a, MatrixOf<DateTimeUtc> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, MatrixOf<DateTime> value)
+        public static bool operator !=(Variant a, MatrixOf<DateTimeUtc> value)
         {
             return !a.Equals(value);
         }
@@ -7233,7 +7232,7 @@ namespace Opc.Ua
                 string v => Equals(v),
                 Enum v => Equals(v),
                 ByteString v => Equals(v),
-                DateTime v => Equals(v),
+                DateTimeUtc v => Equals(v),
                 Uuid v => Equals(v),
                 XmlElement v => Equals(v),
                 NodeId v => Equals(v),
@@ -7256,7 +7255,7 @@ namespace Opc.Ua
                 ArrayOf<double> v => Equals(v),
                 ArrayOf<string> v => Equals(v),
                 ArrayOf<Enum> v => Equals(v),
-                ArrayOf<DateTime> v => Equals(v),
+                ArrayOf<DateTimeUtc> v => Equals(v),
                 ArrayOf<Uuid> v => Equals(v),
                 ArrayOf<ByteString> v => Equals(v),
                 ArrayOf<XmlElement> v => Equals(v),
@@ -7281,7 +7280,7 @@ namespace Opc.Ua
                 MatrixOf<double> v => Equals(v),
                 MatrixOf<string> v => Equals(v),
                 MatrixOf<Enum> v => Equals(v),
-                MatrixOf<DateTime> v => Equals(v),
+                MatrixOf<DateTimeUtc> v => Equals(v),
                 MatrixOf<Uuid> v => Equals(v),
                 MatrixOf<ByteString> v => Equals(v),
                 MatrixOf<XmlElement> v => Equals(v),
@@ -7884,7 +7883,7 @@ namespace Opc.Ua
             public double Double;
 
             [FieldOffset(0)]
-            public DateTime DateTime;
+            public DateTimeUtc DateTime;
 
             /// <summary>
             /// In case of array offset into it

@@ -149,7 +149,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
-        void WriteDateTime(string fieldName, DateTime value);
+        void WriteDateTime(string fieldName, DateTimeUtc value);
 
         /// <summary>
         /// Writes a GUID to the stream.
@@ -309,7 +309,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
-        void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values);
+        void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values);
 
         /// <summary>
         /// Writes a GUID array to the stream.

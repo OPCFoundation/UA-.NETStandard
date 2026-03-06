@@ -569,7 +569,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTime ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string fieldName)
         {
             if (BeginField(fieldName, true))
             {
@@ -596,7 +596,7 @@ namespace Opc.Ua
                 }
             }
 
-            return DateTime.MinValue;
+            return DateTimeUtc.MinValue;
         }
 
         /// <inheritdoc/>
@@ -1439,7 +1439,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
         {
             if (BeginField(fieldName, true, out bool isNil))
             {

@@ -134,6 +134,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 8)]
         public ByteString ByteString { get; set; }
+
+        [DataMember(Order = 9)]
+        public DateTimeUtc DateTime { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -162,6 +165,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 8)]
         public ByteStringCollection ByteStrings { get; set; }
+
+        [DataMember(Order = 9)]
+        public DateTimeCollection DateTimes { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -190,6 +196,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 8)]
         public ArrayOf<ByteString> ByteStrings { get; set; }
+
+        [DataMember(Order = 9)]
+        public ArrayOf<DateTimeUtc> DateTimes { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -218,6 +227,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 8)]
         public MatrixOf<ByteString> ByteStrings { get; set; }
+
+        [DataMember(Order = 9)]
+        public MatrixOf<DateTimeUtc> DateTimes { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -253,7 +265,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 QualifiedName = new QualifiedName($"qn-{index}", (ushort)(index + 1)),
                 Variant = new Variant(index),
                 LocalizedText = new LocalizedText("en-US", $"text-{index}"),
-                ByteString = ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2))
+                ByteString = ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
+                DateTime = DateTimeUtc.Now
             };
         }
 
@@ -298,6 +311,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 [
                     ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
                     ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
+                ],
+                DateTimes =
+                [
+                    DateTimeUtc.Now,
+                    DateTimeUtc.Now
                 ]
             };
         }
@@ -343,6 +361,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 [
                     ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
                     ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
+                ],
+                DateTimes =
+                [
+                    DateTimeUtc.Now,
+                    DateTimeUtc.Now
                 ]
             };
         }
@@ -406,6 +429,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 4)),
                     ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
                     ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
+                ]).ToMatrix(2, 2),
+                DateTimes =
+                ArrayOf.Wrapped([
+                    DateTimeUtc.Now,
+                    DateTimeUtc.Now,
+                    DateTimeUtc.Now,
+                    DateTimeUtc.Now
                 ]).ToMatrix(2, 2)
             };
         }

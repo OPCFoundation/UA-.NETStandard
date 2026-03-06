@@ -102,7 +102,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateConstructorCase("ScalarString",
                     () => "opc", TypeInfo.Scalars.String);
                 yield return CreateConstructorCase("ScalarDateTime",
-                    () => DateTime.SpecifyKind(new DateTime(2024, 1, 2, 3, 4, 5), DateTimeKind.Utc), TypeInfo.Scalars.DateTime);
+                    () => (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 2, 3, 4, 5), DateTimeKind.Utc), TypeInfo.Scalars.DateTime);
                 yield return CreateConstructorCase("ScalarGuid",
                     () => Uuid.NewUuid(), TypeInfo.Scalars.Guid);
                 yield return CreateConstructorCase("ScalarByteString",
@@ -154,8 +154,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     () => Array("a", "b"), TypeInfo.Arrays.String);
                 yield return CreateConstructorCase("ArrayDateTime",
                     () => Array(
-                        DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
-                        DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)), TypeInfo.Arrays.DateTime);
+                        (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
+                        (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)), TypeInfo.Arrays.DateTime);
                 yield return CreateConstructorCase("ArrayGuid",
                     () => Array(
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1")),
@@ -284,8 +284,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ScalarDateTime",
-                        () => DateTime.SpecifyKind(new DateTime(2024, 1, 2), DateTimeKind.Utc),
-                        typeof(DateTime),
+                        () => (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 2), DateTimeKind.Utc),
+                        typeof(DateTimeUtc),
                         TypeInfo.Scalars.DateTime,
                         nameof(Variant.GetDateTime)));
                 yield return CreateDescriptorCase(
@@ -446,9 +446,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     new VariantDescriptor(
                         "ArrayDateTime",
                         () => ArrayOf.Wrapped(
-                            DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
-                            DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)),
-                        typeof(ArrayOf<DateTime>),
+                            (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
+                            (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)),
+                        typeof(ArrayOf<DateTimeUtc>),
                         TypeInfo.Arrays.DateTime,
                         nameof(Variant.GetDateTimeArray)));
                 yield return CreateDescriptorCase(

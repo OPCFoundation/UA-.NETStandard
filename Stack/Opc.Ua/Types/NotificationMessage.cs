@@ -55,7 +55,7 @@ namespace Opc.Ua
         ///   <c>true</c> if this instance is empty; otherwise, <c>false</c>.
         /// </value>
         public bool IsEmpty => SequenceNumber == 0 &&
-            PublishTime == DateTime.MinValue &&
+            PublishTime == DateTimeUtc.MinValue &&
             NotificationData.Count == 0;
 
         /// <summary>

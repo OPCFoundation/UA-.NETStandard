@@ -2254,10 +2254,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTime result = decoder.ReadDateTime(null);
+            DateTimeUtc result = decoder.ReadDateTime(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(DateTime.MinValue));
+            Assert.That(result, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
@@ -2714,8 +2714,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Not.Null);
             Assert.That(result.WrappedValue.Value, Is.EqualTo(value));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(result.SourceTimestamp, Is.EqualTo(DateTime.MinValue));
-            Assert.That(result.ServerTimestamp, Is.EqualTo(DateTime.MinValue));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
@@ -2731,6 +2731,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] timestampBytes = BitConverter.GetBytes(ticks);
             const ushort picoseconds = 1234;
             byte[] picosecondsBytes = BitConverter.GetBytes(picoseconds);
+            var expected = (DateTimeUtc)timestamp;
 
             List<byte> buffer = [encodingByte, .. timestampBytes, .. picosecondsBytes];
 
@@ -2741,7 +2742,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expected));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(picoseconds));
         }
 
@@ -3482,7 +3483,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTimeUtc> result = decoder.ReadDateTimeArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.True);
@@ -3498,7 +3499,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTimeUtc> result = decoder.ReadDateTimeArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -3521,7 +3522,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTimeUtc> result = decoder.ReadDateTimeArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -4547,8 +4548,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var sourceTime = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
-            var serverTime = new DateTime(2024, 6, 15, 12, 0, 1, DateTimeKind.Utc);
+            var sourceTime = (DateTimeUtc)new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+            var serverTime = (DateTimeUtc)new DateTime(2024, 6, 15, 12, 0, 1, DateTimeKind.Utc);
             var dataValue = new DataValue
             {
                 Value = new Variant(42),
@@ -4988,21 +4989,23 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var dt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var dt = (DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             using var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<DateTime> values = [dt];
+            ArrayOf<DateTimeUtc> values = [dt];
             encoder.WriteDateTimeArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.DateTime, ValueRanks.OneDimension));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.DateTime, ValueRanks.OneDimension));
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            ArrayOf<DateTime> resultArray = result.GetDateTimeArray();
+            ArrayOf<DateTimeUtc> resultArray = result.GetDateTimeArray();
             Assert.That(resultArray.IsNull, Is.False);
             Assert.That(resultArray.Count, Is.EqualTo(1));
             Assert.That(resultArray[0], Is.EqualTo(dt));
@@ -5435,7 +5438,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             var value = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            ArrayOf<DateTime> values = [value];
+            ArrayOf<DateTimeUtc> values = [value];
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
                 encoder => encoder.WriteDateTimeArray(null, values),
@@ -6203,10 +6206,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTime result = decoder.ReadDateTime(null);
+            DateTimeUtc result = decoder.ReadDateTime(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(DateTime.MaxValue));
+            Assert.That(result, Is.EqualTo(DateTimeUtc.MaxValue));
         }
 
         [Test]
@@ -6220,10 +6223,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTime result = decoder.ReadDateTime(null);
+            DateTimeUtc result = decoder.ReadDateTime(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(DateTime.MaxValue));
+            Assert.That(result, Is.EqualTo(DateTimeUtc.MaxValue));
         }
 
         private sealed class ToggleSeekStream : MemoryStream

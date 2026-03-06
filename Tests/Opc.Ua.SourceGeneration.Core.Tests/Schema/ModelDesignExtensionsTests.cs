@@ -1262,7 +1262,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
         /// <summary>
         /// Tests GetDefaultDotNetValue with DateTime type and DateTime.MinValue.
-        /// Expected: Returns "global::System.DateTime.MinValue".
+        /// Expected: Returns "global::Opc.Ua.DateTimeUtc.MinValue".
         /// </summary>
         [Test]
         public void GetDefaultDotNetValue_DateTimeWithMinValue_ReturnsMinValue()
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime.MinValue"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc.MinValue"));
         }
 
         /// <summary>
@@ -1316,13 +1316,13 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("global::System.DateTime.ParseExact("));
+            Assert.That(result, Does.StartWith("global::Opc.Ua.DateTimeUtc.From("));
             Assert.That(result, Does.Contain("2024-01-15 10:30:45"));
         }
 
         /// <summary>
         /// Tests GetDefaultDotNetValue with DateTime type and invalid value.
-        /// Expected: Returns "global::System.DateTime.MinValue".
+        /// Expected: Returns "global::Opc.Ua.DateTimeUtc.MinValue".
         /// </summary>
         [Test]
         public void GetDefaultDotNetValue_DateTimeWithInvalidValue_ReturnsMinValue()
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime.MinValue"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc.MinValue"));
         }
 
         /// <summary>
@@ -7867,7 +7867,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc"));
         }
 
         /// <summary>

@@ -452,7 +452,7 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             ArrayOf<String> serverCapabilityFilter,
-            out DateTime lastCounterResetTime)
+            out DateTimeUtc lastCounterResetTime)
         {
             FindServersOnNetwork(
                 null,
@@ -470,7 +470,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task<(
             ServerOnNetworkCollection servers,
-            DateTime lastCounterResetTime
+            DateTimeUtc lastCounterResetTime
             )> FindServersOnNetworkAsync(
                 uint startingRecordId,
                 uint maxRecordsToReturn,

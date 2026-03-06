@@ -71,7 +71,7 @@ namespace Opc.Ua
         IVariantBuilder<float>,
         IVariantBuilder<double>,
         IVariantBuilder<string>,
-        IVariantBuilder<DateTime>,
+        IVariantBuilder<DateTimeUtc>,
         IVariantBuilder<Uuid>,
         IVariantBuilder<ByteString>,
         IVariantBuilder<XmlElement>,
@@ -94,7 +94,7 @@ namespace Opc.Ua
         IVariantBuilder<ArrayOf<float>>,
         IVariantBuilder<ArrayOf<double>>,
         IVariantBuilder<ArrayOf<string>>,
-        IVariantBuilder<ArrayOf<DateTime>>,
+        IVariantBuilder<ArrayOf<DateTimeUtc>>,
         IVariantBuilder<ArrayOf<Uuid>>,
         IVariantBuilder<ArrayOf<ByteString>>,
         IVariantBuilder<ArrayOf<XmlElement>>,
@@ -118,7 +118,7 @@ namespace Opc.Ua
         IVariantBuilder<MatrixOf<float>>,
         IVariantBuilder<MatrixOf<double>>,
         IVariantBuilder<MatrixOf<string>>,
-        IVariantBuilder<MatrixOf<DateTime>>,
+        IVariantBuilder<MatrixOf<DateTimeUtc>>,
         IVariantBuilder<MatrixOf<Uuid>>,
         IVariantBuilder<MatrixOf<ByteString>>,
         IVariantBuilder<MatrixOf<XmlElement>>,
@@ -204,7 +204,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        Variant IVariantBuilder<DateTime>.WithValue(DateTime value)
+        Variant IVariantBuilder<DateTimeUtc>.WithValue(DateTimeUtc value)
         {
             return Variant.From(value);
         }
@@ -359,8 +359,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        Variant IVariantBuilder<ArrayOf<DateTime>>.WithValue(
-            ArrayOf<DateTime> value)
+        Variant IVariantBuilder<ArrayOf<DateTimeUtc>>.WithValue(
+            ArrayOf<DateTimeUtc> value)
         {
             return Variant.From(value);
         }
@@ -527,8 +527,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        Variant IVariantBuilder<MatrixOf<DateTime>>.WithValue(
-            MatrixOf<DateTime> value)
+        Variant IVariantBuilder<MatrixOf<DateTimeUtc>>.WithValue(
+            MatrixOf<DateTimeUtc> value)
         {
             return Variant.From(value);
         }
@@ -683,7 +683,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        DateTime IVariantBuilder<DateTime>.GetValue(Variant value)
+        DateTimeUtc IVariantBuilder<DateTimeUtc>.GetValue(Variant value)
         {
             return value.GetDateTime();
         }
@@ -822,7 +822,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        ArrayOf<DateTime> IVariantBuilder<ArrayOf<DateTime>>.GetValue(Variant value)
+        ArrayOf<DateTimeUtc> IVariantBuilder<ArrayOf<DateTimeUtc>>.GetValue(Variant value)
         {
             return value.GetDateTimeArray();
         }
@@ -975,7 +975,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        MatrixOf<DateTime> IVariantBuilder<MatrixOf<DateTime>>.GetValue(Variant value)
+        MatrixOf<DateTimeUtc> IVariantBuilder<MatrixOf<DateTimeUtc>>.GetValue(Variant value)
         {
             return value.GetDateTimeMatrix();
         }

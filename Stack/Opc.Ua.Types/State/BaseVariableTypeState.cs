@@ -514,7 +514,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             value = m_value;
 
@@ -666,7 +666,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -676,9 +676,9 @@ namespace Opc.Ua
             }
 
             // ensure the source timestamp has a valid value.
-            if (sourceTimestamp == DateTime.MinValue)
+            if (sourceTimestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
 
             // index range writes not supported.

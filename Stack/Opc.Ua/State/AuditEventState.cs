@@ -56,7 +56,7 @@ namespace Opc.Ua
 
             if (actionTimestamp != DateTime.MinValue)
             {
-                m_actionTimeStamp = PropertyState<DateTime>.With<VariantBuilder>(this, actionTimestamp);
+                m_actionTimeStamp = PropertyState<DateTimeUtc>.With<VariantBuilder>(this, actionTimestamp);
             }
 
             if (context.NamespaceUris != null)

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using ObjectLayoutInspector;
@@ -50,11 +51,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void DateTimeTests()
         {
-            var layout = TypeLayout.GetLayout<DateTime>();
+            var layout = TypeLayout.GetLayout<DateTimeUtc>();
             TestContext.Out.WriteLine(layout.ToString(true));
-            Assert.That(Unsafe.SizeOf<DateTime>(), Is.EqualTo(Unsafe.SizeOf<ulong>()));
+            Assert.That(Unsafe.SizeOf<DateTime>(), Is.EqualTo(Unsafe.SizeOf<long>()));
             Assert.That(layout.Fields, Has.Length.EqualTo(1));
-            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ulong)));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(long)));
             Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
             Assert.That(layout.Fields[0].Size, Is.EqualTo(8));
         }

@@ -64,7 +64,21 @@ namespace Opc.Ua
         /// <summary>
         /// number of 100-nanosecond since January 1, 1601 (windows filetime)
         /// </summary>
-        public long Value => EnsureBounded(m_value);
+        public long Value
+        {
+            get
+            {
+                if (m_value >= kMaxValue)
+                {
+                    return long.MaxValue;
+                }
+                if (m_value < 0)
+                {
+                    return 0;
+                }
+                return m_value;
+            }
+        }
 
         /// <summary>
         /// Min value
@@ -99,10 +113,33 @@ namespace Opc.Ua
             m_value = EnsureBounded(value);
         }
 
+        /// <summary>
+        /// Create a file time
+        /// </summary>
+        public DateTimeUtc(
+            int year,
+            int month,
+            int day,
+            int hour = 0,
+            int minute = 0,
+            int second = 0,
+            int millisecond = 0)
+            : this(new DateTime(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                millisecond,
+                DateTimeKind.Utc))
+        {
+        }
+
         /// <inheritdoc/>
         public DateTimeUtc(DateTime value)
         {
-            m_value = ToFileTimeUtc(value.Ticks);
+            m_value = ToFileTimeUtc(value.ToUniversalTime().Ticks);
         }
 
         /// <inheritdoc/>
@@ -228,7 +265,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DateTime(DateTimeUtc value)
+        public static explicit operator DateTime(DateTimeUtc value)
         {
             return value.ToDateTime();
         }
@@ -354,12 +391,12 @@ namespace Opc.Ua
         /// <returns></returns>
         internal DateTime ToDateTime()
         {
+#if NET8_0_OR_GREATER
             // This is the ticks in Universal time for this fileTime.
             ulong ticks = (ulong)ToTicks(m_value) | 0x4000000000000000;
-#if NET8_0_OR_GREATER
             return Unsafe.BitCast<ulong, DateTime>(ticks);
 #else
-            return DateTime.FromFileTimeUtc((long)ticks);
+            return new DateTime(ToTicks(m_value), DateTimeKind.Utc);
 #endif
         }
 

@@ -656,7 +656,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTime ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -1253,12 +1253,12 @@ namespace Opc.Ua
                 dv.StatusCode = ReadStatusCode("StatusCode");
                 dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
                 dv.SourcePicoseconds =
-                    dv.SourceTimestamp != DateTime.MinValue
+                    dv.SourceTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("SourcePicoseconds")
                         : (ushort)0;
                 dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
                 dv.ServerPicoseconds =
-                    dv.ServerTimestamp != DateTime.MinValue
+                    dv.ServerTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("ServerPicoseconds")
                         : (ushort)0;
             }
@@ -1817,14 +1817,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
         {
             if (!ReadArrayField(fieldName, out List<object> token))
             {
                 return default;
             }
 
-            var values = new DateTime[token.Count];
+            var values = new DateTimeUtc[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {

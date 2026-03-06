@@ -564,7 +564,7 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.LogWarning(
                                     "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.ServerTimestamp.ToLocalTime(),
+                                    datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
 
@@ -573,7 +573,7 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.LogWarning(
                                     "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.SourceTimestamp.ToLocalTime(),
+                                    datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
                         }
@@ -583,7 +583,7 @@ namespace Opc.Ua.Client
                             m_logger.LogWarning(
                                 "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
                                 "and value {Value} for MonitoredItemId {MonitoredItemId}",
-                                datachange.Value.ServerTimestamp.ToLocalTime(),
+                                datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                 datachange.Value.Value,
                                 ClientHandle);
                         }

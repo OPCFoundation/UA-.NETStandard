@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// <list type="bullet">
     ///     <item><see cref="Variant"/></item>
     ///     <item><see cref="StatusCode"/></item>
-    ///     <item><see cref="DateTime"/> for the Servers Timestamp</item>
+    ///     <item><see cref="DateTimeUtc"/> for the Servers Timestamp</item>
     /// </list>
     /// <br/></para>
     /// </remarks>
@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// //  (a) the value is a string, which is "abc123"
     /// //  (b) the statuscode is 0 (zero)
     /// //  (c) the timestamp is 'now'
-    /// DataValue dv = new DataValue(new Variant("abc123"), new StatusCode(0), DateTime.Now);
+    /// DataValue dv = new DataValue(new Variant("abc123"), new StatusCode(0), DateTimeUtc.Now);
     ///
     /// </code>
     /// <code lang="Visual Basic">
@@ -67,7 +67,7 @@ namespace Opc.Ua
     /// '  (a) the value is a string, which is "abc123"
     /// '  (b) the statuscode is 0 (zero)
     /// '  (c) the timestamp is 'now'
-    /// Dim dv As DataValue = New DataValue(New Variant("abc123"), New StatusCode(0), DateTime.Now);
+    /// Dim dv As DataValue = New DataValue(New Variant("abc123"), New StatusCode(0), DateTimeUtc.Now);
     ///
     /// </code>
     /// </example>
@@ -137,7 +137,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="statusCode">The status code associated with the value.</param>
         /// <param name="serverTimestamp">The timestamp associated with the status code.</param>
-        public DataValue(StatusCode statusCode, DateTime serverTimestamp)
+        public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
             Initialize();
             StatusCode = statusCode;
@@ -163,7 +163,7 @@ namespace Opc.Ua
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
         /// <param name="sourceTimestamp">The timestamp to set</param>
-        public DataValue(Variant value, StatusCode statusCode, DateTime sourceTimestamp)
+        public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
             Initialize();
 
@@ -182,8 +182,8 @@ namespace Opc.Ua
         public DataValue(
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp,
-            DateTime serverTimestamp)
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp)
         {
             Initialize();
 
@@ -200,8 +200,8 @@ namespace Opc.Ua
         {
             m_value = Variant.Null;
             StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTime.MinValue;
-            ServerTimestamp = DateTime.MinValue;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <inheritdoc/>
@@ -356,7 +356,7 @@ namespace Opc.Ua
         /// The source timestamp associated with the value.
         /// </summary>
         [DataMember(Order = 3, IsRequired = false)]
-        public DateTime SourceTimestamp { get; set; }
+        public DateTimeUtc SourceTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the source timestamp.
@@ -368,7 +368,7 @@ namespace Opc.Ua
         /// The server timestamp associated with the value.
         /// </summary>
         [DataMember(Order = 5, IsRequired = false)]
-        public DateTime ServerTimestamp { get; set; }
+        public DateTimeUtc ServerTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the server timestamp.

@@ -46,7 +46,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class JsonParserTests
+    public class JsonDecoderTests
     {
         [Test]
         public void ReadBooleanArrayWithBadStringValue()
@@ -197,8 +197,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadDataTimeArrayWithInvalidTypeValue()
         {
             using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
-            ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
+            ArrayOf<DateTimeUtc> result = reader.ReadDateTimeArray(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTimeUtc>()));
         }
 
         [Test]
@@ -393,24 +393,24 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadDateTimeArrayWithBadStringValue()
         {
             using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
-            ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
+            ArrayOf<DateTimeUtc> result = reader.ReadDateTimeArray(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTimeUtc>()));
         }
 
         [Test]
         public void ReadDateTimeArrayWithInvalidTypeValue()
         {
             using JsonDecoder reader = NewDecoder(Body("[ { }, { } ]"));
-            ArrayOf<DateTime> result = reader.ReadDateTimeArray(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTime>()));
+            ArrayOf<DateTimeUtc> result = reader.ReadDateTimeArray(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(ArrayOf.Empty<DateTimeUtc>()));
         }
 
         [Test]
         public void ReadDateTimeWithInvalidTypeValue()
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
-            DateTime result = reader.ReadDateTime(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(DateTime.MinValue));
+            DateTimeUtc result = reader.ReadDateTime(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
@@ -420,8 +420,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             string json = $@"""{now.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                     CultureInfo.InvariantCulture)}""";
             using JsonDecoder reader = NewDecoder(Body(json));
-            DateTime result = reader.ReadDateTime(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(now));
+            DateTimeUtc result = reader.ReadDateTime(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(now.ToUniversalTime()));
         }
 
         [Test]

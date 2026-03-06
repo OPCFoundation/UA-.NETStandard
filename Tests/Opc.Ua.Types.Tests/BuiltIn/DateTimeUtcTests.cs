@@ -53,19 +53,31 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void MinValueShouldHaveZeroValue()
+        public void DateTimeUtcMinValueCompliesWithSpecification()
         {
             // Act & Assert
+            // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.5
             Assert.That(DateTimeUtc.MinValue.Value, Is.EqualTo(0));
             Assert.That(DateTimeUtc.MinValue.IsNull, Is.True);
+            Assert.That(DateTimeUtc.MinValue.ToString(
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+                CultureInfo.InvariantCulture),
+                Is.EqualTo("1601-01-01T00:00:00Z"));
+            Assert.That(new DateTimeUtc(0), Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
-        public void MaxValueShouldHaveCorrectValue()
+        public void DateTimeUtcMaxValueCompliesWithSpecification()
         {
             // Act & Assert
-            Assert.That(DateTimeUtc.MaxValue.Value, Is.EqualTo(2650467743990000000));
+            // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.5
+            Assert.That(DateTimeUtc.MaxValue.Value, Is.EqualTo(long.MaxValue));
             Assert.That(DateTimeUtc.MaxValue.IsNull, Is.False);
+            Assert.That(DateTimeUtc.MaxValue.ToString(
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+                CultureInfo.InvariantCulture),
+                Is.EqualTo("9999-12-31T23:59:59Z"));
+            Assert.That(new DateTimeUtc(long.MaxValue), Is.EqualTo(DateTimeUtc.MaxValue));
         }
 
         [Test]
@@ -79,7 +91,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DateTime after = DateTime.UtcNow;
 
             // Assert
-            DateTime nowAsDateTime = now;
+            DateTime nowAsDateTime = (DateTime)now;
             Assert.That(nowAsDateTime, Is.GreaterThanOrEqualTo(before));
             Assert.That(nowAsDateTime, Is.LessThanOrEqualTo(after));
         }
@@ -102,20 +114,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(date.IsNull, Is.False);
-        }
-
-        [Test]
-        public void ValueShouldEnsureBoundedResult()
-        {
-            // Arrange
-            var tooLarge = new DateTimeUtc(long.MaxValue);
-            var negative = new DateTimeUtc(-1000);
-            var normal = new DateTimeUtc(1000);
-
-            // Act & Assert
-            Assert.That(tooLarge.Value, Is.EqualTo(2650467743990000000)); // kMaxValue
-            Assert.That(negative.Value, Is.EqualTo(0));
-            Assert.That(normal.Value, Is.EqualTo(1000));
         }
 
         [Test]
@@ -166,8 +164,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = DateTimeUtc.Parse(dateString, null);
 
             // Assert
-            var expectedDateTime = DateTime.Parse(dateString, null);
-            DateTime actualDateTime = result;
+            var expectedDateTime = DateTime.Parse(dateString, null).ToUniversalTime();
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -180,8 +178,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = DateTimeUtc.Parse(dateString, CultureInfo.InvariantCulture);
 
             // Assert
-            var expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture);
-            DateTime actualDateTime = result;
+            var expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture).ToUniversalTime();
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -197,9 +195,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString);
+            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
-            DateTime actualDateTime = result;
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -209,7 +207,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Arrange
             const string dateString = "2023-01-01T12:30:45Z";
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString);
+            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act
@@ -217,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = result;
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -242,7 +240,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string dateString = "2023-01-01T12:30:45Z";
             ReadOnlySpan<char> span = dateString.AsSpan();
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString, null, DateTimeStyles.AssumeUniversal);
+            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act
@@ -250,7 +248,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = result;
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -280,7 +278,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act
-            DateTime actualDateTime = DateTimeUtc.Parse(utf8Bytes, null);
+            DateTime actualDateTime = (DateTime)DateTimeUtc.Parse(utf8Bytes, null);
 
             // Assert
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
@@ -313,7 +311,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = result;
+            DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -441,6 +439,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(-1000)]      // Negative value should be bounded to 0
         [TestCase(0)]          // Min value
         [TestCase(1000)]       // Normal value
+        [TestCase(2650467743990000000)]
+        [TestCase(2650467743990000000 + 1)]
+        [TestCase(long.MinValue)]
         [TestCase(long.MaxValue)] // Too large value should be bounded to kMaxValue
         public void ConstructorShouldEnsureBoundedValues(long value)
         {
@@ -452,9 +453,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 Assert.That(dateTimeUtc.Value, Is.EqualTo(0));
             }
-            else if (value > 2650467743990000000) // kMaxValue
+            else if (value >= 2650467743990000000) // kMaxValue
             {
-                Assert.That(dateTimeUtc.Value, Is.EqualTo(2650467743990000000));
+                Assert.That(dateTimeUtc.Value, Is.EqualTo(long.MaxValue));
             }
             else
             {
@@ -943,7 +944,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dateTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             // Act
-            DateTime convertedDateTime = new DateTimeUtc(dateTime);
+            DateTime convertedDateTime = (DateTime)new DateTimeUtc(dateTime);
 
             // Assert
             Assert.That(convertedDateTime, Is.EqualTo(dateTime));

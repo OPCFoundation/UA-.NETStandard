@@ -472,7 +472,7 @@ namespace Opc.Ua
                 statusCode = StatusCodes.Bad;
             }
 
-            DateTime? timestamp = request?.RequestHeader?.Timestamp;
+            DateTime? timestamp = (DateTime?)request?.RequestHeader?.Timestamp;
             TimeSpan? duration = timestamp != null ? DateTime.UtcNow - timestamp.Value : null;
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {

@@ -925,7 +925,7 @@ namespace Opc.Ua
         Name = "ListOfDateTime",
         Namespace = Namespaces.OpcUaXsd,
         ItemName = "DateTime")]
-    public class DateTimeCollection : List<DateTime>, ICloneable
+    public class DateTimeCollection : List<DateTimeUtc>, ICloneable
     {
         /// <inheritdoc/>
         public DateTimeCollection()
@@ -939,25 +939,25 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTimeCollection(IEnumerable<DateTime> collection)
+        public DateTimeCollection(IEnumerable<DateTimeUtc> collection)
             : base(collection)
         {
         }
 
         /// <inheritdoc/>
-        public static DateTimeCollection ToDateTimeCollection(ArrayOf<DateTime> values)
+        public static DateTimeCollection ToDateTimeCollection(ArrayOf<DateTimeUtc> values)
         {
             return [.. values];
         }
 
         /// <inheritdoc/>
-        public static implicit operator DateTimeCollection(ArrayOf<DateTime> values)
+        public static implicit operator DateTimeCollection(ArrayOf<DateTimeUtc> values)
         {
             return ToDateTimeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator DateTimeCollection(DateTime[] values)
+        public static implicit operator DateTimeCollection(DateTimeUtc[] values)
         {
             return ToDateTimeCollection(values);
         }

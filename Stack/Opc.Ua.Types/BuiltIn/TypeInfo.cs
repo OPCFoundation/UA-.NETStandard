@@ -1081,7 +1081,7 @@ namespace Opc.Ua
                 case DataTypes.String:
                     return typeof(string);
                 case DataTypes.DateTime:
-                    return typeof(DateTime);
+                    return typeof(DateTimeUtc);
                 case DataTypes.Guid:
                     return typeof(Uuid);
                 case DataTypes.ByteString:
@@ -1540,7 +1540,7 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime);
+                        return typeof(DateTimeUtc);
                     case BuiltInType.Guid:
                         return typeof(Uuid);
                     case BuiltInType.ByteString:
@@ -1673,7 +1673,7 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string).MakeArrayType(valueRank);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime).MakeArrayType(valueRank);
+                        return typeof(DateTimeUtc).MakeArrayType(valueRank);
                     case BuiltInType.Guid:
                         return typeof(Uuid).MakeArrayType(valueRank);
                     case BuiltInType.ByteString:
@@ -1968,7 +1968,7 @@ namespace Opc.Ua
                 case BuiltInType.String:
                     return (string)null;
                 case BuiltInType.DateTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.ByteString:
@@ -2052,7 +2052,7 @@ namespace Opc.Ua
                 case DataTypes.Duration:
                     return (double)0;
                 case DataTypes.UtcTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case DataTypes.Counter:
                 case DataTypes.IntegerId:
                     return (uint)0;
@@ -2182,7 +2182,7 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)0;
                 case BuiltInType.DateTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.StatusCode:
@@ -2264,7 +2264,7 @@ namespace Opc.Ua
                 case DataTypes.Duration:
                     return (double)0;
                 case DataTypes.UtcTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case DataTypes.Counter:
                 case DataTypes.IntegerId:
                     return (uint)0;
@@ -2416,7 +2416,7 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return Array.CreateInstance(typeof(string), dimensions);
                     case BuiltInType.DateTime:
-                        return Array.CreateInstance(typeof(DateTime), dimensions);
+                        return Array.CreateInstance(typeof(DateTimeUtc), dimensions);
                     case BuiltInType.Guid:
                         return Array.CreateInstance(typeof(Uuid), dimensions);
                     case BuiltInType.ByteString:

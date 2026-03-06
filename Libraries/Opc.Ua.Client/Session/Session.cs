@@ -4325,7 +4325,7 @@ namespace Opc.Ua.Client
                     m_logger.LogTrace(
                         "Empty notification message received for SessionId {SessionId} with PublishTime {PublishTime}",
                         SessionId,
-                        notificationMessage.PublishTime.ToLocalTime());
+                        notificationMessage.PublishTime.ToDateTime().ToLocalTime());
                 }
             }
 
@@ -4354,13 +4354,13 @@ namespace Opc.Ua.Client
             {
 #if DEBUG
                 // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(
+                if (notificationMessage.PublishTime.ToDateTime().AddMilliseconds(
                         subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
                     ) < DateTime.UtcNow)
                 {
                     m_logger.LogTrace(
                         "PublishTime {PublishTime} in publish response is too old for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
+                        notificationMessage.PublishTime.ToDateTime().ToLocalTime(),
                         subscription.Id);
                 }
 
@@ -4371,7 +4371,7 @@ namespace Opc.Ua.Client
                 {
                     m_logger.LogTrace(
                         "PublishTime {PublishTime} in publish response is newer than actual time for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
+                        notificationMessage.PublishTime.ToDateTime().ToLocalTime(),
                         subscription.Id);
                 }
 #endif

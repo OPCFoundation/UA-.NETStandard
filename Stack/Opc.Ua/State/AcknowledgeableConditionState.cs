@@ -61,7 +61,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnacknowledge(context);
             }
 
-            AckedState.Timestamp = DateTime.UtcNow;
+            AckedState.Timestamp = DateTimeUtc.Now;
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnconfirm(context);
             }
 
-            ConfirmedState?.Timestamp = DateTime.UtcNow;
+            ConfirmedState?.Timestamp = DateTimeUtc.Now;
 
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -276,7 +276,7 @@ namespace Opc.Ua
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = true;
 
-            AckedState.TransitionTime?.Value = DateTime.UtcNow;
+            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -295,7 +295,7 @@ namespace Opc.Ua
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = false;
 
-            AckedState.TransitionTime?.Value = DateTime.UtcNow;
+            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -439,7 +439,7 @@ namespace Opc.Ua
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = true;
 
-                ConfirmedState.TransitionTime?.Value = DateTime.UtcNow;
+                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -461,7 +461,7 @@ namespace Opc.Ua
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = false;
 
-                ConfirmedState.TransitionTime?.Value = DateTime.UtcNow;
+                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }

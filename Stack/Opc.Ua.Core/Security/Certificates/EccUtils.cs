@@ -1141,7 +1141,7 @@ namespace Opc.Ua
             }
 
             // extract the send certificate and any chain.
-            DateTime signingTime = decoder.ReadDateTime(null);
+            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
 
             if (signingTime < earliestTime)
             {

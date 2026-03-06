@@ -388,11 +388,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTime ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string fieldName)
         {
             if (TryGetDateTimeFromElement(
                 GetPropertyElement(fieldName),
-                out DateTime value))
+                out DateTimeUtc value))
             {
                 return value;
             }
@@ -400,11 +400,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
         {
             if (TryGetDateTimeArrayFromElement(
                 GetPropertyElement(fieldName),
-                out ArrayOf<DateTime> values))
+                out ArrayOf<DateTimeUtc> values))
             {
                 return values;
             }
@@ -1276,10 +1276,10 @@ namespace Opc.Ua
                                 out StatusCode statusCode) ||
                             !TryGetDateTimeFromElement(
                                 sourceTimesstampElement,
-                                out DateTime sourceTimestamp) ||
+                                out DateTimeUtc sourceTimestamp) ||
                             !TryGetDateTimeFromElement(
                                 serverTimestampElement,
-                                out DateTime serverTimestamp))
+                                out DateTimeUtc serverTimestamp))
                         {
                             value = default;
                             return false;
@@ -1371,18 +1371,18 @@ namespace Opc.Ua
         /// </summary>
         private static bool TryGetDateTimeFromElement(
             JsonElement element,
-            out DateTime value)
+            out DateTimeUtc value)
         {
             switch (element.ValueKind)
             {
                 case JsonValueKind.Null or JsonValueKind.Undefined:
-                    value = DateTime.MinValue;
+                    value = DateTimeUtc.MinValue;
                     return true;
                 case JsonValueKind.String when element.TryGetDateTime(out DateTime dt):
                     value = dt;
                     return true;
                 default:
-                    value = DateTime.MinValue;
+                    value = DateTimeUtc.MinValue;
                     return false;
             }
         }
@@ -1392,7 +1392,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool TryGetDateTimeArrayFromElement(
             JsonElement element,
-            out ArrayOf<DateTime> values)
+            out ArrayOf<DateTimeUtc> values)
         {
             if (TryGetArrayElements(
                 element,
@@ -1403,7 +1403,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                var result = new DateTime[elements.Count];
+                var result = new DateTimeUtc[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetDateTimeFromElement(elements[i], out result[i]))
@@ -1973,8 +1973,14 @@ namespace Opc.Ua
                         value = new Uuid(guid);
                         return true;
                     }
+                    if (element.TryGetBytesFromBase64(out byte[]? bytes) &&
+                        bytes.Length == 16)
+                    {
+                        value = new Uuid(new Guid(bytes));
+                        return true;
+                    }
 #endif
-                    value = Guid.Empty;
+                    value = default;
                     return false;
                 default:
                     value = default;
@@ -3136,7 +3142,7 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeFromElement(
                         element,
-                        out DateTime v):
+                        out DateTimeUtc v):
                         value = Variant.From(v);
                         return true;
                     case BuiltInType.Guid when TryGetGuidFromElement(
@@ -3279,7 +3285,7 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                         element,
-                        out ArrayOf<DateTime> v):
+                        out ArrayOf<DateTimeUtc> v):
                         value = Variant.From(v);
                         return true;
                     case BuiltInType.Guid when TryGetGuidArrayFromElement(
@@ -3458,7 +3464,7 @@ namespace Opc.Ua
                             return true;
                         case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                             element,
-                            out ArrayOf<DateTime> v):
+                            out ArrayOf<DateTimeUtc> v):
                             value = Variant.From(v.ToMatrix(dims));
                             return true;
                         case BuiltInType.Guid when TryGetGuidArrayFromElement(

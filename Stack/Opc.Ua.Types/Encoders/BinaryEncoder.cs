@@ -492,29 +492,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTime(string fieldName, DateTime value)
+        public void WriteDateTime(string fieldName, DateTimeUtc value)
         {
-            value = CoreUtils.ToOpcUaUniversalTime(value);
-
-            long ticks = value.Ticks;
-
-            // check for max value.
-            if (ticks >= DateTime.MaxValue.Ticks)
-            {
-                ticks = long.MaxValue;
-            }
-            // check for min value.
-            else
-            {
-                ticks -= CoreUtils.TimeBase.Ticks;
-
-                if (ticks <= 0)
-                {
-                    ticks = 0;
-                }
-            }
-
-            m_writer.Write(ticks);
+            m_writer.Write(value.Value);
         }
 
         /// <inheritdoc/>
@@ -796,7 +776,7 @@ namespace Opc.Ua
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
 
-            if (value.SourceTimestamp != DateTime.MinValue)
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
 
@@ -806,7 +786,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (value.ServerTimestamp != DateTime.MinValue)
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
 
@@ -1193,7 +1173,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1836,7 +1816,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.DateTime:
                     {
-                        MatrixOf<DateTime> matrix = value.GetDateTimeMatrix();
+                        MatrixOf<DateTimeUtc> matrix = value.GetDateTimeMatrix();
                         WriteDimensions(matrix);
                         WriteDateTimeArray(null, matrix.ToArrayOf(out dim));
                         break;

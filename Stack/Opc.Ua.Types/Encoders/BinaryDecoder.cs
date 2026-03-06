@@ -420,28 +420,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTime ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string fieldName)
         {
-            long ticks = SafeReadInt64();
-
-            if (ticks >= (long.MaxValue - CoreUtils.TimeBase.Ticks))
-            {
-                return DateTime.MaxValue;
-            }
-
-            ticks += CoreUtils.TimeBase.Ticks;
-
-            if (ticks >= DateTime.MaxValue.Ticks)
-            {
-                return DateTime.MaxValue;
-            }
-
-            if (ticks <= CoreUtils.TimeBase.Ticks)
-            {
-                return DateTime.MinValue;
-            }
-
-            return new DateTime(ticks, DateTimeKind.Utc);
+            return new DateTimeUtc(SafeReadInt64());
         }
 
         /// <inheritdoc/>
@@ -1203,7 +1184,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1212,7 +1193,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            var values = new DateTime[length];
+            var values = new DateTimeUtc[length];
 
             for (int ii = 0; ii < length; ii++)
             {

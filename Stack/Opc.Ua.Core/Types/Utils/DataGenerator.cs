@@ -646,7 +646,7 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        public DateTime GetRandomDateTime()
+        public DateTimeUtc GetRandomDateTime()
         {
             int minTicks = (int)(MinDateTimeValue.Ticks >> 32);
             int maxTicks = (int)(MaxDateTimeValue.Ticks >> 32);
@@ -864,7 +864,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.String:
                     return Variant.From(GetRandomArray<string>(true, length, true));
                 case BuiltInType.DateTime:
-                    return Variant.From(GetRandomArray<DateTime>(true, length, true));
+                    return Variant.From(GetRandomArray<DateTimeUtc>(true, length, true));
                 case BuiltInType.Guid:
                     return Variant.From(GetRandomArray<Uuid>(true, length, true));
                 case BuiltInType.ByteString:
@@ -924,9 +924,9 @@ namespace Opc.Ua.Test
         {
             Variant variant = GetRandomVariant();
             StatusCode statusCode = GetRandomStatusCode();
-            DateTime sourceTimeStamp = GetRandomDateTime();
+            DateTimeUtc sourceTimeStamp = GetRandomDateTime();
 
-            return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
+            return new DataValue(variant, statusCode, sourceTimeStamp, DateTimeUtc.Now);
         }
 
         /// <summary>
@@ -1243,12 +1243,11 @@ namespace Opc.Ua.Test
             ),
             new(BuiltInType.String, (string)null, string.Empty),
             new(BuiltInType.DateTime,
-                DateTime.MinValue,
-                DateTime.MaxValue,
-                new DateTime(1099, 1, 1),
-                Utils.TimeBase,
-                new DateTime(2039, 4, 4),
-                new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MaxValue,
+                (DateTimeUtc)new DateTime(1099, 1, 1),
+                (DateTimeUtc)new DateTime(2039, 4, 4),
+                (DateTimeUtc)new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
             new(BuiltInType.Guid, Uuid.Empty),
             new(BuiltInType.ByteString, ByteString.Empty, (ByteString)default),

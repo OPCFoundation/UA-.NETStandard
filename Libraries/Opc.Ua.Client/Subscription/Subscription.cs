@@ -598,7 +598,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The time that the last notification received was published.
         /// </summary>
-        public DateTime PublishTime
+        public DateTimeUtc PublishTime
         {
             get
             {

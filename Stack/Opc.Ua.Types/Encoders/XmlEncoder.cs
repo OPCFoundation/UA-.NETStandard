@@ -448,12 +448,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTime(string fieldName, DateTime value)
+        public void WriteDateTime(string fieldName, DateTimeUtc value)
         {
             if (BeginField(fieldName, false, false))
             {
-                value = CoreUtils.ToOpcUaUniversalTime(value);
-                m_writer.WriteValue(value);
+                m_writer.WriteValue((DateTime)value);
                 EndField(fieldName);
             }
         }
@@ -1235,7 +1234,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
         {
             if (BeginField(fieldName, values.IsNull, true, true))
             {
@@ -2096,7 +2095,7 @@ namespace Opc.Ua
                                     }
                                     case BuiltInType.DateTime:
                                     {
-                                        MatrixOf<DateTime> matrix = value.GetDateTimeMatrix();
+                                        MatrixOf<DateTimeUtc> matrix = value.GetDateTimeMatrix();
                                         WriteDimensions(matrix);
                                         WriteDateTimeArray(elements, matrix.ToArrayOf());
                                         break;

@@ -675,6 +675,11 @@ namespace Opc.Ua
                 return IsEqual(time1, (DateTime)value2);
             }
 
+            // check for DateTimeUtc objects
+            if (value1 is DateTimeUtc timeu1)
+            {
+                return IsEqual(timeu1, (DateTimeUtc)value2);
+            }
             // check for compareable objects.
             if (value1 is IComparable comparable1)
             {

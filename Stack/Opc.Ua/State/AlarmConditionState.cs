@@ -119,7 +119,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    ActiveState.EffectiveTransitionTime.Value = DateTime.UtcNow;
+                    ActiveState.EffectiveTransitionTime.Value = DateTimeUtc.Now;
                 }
             }
         }
@@ -162,9 +162,9 @@ namespace Opc.Ua
             ActiveState.Value = new LocalizedText(state);
             ActiveState.Id.Value = active;
 
-            ActiveState.TransitionTime?.Value = DateTime.UtcNow;
+            ActiveState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            ActiveState.Timestamp = DateTime.UtcNow;
+            ActiveState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -209,9 +209,9 @@ namespace Opc.Ua
             SuppressedState.Value = new LocalizedText(state);
             SuppressedState.Id.Value = suppressed;
 
-            SuppressedState.TransitionTime?.Value = DateTime.UtcNow;
+            SuppressedState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            SuppressedState.Timestamp = DateTime.UtcNow;
+            SuppressedState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -297,7 +297,7 @@ namespace Opc.Ua
                 ShelvingState.CauseProcessingCompleted(context, state);
             }
 
-            ShelvingState.UnshelveTime?.Timestamp = DateTime.UtcNow;
+            ShelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);

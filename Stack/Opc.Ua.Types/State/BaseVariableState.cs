@@ -55,7 +55,7 @@ namespace Opc.Ua
         {
             m_value = Variant.Null;
             m_statusCode = StatusCodes.BadWaitingForInitialData;
-            m_timestamp = DateTime.MinValue;
+            m_timestamp = DateTimeUtc.MinValue;
             m_dataType = DataTypeIds.BaseDataType;
             m_valueRank = ValueRanks.Any;
             m_arrayDimensions = default;
@@ -339,7 +339,7 @@ namespace Opc.Ua
         /// The timestamp associated with the variable value.
         /// </summary>
         /// <value>The timestamp.</value>
-        public DateTime Timestamp
+        public DateTimeUtc Timestamp
         {
             get => m_timestamp;
             set
@@ -1062,13 +1062,13 @@ namespace Opc.Ua
         public override void SetStatusCode(
             ISystemContext context,
             StatusCode statusCode,
-            DateTime timestamp)
+            DateTimeUtc timestamp)
         {
             base.SetStatusCode(context, statusCode, timestamp);
 
             StatusCode = statusCode;
 
-            if (timestamp != DateTime.MinValue)
+            if (timestamp != DateTimeUtc.MinValue)
             {
                 Timestamp = timestamp;
             }
@@ -1248,7 +1248,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             // check the access level for the variable.
             if ((m_accessLevel & AccessLevels.CurrentRead) == 0)
@@ -1266,9 +1266,9 @@ namespace Opc.Ua
             }
 
             // ensure a value timestamp exists.
-            if (m_timestamp == DateTime.MinValue)
+            if (m_timestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
             else
             {
@@ -1607,7 +1607,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -1650,9 +1650,9 @@ namespace Opc.Ua
                 m_timestamp = sourceTimestamp;
 
                 // update timestamp if not set by function.
-                if (sourceTimestamp == DateTime.MinValue)
+                if (sourceTimestamp == DateTimeUtc.MinValue)
                 {
-                    m_timestamp = DateTime.UtcNow;
+                    m_timestamp = DateTimeUtc.Now;
                 }
 
                 ChangeMasks |= NodeStateChangeMasks.Value;
@@ -1661,9 +1661,9 @@ namespace Opc.Ua
             }
 
             // ensure the source timestamp has a valid value.
-            if (sourceTimestamp == DateTime.MinValue)
+            if (sourceTimestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
 
             // verify data type.
@@ -1750,7 +1750,7 @@ namespace Opc.Ua
         }
 
         private Variant m_value;
-        private DateTime m_timestamp;
+        private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
         private StatusCode m_statusCode;
         private NodeId m_dataType;
@@ -1798,7 +1798,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the timestamp associated with the value.
         /// </summary>
-        public DateTime Timestamp { get; set; }
+        public DateTimeUtc Timestamp { get; set; }
 
         /// <summary>
         /// Clears the change masks for all nodes in the update list.
@@ -1853,14 +1853,14 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             lock (Lock)
             {
                 // ensure a value timestamp exists.
-                if (Timestamp == DateTime.MinValue)
+                if (Timestamp == DateTimeUtc.MinValue)
                 {
-                    Timestamp = DateTime.UtcNow;
+                    Timestamp = DateTimeUtc.Now;
                 }
 
                 timestamp = Timestamp;

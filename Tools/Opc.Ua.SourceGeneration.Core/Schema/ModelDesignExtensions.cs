@@ -903,12 +903,16 @@ namespace Opc.Ua.Schema.Model
                     }
                     return MakeReturnType(stringValue.AsStringLiteral());
                 case BasicDataType.DateTime:
-                    if (decodedValue is DateTime dt)
+                    if (decodedValue is DateTimeUtc dtutc)
                     {
-                        decodedValue = (DateTimeUtc)dt;
+                        if (dtutc.IsNull)
+                        {
+                            return MakeReturnType("global::Opc.Ua.DateTimeUtc.MinValue");
+                        }
+                        decodedValue = (DateTime)dtutc;
                     }
-                    if (decodedValue is not DateTimeUtc dateTimeValue ||
-                        dateTimeValue.IsNull)
+                    if (decodedValue is not DateTime dateTimeValue ||
+                        dateTimeValue == DateTime.MinValue)
                     {
                         return MakeReturnType("global::Opc.Ua.DateTimeUtc.MinValue");
                     }

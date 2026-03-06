@@ -279,31 +279,14 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareDateTime(DateTime value1, DateTime value2)
+        public bool CompareDateTime(DateTimeUtc value1, DateTimeUtc value2)
         {
-            if (value1.Kind != value2.Kind)
+            if (value1 != value2)
             {
-                value1 = Utils.ToOpcUaUniversalTime(value1);
-                value2 = Utils.ToOpcUaUniversalTime(value2);
+                return ReportError(value1, value2);
             }
 
-            if (value1 < Utils.TimeBase)
-            {
-                value1 = DateTime.MinValue;
-            }
-
-            if (value2 < Utils.TimeBase)
-            {
-                value2 = DateTime.MinValue;
-            }
-
-            if (value1 == value2)
-            {
-                return true;
-            }
-
-            // allow milliseconds to be truncated.
-            return Math.Abs((value1 - value2).Ticks) < 10000;
+            return true;
         }
 
         /// <summary>
@@ -797,11 +780,11 @@ namespace Opc.Ua.Test
                         (string[])value2.Value,
                         CompareString);
                 }
-                if (systemType == typeof(DateTime[]))
+                if (systemType == typeof(DateTimeUtc[]))
                 {
                     return CompareArray(
-                        (DateTime[])value1.Value,
-                        (DateTime[])value2.Value,
+                        (DateTimeUtc[])value1.Value,
+                        (DateTimeUtc[])value2.Value,
                         CompareDateTime);
                 }
                 if (systemType == typeof(Uuid[]))

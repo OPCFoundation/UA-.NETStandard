@@ -363,7 +363,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTime(string fieldName, DateTime value)
+        public void WriteDateTime(string fieldName, DateTimeUtc value)
         {
             if (value == default)
             {
@@ -375,7 +375,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -1042,7 +1042,7 @@ namespace Opc.Ua
             {
                 WriteStatusCode(JsonProperties.StatusCode, value.StatusCode);
             }
-            if (value.SourceTimestamp != DateTime.MinValue)
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.SourceTimestamp, value.SourceTimestamp);
                 if (value.SourcePicoseconds != 0)
@@ -1050,7 +1050,7 @@ namespace Opc.Ua
                     WriteUInt16(JsonProperties.SourcePicoseconds, value.SourcePicoseconds);
                 }
             }
-            if (value.ServerTimestamp != DateTime.MinValue)
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.ServerTimestamp, value.ServerTimestamp);
                 if (value.ServerPicoseconds != 0)
@@ -1080,13 +1080,18 @@ namespace Opc.Ua
         /// Write date time value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDateTime(DateTime value)
+        private void WriteDateTime(DateTimeUtc value)
         {
-            if (value <= DateTime.MinValue)
+            // TODO: Optimize using datetimeutc
+            //  m_writer.WriteStringValue(value.ToString(
+            //      "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+            //      CultureInfo.InvariantCulture));
+
+            if (value <= DateTimeUtc.MinValue)
             {
                 m_writer.WriteStringValue("0001-01-01T00:00:00Z");
             }
-            else if (value >= DateTime.MaxValue)
+            else if (value >= DateTimeUtc.MaxValue)
             {
                 m_writer.WriteStringValue("9999-12-31T23:59:59Z");
             }
@@ -1094,10 +1099,10 @@ namespace Opc.Ua
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
-                DateTimeHelper.ConvertUniversalTimeToString(value, valueString, out int charsWritten);
+                DateTimeHelper.ConvertUniversalTimeToString((DateTime)value, valueString, out int charsWritten);
                 m_writer.WriteStringValue(valueString[..charsWritten]);
 #else
-                m_writer.WriteStringValue(DateTimeHelper.ConvertUniversalTimeToString(value));
+                m_writer.WriteStringValue(DateTimeHelper.ConvertUniversalTimeToString((DateTime)value));
 #endif
             }
         }
@@ -1105,7 +1110,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write date time values
         /// </summary>
-        private void WriteDateTimeArray(ArrayOf<DateTime> values)
+        private void WriteDateTimeArray(ArrayOf<DateTimeUtc> values)
         {
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)

@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// <remarks>
         /// A value of MinTime indicates that the time is not known.
         /// </remarks>
-        public DateTime PublishTime { get; set; }
+        public DateTimeUtc PublishTime { get; set; }
 
         /// <summary>
         /// Helper variable for a client to pass the information that more

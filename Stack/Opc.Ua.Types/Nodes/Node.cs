@@ -614,7 +614,7 @@ namespace Opc.Ua
 
             if (attributeId == Attributes.Value)
             {
-                value.SourceTimestamp = DateTime.UtcNow;
+                value.SourceTimestamp = DateTimeUtc.Now;
             }
 
             return ServiceResult.Good;

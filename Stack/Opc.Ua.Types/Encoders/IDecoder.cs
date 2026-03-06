@@ -142,7 +142,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a UTC date/time from the stream.
         /// </summary>
-        DateTime ReadDateTime(string fieldName);
+        DateTimeUtc ReadDateTime(string fieldName);
 
         /// <summary>
         /// Reads a GUID from the stream.
@@ -308,7 +308,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a UTC date/time array from the stream.
         /// </summary>
-        ArrayOf<DateTime> ReadDateTimeArray(string fieldName);
+        ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName);
 
         /// <summary>
         /// Reads a GUID array from the stream.

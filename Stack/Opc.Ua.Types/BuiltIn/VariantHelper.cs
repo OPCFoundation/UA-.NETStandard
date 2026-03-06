@@ -101,7 +101,7 @@ namespace Opc.Ua
                 case Type t when t == typeof(string):
                     result = AsRefT(value.GetString());
                     break;
-                case Type t when t == typeof(DateTime):
+                case Type t when t == typeof(DateTimeUtc):
                     result = AsT(value.GetDateTime());
                     break;
                 case Type t when t == typeof(Guid):
@@ -182,7 +182,7 @@ namespace Opc.Ua
                 case Type t when t == typeof(ArrayOf<string>):
                     result = AsT(value.GetStringArray());
                     break;
-                case Type t when t == typeof(ArrayOf<DateTime>):
+                case Type t when t == typeof(ArrayOf<DateTimeUtc>):
                     result = AsT(value.GetDateTimeArray());
                     break;
                 case Type t when t == typeof(ArrayOf<Guid>):
@@ -257,7 +257,7 @@ namespace Opc.Ua
                 case Type t when t == typeof(MatrixOf<string>):
                     result = AsT(value.GetStringMatrix());
                     break;
-                case Type t when t == typeof(MatrixOf<DateTime>):
+                case Type t when t == typeof(MatrixOf<DateTimeUtc>):
                     result = AsT(value.GetDateTimeMatrix());
                     break;
                 case Type t when t == typeof(MatrixOf<Guid>):
@@ -332,7 +332,7 @@ namespace Opc.Ua
                 case Type t when t == typeof(string[]):
                     result = AsRefT(value.GetStringArray().ToArray());
                     break;
-                case Type t when t == typeof(DateTime[]):
+                case Type t when t == typeof(DateTimeUtc[]):
                     result = AsRefT(value.GetDateTimeArray().ToArray());
                     break;
                 case Type t when t == typeof(Uuid[]):
@@ -544,7 +544,7 @@ namespace Opc.Ua
                 case string o:
                     variant = Variant.From(o);
                     break;
-                case DateTime o:
+                case DateTimeUtc o:
                     variant = Variant.From(o);
                     break;
                 case Guid o:
@@ -619,7 +619,7 @@ namespace Opc.Ua
                 case ArrayOf<string> o:
                     variant = Variant.From(o);
                     break;
-                case ArrayOf<DateTime> o:
+                case ArrayOf<DateTimeUtc> o:
                     variant = Variant.From(o);
                     break;
                 case ArrayOf<Guid> o:
@@ -694,7 +694,7 @@ namespace Opc.Ua
                 case MatrixOf<string> o:
                     variant = Variant.From(o);
                     break;
-                case MatrixOf<DateTime> o:
+                case MatrixOf<DateTimeUtc> o:
                     variant = Variant.From(o);
                     break;
                 case MatrixOf<Guid> o:
@@ -772,7 +772,7 @@ namespace Opc.Ua
                 case string[] o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
-                case DateTime[] o:
+                case DateTimeUtc[] o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case Guid[] o:
@@ -856,7 +856,7 @@ namespace Opc.Ua
                 case IEnumerable<string> o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
-                case IEnumerable<DateTime> o:
+                case IEnumerable<DateTimeUtc> o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case IEnumerable<Guid> o:
@@ -967,7 +967,7 @@ namespace Opc.Ua
                     variant = ((string[])matrix.Elements).ToMatrixOf(matrix.Dimensions);
                     break;
                 case BuiltInType.DateTime:
-                    variant = ((DateTime[])matrix.Elements).ToMatrixOf(matrix.Dimensions);
+                    variant = ((DateTimeUtc[])matrix.Elements).ToMatrixOf(matrix.Dimensions);
                     break;
                 case BuiltInType.Guid:
                     variant = ((Uuid[])matrix.Elements).ToMatrixOf(matrix.Dimensions);

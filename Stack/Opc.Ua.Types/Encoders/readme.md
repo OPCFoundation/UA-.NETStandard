@@ -55,7 +55,7 @@ default value is omitted — the field is not written to the output at all.
       `Symbol` string (e.g. `{"Code":2147483648,"Symbol":"Bad"}`). Compact mode
       omits the `Symbol`.
     - **DateTime** is encoded as an ISO 8601 string (e.g. `"2024-01-01T00:00:00Z"`).
-      `DateTime.MinValue` is treated as null.
+      `DateTimeUtc.MinValue` is treated as null.
     - **Guid** is encoded as a string (e.g. `"72962B91-FA75-4AE6-8D28-B404DC7DAF63"`).
       `Guid.Empty` is treated as null.
 - All nullable types are encoded as `null` when they equal `null`. In Compact

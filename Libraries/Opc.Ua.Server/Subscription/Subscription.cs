@@ -802,7 +802,7 @@ namespace Opc.Ua.Server
                 message = new NotificationMessage
                 {
                     SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTime.UtcNow
+                    PublishTime = DateTimeUtc.Now
                 };
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
@@ -831,7 +831,7 @@ namespace Opc.Ua.Server
                 message = new NotificationMessage
                 {
                     SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTime.UtcNow
+                    PublishTime = DateTimeUtc.Now
                 };
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
@@ -1032,7 +1032,7 @@ namespace Opc.Ua.Server
                 {
                     // use the sequence number for the next message.
                     SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTime.UtcNow
+                    PublishTime = DateTimeUtc.Now
                 };
 
                 // return the available sequence numbers.
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Server
             var message = new NotificationMessage
             {
                 SequenceNumber = m_sequenceNumber,
-                PublishTime = DateTime.UtcNow
+                PublishTime = DateTimeUtc.Now
             };
 
             Utils.IncrementIdentifier(ref m_sequenceNumber);

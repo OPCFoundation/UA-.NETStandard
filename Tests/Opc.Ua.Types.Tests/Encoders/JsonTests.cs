@@ -34,7 +34,7 @@ using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.Types;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "JsonDecoder"/> class.
@@ -302,11 +302,11 @@ namespace Opc.Ua.UnitTests
 
         [Test]
         [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.DateTimes))]
-        public void WriteAndReadDateTime(DateTime value)
+        public void WriteAndReadDateTime(DateTimeUtc value)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            DateTime expected = value;
+            DateTime expected = (DateTime)value;
             var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
@@ -315,14 +315,14 @@ namespace Opc.Ua.UnitTests
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = decoder.ReadDateTime(JsonProperties.Value);
+            DateTime result = (DateTime)decoder.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
 
         [Test]
         [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.DateTimeValues))]
-        public void WriteAndReadDateTimeArray(DateTime value, int length)
+        public void WriteAndReadDateTimeArray(DateTimeUtc value, int length)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
@@ -335,14 +335,14 @@ namespace Opc.Ua.UnitTests
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(JsonProperties.Value);
+            ArrayOf<DateTimeUtc> result = decoder.ReadDateTimeArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
 
         [Test]
         [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.DateTimeValues))]
-        public void WriteAndReadDateTimeValuesVariant(DateTime value, int length)
+        public void WriteAndReadDateTimeValuesVariant(DateTimeUtc value, int length)
         {
             var expected = new Variant(Enumerable.Repeat(value, length).ToArray());
             TestWriteAndReadVariant(in expected);
@@ -350,7 +350,7 @@ namespace Opc.Ua.UnitTests
 
         [Test]
         [TestCaseSource(typeof(BuiltInTypeTestCases), nameof(BuiltInTypeTestCases.DateTimes))]
-        public void WriteAndReadDateTimeVariant(DateTime value)
+        public void WriteAndReadDateTimeVariant(DateTimeUtc value)
         {
             var expected = new Variant(value);
             TestWriteAndReadVariant(in expected);

@@ -2780,7 +2780,7 @@ namespace Opc.Ua
         public virtual void SetStatusCode(
             ISystemContext context,
             StatusCode statusCode,
-            DateTime timestamp)
+            DateTimeUtc timestamp)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -3499,7 +3499,7 @@ namespace Opc.Ua
             // read value attribute.
             if (attributeId == Attributes.Value)
             {
-                DateTime sourceTimestamp = value.SourceTimestamp;
+                DateTimeUtc sourceTimestamp = value.SourceTimestamp;
 
                 try
                 {
@@ -3791,10 +3791,10 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             value = Variant.Null;
-            sourceTimestamp = DateTime.MinValue;
+            sourceTimestamp = DateTimeUtc.MinValue;
             return StatusCodes.BadAttributeIdInvalid;
         }
 
@@ -3828,7 +3828,7 @@ namespace Opc.Ua
             if (attributeId == Attributes.Value)
             {
                 // writes to server timestamp never supported.
-                if (value.ServerTimestamp != DateTime.MinValue)
+                if (value.ServerTimestamp != DateTimeUtc.MinValue)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadWriteNotSupported,
@@ -3856,8 +3856,8 @@ namespace Opc.Ua
 
             // writes to status code or timestamps never supported.
             if (value.StatusCode != StatusCodes.Good ||
-                value.ServerTimestamp != DateTime.MinValue ||
-                value.SourceTimestamp != DateTime.MinValue)
+                value.ServerTimestamp != DateTimeUtc.MinValue ||
+                value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadWriteNotSupported,
@@ -4175,7 +4175,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             return StatusCodes.BadAttributeIdInvalid;
         }
@@ -5215,7 +5215,7 @@ namespace Opc.Ua
         QualifiedName dataEncoding,
         ref Variant value,
         ref StatusCode statusCode,
-        ref DateTime timestamp);
+        ref DateTimeUtc timestamp);
 
     /// <summary>
     /// Stores a reference from a node in the instance hierarchy.

@@ -54,7 +54,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             ViewId = default;
-            Timestamp = DateTime.MinValue;
+            Timestamp = DateTimeUtc.MinValue;
             ViewVersion = 0;
         }
 
@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// Time stamp
         /// </summary>
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
-        public DateTime Timestamp { get; set; }
+        public DateTimeUtc Timestamp { get; set; }
 
         /// <summary>
         /// View version
@@ -179,7 +179,7 @@ namespace Opc.Ua
 
             if (view.ViewId.IsNull &&
                 view.ViewVersion == 0 &&
-                view.Timestamp == DateTime.MinValue)
+                view.Timestamp == DateTimeUtc.MinValue)
             {
                 return true;
             }

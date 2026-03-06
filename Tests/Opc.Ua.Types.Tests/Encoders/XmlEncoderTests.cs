@@ -3933,9 +3933,12 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var stringWriter = new StringWriter();
             var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                writer,
+                messageContext);
 
-            var values = ArrayOf.Wrapped(Array.Empty<DateTime>());
+            var values = ArrayOf.Empty<DateTimeUtc>();
 
             // Act
             encoder.WriteDateTimeArray("TestArray", values);
@@ -3962,8 +3965,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            DateTime[] dateTimeValues = [new DateTime(2023, 1, 1), new DateTime(2023, 12, 31)];
-            var values = ArrayOf.Wrapped(dateTimeValues);
+            ArrayOf<DateTimeUtc> values = [new DateTime(2023, 1, 1), new DateTime(2023, 12, 31)];
 
             // Act
             encoder.WriteDateTimeArray("TestArray", values);
@@ -3990,7 +3992,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            DateTime[] dateTimeValues = [DateTime.Now, DateTime.Now, DateTime.Now];
+            DateTimeUtc[] dateTimeValues = [DateTimeUtc.Now, DateTimeUtc.Now, DateTimeUtc.Now];
             var values = ArrayOf.Wrapped(dateTimeValues);
 
             // Act & Assert

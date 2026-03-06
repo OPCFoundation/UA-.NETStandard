@@ -197,7 +197,7 @@ namespace Opc.Ua.UnitTests
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            DateTime expected = DateTime.UtcNow;
+            DateTime expected = (DateTime)DateTime.UtcNow;
             var buffers = new PooledBufferWriter();
 
             using (var writer = new JsonEncoder(buffers, messageContext))
@@ -206,7 +206,7 @@ namespace Opc.Ua.UnitTests
             }
 
             var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = reader.ReadDateTime(JsonProperties.Value);
+            DateTime result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }

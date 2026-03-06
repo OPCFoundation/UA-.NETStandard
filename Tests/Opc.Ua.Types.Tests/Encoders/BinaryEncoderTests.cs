@@ -4338,7 +4338,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.WriteDateTime("test", DateTime.MaxValue);
+            encoder.WriteDateTime("test", DateTimeUtc.MaxValue);
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5845,7 +5845,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 2, 2));
+            Assert.Throws<
+#if NET8_0_OR_GREATER
+                ArgumentOutOfRangeException
+#else
+                ArgumentException
+#endif
+            >(
+            () => encoder.WriteRawBytes(buffer, 2, 2));
         }
 
         [Test]
@@ -5863,7 +5870,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 4, 0));
+            Assert.Throws<
+#if NET8_0_OR_GREATER
+                ArgumentOutOfRangeException
+#else
+                ArgumentException
+#endif
+            >(
+            () => encoder.WriteRawBytes(buffer, 4, 0));
         }
 
         [Test]
@@ -5880,7 +5894,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 0, 5));
+            Assert.Throws<
+#if NET8_0_OR_GREATER
+                ArgumentOutOfRangeException
+#else
+                ArgumentException
+#endif
+                >(
+                () => encoder.WriteRawBytes(buffer, 0, 5));
         }
 
         [Test]
@@ -5897,7 +5918,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
+Assert.Throws<
+#if NET8_0_OR_GREATER
+                ArgumentOutOfRangeException
+#else
+                ArgumentException
+#endif
+            >(
+            () => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
         }
 
         [Test]
@@ -7506,7 +7534,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<DateTime> nullArray = default;
+            ArrayOf<DateTimeUtc> nullArray = default;
             // Act
             encoder.WriteDateTimeArray("TestField", nullArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7522,7 +7550,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<DateTime> emptyArray = [];
+            ArrayOf<DateTimeUtc> emptyArray = [];
             // Act
             encoder.WriteDateTimeArray("TestField", emptyArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7539,7 +7567,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-            var singleElementArray = new ArrayOf<DateTime>([testDate]);
+            var singleElementArray = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
             encoder.WriteDateTimeArray("TestField", singleElementArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7555,13 +7583,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            DateTime[] dates =
+            DateTimeUtc[] dates =
             [
                 new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
                 new DateTime(2024, 6, 15, 8, 30, 0, DateTimeKind.Utc),
                 new DateTime(2024, 12, 31, 23, 59, 59, DateTimeKind.Utc)
             ];
-            var multiElementArray = new ArrayOf<DateTime>(dates);
+            var multiElementArray = new ArrayOf<DateTimeUtc>(dates);
             // Act
             encoder.WriteDateTimeArray("TestField", multiElementArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7577,7 +7605,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var array = new ArrayOf<DateTime>([DateTime.MinValue]);
+            var array = new ArrayOf<DateTimeUtc>([DateTime.MinValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7593,7 +7621,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var array = new ArrayOf<DateTime>([DateTime.MaxValue]);
+            var array = new ArrayOf<DateTimeUtc>([DateTime.MaxValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7609,15 +7637,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var encoder = new BinaryEncoder(messageContext);
-            DateTime[] dates =
+            DateTimeUtc[] dates =
             [
                 DateTime.UtcNow,
                 DateTime.UtcNow.AddDays(1),
                 DateTime.UtcNow.AddDays(2)
             ];
-            var array = new ArrayOf<DateTime>(dates);
+            var array = new ArrayOf<DateTimeUtc>(dates);
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDateTimeArray("TestField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteDateTimeArray("TestField", array));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -7628,15 +7657,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            DateTime[] dates =
+            ArrayOf<DateTimeUtc> array =
             [
-                DateTime.MinValue,
-                DateTime.MaxValue,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MaxValue,
                 new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                DateTime.UtcNow
+                DateTimeUtc.Now
             ];
-            var array = new ArrayOf<DateTime>(dates);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7653,7 +7681,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-            var array = new ArrayOf<DateTime>([testDate]);
+            var array = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
             encoder.WriteDateTimeArray(null, array);
             byte[] result = encoder.CloseAndReturnBuffer();
