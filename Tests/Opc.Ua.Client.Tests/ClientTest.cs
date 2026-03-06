@@ -972,12 +972,13 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
-            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
-            if(endpoint == null)
+            if (endpoint == null)
             {
                 NUnit.Framework.Assert.Ignore(
                     $"No endpoint found for {securityPolicy}");
             }
+            endpoint = (ConfiguredEndpoint)endpoint.Clone();
+            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
             ConfiguredEndpoint tokenPolicyEndpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, userTokenPolicy, Endpoints)
                 .ConfigureAwait(false);

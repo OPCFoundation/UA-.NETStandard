@@ -1283,6 +1283,8 @@ namespace Opc.Ua.Client
                     previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
+                m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
@@ -1292,7 +1294,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
-                    m_userTokenSecurityPolicyUri,
+                    tokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
