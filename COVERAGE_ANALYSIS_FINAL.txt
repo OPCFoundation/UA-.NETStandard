@@ -1,0 +1,420 @@
+================================================================================
+COBERTURA XML CODE COVERAGE REPORT - DETAILED ANALYSIS
+================================================================================
+
+Source: D:\git\UA-.NETStandard\TestResults\fresh\95868b9f-3c4a-432b-817a-f3d8b6ed4ae2\coverage.cobertura.xml
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+TOTAL CLASSES ANALYZED: 8
+TOTAL UNCOVERED METHODS: 154
+CRITICAL FINDING: NodeStateCollection class has 0% coverage (completely untested)
+
+KEY STATISTICS:
+- Lowest Coverage: NodeStateCollection (0%) - 155+ uncovered lines
+- Highest Coverage: VariableNode (13.43%)
+- Average Coverage: 7.8%
+- Total Uncovered Line Count: 1,000+ lines
+
+CRITICAL AREAS REQUIRING IMMEDIATE ATTENTION:
+1. NodeStateCollection - Complete serialization/deserialization stack
+2. MethodState.Call/CallAsync - Method invocation not tested
+3. ReferenceTypeState.ReadNonValueAttribute/WriteNonValueAttribute - 110+ uncovered lines
+4. ViewState.ReadNonValueAttribute/WriteNonValueAttribute - 100+ uncovered lines
+5. All State classes - Binary/XML serialization gaps
+
+================================================================================
+DETAILED CLASS ANALYSIS
+================================================================================
+
+CLASS 1: MethodState (State/MethodState.cs)
+========================================
+Coverage: 7.14% | Branch Rate: 3.27%
+Uncovered Methods: 32
+Uncovered Lines: ~325
+
+CRITICAL UNCOVERED AREAS:
+├─ Constructors: Construct() [3 lines]
+├─ Clone Methods: Clone() [5 lines], DeepEquals() [13 lines], DeepGetHashCode() [10 lines]
+├─ Export/Import:
+│  ├─ Export() [8 lines]
+│  ├─ Save(XmlEncoder) [13 lines]
+│  ├─ Update(XmlDecoder) [13 lines]
+│  ├─ Save(BinaryEncoder) [11 lines]
+│  └─ Update(BinaryDecoder) [11 lines]
+├─ Attribute Access:
+│  ├─ ReadNonValueAttribute() [41 UNCOVERED LINES]
+│  └─ WriteNonValueAttribute() [57 UNCOVERED LINES]
+├─ Method Invocation (CRITICAL):
+│  ├─ Call(ISystemContext, NodeId, ...) [3 + 10 lines]
+│  ├─ Call(ISystemContext, VariantCollection, ...) [3 lines]
+│  ├─ CallAsync() variants [3 + 3 lines]
+│  └─ ValidateInputArgument() [30 lines]
+└─ Properties: MethodDeclarationId, Executable, UserExecutable, InputArguments, OutputArguments
+
+PARTIALLY COVERED:
+- set_Executable() [57% - 3 uncovered lines]
+- set_UserExecutable() [57% - 3 uncovered lines]
+- GetChildren() [54% - 6 uncovered lines]
+
+RISK ASSESSMENT: HIGH - Core method invocation untested
+
+---
+
+CLASS 2: BaseInstanceState (State/BaseInstanceState.cs)
+========================================
+Coverage: 6.07% | Branch Rate: 3.17%
+Uncovered Methods: 27
+Uncovered Lines: ~330
+
+CRITICAL UNCOVERED AREAS:
+├─ Initialization:
+│  ├─ Initialize(ISystemContext, NodeState) [10 lines]
+│  └─ GetDefaultTypeDefinitionId() [6 lines]
+├─ Clone Methods: Clone() [5], DeepEquals() [11], DeepGetHashCode() [9], CopyTo() [11]
+├─ Display Methods:
+│  ├─ GetDisplayPath() [3 lines]
+│  ├─ GetDisplayText() [3 lines]
+│  ├─ GetDisplayPath(Int32, Char) [48 UNCOVERED LINES]
+│  └─ GetNonNullText() [18 lines]
+├─ Export/Import:
+│  ├─ Export() [26 lines]
+│  ├─ Save(XmlEncoder) [27 lines]
+│  ├─ Update(XmlDecoder) [27 lines]
+│  ├─ Save(BinaryEncoder) [23 lines]
+│  └─ Update(BinaryDecoder) [23 lines]
+├─ Filtering: GetAttributeValue() [40 UNCOVERED LINES]
+├─ Browser: PopulateBrowser() [32 lines]
+└─ Properties: ReferenceTypeId, TypeDefinitionId, ModellingRuleId
+
+RISK ASSESSMENT: CRITICAL - Display paths and attribute values untested
+
+---
+
+CLASS 3: BaseTypeState (State/BaseTypeState.cs)
+========================================
+Coverage: 7.89% | Branch Rate: 4.05%
+Uncovered Methods: 16
+Uncovered Lines: ~150
+
+CRITICAL UNCOVERED AREAS:
+├─ Initialization: Initialize(ISystemContext, NodeState) [9 lines]
+├─ Clone Methods: Clone() [5], DeepEquals() [10], DeepGetHashCode() [7], CopyTo() [8]
+├─ Properties: SuperTypeId, IsAbstract
+├─ Export/Import:
+│  ├─ Export() [24 lines]
+│  ├─ Save(XmlEncoder) [17 lines]
+│  ├─ Update(XmlDecoder) [17 lines]
+│  ├─ Save(BinaryEncoder) [13 lines]
+│  └─ Update(BinaryDecoder) [13 lines]
+├─ Attributes:
+│  ├─ ReadNonValueAttribute() [25 lines]
+│  └─ WriteNonValueAttribute() [33 lines]
+└─ Browser: PopulateBrowser() [26 lines]
+
+RISK ASSESSMENT: HIGH - Type definition export/serialization untested
+
+---
+
+CLASS 4: ReferenceTypeState (State/ReferenceTypeState.cs)
+========================================
+Coverage: 8.61% | Branch Rate: 2.77%
+Uncovered Methods: 16
+Uncovered Lines: ~150
+
+CRITICAL UNCOVERED AREAS:
+├─ Constructor: Construct(NodeState) [3 lines]
+├─ Initialization: Initialize(ISystemContext, NodeState) [9 lines]
+├─ Clone Methods: Clone() [5], DeepEquals() [10], DeepGetHashCode() [7], CopyTo() [8]
+├─ Properties: InverseName, Symmetric (both critical for bidirectional references)
+├─ Export/Import:
+│  ├─ Export() [9 lines]
+│  ├─ Save(XmlEncoder) [17 lines]
+│  ├─ Update(XmlDecoder) [17 lines]
+│  ├─ Save(BinaryEncoder) [13 lines]
+│  └─ Update(BinaryDecoder) [13 lines]
+├─ Attributes:
+│  ├─ ReadNonValueAttribute() [48 UNCOVERED LINES] ⚠️
+│  └─ WriteNonValueAttribute() [63 UNCOVERED LINES] ⚠️
+└─ GetAttributesToSave() [15 lines]
+
+RISK ASSESSMENT: CRITICAL - Bidirectional reference attributes (48 + 63 lines uncovered)
+
+---
+
+CLASS 5: ViewState (State/ViewState.cs)
+========================================
+Coverage: 10.89% | Branch Rate: 2.94%
+Uncovered Methods: 16
+Uncovered Lines: ~150
+
+CRITICAL UNCOVERED AREAS:
+├─ Constructor: Construct(NodeState) [3 lines]
+├─ Initialization: Initialize(ISystemContext, NodeState) [9 lines]
+├─ Clone Methods: Clone() [5], DeepEquals() [10], DeepGetHashCode() [7], CopyTo() [8]
+├─ Properties: EventNotifier, ContainsNoLoops (view configuration)
+├─ Export/Import:
+│  ├─ Export() [9 lines]
+│  ├─ Save(XmlEncoder) [17 lines]
+│  ├─ Update(XmlDecoder) [17 lines]
+│  ├─ Save(BinaryEncoder) [13 lines]
+│  └─ Update(BinaryDecoder) [13 lines]
+├─ Attributes:
+│  ├─ ReadNonValueAttribute() [41 UNCOVERED LINES] ⚠️
+│  └─ WriteNonValueAttribute() [57 UNCOVERED LINES] ⚠️
+└─ GetAttributesToSave() [15 lines]
+
+RISK ASSESSMENT: HIGH - View attribute access untested (98 combined uncovered lines)
+
+---
+
+CLASS 6: NodeStateCollection (State/NodeStateCollection.cs)
+========================================
+Coverage: 0% | Branch Rate: 0%
+Uncovered Methods: 14
+Uncovered Lines: 270+ (ENTIRE CLASS)
+
+⚠️ **CRITICAL FINDING: COMPLETELY UNTESTED CLASS**
+
+CONSTRUCTORS (ALL UNTESTED):
+├─ .ctor() [3 lines]
+├─ .ctor(Int32) [3 lines]
+├─ .ctor(IEnumerable<NodeState>) [3 lines]
+└─ .cctor() [55 UNCOVERED LINES] - Static initialization of all NodeSet aliases
+
+SERIALIZATION METHODS (ALL UNTESTED):
+├─ SaveAsNodeSet() [21 lines]
+├─ SaveAsNodeSet2(v1) [19 lines]
+├─ SaveAsXml(v1) [3 lines]
+├─ SaveAsXml(v2) [21 lines]
+├─ SaveAsBinary() [17 lines]
+└─ SaveAsNodeSet2(v2) [41 lines] - Most complex, with ModelTableEntry support
+
+DESERIALIZATION METHODS (ALL UNTESTED):
+├─ LoadFromBinary() [60 UNCOVERED LINES]
+├─ LoadFromXml() [59 UNCOVERED LINES]
+├─ LoadFromResource() [28 lines]
+└─ LoadFromBinaryResource() [28 lines]
+
+TOTAL: 270+ uncovered lines across serialization/deserialization stack
+
+RISK ASSESSMENT: **CRITICAL** - This class handles all NodeState persistence.
+Without tests, serialization reliability is completely unverified.
+
+IMPACT AREAS:
+- NodeSet file persistence (SaveAsNodeSet*)
+- XML export/import (SaveAsXml, LoadFromXml)
+- Binary format support (SaveAsBinary, LoadFromBinary)
+- Resource-based loading (LoadFromResource, LoadFromBinaryResource)
+
+---
+
+CLASS 7: Node (Nodes/Node.cs)
+========================================
+Coverage: 8.23% | Branch Rate: 0%
+Uncovered Methods: 39
+Uncovered Lines: ~400
+
+CRITICAL UNCOVERED AREAS:
+├─ Constructors:
+│  ├─ .ctor(ReferenceDescription) [9 lines]
+│  └─ .ctor(ILocalNode) [15 lines]
+├─ Clone Methods:
+│  ├─ Clone() [3 lines]
+│  ├─ MemberwiseClone() [17 lines]
+│  └─ Copy(ILocalNode) [71 UNCOVERED LINES] ⚠️
+├─ Serialization:
+│  ├─ Encode(IEncoder) [17 lines]
+│  ├─ Decode(IDecoder) [17 lines]
+│  └─ IsEqual(IEncodeable) [68 UNCOVERED LINES] ⚠️
+├─ String Representations:
+│  ├─ ToString(String, IFormatProvider) [20 lines]
+│  ├─ ToString() [3 lines]
+│  └─ GetHashCode() [7 lines]
+├─ Read/Write Operations:
+│  ├─ Read(IOperationContext, ...) [16 lines]
+│  ├─ Read(UInt32) [28 lines]
+│  ├─ Write(UInt32, DataValue) [23 lines]
+│  └─ Write(UInt32, Variant) [34 lines]
+├─ Properties: RolePermissions, UserRolePermissions, References, Handle, TypeDefinitionId, ModellingRule
+├─ Reference/Search:
+│  ├─ ReferenceExists() [3 lines]
+│  ├─ Find() [3 lines]
+│  ├─ FindTarget() [3 lines]
+│  ├─ GetSuperType() [13 lines]
+│  └─ SupportsAttribute() [6 lines]
+└─ Interface Implementations (ALL UNCOVERED):
+   ├─ INode.get_NodeId()
+   ├─ ILocalNode.get/set_WriteMask()
+   ├─ ILocalNode.get/set_UserWriteMask()
+   └─ ILocalNode.get_References()
+
+BRANCH RATE: 0% - No branching code paths covered at all
+
+RISK ASSESSMENT: HIGH - Core node operations untested (271 + 68 largest gaps)
+
+---
+
+CLASS 8: VariableNode (Nodes/VariableNode.cs)
+========================================
+Coverage: 13.43% | Branch Rate: 0%
+Uncovered Methods: 14
+Uncovered Lines: ~220
+
+CRITICAL UNCOVERED AREAS:
+├─ Constructor: .ctor(ILocalNode) [24 lines]
+├─ Initialization: Initialize(StreamingContext) [3 lines]
+├─ Clone Methods:
+│  ├─ Clone() [3 lines]
+│  ├─ MemberwiseClone() [15 lines]
+│  └─ IsEqual(IEncodeable) [58 UNCOVERED LINES] ⚠️
+├─ Serialization:
+│  ├─ Encode(IEncoder) [17 lines]
+│  └─ Decode(IDecoder) [17 lines]
+├─ Properties:
+│  ├─ get/set_ArrayDimensions() [11 lines]
+│  └─ IVariableBase interface methods [2 lines]
+└─ Read/Write:
+   ├─ Read(UInt32) [32 lines]
+   └─ Write(UInt32, Variant) [59 UNCOVERED LINES] ⚠️
+
+BRANCH RATE: 0% - No branching code paths covered
+
+RISK ASSESSMENT: MEDIUM-HIGH - Variable operations partially tested (IsEqual + Write = 117 uncovered)
+
+================================================================================
+PATTERN ANALYSIS - COMMON UNCOVERED CODE
+================================================================================
+
+1. CLONE & DEEP COPY OPERATIONS
+   - Clone() methods: Uncovered in 5+ classes
+   - DeepEquals(): Uncovered in all State classes
+   - DeepGetHashCode(): Uncovered in all State classes
+   - MemberwiseClone(): Uncovered in Node and VariableNode
+
+2. CONSTRUCTOR INITIALIZATION  
+   - Default constructors: Uncovered in NodeStateCollection
+   - Copy constructors: Uncovered in multiple Node classes
+   - Parameterized constructors: Mostly uncovered
+
+3. EXPORT/IMPORT (STATE CLASSES)
+   - Export(ISystemContext, Node): Uncovered in all State classes
+   - Save(XmlEncoder): Uncovered in all State classes (pattern: ~13-27 lines each)
+   - Update(XmlDecoder): Uncovered in all State classes
+   - Save(BinaryEncoder): Uncovered in all State classes (~11-13 lines each)
+   - Update(BinaryDecoder): Uncovered in all State classes
+
+4. ATTRIBUTE READ/WRITE
+   - ReadNonValueAttribute: Uncovered in BaseTypeState (25), ReferenceTypeState (48), ViewState (41)
+   - WriteNonValueAttribute: Uncovered in BaseTypeState (33), ReferenceTypeState (63), ViewState (57)
+   - Pattern: Large switch statements on attribute IDs
+
+5. SERIALIZATION (NODE CLASSES)
+   - Encode/Decode: Uncovered in Node (34 lines), VariableNode (34 lines)
+   - IsEqual: Uncovered in Node (68 lines), VariableNode (58 lines)
+
+6. READ/WRITE OPERATIONS
+   - Read methods: Uncovered across multiple Node classes
+   - Write methods: Large uncovered sections in VariableNode (59 lines), Node (34 lines)
+
+7. PERSISTENCE (COLLECTION CLASS)
+   - SaveAsNodeSet*: All variants untested (21 + 19 + 41 lines)
+   - LoadFromBinary: 60 uncovered lines
+   - LoadFromXml: 59 uncovered lines
+   - LoadFromResource*: Both variants untested (56 combined lines)
+
+================================================================================
+RECOMMENDATIONS FOR TEST COVERAGE
+================================================================================
+
+PRIORITY 1 - CRITICAL (Do First):
+1. NodeStateCollection - Add tests for all constructors and static initializer
+2. NodeStateCollection - Add comprehensive serialization tests (SaveAsNodeSet, SaveAsXml, SaveAsBinary)
+3. NodeStateCollection - Add comprehensive deserialization tests (LoadFromBinary, LoadFromXml, LoadFromResource)
+4. MethodState.Call/CallAsync - Add method invocation tests
+5. ReferenceTypeState.ReadNonValueAttribute/WriteNonValueAttribute - Add 110 lines of attribute access tests
+
+PRIORITY 2 - HIGH (Do Soon):
+6. All State classes - Add Clone() and Deep* methods tests
+7. All State classes - Add Export/Save/Update serialization tests
+8. ViewState.ReadNonValueAttribute/WriteNonValueAttribute - Add 100 lines of view attribute tests
+9. Node.IsEqual/Copy - Add 140 uncovered lines of comparison/copying tests
+10. VariableNode.IsEqual/Write - Add 120 uncovered lines of variable operations tests
+
+PRIORITY 3 - MEDIUM:
+11. Node/VariableNode - Add Read/Write operation tests
+12. Node/VariableNode - Add Encode/Decode serialization tests
+13. All classes - Add constructor initialization tests
+14. All State classes - Add Display/Path methods tests
+
+PRIORITY 4 - LOWER:
+15. Node - Add interface method tests (INode, ILocalNode)
+16. Node - Add reference search methods tests
+17. All classes - Add ToString and GetHashCode tests
+
+================================================================================
+TEST DEVELOPMENT PATTERNS
+================================================================================
+
+For Clone() methods:
+- Create instance with various states
+- Clone the instance
+- Verify all properties match original
+- Ensure clone is independent (changes don't affect original)
+
+For DeepEquals() methods:
+- Create two instances with same values
+- Verify equality
+- Modify one property and verify inequality
+- Test null comparisons
+
+For Export/Save methods:
+- Create instance with known state
+- Export to Xml/Binary format
+- Verify format contains expected attributes
+- Load back and verify state matches
+
+For ReadNonValueAttribute/WriteNonValueAttribute:
+- Test each attribute ID (large switch statement)
+- Verify correct value type returned/written
+- Test invalid attribute IDs
+- Test access control scenarios
+
+For Serialization (Encode/Decode):
+- Encode an instance
+- Decode the bytes
+- Verify decoded instance matches original
+- Test all property variations
+
+For Read/Write operations:
+- Test each attribute (multiple variants)
+- Verify correct DataValue returned
+- Test invalid values
+- Test access permissions
+
+================================================================================
+FILES ANALYZED
+================================================================================
+
+Coverage Report: 
+  D:\git\UA-.NETStandard\TestResults\fresh\95868b9f-3c4a-432b-817a-f3d8b6ed4ae2\coverage.cobertura.xml (8.28 MB)
+
+Classes Analyzed (8):
+  1. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\MethodState.cs
+  2. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\BaseInstanceState.cs
+  3. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\BaseTypeState.cs
+  4. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\ReferenceTypeState.cs
+  5. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\ViewState.cs
+  6. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\State\NodeStateCollection.cs
+  7. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\Nodes\Node.cs
+  8. D:\git\UA-.NETStandard\Stack\Opc.Ua.Core\Stack\Nodes\VariableNode.cs
+
+================================================================================
+ANALYSIS COMPLETE
+================================================================================
+
+Report Generated: 2026-03-07 11:39:58
+Total Pages of Analysis: 3
+Document Version: 1.0
