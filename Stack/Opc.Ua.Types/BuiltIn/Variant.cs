@@ -7083,7 +7083,7 @@ namespace Opc.Ua
                 switch (ourTypeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
-                        return other.IsNull;
+                        return otherTypeInfo.BuiltInType == BuiltInType.Null;
                     case BuiltInType.Boolean:
                         return Equals(other.GetBooleanArray());
                     case BuiltInType.SByte:
@@ -7146,7 +7146,7 @@ namespace Opc.Ua
                 switch (ourTypeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
-                        return other.IsNull;
+                        return otherTypeInfo.BuiltInType == BuiltInType.Null;
                     case BuiltInType.Boolean:
                         return Equals(other.GetBooleanMatrix());
                     case BuiltInType.SByte:
@@ -7588,7 +7588,7 @@ namespace Opc.Ua
                             new StatusCode(m_union.UInt32)).ToString(null, provider);
 #if NET8_0_OR_GREATER
                     case BuiltInType.Enumeration:
-                        if (m_value is Type enumType)
+                        if (m_value is Type enumType && enumType.IsEnum)
                         {
                             Type type = enumType.GetEnumUnderlyingType();
                             if (type == typeof(int) || type == typeof(uint))
@@ -7630,8 +7630,7 @@ namespace Opc.Ua
         {
 #if NET8_0_OR_GREATER
             Union data = default;
-            var underlyingSize = Marshal.SizeOf(Enum.GetUnderlyingType(enumType));
-            switch (Enum.GetUnderlyingType(enumType))
+            switch (enumType.IsEnum ? Enum.GetUnderlyingType(enumType) : enumType)
             {
                 case Type t when t == typeof(int):
                     data.Int32 = (int)value;
@@ -7659,8 +7658,8 @@ namespace Opc.Ua
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
-                        "Bad enum type {0} with size: {1}",
-                        enumType.Name, underlyingSize);
+                        "Bad enum type {0}",
+                        enumType.Name);
             }
             return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
 #else

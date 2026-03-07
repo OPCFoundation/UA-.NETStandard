@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.String:
                         return Variant.From((string)value);
                     case BuiltInType.DateTime:
-                        return Variant.From((DateTime)value);
+                        return Variant.From((DateTimeUtc)value);
                     case BuiltInType.Guid:
                         return Variant.From((Uuid)value);
                     case BuiltInType.ByteString:

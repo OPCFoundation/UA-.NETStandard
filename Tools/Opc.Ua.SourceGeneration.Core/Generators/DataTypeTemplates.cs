@@ -914,7 +914,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 private {{Tokens.ClassName}}Collection(
                     global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
-                    : base(values.ToArray())
+                    : base(values.ToList())
                 {
                 }
 

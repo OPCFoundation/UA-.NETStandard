@@ -39,7 +39,6 @@ using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Adapts typed arrays to flattened variant representation.
     /// The layout is like a <see cref="ReadOnlyMemory{T}"/>.
@@ -421,11 +420,16 @@ namespace Opc.Ua
 
         /// <summary>
         /// Get as typed one dimensional list for manipulation
-        /// Allocates a list and fills it
+        /// Allocates a list and fills it. Does not return null
+        /// when the array is null, but an empty list.
         /// </summary>
         /// <returns></returns>
         public List<T> ToList()
         {
+            if (IsEmpty)
+            {
+                return [];
+            }
             var newList = new List<T>(m_memory.Length);
             for (int i = 0; i < m_memory.Length; i++)
             {

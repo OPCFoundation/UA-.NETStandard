@@ -144,6 +144,12 @@ namespace Opc.Ua
             {
                 return default;
             }
+
+            if (values.GetType().GetElementType() == typeof(int))
+            {
+                return ArrayOf.From<int>(values);
+            }
+
             int[] array = new int[values.Length];
             // Convert array of enum values to array of int values
             for (int i = 0; i < values.Length; i++)
@@ -162,6 +168,12 @@ namespace Opc.Ua
             {
                 return default;
             }
+
+            if (values.GetType().GetElementType() == typeof(int))
+            {
+                return MatrixOf.From<int>(values);
+            }
+
             // Get dimensions from the multi-dimensional array
             int[] dimensions = new int[values.Rank];
             for (int i = 0; i < values.Rank; i++)
@@ -184,6 +196,14 @@ namespace Opc.Ua
         /// </summary>
         public static object Int32ToEnum(int value, Type type)
         {
+            if (type == typeof(int))
+            {
+                return value;
+            }
+            if (!type.IsEnum)
+            {
+                return null;
+            }
             return Enum.ToObject(type, value);
         }
 
@@ -195,6 +215,10 @@ namespace Opc.Ua
             if (values.IsNull)
             {
                 return null;
+            }
+            if (type == typeof(int))
+            {
+                return values.ToArray();
             }
             Array array = Array.CreateInstance(type, values.Count);
             // Convert array of int values to array of enum values
@@ -214,7 +238,10 @@ namespace Opc.Ua
             {
                 return null;
             }
-
+            if (type == typeof(int))
+            {
+                return values.CreateArrayInstance();
+            }
             int[] dim = values.Dimensions;
             Array array = Array.CreateInstance(type, dim);
             // Convert the matrix with dimensions into an multi dimensional Array of enum values
