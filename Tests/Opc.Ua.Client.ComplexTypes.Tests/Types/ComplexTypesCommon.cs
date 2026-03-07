@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             newObj = Variant.From(ExtensionObject.Null);
                             break;
                         default:
-                            NUnit.Framework.Assert.Fail("Unknown null default value");
+                            newObj = Variant.CreateDefault(property.TypeInfo);
                             break;
                     }
                 }

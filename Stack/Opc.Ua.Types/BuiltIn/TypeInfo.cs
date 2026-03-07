@@ -1606,7 +1606,7 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string[]);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime[]);
+                        return typeof(DateTimeUtc[]);
                     case BuiltInType.Guid:
                         return typeof(Uuid[]);
                     case BuiltInType.ByteString:
@@ -2346,7 +2346,7 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return new string[length];
                     case BuiltInType.DateTime:
-                        return new DateTime[length];
+                        return new DateTimeUtc[length];
                     case BuiltInType.Guid:
                         return new Uuid[length];
                     case BuiltInType.ByteString:

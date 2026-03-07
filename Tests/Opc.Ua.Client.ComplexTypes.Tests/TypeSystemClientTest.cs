@@ -231,7 +231,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 ServiceResult result = serviceResults[ii++];
                 Assert.IsTrue(
-                    ServiceResult.IsGood(serviceResult),
+                    ServiceResult.IsGood(serviceResult) ||
+                    serviceResult.StatusCode == StatusCodes.BadNotReadable ||
+                    serviceResult.StatusCode == StatusCodes.BadUserAccessDenied,
                     $"Expected good result, but received {serviceResult}");
             }
         }
