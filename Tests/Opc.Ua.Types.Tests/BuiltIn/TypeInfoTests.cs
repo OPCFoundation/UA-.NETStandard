@@ -1,0 +1,23 @@
+using System.Threading.Tasks;
+using NUnit.Framework;
+
+namespace Opc.Ua.Types.Tests.BuiltIn
+{
+    /// <summary>
+    /// Tests for the BuiltIn Types.
+    /// </summary>
+    [TestFixture]
+    [Category("BuiltInType")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
+    public class TypeInfoTests
+    {
+        [Test]
+        public void Construct_ForNonEnumerableGenericType_ReturnsUnknown()
+        {
+            TypeInfo typeInfo = TypeInfo.Construct(typeof(Task<int>));
+            Assert.That(typeInfo.IsUnknown, Is.True);
+        }
+    }
+}
