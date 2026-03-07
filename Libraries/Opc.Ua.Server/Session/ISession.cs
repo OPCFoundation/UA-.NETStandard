@@ -29,6 +29,8 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -121,7 +123,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
-        void Close();
+        ValueTask CloseAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Create new ECC ephemeral key
