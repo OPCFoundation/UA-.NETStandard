@@ -1284,8 +1284,8 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response, Is.Not.Null);
             Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
             Assert.That(
-                requestHeader?.Timestamp ?? DateTime.UtcNow,
-                Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+                requestHeader?.Timestamp ?? DateTimeUtc.Now,
+                Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             sessionMock.Channel.Verify();
         }
 

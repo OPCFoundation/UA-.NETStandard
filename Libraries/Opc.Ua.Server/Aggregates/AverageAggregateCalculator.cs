@@ -50,8 +50,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public AverageAggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,

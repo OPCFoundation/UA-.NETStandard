@@ -159,8 +159,8 @@ namespace Opc.Ua.Test
             MaxStringLength = 100;
             MaxXmlAttributeCount = 10;
             MaxXmlElementCount = 10;
-            MinDateTimeValue = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            MaxDateTimeValue = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            MinDateTimeValue = new DateTimeUtc(1900, 1, 1, 0, 0, 0);
+            MaxDateTimeValue = new DateTimeUtc(2100, 1, 1, 0, 0, 0);
             m_random = random;
             m_logger = telemetry.CreateLogger<DataGenerator>();
             BoundaryValueFrequency = 20;
@@ -214,12 +214,12 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The minimum value for generated date time values.
         /// </summary>
-        public DateTime MinDateTimeValue { get; set; }
+        public DateTimeUtc MinDateTimeValue { get; set; }
 
         /// <summary>
         /// The maximum value for generated date time values.
         /// </summary>
-        public DateTime MaxDateTimeValue { get; set; }
+        public DateTimeUtc MaxDateTimeValue { get; set; }
 
         /// <summary>
         /// The maximum number of attributes in generated XML elements.
@@ -648,8 +648,8 @@ namespace Opc.Ua.Test
         /// <inheritdoc/>
         public DateTimeUtc GetRandomDateTime()
         {
-            int minTicks = (int)(MinDateTimeValue.Ticks >> 32);
-            int maxTicks = (int)(MaxDateTimeValue.Ticks >> 32);
+            int minTicks = (int)(MinDateTimeValue.Value >> 32);
+            int maxTicks = (int)(MaxDateTimeValue.Value >> 32);
 
             long delta = GetRandomRange(minTicks, maxTicks);
 
@@ -657,7 +657,7 @@ namespace Opc.Ua.Test
 
             uint lowerTicks = GetRandomUInt32();
 
-            return new DateTime(higherTicks + lowerTicks, DateTimeKind.Utc);
+            return new DateTimeUtc(higherTicks + lowerTicks);
         }
 
         /// <inheritdoc/>
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.String:
                     return GetRandomArray<string>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.DateTime:
-                    return GetRandomArray<DateTime>(useBoundaryValues, length, fixedLength);
+                    return GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.Guid:
                     return GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.ByteString:
@@ -1245,8 +1245,8 @@ namespace Opc.Ua.Test
             new(BuiltInType.DateTime,
                 DateTimeUtc.MinValue,
                 DateTimeUtc.MaxValue,
-                (DateTimeUtc)new DateTime(1099, 1, 1),
-                (DateTimeUtc)new DateTime(2039, 4, 4),
+                new DateTimeUtc(1099, 1, 1),
+                new DateTimeUtc(2039, 4, 4),
                 (DateTimeUtc)new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
             new(BuiltInType.Guid, Uuid.Empty),

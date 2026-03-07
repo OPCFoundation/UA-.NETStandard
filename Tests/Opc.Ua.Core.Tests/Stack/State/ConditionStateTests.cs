@@ -75,9 +75,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
             // Set initial state
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             condition.SetEnableState(m_context, true);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
             Assert.That(condition.EnabledState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -97,9 +97,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new ConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             condition.SetSeverity(m_context, EventSeverity.High);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamps are updated
             Assert.That(condition.Severity.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -120,9 +120,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             alarm.SetActiveState(m_context, true);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
             Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -144,9 +144,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.SuppressedState = new TwoStateVariableState(alarm);
             alarm.SuppressedState.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             alarm.SetSuppressedState(m_context, true);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
             Assert.That(alarm.SuppressedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -166,9 +166,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             condition.SetAcknowledgedState(m_context, true);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
             Assert.That(condition.AckedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -190,9 +190,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             condition.ConfirmedState = new TwoStateVariableState(condition);
             condition.ConfirmedState.Create(m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             condition.SetConfirmedState(m_context, true);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
             Assert.That(condition.ConfirmedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -215,9 +215,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
             alarm.ShelvingState.UnshelveTime = PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
 
-            DateTime beforeTime = DateTime.UtcNow;
+            DateTimeUtc beforeTime = DateTimeUtc.Now;
             alarm.SetShelvingState(m_context, true, false, 1000);
-            DateTime afterTime = DateTime.UtcNow;
+            DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated on UnshelveTime
             Assert.That(alarm.ShelvingState.UnshelveTime.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -241,10 +241,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.SetActiveState(m_context, false);
 
             // Now activate the alarm - timestamp should be greater than or equal to the initial timestamp
-            // since both could be set to DateTime.UtcNow which has limited precision
-            DateTime beforeActivation = DateTime.UtcNow;
+            // since both could be set to DateTimeUtc.Now which has limited precision
+            DateTimeUtc beforeActivation = DateTimeUtc.Now;
             alarm.SetActiveState(m_context, true);
-            DateTime afterActivation = DateTime.UtcNow;
+            DateTimeUtc afterActivation = DateTimeUtc.Now;
 
             // Verify that the timestamp is within the expected range
             Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeActivation));
