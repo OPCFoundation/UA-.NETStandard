@@ -260,9 +260,9 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return SessionDiagnostics.ClientLastContactTime.AddMilliseconds(
-                            SessionDiagnostics.ActualSessionTimeout
-                        ) < DateTime.UtcNow;
+                    DateTime lastContact = (DateTime)SessionDiagnostics.ClientLastContactTime;
+                    return lastContact.AddMilliseconds(SessionDiagnostics.ActualSessionTimeout)
+                        < DateTime.UtcNow;
                 }
             }
         }
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return SessionDiagnostics.ClientLastContactTime;
+                    return (DateTime)SessionDiagnostics.ClientLastContactTime;
                 }
             }
         }

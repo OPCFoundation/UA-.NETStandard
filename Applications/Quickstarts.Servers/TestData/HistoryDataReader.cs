@@ -99,9 +99,9 @@ namespace TestData
             m_startTime = m_request.StartTime;
             m_endTime = m_request.EndTime;
 
-            if (m_endTime == DateTime.MinValue)
+            if (m_endTime == DateTimeUtc.MinValue)
             {
-                m_endTime = DateTime.MaxValue;
+                m_endTime = DateTimeUtc.MaxValue;
             }
 
             // check the direction.
@@ -227,12 +227,12 @@ namespace TestData
             // apply the timestamps filter.
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
-                value.SourceTimestamp = DateTime.MinValue;
+                value.SourceTimestamp = DateTimeUtc.MinValue;
             }
 
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
-                value.ServerTimestamp = DateTime.MinValue;
+                value.ServerTimestamp = DateTimeUtc.MinValue;
             }
 
             // add result.
@@ -241,10 +241,10 @@ namespace TestData
 
         private readonly IHistoryDataSource m_source;
         private ReadRawModifiedDetails m_request;
-        private DateTime m_startTime;
-        private DateTime m_endTime;
+        private DateTimeUtc m_startTime;
+        private DateTimeUtc m_endTime;
         private bool m_isForward;
         private int m_position;
-        private DateTime m_lastTime;
+        private DateTimeUtc m_lastTime;
     }
 }

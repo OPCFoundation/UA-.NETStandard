@@ -1614,7 +1614,7 @@ namespace Opc.Ua.Server
                 DateTime actionTimestamp = DateTime.UtcNow;
                 if (request?.RequestHeader?.Timestamp != null)
                 {
-                    actionTimestamp = request.RequestHeader.Timestamp;
+                    actionTimestamp = (DateTime)request.RequestHeader.Timestamp;
                 }
 
                 e.Initialize(

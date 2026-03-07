@@ -355,11 +355,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
-                if (BuiltInType.DateTime == builtInType)
-                {
-                    expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
-                }
-
                 Assert.AreEqual(expected, result, encodeInfo);
                 Assert.IsTrue(
                     Utils.IsEqual(expected, result),

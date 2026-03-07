@@ -780,7 +780,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 (
                     ArrayOf<ApplicationDescription> oneApplication,
-                    DateTime _,
+                    DateTimeUtc _,
                     nextRecordId
                 ) = await m_gdsClient.GDSClient
                     .QueryApplicationsAsync(
@@ -1610,7 +1610,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(false).ConfigureAwait(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
+                (StatusCode certificateStatus, DateTimeUtc validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
                     application.Certificate.ToByteString()).ConfigureAwait(false);
                 //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
                 Assert.True(StatusCode.IsBad(certificateStatus.Code));
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(false).ConfigureAwait(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
+                (StatusCode certificateStatus, DateTimeUtc validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
                     application.Certificate.ToByteString()).ConfigureAwait(false);
                 if (certificateStatus != StatusCodes.BadCertificateInvalid &&
                     certificateStatus != StatusCodes.BadCertificateUntrusted &&

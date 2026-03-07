@@ -4199,7 +4199,7 @@ namespace Quickstarts.ReferenceServer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             var variable = node as MultiStateDiscreteState;
 
@@ -4238,7 +4238,7 @@ namespace Quickstarts.ReferenceServer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             TypeInfo typeInfo = value.TypeInfo;
 
@@ -4282,7 +4282,7 @@ namespace Quickstarts.ReferenceServer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             var variable = node as AnalogItemState;
 
@@ -4343,7 +4343,7 @@ namespace Quickstarts.ReferenceServer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             TypeInfo typeInfo = value.TypeInfo;
 
@@ -4841,7 +4841,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 lock (Lock)
                 {
-                    DateTime timeStamp = DateTime.UtcNow;
+                    DateTimeUtc timeStamp = DateTimeUtc.Now;
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
                     {
                         variable.Value = GetNewValue(variable);

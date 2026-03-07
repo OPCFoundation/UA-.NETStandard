@@ -3107,7 +3107,7 @@ namespace Opc.Ua.Client
                     }
 
                     // send notification that keep alive completed.
-                    OnKeepAlive((ServerState)(int)values[0].Value, responseHeader.Timestamp);
+                    OnKeepAlive((ServerState)(int)values[0].Value, (DateTime)responseHeader.Timestamp);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -4187,7 +4187,7 @@ namespace Opc.Ua.Client
             Subscription? subscription = null;
 
             // send notification that the server is alive.
-            OnKeepAlive(m_serverState, responseHeader.Timestamp);
+            OnKeepAlive(m_serverState, (DateTime)responseHeader.Timestamp);
 
             // collect the current set of acknowledgements.
             lock (m_acknowledgementsToSendLock)
@@ -4354,24 +4354,24 @@ namespace Opc.Ua.Client
             {
 #if DEBUG
                 // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.ToDateTime().AddMilliseconds(
+                if (notificationMessage.PublishTime.AddMilliseconds(
                         subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
-                    ) < DateTime.UtcNow)
+                    ) < DateTimeUtc.Now)
                 {
                     m_logger.LogTrace(
                         "PublishTime {PublishTime} in publish response is too old for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToDateTime().ToLocalTime(),
+                        notificationMessage.PublishTime.ToLocalTime(),
                         subscription.Id);
                 }
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime >
-                    DateTime.UtcNow.AddMilliseconds(
+                    DateTimeUtc.Now.AddMilliseconds(
                         subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
                     m_logger.LogTrace(
                         "PublishTime {PublishTime} in publish response is newer than actual time for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToDateTime().ToLocalTime(),
+                        notificationMessage.PublishTime.ToLocalTime(),
                         subscription.Id);
                 }
 #endif

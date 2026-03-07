@@ -3024,12 +3024,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 stringValueMatrix);
             var dateTimeValMatrix = new DataValue(
                 Variant.From(
-                    new DateTime[]
+                    new DateTimeUtc[]
                     {
-                        new DateTime(2020, 3, 11).ToUniversalTime(),
-                        new DateTime(2021, 2, 17).ToUniversalTime(),
-                        new DateTime(2021, 5, 21).ToUniversalTime(),
-                        new DateTime(2020, 7, 23).ToUniversalTime()
+                        new DateTime(2020, 3, 11),
+                        new DateTime(2021, 2, 17),
+                        new DateTime(2021, 5, 21),
+                        new DateTime(2020, 7, 23)
                     }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTimeMatrix", namespaceIndexAllTypes),

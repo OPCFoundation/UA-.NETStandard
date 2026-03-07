@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationUri,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime);
+            out DateTimeUtc lastCounterResetTime);
 
         bool SetApplicationCertificate(
             NodeId applicationId,
@@ -80,7 +80,7 @@ namespace Opc.Ua.Gds.Server.Database
             uint applicationType,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime,
+            out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId);
     }
 }

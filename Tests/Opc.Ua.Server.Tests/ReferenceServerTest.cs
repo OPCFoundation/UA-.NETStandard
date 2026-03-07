@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests
         {
             (m_requestHeader, m_secureChannelContext) = await m_server.CreateAndActivateSessionAsync(
                 TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             m_requestHeader.TimeoutHint = kTimeoutHint;
             m_random = new RandomSource();
             m_generator = new DataGenerator(m_random, m_telemetry);
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
         {
             if (!m_sessionClosed)
             {
-                m_requestHeader.Timestamp = DateTime.UtcNow;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
                 await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, CancellationToken.None).ConfigureAwait(false);
                 m_requestHeader = null;
             }
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests
         public async Task NoInvalidTimestampExceptionAsync()
         {
             // test that the server accepts an invalid timestamp
-            m_requestHeader.Timestamp = DateTime.UtcNow - TimeSpan.FromDays(30);
+            m_requestHeader.Timestamp = DateTimeUtc.Now - TimeSpan.FromDays(30);
             await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, false, CancellationToken.None).ConfigureAwait(false);
             m_sessionClosed = true;
         }
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
             ];
 
             RequestHeader requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests
 
             // Read
             RequestHeader requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
             var nodeId = new NodeId("Scalar_Simulation_Int32", 2);
             var nodesToRead = ServerFixtureUtils.AttributesIds.Keys
                 .Select(attributeId => new ReadValueId { NodeId = nodeId, AttributeId = attributeId })
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests
             RequestHeader requestHeader = m_requestHeader;
             foreach (ReferenceDescription reference in m_referenceDescriptions)
             {
-                requestHeader.Timestamp = DateTime.UtcNow;
+                requestHeader.Timestamp = DateTimeUtc.Now;
                 var nodeId = ExpandedNodeId.ToNodeId(
                     reference.NodeId,
                     m_server.CurrentInstance.NamespaceUris);
@@ -370,7 +370,7 @@ namespace Opc.Ua.Server.Tests
 
             // Write
             RequestHeader requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
             var nodeId = new NodeId("Scalar_Simulation_Int32", 2);
             var nodesToWrite = ServerFixtureUtils.AttributesIds.Keys
                 .Select(attributeId => new WriteValue
@@ -411,8 +411,8 @@ namespace Opc.Ua.Server.Tests
 
             // First read
             RequestHeader requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
-            DateTime timeBeforeFirstRead = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            DateTimeUtc timeBeforeFirstRead = DateTimeUtc.Now;
             ReadResponse firstReadResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -431,15 +431,15 @@ namespace Opc.Ua.Server.Tests
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
             // Verify the timestamp is recent (not startup time)
-            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.AddSeconds(-1),
+            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.SubtractMilliseconds(1000),
                 "SourceTimestamp should be close to the read time, not the server startup time");
 
             // Wait a bit to ensure time difference
             await Task.Delay(1500).ConfigureAwait(false);
 
             // Second read
-            requestHeader.Timestamp = DateTime.UtcNow;
-            DateTime timeBeforeSecondRead = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            DateTimeUtc timeBeforeSecondRead = DateTimeUtc.Now;
             ReadResponse secondReadResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -462,7 +462,7 @@ namespace Opc.Ua.Server.Tests
                 "SourceTimestamp should be updated on each read");
 
             // Verify the second timestamp is recent
-            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.AddSeconds(-1),
+            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.SubtractMilliseconds(1000),
                 "SourceTimestamp should be close to the second read time");
         }
 
@@ -485,8 +485,8 @@ namespace Opc.Ua.Server.Tests
 
             // First read
             RequestHeader requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
-            DateTime timeBeforeFirstRead = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            DateTimeUtc timeBeforeFirstRead = DateTimeUtc.Now;
             ReadResponse firstReadResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -505,15 +505,15 @@ namespace Opc.Ua.Server.Tests
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
             // Verify the timestamp is recent (not startup time)
-            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.AddSeconds(-1),
+            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.SubtractMilliseconds(1000),
                 "Array SourceTimestamp should be close to the read time, not the server startup time");
 
             // Wait a bit to ensure time difference
             await Task.Delay(1500).ConfigureAwait(false);
 
             // Second read
-            requestHeader.Timestamp = DateTime.UtcNow;
-            DateTime timeBeforeSecondRead = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            DateTimeUtc timeBeforeSecondRead = DateTimeUtc.Now;
             ReadResponse secondReadResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -536,7 +536,7 @@ namespace Opc.Ua.Server.Tests
                 "Array SourceTimestamp should be updated on each read");
 
             // Verify the second timestamp is recent
-            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.AddSeconds(-1),
+            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.SubtractMilliseconds(1000),
                 "Array SourceTimestamp should be close to the second read time");
         }
 
@@ -634,7 +634,7 @@ namespace Opc.Ua.Server.Tests
                 .. CommonTestWorkers.NodeIdTestSetStatic
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
             ];
-            transferRequestHeader.Timestamp = DateTime.UtcNow;
+            transferRequestHeader.Timestamp = DateTimeUtc.Now;
             serverTestServices.SecureChannelContext = transferContext;
             UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                 serverTestServices,
@@ -643,7 +643,7 @@ namespace Opc.Ua.Server.Tests
                 kQueueSize,
                 -1).ConfigureAwait(false);
 
-            transferRequestHeader.Timestamp = DateTime.UtcNow;
+            transferRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(transferContext, transferRequestHeader, false, CancellationToken.None).ConfigureAwait(false);
 
             //restore security context, transfer abandoned subscription
@@ -660,7 +660,7 @@ namespace Opc.Ua.Server.Tests
                 // subscription was deleted, expect 'BadNoSubscription'
                 ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
-                    m_requestHeader.Timestamp = DateTime.UtcNow;
+                    m_requestHeader.Timestamp = DateTimeUtc.Now;
                     await CommonTestWorkers.VerifySubscriptionTransferredAsync(
                         serverTestServices,
                         m_requestHeader,
@@ -720,7 +720,7 @@ namespace Opc.Ua.Server.Tests
                     true).ConfigureAwait(false);
             }
 
-            transferRequestHeader.Timestamp = DateTime.UtcNow;
+            transferRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(transferSecurityContext, transferRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -773,7 +773,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, subscriptionIds.Count);
 
             // Issue a Publish request
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
             PublishResponse publishResponse = await serverTestServices.PublishAsync(
                 m_requestHeader,
@@ -793,7 +793,7 @@ namespace Opc.Ua.Server.Tests
             const int timesToCallPublish = 3;
             for (int i = 0; i < timesToCallPublish; i++)
             {
-                m_requestHeader.Timestamp = DateTime.UtcNow;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
                 publishResponse = await serverTestServices.PublishAsync(
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
@@ -812,7 +812,7 @@ namespace Opc.Ua.Server.Tests
             // Validate ResendData method call returns error from different session contexts
 
             // call ResendData method from different session context
-            resendDataRequestHeader.Timestamp = DateTime.UtcNow;
+            resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             CallResponse callResponse = await m_server.CallAsync(
                 resendDataSecurityContext,
                 resendDataRequestHeader,
@@ -829,7 +829,7 @@ namespace Opc.Ua.Server.Tests
                 serverTestServices.Logger);
 
             // Still nothing to publish since previous ResendData call did not execute
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             publishResponse = await serverTestServices.PublishAsync(
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -867,7 +867,7 @@ namespace Opc.Ua.Server.Tests
             await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
 
             // Data should be available for publishing now
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             publishResponse = await serverTestServices.PublishAsync(
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -892,7 +892,7 @@ namespace Opc.Ua.Server.Tests
             if (updateValues && queueSize > 1)
             {
                 // remaining queue Data should be sent in this publish
-                m_requestHeader.Timestamp = DateTime.UtcNow;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
                 publishResponse = await serverTestServices.PublishAsync(
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
@@ -919,7 +919,7 @@ namespace Opc.Ua.Server.Tests
             await ResendDataCallAsync(StatusCodes.BadSubscriptionIdInvalid, [subscriptionIds[^1] + 20]).ConfigureAwait(false);
 
             // Nothing to publish since previous ResendData call did not execute
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             publishResponse = await serverTestServices.PublishAsync(
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -934,7 +934,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
             Assert.AreEqual(0, publishResponse.NotificationMessage.NotificationData.Count);
 
-            resendDataRequestHeader.Timestamp = DateTime.UtcNow;
+            resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -955,7 +955,7 @@ namespace Opc.Ua.Server.Tests
                 });
 
             //call ResendData method with subscription ids
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             CallResponse callResponse = await m_server.CallAsync(
                 m_secureChannelContext,
                 m_requestHeader,
@@ -1026,7 +1026,7 @@ namespace Opc.Ua.Server.Tests
                 .ToArrayOf();
 
             // Write Nodes
-            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.Timestamp = DateTimeUtc.Now;
             WriteResponse writeResponse = await m_server.WriteAsync(
                 m_secureChannelContext,
                 requestHeader,
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
@@ -1135,7 +1135,7 @@ namespace Opc.Ua.Server.Tests
                 new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }
             ];
 
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
@@ -1195,7 +1195,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
@@ -1219,8 +1219,8 @@ namespace Opc.Ua.Server.Tests
             // Perform a history read operation
             var historyReadDetails = new ReadRawModifiedDetails
             {
-                StartTime = DateTime.UtcNow.AddHours(-1),
-                EndTime = DateTime.UtcNow,
+                StartTime = DateTimeUtc.Now.SubtractMilliseconds(60 * 60 * 1000),
+                EndTime = DateTimeUtc.Now,
                 NumValuesPerNode = 10,
                 IsReadModified = false,
                 ReturnBounds = false
@@ -1234,7 +1234,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
             HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,

@@ -345,7 +345,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        public Task<(ArrayOf<ServerOnNetwork>, DateTime lastCounterResetTime)> FindServersOnNetworkAsync(
+        public Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             CancellationToken ct = default)
@@ -359,7 +359,7 @@ namespace Opc.Ua.Gds.Client
                 ct);
         }
 
-        public async Task<(ArrayOf<ServerOnNetwork>, DateTime lastCounterResetTime)> FindServersOnNetworkAsync(
+        public async Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             uint startingRecordId,
@@ -514,10 +514,10 @@ namespace Opc.Ua.Gds.Client
             {
                 data.DiscoveryClient.EndFindServersOnNetwork(
                     result,
-                    out DateTime lastCounterResetTime,
+                    out DateTimeUtc lastCounterResetTime,
                     out ArrayOf<ServerOnNetwork> servers);
 
-                data.LastCounterResetTime = lastCounterResetTime;
+                data.LastCounterResetTime = (DateTime)lastCounterResetTime;
                 data.Servers = servers;
                 data.OperationCompleted();
             }

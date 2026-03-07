@@ -307,7 +307,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set Timestamp
         /// </summary>
-        public DateTime Timestamp { get; set; }
+        public DateTimeUtc Timestamp { get; set; }
 
         /// <summary>
         /// PicoSeconds

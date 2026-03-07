@@ -3151,7 +3151,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))
                         {
-                            DateTime timeStampValue = jsonDecoder.ReadDateTime(
+                            DateTimeUtc timeStampValue = jsonDecoder.ReadDateTime(
                                 DataSetMessageTimestamp);
                             Assert.AreEqual(
                                 jsonDataSetMessage.Timestamp,

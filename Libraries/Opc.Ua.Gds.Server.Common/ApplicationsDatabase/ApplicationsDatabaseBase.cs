@@ -176,9 +176,9 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationUri,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime)
+            out DateTimeUtc lastCounterResetTime)
         {
-            lastCounterResetTime = DateTime.MinValue;
+            lastCounterResetTime = DateTimeUtc.MinValue;
             return null;
         }
 
@@ -190,10 +190,10 @@ namespace Opc.Ua.Gds.Server.Database
             uint applicationType,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime,
+            out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
-            lastCounterResetTime = DateTime.MinValue;
+            lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
             return null;
         }

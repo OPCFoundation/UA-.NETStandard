@@ -395,6 +395,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 case BuiltInType.Int64:
                                     oText = "\"" + oText + "\"";
                                     break;
+                                case BuiltInType.StatusCode:
+                                    oText = "{}";
+                                    break;
                                 default:
                                     oText = "null";
                                     break;

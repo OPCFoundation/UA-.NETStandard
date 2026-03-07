@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
             {
                 m_calculator = m_server.AggregateManager.CreateCalculator(
                     aggregateFilter.AggregateType,
-                    aggregateFilter.StartTime,
+                    (DateTime)aggregateFilter.StartTime,
                     DateTime.MaxValue,
                     aggregateFilter.ProcessingInterval,
                     aggregateFilter.Stepped,
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server
             {
                 m_calculator = m_server.AggregateManager.CreateCalculator(
                     aggregateFilter.AggregateType,
-                    aggregateFilter.StartTime,
+                    (DateTime)aggregateFilter.StartTime,
                     DateTime.MaxValue,
                     aggregateFilter.ProcessingInterval,
                     aggregateFilter.Stepped,
@@ -723,7 +723,7 @@ namespace Opc.Ua.Server
                     {
                         m_calculator = m_server.AggregateManager.CreateCalculator(
                             aggregateFilter.AggregateType,
-                            aggregateFilter.StartTime,
+                            (DateTime)aggregateFilter.StartTime,
                             DateTime.MaxValue,
                             aggregateFilter.ProcessingInterval,
                             aggregateFilter.Stepped,

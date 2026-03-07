@@ -112,7 +112,7 @@ namespace Opc.Ua.Gds.Server
                     null,
                     null,
                     default,
-                    out DateTime lastResetTime);
+                    out DateTimeUtc lastResetTime);
                 m_logger.LogInformation("QueryServers Returned: {Count} records", results.Length);
 
                 foreach (ServerOnNetwork result in results)
@@ -590,7 +590,7 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            ref DateTime lastCounterResetTime,
+            ref DateTimeUtc lastCounterResetTime,
             ref ArrayOf<ServerOnNetwork> servers)
         {
             m_logger.LogInformation("QueryServers: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
@@ -618,7 +618,7 @@ namespace Opc.Ua.Gds.Server
             uint applicationType,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            ref DateTime lastCounterResetTime,
+            ref DateTimeUtc lastCounterResetTime,
             ref uint nextRecordId,
             ref ArrayOf<ApplicationDescription> applications)
         {

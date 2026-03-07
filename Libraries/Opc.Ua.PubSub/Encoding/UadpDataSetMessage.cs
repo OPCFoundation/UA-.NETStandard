@@ -777,7 +777,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.DateTime:
                             binaryEncoder.WriteDateTime(
                                 "DateTime",
-                                (DateTime)variant.ConvertToDateTime());
+                                (DateTimeUtc)variant.ConvertToDateTime());
                             break;
                         case BuiltInType.Guid:
                             binaryEncoder.WriteGuid("GUID", (Uuid)variant);

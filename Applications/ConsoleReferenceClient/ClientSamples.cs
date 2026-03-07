@@ -1489,7 +1489,7 @@ namespace Quickstarts
                         {
                             try
                             {
-                                DateTime currentTime = field.GetDateTime();
+                                DateTimeUtc currentTime = field.GetDateTime();
                                 TimeSpan timeSpan = currentTime - m_lastEventTime;
                                 m_lastEventTime = currentTime;
                                 m_processedEvents++;
@@ -1782,6 +1782,6 @@ namespace Quickstarts
         private readonly bool m_verbose;
         private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields;
         private int m_processedEvents;
-        private DateTime m_lastEventTime = DateTime.Now;
+        private DateTimeUtc m_lastEventTime = DateTimeUtc.Now;
     }
 }

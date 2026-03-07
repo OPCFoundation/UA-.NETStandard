@@ -2417,7 +2417,7 @@ namespace Opc.Ua.Server
                     BrowseNames.SourceName,
                     Utils.Format("Subscription/{0}", Id),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTime.UtcNow, false);
+                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
 
                 // build list of items to refresh.
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
@@ -2470,7 +2470,7 @@ namespace Opc.Ua.Server
                     BrowseNames.SourceName,
                     Utils.Format("Subscription/{0}", Id),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTime.UtcNow, false);
+                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
 
                 // send refresh end event.
                 for (int ii = 0; ii < monitoredItems.Count; ii++)

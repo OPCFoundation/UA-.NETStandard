@@ -227,7 +227,7 @@ namespace Opc.Ua.Gds.Client
             {
                 lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                (ArrayOf<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
+                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
                     ct).ConfigureAwait(false);
@@ -287,7 +287,7 @@ namespace Opc.Ua.Gds.Client
             {
                 lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                (ArrayOf<ServerOnNetwork> servers, DateTime _) = await lds.FindServersOnNetworkAsync(
+                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
                     ct).ConfigureAwait(false);
@@ -673,7 +673,7 @@ namespace Opc.Ua.Gds.Client
             string applicationUri,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime)
+            out DateTimeUtc lastCounterResetTime)
         {
             (ArrayOf<ServerOnNetwork> servers, lastCounterResetTime) = QueryServersAsync(
                 startingRecordId,
@@ -699,7 +699,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <returns>A enumerator used to access the results.
         /// The time when the counter was last changed.</returns>
-        public async Task<(ArrayOf<ServerOnNetwork> servers, DateTime lastCounterResetTime)> QueryServersAsync(
+        public async Task<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -708,7 +708,7 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            DateTime lastCounterResetTime = DateTime.MinValue;
+            DateTimeUtc lastCounterResetTime = DateTimeUtc.MinValue;
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
@@ -727,7 +727,7 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 2)
             {
-                lastCounterResetTime = (DateTime)outputArguments[0];
+                lastCounterResetTime = (DateTimeUtc)outputArguments[0];
                 servers = outputArguments[1].GetStructureArray<ServerOnNetwork>();
             }
 
@@ -756,7 +756,7 @@ namespace Opc.Ua.Gds.Client
             uint applicationType,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime,
+            out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
             (ArrayOf<ApplicationDescription> applications, lastCounterResetTime, nextRecordId) = QueryApplicationsAsync(
@@ -786,7 +786,10 @@ namespace Opc.Ua.Gds.Client
         /// <returns>A enumerator used to access the results.
         /// The time when the counter was last changed.
         /// The id of the next record.</returns>
-        public async Task<(ArrayOf<ApplicationDescription> applications, DateTime lastCounterResetTime, uint nextRecordId)>
+        public async Task<(
+            ArrayOf<ApplicationDescription> applications,
+            DateTimeUtc lastCounterResetTime,
+            uint nextRecordId)>
             QueryApplicationsAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -797,7 +800,7 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            DateTime lastCounterResetTime = DateTime.MinValue;
+            DateTimeUtc lastCounterResetTime = DateTimeUtc.MinValue;
             uint nextRecordId = 0;
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -820,7 +823,7 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 3)
             {
-                lastCounterResetTime = (DateTime)outputArguments[0];
+                lastCounterResetTime = (DateTimeUtc)outputArguments[0];
                 nextRecordId = (uint)outputArguments[1];
                 applications = outputArguments[2].GetStructureArray<ApplicationDescription>();
             }
@@ -972,7 +975,7 @@ namespace Opc.Ua.Gds.Client
         public void CheckRevocationStatus(
             ByteString certificate,
             out StatusCode certificateStatus,
-            out DateTime validityTime)
+            out DateTimeUtc validityTime)
         {
             (certificateStatus, validityTime) = CheckRevocationStatusAsync(certificate).GetAwaiter().GetResult();
         }
@@ -984,12 +987,12 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The first error encountered when validating the Certificate.
         /// When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</returns>
-        public async Task<(StatusCode certificateStatus, DateTime validityTime)> CheckRevocationStatusAsync(
+        public async Task<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
             ByteString certificate,
             CancellationToken ct = default)
         {
             StatusCode certificateStatus = StatusCodes.Good;
-            DateTime validityTime = DateTime.MinValue;
+            DateTimeUtc validityTime = DateTimeUtc.MinValue;
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
@@ -1005,7 +1008,7 @@ namespace Opc.Ua.Gds.Client
             if (outputArguments.Count >= 2)
             {
                 certificateStatus = (StatusCode)outputArguments[0];
-                validityTime = (DateTime)outputArguments[1];
+                validityTime = (DateTimeUtc)outputArguments[1];
             }
             return (certificateStatus, validityTime);
         }

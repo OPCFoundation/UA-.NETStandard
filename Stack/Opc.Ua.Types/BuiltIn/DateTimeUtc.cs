@@ -240,10 +240,65 @@ namespace Opc.Ua
             return left.CompareTo(right) >= 0;
         }
 
+        /// <summary>
+        /// Return a date time from the UA time values
+        /// </summary>
+        public static DateTimeUtc From(long value)
+        {
+            return new(value);
+        }
+
+        /// <summary>
+        /// Convert from a local <see cref="DateTime"/>
+        /// </summary>
+        public static DateTimeUtc From(DateTime value)
+        {
+            return new(value);
+        }
+
+        /// <summary>
+        /// Convert to a Utc <see cref="DateTime"/>
+        /// </summary>
+        /// <returns></returns>
+        public DateTime ToDateTime()
+        {
+#if NET8_0_OR_GREATER
+            // This is the ticks in Universal time for this fileTime.
+            ulong ticks = (ulong)ToTicks(m_value) | 0x4000000000000000;
+            return Unsafe.BitCast<ulong, DateTime>(ticks);
+#else
+            return new DateTime(ToTicks(m_value), DateTimeKind.Utc);
+#endif
+        }
+
+        /// <summary>
+        /// Convert to local <see cref="DateTime"/>
+        /// </summary>
+        public DateTime ToLocalTime()
+        {
+            return ToDateTime().ToLocalTime();
+        }
+
+        /// <summary>
+        /// Convert from a <see cref="DateTimeOffset"/>
+        /// </summary>
+        public static DateTimeUtc From(DateTimeOffset value)
+        {
+            return new(value);
+        }
+
+        /// <summary>
+        /// Convert to a <see cref="DateTimeOffset"/>
+        /// </summary>
+        public DateTimeOffset ToDateTimeOffset()
+        {
+            return new DateTimeOffset(ToDateTime());
+        }
+
         /// <inheritdoc/>
         public static implicit operator DateTimeUtc(long value)
         {
-            return new(value);
+            return From(value);
         }
 
         /// <inheritdoc/>
@@ -255,19 +310,89 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static implicit operator DateTimeUtc(DateTime value)
         {
-            return new(value);
+            return From(value);
         }
 
         /// <inheritdoc/>
         public static implicit operator DateTimeUtc(DateTimeOffset value)
         {
-            return new(value);
+            return From(value);
         }
 
         /// <inheritdoc/>
         public static explicit operator DateTime(DateTimeUtc value)
         {
             return value.ToDateTime();
+        }
+
+        /// <summary>
+        /// Add milliseconds
+        /// </summary>
+        public DateTimeUtc AddMilliseconds(double milliseconds)
+        {
+            return new DateTimeUtc(Value + (long)(milliseconds * TimeSpan.TicksPerMillisecond));
+        }
+
+        /// <summary>
+        /// Subtract milliseconds
+        /// </summary>
+        public DateTimeUtc SubtractMilliseconds(double milliseconds)
+        {
+            return new DateTimeUtc(Value - (long)(milliseconds * TimeSpan.TicksPerMillisecond));
+        }
+
+        /// <summary>
+        /// Subtract time
+        /// </summary>
+        public TimeSpan Subtract(DateTimeUtc value)
+        {
+            return new TimeSpan(Value - value.Value);
+        }
+
+        /// <summary>
+        /// Add time
+        /// </summary>
+        public DateTimeUtc Add(TimeSpan value)
+        {
+            return new DateTimeUtc(Value + value.Ticks);
+        }
+
+        /// <summary>
+        /// Subtract time
+        /// </summary>
+        public DateTimeUtc Subtract(TimeSpan value)
+        {
+            return new DateTimeUtc(Value - value.Ticks);
+        }
+
+        /// <inheritdoc/>
+        public static TimeSpan operator -(DateTimeUtc left, DateTimeUtc right)
+        {
+            return left.Subtract(right);
+        }
+
+        /// <inheritdoc/>
+        public static DateTimeUtc operator +(DateTimeUtc left, TimeSpan right)
+        {
+            return left.Add(right);
+        }
+
+        /// <inheritdoc/>
+        public static DateTimeUtc operator -(DateTimeUtc left, TimeSpan right)
+        {
+            return left.Subtract(right);
+        }
+
+        /// <inheritdoc/>
+        public static DateTimeUtc operator +(DateTimeUtc left, double right)
+        {
+            return left.AddMilliseconds(right);
+        }
+
+        /// <inheritdoc/>
+        public static DateTimeUtc operator -(DateTimeUtc left, double right)
+        {
+            return left.SubtractMilliseconds(right);
         }
 
         /// <inheritdoc/>
@@ -386,21 +511,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert to date time
-        /// </summary>
-        /// <returns></returns>
-        internal DateTime ToDateTime()
-        {
-#if NET8_0_OR_GREATER
-            // This is the ticks in Universal time for this fileTime.
-            ulong ticks = (ulong)ToTicks(m_value) | 0x4000000000000000;
-            return Unsafe.BitCast<ulong, DateTime>(ticks);
-#else
-            return new DateTime(ToTicks(m_value), DateTimeKind.Utc);
-#endif
-        }
-
-        /// <summary>
         /// Convert to ticks
         /// </summary>
         /// <param name="fileTime"></param>
@@ -478,12 +588,6 @@ namespace Opc.Ua
         public string ToString(string? format, IFormatProvider? provider)
         {
             return ToDateTime().ToString(format, provider);
-        }
-
-        /// <inheritdoc/>
-        internal DateTime ToLocalTime()
-        {
-            return ToDateTime().ToLocalTime();
         }
 
         private const long kMaxValue = 2650467743990000000;

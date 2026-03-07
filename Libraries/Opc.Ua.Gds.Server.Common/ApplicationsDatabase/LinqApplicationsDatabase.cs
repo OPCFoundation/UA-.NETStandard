@@ -408,10 +408,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             uint applicationType,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime,
+            out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
-            lastCounterResetTime = DateTime.MinValue;
+            lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
 
@@ -550,7 +550,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string applicationUri,
             string productUri,
             ArrayOf<string> serverCapabilities,
-            out DateTime lastCounterResetTime)
+            out DateTimeUtc lastCounterResetTime)
         {
             lock (Lock)
             {

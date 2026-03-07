@@ -428,7 +428,7 @@ namespace TestData
                         return m_generator.GetRandomArray<string>(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_DateTimeValue:
                     case Variables.UserArrayValueObjectType_DateTimeValue:
-                        return m_generator.GetRandomArray<DateTime>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomArray<DateTimeUtc>(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_GuidValue:
                     case Variables.UserArrayValueObjectType_GuidValue:
                         return m_generator.GetRandomArray<Uuid>(false, 100, false).ToArrayOf();
@@ -714,7 +714,7 @@ namespace TestData
                 FloatValue = m_generator.GetRandomArray<float>(false, 10, false),
                 DoubleValue = m_generator.GetRandomArray<double>(false, 10, false),
                 StringValue = m_generator.GetRandomArray<string>(false, 10, false),
-                DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false),
+                DateTimeValue = m_generator.GetRandomArray<DateTimeUtc>(false, 10, false),
                 GuidValue = (UuidCollection)m_generator.GetRandomArray<Uuid>(false, 10, false),
                 ByteStringValue = m_generator.GetRandomArray<ByteString>(false, 10, false),
                 XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),

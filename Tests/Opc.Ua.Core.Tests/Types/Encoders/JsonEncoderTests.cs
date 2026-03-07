@@ -1623,7 +1623,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void DateTimeEncodeRandomStringTest()
         {
             SetRepeatedRandomSeed();
-            DateTime randomDateTime = DataGenerator.GetRandomDateTime().ToUniversalTime();
+            DateTimeUtc randomDateTime = DataGenerator.GetRandomDateTime();
             DateTimeEncodeStringTest(randomDateTime);
         }
 
@@ -1696,7 +1696,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        public void DateTimeEncodeStringTest(DateTime testDateTime)
+        public void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
         {
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
@@ -1704,12 +1704,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
             DateTimeHelper.ConvertUniversalTimeToString(
-                testDateTime,
+                (DateTime)testDateTime,
                 valueString,
                 out int charsWritten);
             string resultO = valueString[..charsWritten].ToString();
 #else
-            string resultO = DateTimeHelper.ConvertUniversalTimeToString(testDateTime);
+            string resultO = DateTimeHelper.ConvertUniversalTimeToString((DateTime)testDateTime);
 #endif
             Assert.NotNull(resultString);
             Assert.NotNull(resultO);

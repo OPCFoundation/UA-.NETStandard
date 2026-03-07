@@ -224,7 +224,7 @@ namespace TestData
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             if (node is not BaseVariableState variable)
             {
@@ -246,7 +246,7 @@ namespace TestData
                 value = system.ReadValue(variable);
 
                 statusCode = StatusCodes.Good;
-                timestamp = DateTime.UtcNow;
+                timestamp = DateTimeUtc.Now;
 
                 ServiceResult error = BaseVariableState.ApplyIndexRangeAndDataEncoding(
                     context,

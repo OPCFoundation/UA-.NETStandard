@@ -522,7 +522,7 @@ namespace Alarms
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
             if (sourceControllers == null)

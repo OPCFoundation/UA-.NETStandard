@@ -427,7 +427,7 @@ namespace Opc.Ua.Client.Tests
 
             var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
-            var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
+            var valueTimeStamps = new Dictionary<NodeId, List<DateTimeUtc>>();
 
             var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
@@ -443,7 +443,7 @@ namespace Opc.Ua.Client.Tests
                     };
                     monitoredItem.Notification += (item, _) =>
                     {
-                        List<DateTime> list = valueTimeStamps[nodeId];
+                        List<DateTimeUtc> list = valueTimeStamps[nodeId];
 
                         foreach (DataValue value in item.DequeueValues())
                         {
@@ -458,7 +458,7 @@ namespace Opc.Ua.Client.Tests
             //Add Event Monitored Item
             monitoredItemsList.Add(CreateEventMonitoredItem(100));
 
-            DateTime startTime = DateTime.UtcNow;
+            DateTimeUtc startTime = DateTimeUtc.Now;
 
             subscription.AddItems(monitoredItemsList);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
@@ -468,7 +468,7 @@ namespace Opc.Ua.Client.Tests
                 await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             var subscriptions = new SubscriptionCollection(Session.Subscriptions);
-            DateTime closeTime = DateTime.UtcNow;
+            DateTimeUtc closeTime = DateTimeUtc.Now;
             TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                 Session.SessionId, closeTime);
             await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
@@ -488,7 +488,7 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(3000).ConfigureAwait(false);
             }
 
-            DateTime restartTime = DateTime.UtcNow;
+            DateTimeUtc restartTime = DateTimeUtc.Now;
 #if !DEBUG_CONNECT_FAILED
             ISession transferSession = await ClientFixture
                 .ConnectAsync(
@@ -548,7 +548,7 @@ namespace Opc.Ua.Client.Tests
 
                 await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
-                DateTime completionTime = DateTime.UtcNow;
+                DateTimeUtc completionTime = DateTimeUtc.Now;
 
                 await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
 
@@ -560,13 +560,13 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
 
                 // Validate
-                foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
+                foreach (KeyValuePair<NodeId, List<DateTimeUtc>> pair in valueTimeStamps)
                 {
-                    DateTime previous = startTime;
+                    DateTimeUtc previous = startTime;
 
                     for (int index = 0; index < pair.Value.Count; index++)
                     {
-                        DateTime timestamp = pair.Value[index];
+                        DateTimeUtc timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
                         TestContext.Out.WriteLine(
@@ -843,11 +843,12 @@ namespace Opc.Ua.Client.Tests
             };
         }
 
-        private static string DateTimeMs(DateTime dateTime)
+        private static string DateTimeMs(DateTimeUtc dateTime)
         {
-            return dateTime.ToLongTimeString() +
+            var dt = dateTime.ToDateTime();
+            return dt.ToLongTimeString() +
                 "." +
-                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
+                dt.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
     }
 }
