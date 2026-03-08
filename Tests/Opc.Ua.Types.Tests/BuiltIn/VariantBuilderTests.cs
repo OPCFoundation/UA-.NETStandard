@@ -44,7 +44,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         /// <summary>
         /// Asserts that WithValue followed by GetValue returns the original value.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
+#pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private static void AssertRoundTrip<T>(IVariantBuilder<T> builder, T input)
+#pragma warning restore CA1859 // Use concrete types when possible for improved performance
         {
             Variant variant = builder.WithValue(input);
             T result = builder.GetValue(variant);
@@ -213,7 +216,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueExtensionObject()
         {
-            var input = ExtensionObject.Null;
+            ExtensionObject input = ExtensionObject.Null;
             AssertRoundTrip<ExtensionObject>(s_builder, input);
         }
 
@@ -516,84 +519,84 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueBoolMatrix()
         {
-            var input = ArrayOf.Wrapped(true, false, true, false).ToMatrix(2, 2);
+            MatrixOf<bool> input = ArrayOf.Wrapped(true, false, true, false).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<bool>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueSByteMatrix()
         {
-            var input = ArrayOf.Wrapped((sbyte)-1, (sbyte)0, (sbyte)1, (sbyte)2).ToMatrix(2, 2);
+            MatrixOf<sbyte> input = ArrayOf.Wrapped((sbyte)-1, (sbyte)0, (sbyte)1, (sbyte)2).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<sbyte>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueByteMatrix()
         {
-            var input = ArrayOf.Wrapped((byte)0, (byte)1, (byte)2, (byte)3).ToMatrix(2, 2);
+            MatrixOf<byte> input = ArrayOf.Wrapped((byte)0, (byte)1, (byte)2, (byte)3).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<byte>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueInt16Matrix()
         {
-            var input = ArrayOf.Wrapped((short)1, (short)2, (short)3, (short)4).ToMatrix(2, 2);
+            MatrixOf<short> input = ArrayOf.Wrapped((short)1, (short)2, (short)3, (short)4).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<short>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueUInt16Matrix()
         {
-            var input = ArrayOf.Wrapped((ushort)1, (ushort)2, (ushort)3, (ushort)4).ToMatrix(2, 2);
+            MatrixOf<ushort> input = ArrayOf.Wrapped((ushort)1, (ushort)2, (ushort)3, (ushort)4).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<ushort>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueInt32Matrix()
         {
-            var input = ArrayOf.Wrapped(1, 2, 3, 4).ToMatrix(2, 2);
+            MatrixOf<int> input = ArrayOf.Wrapped(1, 2, 3, 4).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<int>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueUInt32Matrix()
         {
-            var input = ArrayOf.Wrapped(1u, 2u, 3u, 4u).ToMatrix(2, 2);
+            MatrixOf<uint> input = ArrayOf.Wrapped(1u, 2u, 3u, 4u).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<uint>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueInt64Matrix()
         {
-            var input = ArrayOf.Wrapped(1L, 2L, 3L, 4L).ToMatrix(2, 2);
+            MatrixOf<long> input = ArrayOf.Wrapped(1L, 2L, 3L, 4L).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<long>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueUInt64Matrix()
         {
-            var input = ArrayOf.Wrapped(1uL, 2uL, 3uL, 4uL).ToMatrix(2, 2);
+            MatrixOf<ulong> input = ArrayOf.Wrapped(1uL, 2uL, 3uL, 4uL).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<ulong>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueFloatMatrix()
         {
-            var input = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f).ToMatrix(2, 2);
+            MatrixOf<float> input = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<float>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueDoubleMatrix()
         {
-            var input = ArrayOf.Wrapped(1.0, 2.0, 3.0, 4.0).ToMatrix(2, 2);
+            MatrixOf<double> input = ArrayOf.Wrapped(1.0, 2.0, 3.0, 4.0).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<double>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueStringMatrix()
         {
-            var input = ArrayOf.Wrapped("a", "b", "c", "d").ToMatrix(2, 2);
+            MatrixOf<string> input = ArrayOf.Wrapped("a", "b", "c", "d").ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<string>>(s_builder, input);
         }
 
@@ -601,7 +604,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithValueAndGetValueDateTimeUtcMatrix()
         {
             var dt = new DateTimeUtc(2024, 6, 15);
-            var input = ArrayOf.Wrapped(dt, dt, dt, dt).ToMatrix(2, 2);
+            MatrixOf<DateTimeUtc> input = ArrayOf.Wrapped(dt, dt, dt, dt).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<DateTimeUtc>>(s_builder, input);
         }
 
@@ -609,7 +612,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithValueAndGetValueUuidMatrix()
         {
             var uuid = new Uuid(s_testGuid);
-            var input = ArrayOf.Wrapped(uuid, uuid, uuid, uuid).ToMatrix(2, 2);
+            MatrixOf<Uuid> input = ArrayOf.Wrapped(uuid, uuid, uuid, uuid).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<Uuid>>(s_builder, input);
         }
 
@@ -617,7 +620,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithValueAndGetValueByteStringMatrix()
         {
             var bs = ByteString.From(new byte[] { 1, 2 });
-            var input = ArrayOf.Wrapped(bs, bs, bs, bs).ToMatrix(2, 2);
+            MatrixOf<ByteString> input = ArrayOf.Wrapped(bs, bs, bs, bs).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<ByteString>>(s_builder, input);
         }
 
@@ -625,14 +628,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithValueAndGetValueXmlElementMatrix()
         {
             var xml = XmlElement.From("<test/>");
-            var input = ArrayOf.Wrapped(xml, xml, xml, xml).ToMatrix(2, 2);
+            MatrixOf<XmlElement> input = ArrayOf.Wrapped(xml, xml, xml, xml).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<XmlElement>>(s_builder, input);
         }
 
         [Test]
         public void WithValueAndGetValueNodeIdMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<NodeId> input = ArrayOf.Wrapped(
                 new NodeId(1), new NodeId(2),
                 new NodeId(3), new NodeId(4)).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<NodeId>>(s_builder, input);
@@ -641,7 +644,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueExpandedNodeIdMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<ExpandedNodeId> input = ArrayOf.Wrapped(
                 new ExpandedNodeId(1), new ExpandedNodeId(2),
                 new ExpandedNodeId(3), new ExpandedNodeId(4)).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<ExpandedNodeId>>(s_builder, input);
@@ -650,7 +653,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueStatusCodeMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<StatusCode> input = ArrayOf.Wrapped(
                 new StatusCode(0u), new StatusCode(1u),
                 new StatusCode(2u), new StatusCode(3u)).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<StatusCode>>(s_builder, input);
@@ -659,7 +662,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueQualifiedNameMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<QualifiedName> input = ArrayOf.Wrapped(
                 new QualifiedName("a"), new QualifiedName("b"),
                 new QualifiedName("c"), new QualifiedName("d")).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<QualifiedName>>(s_builder, input);
@@ -668,7 +671,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueLocalizedTextMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<LocalizedText> input = ArrayOf.Wrapped(
                 new LocalizedText("a"), new LocalizedText("b"),
                 new LocalizedText("c"), new LocalizedText("d")).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<LocalizedText>>(s_builder, input);
@@ -677,7 +680,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueExtensionObjectMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<ExtensionObject> input = ArrayOf.Wrapped(
                 ExtensionObject.Null, ExtensionObject.Null,
                 ExtensionObject.Null, ExtensionObject.Null).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<ExtensionObject>>(s_builder, input);
@@ -687,7 +690,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithValueAndGetValueDataValueMatrix()
         {
             IVariantBuilder<MatrixOf<DataValue>> builder = s_builder;
-            var input = ArrayOf.Wrapped(
+            MatrixOf<DataValue> input = ArrayOf.Wrapped(
                 new DataValue(Variant.From(1)), new DataValue(Variant.From(2)),
                 new DataValue(Variant.From(3)), new DataValue(Variant.From(4))).ToMatrix(2, 2);
             Variant variant = builder.WithValue(input);
@@ -699,7 +702,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithValueAndGetValueVariantMatrix()
         {
-            var input = ArrayOf.Wrapped(
+            MatrixOf<Variant> input = ArrayOf.Wrapped(
                 Variant.From(1), Variant.From(2),
                 Variant.From(3), Variant.From(4)).ToMatrix(2, 2);
             AssertRoundTrip<MatrixOf<Variant>>(s_builder, input);
@@ -732,7 +735,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EnumerationBuilderMatrixRoundTrip()
         {
             IVariantBuilder<MatrixOf<TestColor>> builder = new EnumerationBuilder<TestColor>();
-            var input = ArrayOf.Wrapped(
+            MatrixOf<TestColor> input = ArrayOf.Wrapped(
                 TestColor.Red, TestColor.Green,
                 TestColor.Blue, TestColor.Alpha).ToMatrix(2, 2);
             Variant variant = builder.WithValue(input);
@@ -770,7 +773,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void StructureBuilderMatrixRoundTrip()
         {
             IVariantBuilder<MatrixOf<Argument>> builder = new StructureBuilder<Argument>();
-            var input = ArrayOf.Wrapped(
+            MatrixOf<Argument> input = ArrayOf.Wrapped(
                 new Argument() { Name = "a" },
                 new Argument() { Name = "b" },
                 new Argument() { Name = "c" },

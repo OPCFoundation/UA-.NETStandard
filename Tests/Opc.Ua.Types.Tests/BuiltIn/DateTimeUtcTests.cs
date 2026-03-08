@@ -164,7 +164,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = DateTimeUtc.Parse(dateString, null);
 
             // Assert
-            var expectedDateTime = DateTime.Parse(dateString, null).ToUniversalTime();
+            DateTime expectedDateTime = DateTime.Parse(dateString, null).ToUniversalTime();
             DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
@@ -178,7 +178,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = DateTimeUtc.Parse(dateString, CultureInfo.InvariantCulture);
 
             // Assert
-            var expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture).ToUniversalTime();
+            DateTime expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture).ToUniversalTime();
             DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
@@ -195,7 +195,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
+            DateTime expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
             DateTime actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
@@ -207,7 +207,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Arrange
             const string dateString = "2023-01-01T12:30:45Z";
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
+            DateTime expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act
@@ -240,7 +240,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string dateString = "2023-01-01T12:30:45Z";
             ReadOnlySpan<char> span = dateString.AsSpan();
 #pragma warning disable CA1305 // Specify IFormatProvider
-            var expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
+            DateTime expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act

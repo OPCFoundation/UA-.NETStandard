@@ -1559,7 +1559,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetAsBinary(out var byteString), Is.True);
+            Assert.That(result.TryGetAsBinary(out ByteString byteString), Is.True);
         }
 
         [Test]
@@ -1619,7 +1619,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetAsXml(out var xmlElement), Is.True);
+            Assert.That(result.TryGetAsXml(out XmlElement xmlElement), Is.True);
             Assert.That(xmlElement.OuterXml.ReplaceLineEndings(), Is.EqualTo(xml.ReplaceLineEndings()));
         }
 
@@ -2365,7 +2365,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetAsXml(out var xmlElement), Is.True);
+            Assert.That(result.TryGetAsXml(out XmlElement xmlElement), Is.True);
             Assert.That(xmlElement.OuterXml, Is.EqualTo(xml));
         }
 

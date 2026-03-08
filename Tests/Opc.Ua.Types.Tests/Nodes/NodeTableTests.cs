@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,7 +42,7 @@ namespace Opc.Ua.Types.Tests.Nodes
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class NodeTableCoverageTests
+    public class NodeTableTests
     {
         private const string TestNamespaceUri = "http://test.org/UA/";
 
@@ -78,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
         private Node AttachNode(uint id, string name = null)
         {
-            var node = CreateNode(id, name);
+            Node node = CreateNode(id, name);
             _nodeTable.Attach(node);
             return node;
         }
@@ -186,7 +185,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNullExpandedNodeIdReturnsNull()
         {
-            var result = _nodeTable.Find(ExpandedNodeId.Null);
+            INode result = _nodeTable.Find(ExpandedNodeId.Null);
             Assert.That(result, Is.Null);
         }
 
@@ -201,7 +200,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithRemoteNodeIdFindsRemoteNode()
         {
-            var remoteId = RemoteExpanded(100);
+            ExpandedNodeId remoteId = RemoteExpanded(100);
             _nodeTable.Import(new ReferenceDescription
             {
                 NodeId = remoteId,
@@ -210,7 +209,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote")
             });
 
-            var result = _nodeTable.Find(remoteId);
+            INode result = _nodeTable.Find(remoteId);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Remote")));
         }
@@ -219,7 +218,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithUnknownRemoteNodeIdReturnsNull()
         {
-            var result = _nodeTable.Find(RemoteExpanded(999));
+            INode result = _nodeTable.Find(RemoteExpanded(999));
             Assert.That(result, Is.Null);
         }
 
@@ -228,7 +227,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindWithUnknownNamespaceUriReturnsNull()
         {
             var nodeId = new ExpandedNodeId(1u, "http://unknown.namespace/");
-            var result = _nodeTable.Find(nodeId);
+            INode result = _nodeTable.Find(nodeId);
             Assert.That(result, Is.Null);
         }
 
@@ -236,7 +235,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNonExistentLocalNodeIdReturnsNull()
         {
-            var result = _nodeTable.Find(LocalExpanded(999));
+            INode result = _nodeTable.Find(LocalExpanded(999));
             Assert.That(result, Is.Null);
         }
 
@@ -248,7 +247,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithBrowseNameReturnsNullWhenSourceNotFound()
         {
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 LocalExpanded(999),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -269,7 +268,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote Source")
             });
 
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 RemoteExpanded(100),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -283,14 +282,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindWithBrowseNameReturnsFirstTargetWhenBrowseNameIsNull()
         {
             AttachNode(2, "Target");
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
                 LocalExpanded(2));
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -304,14 +303,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindWithBrowseNameReturnsMatchingTarget()
         {
             AttachNode(2, "Target");
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
                 LocalExpanded(2));
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -325,14 +324,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithBrowseNameReturnsNullWhenTargetNotInTable()
         {
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
                 LocalExpanded(999)); // target not in table
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -346,14 +345,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindWithBrowseNameReturnsNullWhenNoMatchingBrowseName()
         {
             AttachNode(2, "Target");
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
                 LocalExpanded(2));
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            INode result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -370,7 +369,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindListReturnsEmptyWhenSourceNotFound()
         {
-            var result = _nodeTable.Find(
+            IList<INode> result = _nodeTable.Find(
                 LocalExpanded(999),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -391,7 +390,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote")
             });
 
-            var result = _nodeTable.Find(
+            IList<INode> result = _nodeTable.Find(
                 RemoteExpanded(100),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -407,12 +406,12 @@ namespace Opc.Ua.Types.Tests.Nodes
             AttachNode(2, "Target1");
             AttachNode(3, "Target2");
 
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, LocalExpanded(2));
             sourceNode.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, LocalExpanded(3));
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            IList<INode> result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -426,12 +425,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             AttachNode(2, "Target");
 
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, LocalExpanded(2));
             sourceNode.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, LocalExpanded(999)); // not in table
             _nodeTable.Attach(sourceNode);
 
-            var result = _nodeTable.Find(
+            IList<INode> result = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -455,7 +454,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Variable 1")
             };
 
-            var result = _nodeTable.Import(refDesc);
+            INode result = _nodeTable.Import(refDesc);
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<Node>());
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -469,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportReferenceDescriptionCreatesRemoteNode()
         {
-            var remoteId = RemoteExpanded(100);
+            ExpandedNodeId remoteId = RemoteExpanded(100);
             var refDesc = new ReferenceDescription
             {
                 NodeId = remoteId,
@@ -478,7 +477,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote Object")
             };
 
-            var result = _nodeTable.Import(refDesc);
+            INode result = _nodeTable.Import(refDesc);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Object));
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("RemoteObj")));
@@ -498,7 +497,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Original")
             });
 
-            var result = _nodeTable.Import(new ReferenceDescription
+            INode result = _nodeTable.Import(new ReferenceDescription
             {
                 NodeId = LocalExpanded(1),
                 NodeClass = NodeClass.Variable,
@@ -525,7 +524,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 TypeDefinition = new ExpandedNodeId(ObjectTypeIds.BaseObjectType)
             };
 
-            var result = _nodeTable.Import(refDesc);
+            INode result = _nodeTable.Import(refDesc);
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<Node>());
         }
@@ -543,7 +542,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 TypeDefinition = ExpandedNodeId.Null
             };
 
-            var result = _nodeTable.Import(refDesc);
+            INode result = _nodeTable.Import(refDesc);
             Assert.That(result, Is.Not.Null);
         }
 
@@ -551,7 +550,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportReferenceDescriptionUpdatesExistingRemoteNode()
         {
-            var remoteId = RemoteExpanded(100);
+            ExpandedNodeId remoteId = RemoteExpanded(100);
 
             _nodeTable.Import(new ReferenceDescription
             {
@@ -561,7 +560,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Initial")
             });
 
-            var result = _nodeTable.Import(new ReferenceDescription
+            INode result = _nodeTable.Import(new ReferenceDescription
             {
                 NodeId = remoteId,
                 NodeClass = NodeClass.Variable,
@@ -584,7 +583,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportNullNodeSetReturnsEmptyList()
         {
-            var result = _nodeTable.Import(null, null);
+            List<Node> result = _nodeTable.Import(null, null);
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
         }
@@ -603,7 +602,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
             nodeSet.Add(node);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(_nodeTable.Count, Is.GreaterThan(0));
@@ -623,7 +622,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
             nodeSet.Add(node);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].BrowseName.IsNull, Is.False);
@@ -643,7 +642,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
             nodeSet.Add(node);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DisplayName, Is.Not.EqualTo(LocalizedText.Null));
@@ -680,7 +679,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             nodeSet.Add(node1);
             nodeSet.Add(node2);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(2));
         }
@@ -707,7 +706,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             nodeSet.Add(node);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
             Assert.That(result, Has.Count.EqualTo(1));
         }
 
@@ -734,7 +733,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             nodeSet.Add(node);
 
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
-            var result = _nodeTable.Import(nodeSet, externalRefs);
+            List<Node> result = _nodeTable.Import(nodeSet, externalRefs);
 
             Assert.That(result, Has.Count.EqualTo(1));
             // External references should be populated with reverse references
@@ -774,7 +773,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Import(nodeSet, null);
 
             // The child should have a reverse Organizes reference to parent
-            var reverseRefs = _nodeTable.Find(
+            IList<INode> reverseRefs = _nodeTable.Find(
                 new ExpandedNodeId(new NodeId(1001, 0)),
                 ReferenceTypeIds.Organizes,
                 true,  // isInverse
@@ -793,11 +792,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             AttachNode(1, "Original");
             Assert.That(_nodeTable.Count, Is.EqualTo(1));
 
-            var duplicate = CreateNode(1, "Duplicate");
+            Node duplicate = CreateNode(1, "Duplicate");
             _nodeTable.Attach(duplicate);
 
             Assert.That(_nodeTable.Count, Is.EqualTo(1));
-            var found = _nodeTable.Find(LocalExpanded(1));
+            INode found = _nodeTable.Find(LocalExpanded(1));
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("Duplicate", 1)));
         }
@@ -806,12 +805,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AttachAddsNodeToTable()
         {
-            var node = CreateNode(1, "TestNode");
+            Node node = CreateNode(1, "TestNode");
             _nodeTable.Attach(node);
 
             Assert.That(_nodeTable.Count, Is.EqualTo(1));
             Assert.That(_nodeTable.Exists(LocalExpanded(1)), Is.True);
-            var found = _nodeTable.Find(LocalExpanded(1));
+            INode found = _nodeTable.Find(LocalExpanded(1));
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("TestNode", 1)));
         }
@@ -821,7 +820,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void AttachAddsReverseReferencesToTargets()
         {
             AttachNode(2, "Target");
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
@@ -829,7 +828,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Attach(sourceNode);
 
             // Target should now have reverse reference back to source
-            var reverseRefs = _nodeTable.Find(
+            IList<INode> reverseRefs = _nodeTable.Find(
                 LocalExpanded(2),
                 ReferenceTypeIds.Organizes,
                 true, // isInverse
@@ -841,7 +840,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AttachSkipsReverseReferencesForMissingTargets()
         {
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
@@ -858,7 +857,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             AttachNode(2, "TypeDef");
 
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.HasTypeDefinition,
                 false,
@@ -866,7 +865,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Attach(sourceNode);
 
             // HasTypeDefinition reverse references should NOT be added
-            var reverseRefs = _nodeTable.Find(
+            IList<INode> reverseRefs = _nodeTable.Find(
                 LocalExpanded(2),
                 ReferenceTypeIds.HasTypeDefinition,
                 true,
@@ -880,7 +879,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             AttachNode(2, "Model");
 
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.HasModellingRule,
                 false,
@@ -888,7 +887,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Attach(sourceNode);
 
             // HasModellingRule reverse references should NOT be added
-            var reverseRefs = _nodeTable.Find(
+            IList<INode> reverseRefs = _nodeTable.Find(
                 LocalExpanded(2),
                 ReferenceTypeIds.HasModellingRule,
                 true,
@@ -961,7 +960,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             AttachNode(2, "Target");
 
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
@@ -969,7 +968,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Attach(sourceNode);
 
             // Verify reverse reference exists
-            var reverseRefsBefore = _nodeTable.Find(
+            IList<INode> reverseRefsBefore = _nodeTable.Find(
                 LocalExpanded(2),
                 ReferenceTypeIds.Organizes,
                 true,
@@ -981,7 +980,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.True);
 
             // Reverse references should be cleaned up
-            var reverseRefsAfter = _nodeTable.Find(
+            IList<INode> reverseRefsAfter = _nodeTable.Find(
                 LocalExpanded(2),
                 ReferenceTypeIds.Organizes,
                 true,
@@ -993,7 +992,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveLocalNodeWithReferenceToMissingTargetSucceeds()
         {
-            var sourceNode = CreateNode(1, "Source");
+            Node sourceNode = CreateNode(1, "Source");
             sourceNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
@@ -1062,9 +1061,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             _serverTable.Append("urn:local-server");       // index 0
             _serverTable.Append("http://remote.server/");  // index 1
 
-            var nodeSet = new NodeSet();
-            // Set internal server URIs to match (requires InternalsVisibleTo)
-            nodeSet.ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" };
+            var nodeSet = new NodeSet
+            {
+                // Set internal server URIs to match (requires InternalsVisibleTo)
+                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+            };
 
             var node = new Node
             {
@@ -1082,7 +1083,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             nodeSet.Add(node);
 
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(1));
             // Remote node should have been created (1 local + 1 remote)
@@ -1096,8 +1097,10 @@ namespace Opc.Ua.Types.Tests.Nodes
             _serverTable.Append("urn:local-server");
             _serverTable.Append("http://remote.server/");
 
-            var nodeSet = new NodeSet();
-            nodeSet.ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" };
+            var nodeSet = new NodeSet
+            {
+                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+            };
 
             var node = new Node
             {
@@ -1115,7 +1118,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             nodeSet.Add(node);
 
             // Should not throw; remote targets are skipped in second pass
-            var result = _nodeTable.Import(nodeSet, null);
+            List<Node> result = _nodeTable.Import(nodeSet, null);
             Assert.That(result, Has.Count.EqualTo(1));
         }
 
@@ -1131,8 +1134,10 @@ namespace Opc.Ua.Types.Tests.Nodes
             _serverTable.Append("urn:local-server");
             _serverTable.Append("http://remote.server/");
 
-            var nodeSet = new NodeSet();
-            nodeSet.ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" };
+            var nodeSet = new NodeSet
+            {
+                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+            };
 
             var node = new Node
             {
@@ -1167,8 +1172,10 @@ namespace Opc.Ua.Types.Tests.Nodes
             _serverTable.Append("urn:local-server");
             _serverTable.Append("http://remote.server/");
 
-            var nodeSet = new NodeSet();
-            nodeSet.ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" };
+            var nodeSet = new NodeSet
+            {
+                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+            };
 
             var remoteTargetId = new ExpandedNodeId(new NodeId(999, 0), null, 1u);
 
@@ -1218,7 +1225,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             // Attach two connected nodes
             AttachNode(2, "Child");
-            var parentNode = CreateNode(1, "Parent");
+            Node parentNode = CreateNode(1, "Parent");
             parentNode.ReferenceTable.Add(
                 ReferenceTypeIds.Organizes,
                 false,
@@ -1226,7 +1233,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Attach(parentNode);
 
             // Verify find by browse name
-            var found = _nodeTable.Find(
+            INode found = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -1235,7 +1242,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(found, Is.Not.Null);
 
             // Verify find list
-            var targets = _nodeTable.Find(
+            IList<INode> targets = _nodeTable.Find(
                 LocalExpanded(1),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -1317,11 +1324,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             nodeSet.Add(parentNode);
             nodeSet.Add(childNode);
 
-            var imported = _nodeTable.Import(nodeSet, null);
+            List<Node> imported = _nodeTable.Import(nodeSet, null);
             Assert.That(imported, Has.Count.EqualTo(2));
 
             // Verify forward references
-            var children = _nodeTable.Find(
+            IList<INode> children = _nodeTable.Find(
                 new ExpandedNodeId(new NodeId(2000, 0)),
                 ReferenceTypeIds.Organizes,
                 false,
@@ -1329,7 +1336,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(children, Has.Count.EqualTo(1));
 
             // Verify reverse references
-            var parents = _nodeTable.Find(
+            IList<INode> parents = _nodeTable.Find(
                 new ExpandedNodeId(new NodeId(2001, 0)),
                 ReferenceTypeIds.Organizes,
                 true,

@@ -44,7 +44,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class RelativePathCoverageTests
+    public class RelativePathTests
     {
         #region RelativePath Constructors
 
@@ -77,7 +77,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithRefTypeAndBrowseNameCreatesOneElement()
         {
             // Covers: RelativePath(NodeId, QualifiedName) - lines 53-56
-            var refTypeId = ReferenceTypeIds.HasComponent;
+            NodeId refTypeId = ReferenceTypeIds.HasComponent;
             var browseName = new QualifiedName("MyComponent", 0);
             var path = new RelativePath(refTypeId, browseName);
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithAllParametersCreatesElement()
         {
             // Covers: RelativePath(NodeId, bool, bool, QualifiedName) - lines 61-78
-            var refTypeId = ReferenceTypeIds.HasProperty;
+            NodeId refTypeId = ReferenceTypeIds.HasProperty;
             var browseName = new QualifiedName("Property1", 2);
             var path = new RelativePath(refTypeId, true, false, browseName);
 

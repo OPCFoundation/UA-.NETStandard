@@ -34,7 +34,6 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {

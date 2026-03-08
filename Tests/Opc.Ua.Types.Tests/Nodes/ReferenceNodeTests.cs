@@ -36,7 +36,7 @@ namespace Opc.Ua.Types.Tests.Nodes
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class ReferenceNodeCoverageTests
+    public class ReferenceNodeTests
     {
         private static ReferenceNode CreateNode(
             uint refTypeId = 42, bool isInverse = false, uint targetId = 100)
@@ -49,7 +49,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CloneReturnsNewInstanceWithSameValues()
         {
-            var original = CreateNode(42, true, 100);
+            ReferenceNode original = CreateNode(42, true, 100);
             var clone = (ReferenceNode)original.Clone();
 
             Assert.That(clone, Is.Not.SameAs(original));
@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void MemberwiseCloneReturnsNewInstanceWithSameValues()
         {
-            var original = CreateNode(42, false, 200);
+            ReferenceNode original = CreateNode(42, false, 200);
             var clone = (ReferenceNode)original.MemberwiseClone();
 
             Assert.That(clone, Is.Not.SameAs(original));
@@ -77,22 +77,22 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IsEqualReturnsTrueForSameReference()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.IsEqual(node), Is.True);
         }
 
         [Test]
         public void IsEqualReturnsTrueForEqualValues()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(42, true, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(42, true, 100);
             Assert.That(a.IsEqual(b), Is.True);
         }
 
         [Test]
         public void IsEqualReturnsFalseForNonReferenceNode()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             var mock = new Mock<IEncodeable>();
             Assert.That(node.IsEqual(mock.Object), Is.False);
         }
@@ -100,24 +100,24 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IsEqualReturnsFalseWhenReferenceTypeIdDiffers()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(99, true, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(99, true, 100);
             Assert.That(a.IsEqual(b), Is.False);
         }
 
         [Test]
         public void IsEqualReturnsFalseWhenIsInverseDiffers()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a.IsEqual(b), Is.False);
         }
 
         [Test]
         public void IsEqualReturnsFalseWhenTargetIdDiffers()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(42, true, 200);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(42, true, 200);
             Assert.That(a.IsEqual(b), Is.False);
         }
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ToStringForInverseReferenceContainsInverseMarker()
         {
-            var node = CreateNode(isInverse: true);
+            ReferenceNode node = CreateNode(isInverse: true);
             var result = node.ToString();
 
             Assert.That(result, Is.Not.Null.And.Not.Empty);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ToStringForForwardReferenceDoesNotContainInverseMarker()
         {
-            var node = CreateNode(isInverse: false);
+            ReferenceNode node = CreateNode(isInverse: false);
             var result = node.ToString();
 
             Assert.That(result, Is.Not.Null.And.Not.Empty);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EqualsObjectWithEqualReferenceNodeReturnsTrue()
         {
-            var a = CreateNode(42, true, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
             Assert.That(a.Equals(b), Is.True);
         }
@@ -161,46 +161,46 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EqualsObjectWithNonReferenceNodeReturnsFalse()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.Equals("not a reference node"), Is.False);
         }
 
         [Test]
         public void EqualsReferenceNodeWithNullReturnsFalse()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.Equals((ReferenceNode)null), Is.False);
         }
 
         [Test]
         public void EqualsReferenceNodeWithEqualValuesReturnsTrue()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a.Equals(b), Is.True);
         }
 
         [Test]
         public void EqualsReferenceNodeWithDifferentReferenceTypeIdReturnsFalse()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(99, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(99, false, 100);
             Assert.That(a.Equals(b), Is.False);
         }
 
         [Test]
         public void EqualsReferenceNodeWithDifferentIsInverseReturnsFalse()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a.Equals(b), Is.False);
         }
 
         [Test]
         public void EqualsReferenceNodeWithDifferentTargetIdReturnsFalse()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(42, false, 200);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, false, 200);
             Assert.That(a.Equals(b), Is.False);
         }
 
@@ -211,15 +211,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void GetHashCodeReturnsSameValueOnMultipleCalls()
         {
-            var node = CreateNode(42, true, 100);
+            ReferenceNode node = CreateNode(42, true, 100);
             Assert.That(node.GetHashCode(), Is.EqualTo(node.GetHashCode()));
         }
 
         [Test]
         public void GetHashCodeReturnsDifferentValuesForDifferentInstances()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(99, false, 200);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(99, false, 200);
             // Different property values should produce different hash codes
             Assert.That(a.GetHashCode(), Is.Not.EqualTo(b.GetHashCode()));
         }
@@ -231,7 +231,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EqualityOperatorReturnsTrueForEqualNodes()
         {
-            var a = CreateNode(42, true, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
             Assert.That(a == b, Is.True);
         }
@@ -240,7 +240,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void EqualityOperatorReturnsTrueForBothNull()
         {
             ReferenceNode a = null;
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a == (object)null, Is.True);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -263,13 +265,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void InequalityOperatorReturnsFalseForBothNull()
         {
             ReferenceNode a = null;
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a != (object)null, Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
         public void InequalityOperatorWithNonNullNodeEvaluatesNonNullBranch()
         {
-            var a = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
             object b = CreateNode(99, false, 200);
             // Exercises the non-null branch of the != operator
             bool result = a != b;
@@ -283,28 +287,28 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CompareToObjectWithNullReturnsPositive()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.CompareTo((object)null), Is.GreaterThan(0));
         }
 
         [Test]
         public void CompareToObjectWithSameReferenceReturnsZero()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.CompareTo((object)node), Is.EqualTo(0));
         }
 
         [Test]
         public void CompareToObjectWithNonReferenceNodeReturnsNegative()
         {
-            var node = CreateNode();
+            ReferenceNode node = CreateNode();
             Assert.That(node.CompareTo("not a node"), Is.LessThan(0));
         }
 
         [Test]
         public void CompareToObjectWithEqualReferenceNodeReturnsZero()
         {
-            var a = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
             object b = CreateNode(42, false, 100);
             Assert.That(a.CompareTo(b), Is.EqualTo(0));
         }
@@ -325,31 +329,31 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CompareToNodeNullRefTypeVsNonNullReturnsNegative()
         {
             var a = new ReferenceNode(NodeId.Null, false, new ExpandedNodeId(100));
-            var b = CreateNode();
+            ReferenceNode b = CreateNode();
             Assert.That(a.CompareTo(b), Is.LessThan(0));
         }
 
         [Test]
         public void CompareToNodeByDifferentReferenceTypeIdReturnsNonZero()
         {
-            var a = CreateNode(10, false, 100);
-            var b = CreateNode(20, false, 100);
+            ReferenceNode a = CreateNode(10, false, 100);
+            ReferenceNode b = CreateNode(20, false, 100);
             Assert.That(a.CompareTo(b), Is.Not.EqualTo(0));
         }
 
         [Test]
         public void CompareToNodeSameTypeIdThisInverseOtherNotReturnsPositive()
         {
-            var a = CreateNode(42, true, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, true, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a.CompareTo(b), Is.GreaterThan(0));
         }
 
         [Test]
         public void CompareToNodeSameTypeIdThisNotInverseOtherInverseReturnsNegative()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(42, true, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, true, 100);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
         }
 
@@ -365,15 +369,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CompareToNodeNullTargetIdVsNonNullReturnsNegative()
         {
             var a = new ReferenceNode(new NodeId(42), false, ExpandedNodeId.Null);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
         }
 
         [Test]
         public void CompareToNodeByTargetIdReturnsComparisonResult()
         {
-            var a = CreateNode(42, false, 10);
-            var b = CreateNode(42, false, 20);
+            ReferenceNode a = CreateNode(42, false, 10);
+            ReferenceNode b = CreateNode(42, false, 20);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
         }
 
@@ -384,8 +388,8 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void LessThanOperatorReturnsTrueForSmallerNode()
         {
-            var a = CreateNode(10, false, 100);
-            var b = CreateNode(20, false, 100);
+            ReferenceNode a = CreateNode(10, false, 100);
+            ReferenceNode b = CreateNode(20, false, 100);
             Assert.That(a < b, Is.True);
         }
 
@@ -393,7 +397,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void LessThanOperatorReturnsTrueForNullLeftNonNullRight()
         {
             ReferenceNode a = null;
-            var b = CreateNode();
+            ReferenceNode b = CreateNode();
             Assert.That(a < b, Is.True);
         }
 
@@ -408,8 +412,8 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void LessThanOrEqualOperatorReturnsTrueForEqualNodes()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a <= b, Is.True);
         }
 
@@ -417,15 +421,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void LessThanOrEqualOperatorReturnsTrueForNullLeft()
         {
             ReferenceNode a = null;
-            var b = CreateNode();
+            ReferenceNode b = CreateNode();
             Assert.That(a <= b, Is.True);
         }
 
         [Test]
         public void GreaterThanOperatorReturnsTrueForLargerNode()
         {
-            var a = CreateNode(20, false, 100);
-            var b = CreateNode(10, false, 100);
+            ReferenceNode a = CreateNode(20, false, 100);
+            ReferenceNode b = CreateNode(10, false, 100);
             Assert.That(a > b, Is.True);
         }
 
@@ -433,15 +437,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void GreaterThanOperatorReturnsFalseForNullLeft()
         {
             ReferenceNode a = null;
-            var b = CreateNode();
+            ReferenceNode b = CreateNode();
             Assert.That(a > b, Is.False);
         }
 
         [Test]
         public void GreaterThanOrEqualOperatorReturnsTrueForEqualNodes()
         {
-            var a = CreateNode(42, false, 100);
-            var b = CreateNode(42, false, 100);
+            ReferenceNode a = CreateNode(42, false, 100);
+            ReferenceNode b = CreateNode(42, false, 100);
             Assert.That(a >= b, Is.True);
         }
 
@@ -457,7 +461,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void GreaterThanOrEqualOperatorReturnsFalseForNullLeftNonNullRight()
         {
             ReferenceNode a = null;
-            var b = CreateNode();
+            ReferenceNode b = CreateNode();
             Assert.That(a >= b, Is.False);
         }
 

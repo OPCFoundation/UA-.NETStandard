@@ -46,7 +46,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     {
         #region Test Helpers
 
-        private static IServiceMessageContext CreateContext()
+        private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             return new ServiceMessageContext(telemetryContext);
@@ -119,7 +119,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var other = new TestEncodeableObject();
 
             // Act & Assert
-            var ex = Assert.Throws<NotImplementedException>(() => obj.IsEqual(other));
+            NotImplementedException ex = Assert.Throws<NotImplementedException>(() => obj.IsEqual(other));
             Assert.That(ex.Message, Does.Contain("Subclass must implement"));
         }
 
@@ -161,11 +161,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingNullDataEncodingReturnsGood()
         {
             // Arrange — QualifiedName.Null triggers the early-return guard
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContext();
             var value = new Variant(42);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, QualifiedName.Null, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, QualifiedName.Null, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -175,12 +175,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingNullValueReturnsGood()
         {
             // Arrange — a default Variant is null
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContext();
             Variant value = default;
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -190,13 +190,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingNonZeroNamespaceReturnsBadDataEncodingUnsupported()
         {
             // Arrange — non-zero namespace index is unsupported
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
             var value = new Variant(new ExtensionObject(arg));
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary, 1);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDataEncodingUnsupported));
@@ -206,13 +206,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingInvalidEncodingNameReturnsBadDataEncodingInvalid()
         {
             // Arrange — name is neither "Default XML" nor "Default Binary"
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
             var value = new Variant(new ExtensionObject(arg));
             var dataEncoding = new QualifiedName("InvalidEncoding");
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDataEncodingInvalid));
@@ -226,13 +226,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingScalarBinaryReturnsGood()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
             var value = new Variant(new ExtensionObject(arg));
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -243,13 +243,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingScalarXmlReturnsGood()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
             var value = new Variant(new ExtensionObject(arg));
             var dataEncoding = new QualifiedName(BrowseNames.DefaultXml);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -264,8 +264,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingArrayBinaryReturnsGood()
         {
             // Arrange — array of valid encodeables with binary encoding
-            var context = CreateContext();
-            var extensions = new ExtensionObject[]
+            IServiceMessageContext context = CreateContext();
+            ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
                 new ExtensionObject(CreateTestArgument("Arg1")),
                 new ExtensionObject(CreateTestArgument("Arg2"))
@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -286,8 +286,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingArrayXmlReturnsGood()
         {
             // Arrange — array path with XML encoding
-            var context = CreateContext();
-            var extensions = new ExtensionObject[]
+            IServiceMessageContext context = CreateContext();
+            ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
                 new ExtensionObject(CreateTestArgument())
             }.ToArrayOf();
@@ -295,7 +295,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataEncoding = new QualifiedName(BrowseNames.DefaultXml);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
@@ -306,8 +306,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange — a null (IsNull=true) extension sets encodeables[i]=null,
             //   which then throws during encoding, exercising the catch block.
-            var context = CreateContext();
-            var extensions = new ExtensionObject[]
+            IServiceMessageContext context = CreateContext();
+            ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
                 new ExtensionObject() // IsNull = true
             }.ToArrayOf();
@@ -315,7 +315,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert — NRE caught by the exception handler
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
@@ -325,16 +325,16 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingArrayWithNonEncodeableReturnsBadTypeMismatch()
         {
             // Arrange — extension with ByteString body is not an IEncodeable
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContext();
             var nonEncodeableExt = new ExtensionObject(
                 new ExpandedNodeId(999),
                 ByteString.From(new byte[] { 1, 2, 3 }));
-            var extensions = new ExtensionObject[] { nonEncodeableExt }.ToArrayOf();
+            ArrayOf<ExtensionObject> extensions = new ExtensionObject[] { nonEncodeableExt }.ToArrayOf();
             var value = new Variant(extensions);
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
@@ -348,12 +348,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ApplyDataEncodingNonExtensionObjectReturnsBadDataEncodingUnsupported()
         {
             // Arrange — an int variant is neither array-of nor scalar ExtensionObject
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContext();
             var value = new Variant(42);
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDataEncodingUnsupported));
@@ -364,12 +364,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange — ThrowingEncodeable throws from Encode(), exercising
             //   the catch block via the scalar path.
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContext();
             var value = new Variant(new ExtensionObject(new ThrowingEncodeable()));
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             // Act
-            var result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
+            ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
@@ -383,11 +383,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeStaticWithXmlReturnsXmlExtensionObject()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
 
             // Act
-            var result = EncodeableObject.Encode(context, arg, useXml: true);
+            ExtensionObject result = EncodeableObject.Encode(context, arg, useXml: true);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -398,11 +398,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeStaticWithBinaryReturnsBinaryExtensionObject()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
 
             // Act
-            var result = EncodeableObject.Encode(context, arg, useXml: false);
+            ExtensionObject result = EncodeableObject.Encode(context, arg, useXml: false);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -417,11 +417,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeXmlReturnsValidXmlElement()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
 
             // Act
-            var result = EncodeableObject.EncodeXml(arg, context);
+            XmlElement result = EncodeableObject.EncodeXml(arg, context);
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -431,11 +431,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeBinaryReturnsValidByteString()
         {
             // Arrange
-            var context = CreateContext();
-            var arg = CreateTestArgument();
+            IServiceMessageContext context = CreateContext();
+            Argument arg = CreateTestArgument();
 
             // Act
-            var result = EncodeableObject.EncodeBinary(arg, context);
+            ByteString result = EncodeableObject.EncodeBinary(arg, context);
 
             // Assert
             Assert.That(result.IsNull, Is.False);

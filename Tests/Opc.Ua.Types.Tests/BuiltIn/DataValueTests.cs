@@ -44,7 +44,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class DataValueCoverageTests
+    public class DataValueTests
     {
         #region Constructors
 
@@ -149,7 +149,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Covers line 212 (null => false)
             var dv = new DataValue();
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(dv.Equals((object)null), Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -186,7 +188,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Covers lines 226-229 (other is null)
             var dv = new DataValue(new Variant(42));
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(dv.Equals((DataValue)null), Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -279,7 +283,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue a = null;
             DataValue b = null;
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a == b, Is.True);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -288,7 +294,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue a = null;
             var b = new DataValue();
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a == b, Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -297,7 +305,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var a = new DataValue();
             DataValue b = null;
 
+#pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a == b, Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -436,8 +446,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ValueSetterSetsVariant()
         {
             // Covers line 334
-            var dv = new DataValue();
-            dv.Value = "hello";
+            var dv = new DataValue
+            {
+                Value = "hello"
+            };
 
             Assert.That(dv.WrappedValue, Is.EqualTo(new Variant("hello")));
         }
@@ -763,7 +775,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ext = new ExtensionObject(arg);
             var dv = new DataValue(new Variant(ext));
 
-            var result = dv.GetValueOrDefault<Argument>();
+            Argument result = dv.GetValueOrDefault<Argument>();
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
@@ -814,7 +826,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(new Variant(42));
             var defaultArg = new Argument("default", new NodeId(0), -1, "default");
 
-            var result = dv.GetValue(defaultArg);
+            Argument result = dv.GetValue(defaultArg);
 
             Assert.That(result, Is.SameAs(defaultArg));
         }
@@ -827,7 +839,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ext = new ExtensionObject(arg);
             var dv = new DataValue(new Variant(ext));
 
-            var result = dv.GetValue<Argument>(null);
+            Argument result = dv.GetValue<Argument>(null);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
@@ -900,10 +912,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void PicoSecondProperties()
         {
             // Covers lines 365-366, 376-377
-            var dv = new DataValue();
-
-            dv.SourcePicoseconds = 12345;
-            dv.ServerPicoseconds = 54321;
+            var dv = new DataValue
+            {
+                SourcePicoseconds = 12345,
+                ServerPicoseconds = 54321
+            };
 
             Assert.That(dv.SourcePicoseconds, Is.EqualTo((ushort)12345));
             Assert.That(dv.ServerPicoseconds, Is.EqualTo((ushort)54321));

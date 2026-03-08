@@ -40,14 +40,14 @@ namespace Opc.Ua.Types.Tests.Nodes
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class VariableTypeNodeCoverageTests
+    public class VariableTypeNodeTests
     {
         #region Helpers
 
         /// <summary>
         /// Test subclass that exposes protected Read/Write methods for direct testing.
         /// </summary>
-        private class TestableVariableTypeNode : VariableTypeNode
+        private sealed class TestableVariableTypeNode : VariableTypeNode
         {
             public Variant TestRead(uint attributeId) => Read(attributeId);
             public ServiceResult TestWrite(uint attributeId, Variant value) => Write(attributeId, value);
@@ -156,8 +156,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ArrayDimensionsSetToNullCoercesToEmpty()
         {
-            var node = new VariableTypeNode();
-            node.ArrayDimensions = null;
+            var node = new VariableTypeNode
+            {
+                ArrayDimensions = null
+            };
 
             Assert.That(node.ArrayDimensions, Is.Not.Null);
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(0));
@@ -254,7 +256,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()
         {
-            var original = CreatePopulatedNode();
+            VariableTypeNode original = CreatePopulatedNode();
             original.ArrayDimensions = new UInt32Collection { 5 };
             original.ValueRank = 1;
 
@@ -286,7 +288,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IsEqualWithSameReferenceReturnsTrue()
         {
-            var node = CreatePopulatedNode();
+            VariableTypeNode node = CreatePopulatedNode();
             Assert.That(node.IsEqual(node), Is.True);
         }
 
@@ -307,7 +309,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IsEqualWithIdenticalNodeReturnsTrue()
         {
-            var node1 = CreatePopulatedNode();
+            VariableTypeNode node1 = CreatePopulatedNode();
             var node2 = (VariableTypeNode)node1.Clone();
 
             Assert.That(node1.IsEqual(node2), Is.True);
@@ -393,7 +395,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CloneCreatesEqualCopy()
         {
-            var original = CreatePopulatedNode();
+            VariableTypeNode original = CreatePopulatedNode();
             original.ArrayDimensions = new UInt32Collection { 8 };
             original.ValueRank = 1;
 
@@ -622,7 +624,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void WriteValueAttribute()
         {
             var node = new TestableVariableTypeNode();
-            var result = node.TestWrite(Attributes.Value, new Variant(42));
+            ServiceResult result = node.TestWrite(Attributes.Value, new Variant(42));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((int)node.Value, Is.EqualTo(42));
@@ -640,7 +642,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(100)
             };
 
-            var result = node.TestWrite(Attributes.DataType, new Variant(new NodeId(11u)));
+            ServiceResult result = node.TestWrite(Attributes.DataType, new Variant(new NodeId(11u)));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(node.DataType, Is.EqualTo(new NodeId(11u)));
@@ -659,7 +661,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(100)
             };
 
-            var result = node.TestWrite(Attributes.DataType, new Variant(new NodeId(6u)));
+            ServiceResult result = node.TestWrite(Attributes.DataType, new Variant(new NodeId(6u)));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(node.DataType, Is.EqualTo(new NodeId(6u)));
@@ -678,7 +680,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50)
             };
 
-            var result = node.TestWrite(Attributes.ValueRank, new Variant(1));
+            ServiceResult result = node.TestWrite(Attributes.ValueRank, new Variant(1));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(node.ValueRank, Is.EqualTo(1));
@@ -697,7 +699,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50)
             };
 
-            var result = node.TestWrite(Attributes.ValueRank, new Variant(-1));
+            ServiceResult result = node.TestWrite(Attributes.ValueRank, new Variant(-1));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(node.ValueRank, Is.EqualTo(-1));
@@ -716,7 +718,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50)
             };
 
-            var result = node.TestWrite(Attributes.ArrayDimensions, new Variant(new uint[] { 5, 10 }));
+            ServiceResult result = node.TestWrite(Attributes.ArrayDimensions, new Variant(new uint[] { 5, 10 }));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             // ValueRank should be updated to match the number of dimensions (2)
@@ -737,7 +739,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50)
             };
 
-            var result = node.TestWrite(Attributes.ArrayDimensions, new Variant(new uint[] { 5, 10 }));
+            ServiceResult result = node.TestWrite(Attributes.ArrayDimensions, new Variant(new uint[] { 5, 10 }));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             // ValueRank matches dimensions count, so it should not change
@@ -758,7 +760,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50)
             };
 
-            var result = node.TestWrite(Attributes.ArrayDimensions, new Variant(new uint[] { }));
+            ServiceResult result = node.TestWrite(Attributes.ArrayDimensions, new Variant(System.Array.Empty<uint>()));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             // Empty array: Count == 0, so the adjustment condition is false
@@ -776,7 +778,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Original")
             };
 
-            var result = node.TestWrite(Attributes.DisplayName, new Variant(new LocalizedText("Updated")));
+            ServiceResult result = node.TestWrite(Attributes.DisplayName, new Variant(new LocalizedText("Updated")));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(node.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
@@ -822,9 +824,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void PublicReadApiReturnsValueAttribute()
         {
-            var node = CreatePopulatedNode();
+            VariableTypeNode node = CreatePopulatedNode();
             var dataValue = new DataValue();
-            var result = node.Read(null, Attributes.Value, dataValue);
+            ServiceResult result = node.Read(null, Attributes.Value, dataValue);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((int)dataValue.WrappedValue, Is.EqualTo(100));
@@ -836,8 +838,8 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void PublicWriteApiSetsValueAttribute()
         {
-            var node = CreatePopulatedNode();
-            var result = node.Write(Attributes.Value, new DataValue(new Variant(999)));
+            VariableTypeNode node = CreatePopulatedNode();
+            ServiceResult result = node.Write(Attributes.Value, new DataValue(new Variant(999)));
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((int)node.Value, Is.EqualTo(999));
@@ -851,7 +853,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new VariableTypeNode { Value = Variant.Null };
             var dataValue = new DataValue();
-            var result = node.Read(null, Attributes.Value, dataValue);
+            ServiceResult result = node.Read(null, Attributes.Value, dataValue);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }

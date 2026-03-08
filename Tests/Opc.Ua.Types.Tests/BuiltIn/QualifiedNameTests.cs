@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -42,7 +41,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class QualifiedNameCoverageTests
+    public class QualifiedNameTests
     {
         #region CompareTo(object) – lines 129-136
 
@@ -433,7 +432,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextEmptyStringReturnsNull()
         {
             // Covers lines 421-423: empty text returns Null
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             Assert.That(QualifiedName.Parse(context, null, false).IsNull, Is.True);
             Assert.That(QualifiedName.Parse(context, "", false).IsNull, Is.True);
         }
@@ -442,7 +441,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNsuWithUpdateTables()
         {
             // Covers lines 426-452: nsu= prefix with updateTables=true
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "nsu=http://new.org/;MyName", true);
             Assert.That(result.Name, Is.EqualTo("MyName"));
             Assert.That(result.NamespaceIndex, Is.GreaterThan(0));
@@ -452,7 +451,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNsuWithoutUpdateTablesKnownUri()
         {
             // Covers lines 440-443: nsu= prefix, updateTables=false, known URI
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             context.NamespaceUris.Append("http://known.org/");
             var result = QualifiedName.Parse(context, "nsu=http://known.org/;MyName", false);
             Assert.That(result.Name, Is.EqualTo("MyName"));
@@ -463,7 +462,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNsuWithoutUpdateTablesUnknownUriThrows()
         {
             // Covers lines 445-449: nsu= prefix, updateTables=false, unknown URI throws
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             Assert.That(
                 () => QualifiedName.Parse(context, "nsu=http://unknown.org/;MyName", false),
                 Throws.TypeOf<ServiceResultException>());
@@ -473,7 +472,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNsuMissingSemicolonThrows()
         {
             // Covers lines 430-437: nsu= prefix without semicolon throws
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             Assert.That(
                 () => QualifiedName.Parse(context, "nsu=http://test.org/NoSemicolon", false),
                 Throws.TypeOf<ServiceResultException>());
@@ -483,7 +482,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNumericNamespaceIndex()
         {
             // Covers lines 455-462, 472, 475-476: numeric index prefix
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "3:MyName", false);
             Assert.That(result.Name, Is.EqualTo("MyName"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(3));
@@ -493,7 +492,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextInvalidNamespaceIndexThrows()
         {
             // Covers lines 455-468: non-numeric prefix that is not nsu= throws
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             Assert.That(
                 () => QualifiedName.Parse(context, "abc:MyName", false),
                 Throws.TypeOf<ServiceResultException>());
@@ -503,7 +502,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNoColonUsesDefaultNamespace()
         {
             // Covers lines 455-456, 458, 470, 472, 475-476: no colon, index stays 0
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "SimpleName", false);
             Assert.That(result.Name, Is.EqualTo("SimpleName"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));
@@ -517,7 +516,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithEmptyNameReturnsEmpty()
         {
             // Covers lines 487-489: empty name returns empty string
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var qn = new QualifiedName(null, 5);
             Assert.That(qn.Format(context), Is.EqualTo(string.Empty));
         }
@@ -526,7 +525,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithNamespaceUriResolvable()
         {
             // Covers lines 496-504: useNamespaceUri with resolvable URI
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             context.NamespaceUris.Append("http://test.org/");
             var qn = new QualifiedName("MyName", 1);
             string result = qn.Format(context, useNamespaceUri: true);
@@ -539,7 +538,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithNamespaceUriNotResolvable()
         {
             // Covers lines 496, 499, 506-508: useNamespaceUri but URI not found, falls back to index
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var qn = new QualifiedName("MyName", 5);
             string result = qn.Format(context, useNamespaceUri: true);
             Assert.That(result, Is.EqualTo("5:MyName"));
@@ -549,7 +548,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithoutNamespaceUri()
         {
             // Covers lines 511-513: useNamespaceUri=false, NamespaceIndex > 0
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var qn = new QualifiedName("MyName", 3);
             string result = qn.Format(context, useNamespaceUri: false);
             Assert.That(result, Is.EqualTo("3:MyName"));
@@ -559,7 +558,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatNamespaceIndexZero()
         {
             // Covers the NamespaceIndex == 0 path, just name
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var qn = new QualifiedName("SimpleName");
             string result = qn.Format(context);
             Assert.That(result, Is.EqualTo("SimpleName"));
@@ -673,7 +672,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextNsuWithEscapedUri()
         {
             // Covers the nsu= parsing with special characters in URI
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             context.NamespaceUris.Append("http://test.org/;special");
             var result = QualifiedName.Parse(context, "nsu=http%3A//test.org/%3Bspecial;MyName", true);
             Assert.That(result.Name, Is.EqualTo("MyName"));
@@ -683,7 +682,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextZeroColonPrefix()
         {
             // Covers lines 458-462: index > 0 check with "0:Name" (index = 0)
-            var context = CreateContext();
+            ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "0:MyName", false);
             Assert.That(result.Name, Is.EqualTo("MyName"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));

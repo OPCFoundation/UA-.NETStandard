@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -45,7 +44,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class TypeInfoCoverageTests
+    public class TypeInfoTests
     {
         #region Constructor Tests
 
@@ -74,7 +73,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetHashCodeForUnknownReturnsZero()
         {
             // Covers lines 110-113: IsUnknown returns 0
-            var unknown = TypeInfo.Unknown;
+            TypeInfo unknown = TypeInfo.Unknown;
             Assert.That(unknown.GetHashCode(), Is.EqualTo(0));
         }
 
@@ -98,7 +97,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNullReturnsTrueForUnknown()
         {
             // Covers line 123: null => IsUnknown
-            var unknown = TypeInfo.Unknown;
+            TypeInfo unknown = TypeInfo.Unknown;
             Assert.That(unknown.Equals((object)null), Is.True);
         }
 
@@ -195,7 +194,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers lines 189-191
             var original = new TypeInfo(BuiltInType.Int32, ValueRanks.OneDimension);
-            var changed = original.WithBuiltInType(BuiltInType.Double);
+            TypeInfo changed = original.WithBuiltInType(BuiltInType.Double);
             Assert.That(changed.BuiltInType, Is.EqualTo(BuiltInType.Double));
             Assert.That(changed.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
@@ -205,7 +204,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers lines 200-202
             var original = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            var changed = original.WithValueRank(ValueRanks.OneDimension);
+            TypeInfo changed = original.WithValueRank(ValueRanks.OneDimension);
             Assert.That(changed.BuiltInType, Is.EqualTo(BuiltInType.Int32));
             Assert.That(changed.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
@@ -401,7 +400,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(t => t.FindSuperType(new NodeId(1000u)))
                 .Returns(new NodeId(6u));
 
-            var result = TypeInfo.GetBuiltInType(new NodeId(1000u), mockTypeTree.Object);
+            BuiltInType result = TypeInfo.GetBuiltInType(new NodeId(1000u), mockTypeTree.Object);
             Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
@@ -409,7 +408,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetBuiltInTypeWithNullTypeTreeReturnsNull()
         {
             // Covers lines 987-989: typeTree == null break
-            var result = TypeInfo.GetBuiltInType(new NodeId(1000u), null);
+            BuiltInType result = TypeInfo.GetBuiltInType(new NodeId(1000u), null);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
 
@@ -421,7 +420,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(t => t.FindSuperType(It.IsAny<NodeId>()))
                 .Returns(NodeId.Null);
 
-            var result = TypeInfo.GetBuiltInType(new NodeId(1000u), mockTypeTree.Object);
+            BuiltInType result = TypeInfo.GetBuiltInType(new NodeId(1000u), mockTypeTree.Object);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
 
@@ -433,7 +432,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public async Task GetBuiltInTypeAsyncWithKnownTypeReturnsDirectly()
         {
             // Covers lines 1012-1022
-            var result = await TypeInfo.GetBuiltInTypeAsync(
+            BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
                 new NodeId(6u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
@@ -447,7 +446,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(t => t.FindSuperTypeAsync(new NodeId(1000u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new NodeId(6u));
 
-            var result = await TypeInfo.GetBuiltInTypeAsync(
+            BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
                 new NodeId(1000u), mockTypeTree.Object, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
@@ -456,7 +455,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public async Task GetBuiltInTypeAsyncWithNullTypeTreeReturnsNull()
         {
             // Covers lines 1026-1028: typeTree == null break
-            var result = await TypeInfo.GetBuiltInTypeAsync(
+            BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
                 new NodeId(1000u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
@@ -464,7 +463,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public async Task GetBuiltInTypeAsyncWithNullNodeIdReturnsNull()
         {
-            var result = await TypeInfo.GetBuiltInTypeAsync(
+            BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
                 NodeId.Null, null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
@@ -506,7 +505,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers lines 765-831: switch statement for GetDataTypeId(TypeInfo)
             var typeInfo = new TypeInfo(type, ValueRanks.Scalar);
-            var result = TypeInfo.GetDataTypeId(typeInfo);
+            NodeId result = TypeInfo.GetDataTypeId(typeInfo);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.IsNull, Is.False);
         }
@@ -515,7 +514,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDataTypeIdForNullTypeReturnsNullNodeId()
         {
             var typeInfo = new TypeInfo(BuiltInType.Null, ValueRanks.Scalar);
-            var result = TypeInfo.GetDataTypeId(typeInfo);
+            NodeId result = TypeInfo.GetDataTypeId(typeInfo);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -527,7 +526,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDataTypeIdForNullVariantReturnsNullNodeId()
         {
             // Covers lines 734-737
-            var result = TypeInfo.GetDataTypeId(Variant.Null);
+            NodeId result = TypeInfo.GetDataTypeId(Variant.Null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -536,7 +535,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers line 748
             var variant = new Variant(42);
-            var result = TypeInfo.GetDataTypeId(variant);
+            NodeId result = TypeInfo.GetDataTypeId(variant);
             Assert.That(result, Is.EqualTo(new NodeId(6u))); // DataTypes.Int32
         }
 
@@ -549,7 +548,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers lines 1044-1047
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(ExpandedNodeId.Null, mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(ExpandedNodeId.Null, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 
@@ -570,7 +569,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Covers lines 1057-1152: switch cases
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             var expandedNodeId = new ExpandedNodeId(id);
-            var result = TypeInfo.GetSystemType(expandedNodeId, mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(expandedNodeId, mockFactory.Object);
             Assert.That(result, Is.EqualTo(expected));
         }
 
@@ -578,7 +577,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForDateTimeExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(13u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(13u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(DateTimeUtc)));
         }
 
@@ -586,7 +585,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForGuidExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(14u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(14u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(Uuid)));
         }
 
@@ -594,7 +593,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForByteStringExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(15u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(15u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(ByteString)));
         }
 
@@ -602,7 +601,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForXmlElementExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(16u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(16u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(XmlElement)));
         }
 
@@ -610,7 +609,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForNodeIdExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(17u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(17u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(NodeId)));
         }
 
@@ -618,7 +617,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForExpandedNodeIdType()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(18u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(18u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(ExpandedNodeId)));
         }
 
@@ -626,7 +625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForStatusCodeExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(19u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(19u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(StatusCode)));
         }
 
@@ -634,7 +633,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForDiagnosticInfoExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(25u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(25u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(DiagnosticInfo)));
         }
 
@@ -642,7 +641,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForQualifiedNameExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(20u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(20u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(QualifiedName)));
         }
 
@@ -650,7 +649,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForLocalizedTextExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(21u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(21u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(LocalizedText)));
         }
 
@@ -658,7 +657,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForDataValueExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(23u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(23u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(DataValue)));
         }
 
@@ -666,7 +665,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForBaseDataTypeReturnsVariant()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(24u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(24u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(Variant)));
         }
 
@@ -674,7 +673,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForStructureReturnsExtensionObject()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(22u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(22u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(ExtensionObject)));
         }
 
@@ -691,7 +690,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForEnumerationReturnsInt()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(29u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(29u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(int)));
         }
 
@@ -700,7 +699,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers UtcTime goto case
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(294u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(294u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(DateTimeUtc)));
         }
 
@@ -724,7 +723,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForSessionAuthTokenReturnsNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(388u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(388u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(NodeId)));
         }
 
@@ -732,7 +731,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForDurationReturnsDouble()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(290u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(290u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(double)));
         }
 
@@ -751,7 +750,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForBitFieldMaskReturnsULong()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            var result = TypeInfo.GetSystemType(new ExpandedNodeId(11737u), mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(11737u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(ulong)));
         }
 
@@ -781,7 +780,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Returns(false);
 
             var nonNs0 = new ExpandedNodeId(1u, 2);
-            var result = TypeInfo.GetSystemType(nonNs0, mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(nonNs0, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 
@@ -797,7 +796,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Returns(false);
 
             var unknownId = new ExpandedNodeId(99999u);
-            var result = TypeInfo.GetSystemType(unknownId, mockFactory.Object);
+            Type result = TypeInfo.GetSystemType(unknownId, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 
@@ -960,7 +959,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeTwoDimensionsReturnsMdArray()
         {
             // Covers lines 1647-1712: TwoDimensions switch
-            var result = TypeInfo.GetSystemType(BuiltInType.Int32, ValueRanks.TwoDimensions);
+            Type result = TypeInfo.GetSystemType(BuiltInType.Int32, ValueRanks.TwoDimensions);
             Assert.That(result, Is.EqualTo(typeof(int).MakeArrayType(2)));
         }
 
@@ -1003,7 +1002,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeNegativeValueRankReturnsVariant()
         {
             // Covers lines 1714-1717: else branch for negative value rank (not Scalar=-1)
-            var result = TypeInfo.GetSystemType(BuiltInType.Int32, ValueRanks.Any);
+            Type result = TypeInfo.GetSystemType(BuiltInType.Int32, ValueRanks.Any);
             Assert.That(result, Is.EqualTo(typeof(Variant)));
         }
 
@@ -1257,7 +1256,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDefaultVariantValueWithNodeIdAndScalarRank()
         {
             // Covers lines 2018-2020: overload delegating to three-arg version
-            var result = TypeInfo.GetDefaultVariantValue(new NodeId(6u), ValueRanks.Scalar);
+            Variant result = TypeInfo.GetDefaultVariantValue(new NodeId(6u), ValueRanks.Scalar);
             Assert.That(result.AsBoxedObject(), Is.Not.Null);
         }
 
@@ -1265,7 +1264,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDefaultVariantValueWithNodeIdNonScalarReturnsDefault()
         {
             // Covers lines 2031-2033: valueRank != Scalar returns default
-            var result = TypeInfo.GetDefaultVariantValue(new NodeId(6u), ValueRanks.OneDimension, null);
+            Variant result = TypeInfo.GetDefaultVariantValue(new NodeId(6u), ValueRanks.OneDimension, null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -1273,7 +1272,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDefaultVariantValueWithNullNodeIdUsesTypeTree()
         {
             // Covers lines 2036-2040: null/non-ns0 path goes to GetDefaultValueInternal
-            var result = TypeInfo.GetDefaultVariantValue(NodeId.Null, ValueRanks.Scalar, null);
+            Variant result = TypeInfo.GetDefaultVariantValue(NodeId.Null, ValueRanks.Scalar, null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -1281,7 +1280,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDefaultVariantValueForBuiltInTypeNodeIds()
         {
             // Covers lines 2043-2046: id <= DiagnosticInfo
-            var result = TypeInfo.GetDefaultVariantValue(new NodeId(1u), ValueRanks.Scalar, null);
+            Variant result = TypeInfo.GetDefaultVariantValue(new NodeId(1u), ValueRanks.Scalar, null);
             // Boolean default is false
             Assert.That(() => result.IsNull, Throws.Nothing);
         }
@@ -1311,7 +1310,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(t => t.FindSuperType(It.IsAny<NodeId>()))
                 .Returns(new NodeId(6u)); // resolves to Int32
 
-            var result = TypeInfo.GetDefaultVariantValue(new NodeId(50000u), ValueRanks.Scalar, mockTypeTree.Object);
+            Variant result = TypeInfo.GetDefaultVariantValue(new NodeId(50000u), ValueRanks.Scalar, mockTypeTree.Object);
             Assert.That(result.IsNull, Is.False);
         }
 
@@ -1477,7 +1476,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateOneDimensionalArrayReturnsCorrectType(BuiltInType type, Type expectedArrayType)
         {
             // Covers lines 2315-2386: one dimensional array creation
-            var array = TypeInfo.CreateArray(type, 3);
+            Array array = TypeInfo.CreateArray(type, 3);
             Assert.That(array, Is.Not.Null);
             Assert.That(array.GetType(), Is.EqualTo(expectedArrayType));
             Assert.That(array.Length, Is.EqualTo(3));
@@ -1487,7 +1486,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateMultiDimensionalArrayReturnsCorrectType()
         {
             // Covers lines 2388-2456: higher dimension arrays
-            var array = TypeInfo.CreateArray(BuiltInType.Int32, 2, 3);
+            Array array = TypeInfo.CreateArray(BuiltInType.Int32, 2, 3);
             Assert.That(array, Is.Not.Null);
             Assert.That(array.Rank, Is.EqualTo(2));
             Assert.That(array.GetLength(0), Is.EqualTo(2));
@@ -1511,9 +1510,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 BuiltInType.Integer, BuiltInType.UInteger
             ];
 
-            foreach (var type in types)
+            foreach (BuiltInType type in types)
             {
-                var array = TypeInfo.CreateArray(type, 2, 3);
+                Array array = TypeInfo.CreateArray(type, 2, 3);
                 Assert.That(array, Is.Not.Null, $"Failed for type {type}");
                 Assert.That(array.Rank, Is.EqualTo(2), $"Wrong rank for type {type}");
             }
@@ -1537,7 +1536,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDataTypeIdForEnumReturnsEnumeration()
         {
             // Covers lines 2471-2476: enum path
-            var result = TypeInfo.GetDataTypeId(typeof(NodeClass));
+            NodeId result = TypeInfo.GetDataTypeId(typeof(NodeClass));
             Assert.That(result, Is.EqualTo(new NodeId(29u)));
         }
 
@@ -1545,7 +1544,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetDataTypeIdForEnumArrayReturnsEnumeration()
         {
             // Covers lines 2473-2476: enum array path
-            var result = TypeInfo.GetDataTypeId(typeof(NodeClass[]));
+            NodeId result = TypeInfo.GetDataTypeId(typeof(NodeClass[]));
             Assert.That(result, Is.EqualTo(new NodeId(29u)));
         }
 
@@ -1595,7 +1594,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetXmlNameForTypeWithDataContractReturnsXmlQualifiedName()
         {
             // Covers lines 2556-2574: DataContractAttribute path
-            var result = TypeInfo.GetXmlName(typeof(LocalizedText));
+            XmlQualifiedName result = TypeInfo.GetXmlName(typeof(LocalizedText));
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.Not.Empty);
         }
@@ -1604,7 +1603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetXmlNameForTypeWithoutDataContractReturnsFullName()
         {
             // Covers line 2598: fallback to FullName
-            var result = TypeInfo.GetXmlName(typeof(int));
+            XmlQualifiedName result = TypeInfo.GetXmlName(typeof(int));
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo(typeof(int).FullName));
         }
@@ -1613,7 +1612,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetXmlNameForObjectWithNullReturnsNull()
         {
             // Covers line 2616: null object path -> GetXmlName(null?.GetType()) -> null
-            var result = TypeInfo.GetXmlName(null, null);
+            XmlQualifiedName result = TypeInfo.GetXmlName(null, null);
             Assert.That(result, Is.Null);
         }
 
@@ -1621,7 +1620,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetXmlNameForNonDynamicObjectReturnsTypeName()
         {
             // Covers line 2616: non-IDynamicComplexTypeInstance path
-            var result = TypeInfo.GetXmlName(42, null);
+            XmlQualifiedName result = TypeInfo.GetXmlName(42, null);
             Assert.That(result, Is.Not.Null);
         }
 
@@ -1629,7 +1628,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetXmlNameForCollectionDataContractTypeReturnsXmlQualifiedName()
         {
             // Covers lines 2586-2594: CollectionDataContractAttribute path
-            var result = TypeInfo.GetXmlName(typeof(BooleanCollection));
+            XmlQualifiedName result = TypeInfo.GetXmlName(typeof(BooleanCollection));
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("ListOfBoolean"));
         }
@@ -1644,7 +1643,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(d => d.GetXmlName(It.IsAny<IServiceMessageContext>()))
                 .Returns(expectedXmlName);
 
-            var result = TypeInfo.GetXmlName(mockDynamic.Object, null);
+            XmlQualifiedName result = TypeInfo.GetXmlName(mockDynamic.Object, null);
             Assert.That(result, Is.EqualTo(expectedXmlName));
         }
 
@@ -1657,7 +1656,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(d => d.GetXmlName(It.IsAny<IServiceMessageContext>()))
                 .Returns((XmlQualifiedName)null);
 
-            var result = TypeInfo.GetXmlName(mockDynamic.Object, null);
+            XmlQualifiedName result = TypeInfo.GetXmlName(mockDynamic.Object, null);
             Assert.That(result, Is.Not.Null);
         }
 
@@ -1670,7 +1669,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers lines 1477-1479
             var typeInfo = new TypeInfo(BuiltInType.Null, ValueRanks.Scalar);
-            var result = typeInfo.GetDataTypeId(Variant.Null, null, null);
+            NodeId result = typeInfo.GetDataTypeId(Variant.Null, null, null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -1679,7 +1678,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Covers line 1502
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            var result = typeInfo.GetDataTypeId(new Variant(42), null, null);
+            NodeId result = typeInfo.GetDataTypeId(new Variant(42), null, null);
             Assert.That(result, Is.EqualTo(new NodeId(6u)));
         }
 

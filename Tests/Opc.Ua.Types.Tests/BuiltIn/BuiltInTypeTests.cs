@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using ObjectLayoutInspector;

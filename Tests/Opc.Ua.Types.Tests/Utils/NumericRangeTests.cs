@@ -90,8 +90,10 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(-1)]
         public void BeginSetterAcceptsValidValues(int value)
         {
-            var range = new NumericRange(0);
-            range.Begin = value;
+            var range = new NumericRange(0)
+            {
+                Begin = value
+            };
             Assert.That(range.Begin, Is.EqualTo(value));
         }
 
@@ -107,8 +109,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Create range with m_begin = -1, then set End to make m_end != -1,
             // triggering the guard: m_end != -1 && m_begin < 0
-            var range = new NumericRange(-1);
-            range.End = 5;
+            var range = new NumericRange(-1)
+            {
+                End = 5
+            };
             Assert.Throws<ArgumentOutOfRangeException>(() => range.Begin = 3);
         }
 
@@ -121,8 +125,10 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(-1)]
         public void EndSetterAcceptsValidValues(int value)
         {
-            var range = new NumericRange(0);
-            range.End = value;
+            var range = new NumericRange(0)
+            {
+                End = value
+            };
             Assert.That(range.End, Is.EqualTo(value));
         }
 
@@ -138,8 +144,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Create range with m_begin = -1, set End to 5, then try to set End again.
             // Guard: m_end != -1 && m_begin < 0
-            var range = new NumericRange(-1);
-            range.End = 5;
+            var range = new NumericRange(-1)
+            {
+                End = 5
+            };
             Assert.Throws<ArgumentOutOfRangeException>(() => range.End = 3);
         }
 
@@ -150,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CountReturnsZeroWhenBeginIsMinusOne()
         {
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             Assert.That(range.Count, Is.EqualTo(0));
         }
 
@@ -178,7 +186,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void DimensionsReturnsZeroWhenEmpty()
         {
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             Assert.That(range.Dimensions, Is.EqualTo(0));
         }
 
@@ -192,14 +200,14 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void DimensionsReturnsSubRangesLength()
         {
-            NumericRange.Validate("1:3,4:6", out var range);
+            NumericRange.Validate("1:3,4:6", out NumericRange range);
             Assert.That(range.Dimensions, Is.EqualTo(2));
         }
 
         [Test]
         public void DimensionsReturnsThreeForThreeDimensionalRange()
         {
-            NumericRange.Validate("0:1,2:3,4:5", out var range);
+            NumericRange.Validate("0:1,2:3,4:5", out NumericRange range);
             Assert.That(range.Dimensions, Is.EqualTo(3));
         }
 
@@ -218,7 +226,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void SubRangesCanBeSetAndRetrieved()
         {
             var range = new NumericRange(0);
-            var subRanges = new[] { new NumericRange(0, 1), new NumericRange(2, 3) };
+            NumericRange[] subRanges = new[] { new NumericRange(0, 1), new NumericRange(2, 3) };
             range.SubRanges = subRanges;
             Assert.That(range.SubRanges, Is.EqualTo(subRanges));
         }
@@ -275,7 +283,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void EnsureValidIntSetsDefaultBeginAndEnd()
         {
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             // m_begin = -1, m_end = -1
             bool valid = range.EnsureValid(10);
             Assert.That(valid, Is.True);
@@ -416,7 +424,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringFormatsEmptyRange()
         {
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             Assert.That(range.ToString(), Is.EqualTo("-1"));
         }
 
@@ -449,7 +457,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void EmptyHasMinusOneBeginAndEnd()
         {
-            var empty = NumericRange.Empty;
+            NumericRange empty = NumericRange.Empty;
             Assert.That(empty.Begin, Is.EqualTo(-1));
             Assert.That(empty.End, Is.EqualTo(-1));
         }
@@ -473,7 +481,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateReturnsGoodForNullString()
         {
-            var result = NumericRange.Validate(null, out var range);
+            ServiceResult result = NumericRange.Validate(null, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range, Is.EqualTo(NumericRange.Empty));
         }
@@ -481,7 +489,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateReturnsGoodForEmptyString()
         {
-            var result = NumericRange.Validate(string.Empty, out var range);
+            ServiceResult result = NumericRange.Validate(string.Empty, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range, Is.EqualTo(NumericRange.Empty));
         }
@@ -491,7 +499,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase("100", 100, -1)]
         public void ValidateParsesSingleNumber(string text, int expectedBegin, int expectedEnd)
         {
-            var result = NumericRange.Validate(text, out var range);
+            ServiceResult result = NumericRange.Validate(text, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.Begin, Is.EqualTo(expectedBegin));
             Assert.That(range.End, Is.EqualTo(expectedEnd));
@@ -502,7 +510,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase("10:20", 10, 20)]
         public void ValidateParsesRange(string text, int expectedBegin, int expectedEnd)
         {
-            var result = NumericRange.Validate(text, out var range);
+            ServiceResult result = NumericRange.Validate(text, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.Begin, Is.EqualTo(expectedBegin));
             Assert.That(range.End, Is.EqualTo(expectedEnd));
@@ -511,49 +519,49 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateReportsNegativeEnd()
         {
-            var result = NumericRange.Validate("3:-1", out _);
+            ServiceResult result = NumericRange.Validate("3:-1", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateReportsBeginEqualToEnd()
         {
-            var result = NumericRange.Validate("5:5", out _);
+            ServiceResult result = NumericRange.Validate("5:5", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateReportsBeginGreaterThanEnd()
         {
-            var result = NumericRange.Validate("10:5", out _);
+            ServiceResult result = NumericRange.Validate("10:5", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateReportsNegativeBegin()
         {
-            var result = NumericRange.Validate("-1", out _);
+            ServiceResult result = NumericRange.Validate("-1", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateReportsInvalidFormat()
         {
-            var result = NumericRange.Validate("abc", out _);
+            ServiceResult result = NumericRange.Validate("abc", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateReportsInvalidFormatWithColon()
         {
-            var result = NumericRange.Validate("a:b", out _);
+            ServiceResult result = NumericRange.Validate("a:b", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateParsesMultidimensionalRange()
         {
-            var result = NumericRange.Validate("1:3,4:6", out var range);
+            ServiceResult result = NumericRange.Validate("1:3,4:6", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
             Assert.That(range.SubRanges.Length, Is.EqualTo(2));
@@ -566,7 +574,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateParsesThreeDimensionalRange()
         {
-            var result = NumericRange.Validate("0:1,2:3,4:5", out var range);
+            ServiceResult result = NumericRange.Validate("0:1,2:3,4:5", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
             Assert.That(range.SubRanges.Length, Is.EqualTo(3));
@@ -575,7 +583,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateMultidimensionalWithSingleNumbers()
         {
-            var result = NumericRange.Validate("1,2", out var range);
+            ServiceResult result = NumericRange.Validate("1,2", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
             Assert.That(range.SubRanges.Length, Is.EqualTo(2));
@@ -588,7 +596,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateMultidimensionalWithInvalidSubrangeReturnsBad()
         {
-            var result = NumericRange.Validate("1:3,abc", out _);
+            ServiceResult result = NumericRange.Validate("1:3,abc", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
@@ -596,14 +604,14 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ValidateMultidimensionalTrailingCommaReturnsBad()
         {
             // "1:3," has only one subrange after split, which is < 2
-            var result = NumericRange.Validate("1:3,", out _);
+            ServiceResult result = NumericRange.Validate("1:3,", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateMultidimensionalBeginRangeValues()
         {
-            var result = NumericRange.Validate("1:3,4:6", out var range);
+            ServiceResult result = NumericRange.Validate("1:3,4:6", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             // The main range's begin/end come from the first sub-range
             Assert.That(range.Begin, Is.EqualTo(1));
@@ -678,7 +686,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyRangeReturnsGoodForEmptyRange()
         {
             object value = new int[] { 1, 2, 3 };
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -700,7 +708,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<int[]>());
-            Assert.That((int[])value, Is.EqualTo(new int[] { 20, 30, 40 }));
+            Assert.That((int[])value, Is.EqualTo([20, 30, 40]));
         }
 
         [Test]
@@ -711,7 +719,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<int[]>());
-            Assert.That((int[])value, Is.EqualTo(new int[] { 30 }));
+            Assert.That((int[])value, Is.EqualTo([30]));
         }
 
         [Test]
@@ -742,7 +750,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<int[]>());
-            Assert.That((int[])value, Is.EqualTo(new int[] { 20, 30 }));
+            Assert.That((int[])value, Is.EqualTo([20, 30]));
         }
 
         [Test]
@@ -771,7 +779,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<string[]>());
-            Assert.That((string[])value, Is.EqualTo(new string[] { "a", "b", "c" }));
+            Assert.That((string[])value, Is.EqualTo(["a", "b", "c"]));
         }
 
         [Test]
@@ -782,7 +790,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<double[]>());
-            Assert.That((double[])value, Is.EqualTo(new double[] { 3.3, 4.4 }));
+            Assert.That((double[])value, Is.EqualTo([3.3, 4.4]));
         }
 
         [Test]
@@ -800,7 +808,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(0, 1);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That((int[])value, Is.EqualTo(new int[] { 10, 20 }));
+            Assert.That((int[])value, Is.EqualTo([10, 20]));
         }
 
         [Test]
@@ -810,7 +818,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(0, 2);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That((int[])value, Is.EqualTo(new int[] { 10, 20, 30 }));
+            Assert.That((int[])value, Is.EqualTo([10, 20, 30]));
         }
 
         #endregion
@@ -820,7 +828,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeVariantReturnsGoodForNullVariant()
         {
-            var variant = Variant.Null;
+            Variant variant = Variant.Null;
             var range = new NumericRange(0, 2);
             StatusCode result = range.ApplyRange(ref variant);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -830,7 +838,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyRangeVariantReturnsGoodForEmptyRange()
         {
             var variant = new Variant(42);
-            var range = NumericRange.Empty;
+            NumericRange range = NumericRange.Empty;
             StatusCode result = range.ApplyRange(ref variant);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -913,7 +921,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That((int[])dst, Is.EqualTo(new int[] { 10, 99, 98, 97, 50 }));
+            Assert.That((int[])dst, Is.EqualTo([10, 99, 98, 97, 50]));
         }
 
         [Test]
@@ -963,8 +971,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // Scalar string with Dimensions > 1 should return BadIndexRangeInvalid
             object dst = "Hello";
             object src = "xy";
-            var range = new NumericRange(1, 2);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(1, 2)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
@@ -1040,8 +1050,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // SubRanges set but value is not an Array or Matrix
             object value = 42;
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
             Assert.That(value, Is.Null);
@@ -1052,8 +1064,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // ApplyMultiRange with a 1D array and 1 SubRange
             object value = new int[] { 10, 20, 30, 40, 50 };
-            var range = new NumericRange(1, 3);
-            range.SubRanges = new[] { new NumericRange(1, 3) };
+            var range = new NumericRange(1, 3)
+            {
+                SubRanges = [new NumericRange(1, 3)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<int[]>());
@@ -1068,8 +1082,10 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeReturnsNoDataWhenSubRangeBeginExceedsArrayLength()
         {
             object value = new int[] { 10, 20, 30 };
-            var range = new NumericRange(10, 20);
-            range.SubRanges = new[] { new NumericRange(10, 20) };
+            var range = new NumericRange(10, 20)
+            {
+                SubRanges = [new NumericRange(10, 20)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
             Assert.That(value, Is.Null);
@@ -1081,8 +1097,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // SubRanges has more dimensions than the array's ValueRank
             // For int[] (ValueRank=1) with 2 SubRanges, and type is not String/ByteString
             object value = new int[] { 10, 20, 30 };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
             Assert.That(value, Is.Null);
@@ -1095,8 +1113,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // This path exercises the finalRange logic but hits a type mismatch
             // when the substring result (char[]) can't be stored in String[]
             object value = new string[] { "Hello", "World", "Test!" };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(1, 3) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(1, 3)]
+            };
             Assert.Throws<InvalidCastException>(() => range.ApplyRange(ref value));
         }
 
@@ -1108,8 +1128,10 @@ namespace Opc.Ua.Types.Tests.Utils
             var matrix = new Matrix(data, BuiltInType.Int32);
             object value = matrix;
 
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -1122,9 +1144,11 @@ namespace Opc.Ua.Types.Tests.Utils
             var matrix = new Matrix(data, BuiltInType.Int32);
             object value = matrix;
 
-            var range = new NumericRange(0, 1);
-            // 3 SubRanges but Matrix is 2D
-            range.SubRanges = new[] { new NumericRange(0, 0), new NumericRange(0, 0), new NumericRange(0, 0) };
+            var range = new NumericRange(0, 1)
+            {
+                // 3 SubRanges but Matrix is 2D
+                SubRanges = [new NumericRange(0, 0), new NumericRange(0, 0), new NumericRange(0, 0)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
@@ -1134,8 +1158,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Create an array where all extracted elements would be null
             object value = new string[] { null, null, null };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1)]
+            };
             StatusCode result = range.ApplyRange(ref value);
             // null elements are skipped, if no data found, returns BadIndexRangeNoData
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1192,8 +1218,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // UpdateRange with SubRanges set on a 1D array
             object dst = new int[] { 10, 20, 30, 40, 50 };
             object src = new int[] { 99, 98, 97 };
-            var range = new NumericRange(1, 3);
-            range.SubRanges = new[] { new NumericRange(1, 3) };
+            var range = new NumericRange(1, 3)
+            {
+                SubRanges = [new NumericRange(1, 3)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             // This goes through the multi-dimensional UpdateRange path
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1235,8 +1263,10 @@ namespace Opc.Ua.Types.Tests.Utils
             var srcMatrix = new Matrix(srcData, BuiltInType.Int32);
             object src = srcMatrix;
 
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
@@ -1247,8 +1277,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // SubRanges has more dimensions than value rank, and type is not String/ByteString
             object dst = new int[] { 1, 2, 3 };
             object src = new int[] { 9, 8, 7 };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 0), new NumericRange(0, 0) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 0), new NumericRange(0, 0)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeInvalid).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
@@ -1287,8 +1319,10 @@ namespace Opc.Ua.Types.Tests.Utils
             var srcData = new int[,] { { 90, 91 }, { 92, 93 } };
             object src = srcData;
 
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(0, 1) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(0, 1)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
@@ -1299,8 +1333,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // String array with SubRanges including finalRange for substring update
             object dst = new string[] { "Hello", "World" };
             object src = new string[] { "xy", "ab" };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1), new NumericRange(1, 2) };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1), new NumericRange(1, 2)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             // Exercises the multi-dim string update path
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1312,8 +1348,10 @@ namespace Opc.Ua.Types.Tests.Utils
             // SubRanges start index exceeds dst array dimensions
             object dst = new int[] { 1, 2, 3 };
             object src = new int[] { 9 };
-            var range = new NumericRange(10, 10);
-            range.SubRanges = new[] { new NumericRange(10, 10) };
+            var range = new NumericRange(10, 10)
+            {
+                SubRanges = [new NumericRange(10, 10)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
@@ -1322,10 +1360,12 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeByteStringArrayWithSubRanges()
         {
             // ByteString array with SubRanges including finalRange
-            object dst = new byte[][] { new byte[] { 0x01, 0x02, 0x03 }, new byte[] { 0x04, 0x05, 0x06 } };
-            object src = new byte[][] { new byte[] { 0xAA }, new byte[] { 0xBB } };
-            var range = new NumericRange(0, 1);
-            range.SubRanges = new[] { new NumericRange(0, 1) };
+            object dst = new byte[][] { [0x01, 0x02, 0x03], [0x04, 0x05, 0x06] };
+            object src = new byte[][] { [0xAA], [0xBB] };
+            var range = new NumericRange(0, 1)
+            {
+                SubRanges = [new NumericRange(0, 1)]
+            };
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
@@ -1383,14 +1423,14 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ValidateMultidimensionalWithNegativeSubrange()
         {
             // A multidimensional range where a subrange has negative begin
-            var result = NumericRange.Validate("-1,2:3", out _);
+            ServiceResult result = NumericRange.Validate("-1,2:3", out _);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
         public void ValidateWithLargeNumber()
         {
-            var result = NumericRange.Validate("999999", out var range);
+            ServiceResult result = NumericRange.Validate("999999", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.Begin, Is.EqualTo(999999));
         }
@@ -1398,7 +1438,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateWithZeroRange()
         {
-            var result = NumericRange.Validate("0", out var range);
+            ServiceResult result = NumericRange.Validate("0", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.Begin, Is.EqualTo(0));
             Assert.That(range.End, Is.EqualTo(-1));
@@ -1437,7 +1477,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(0);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That((int[])dst, Is.EqualTo(new int[] { 99, 20, 30, 40, 50 }));
+            Assert.That((int[])dst, Is.EqualTo([99, 20, 30, 40, 50]));
         }
 
         [Test]

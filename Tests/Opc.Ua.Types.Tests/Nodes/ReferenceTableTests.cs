@@ -787,7 +787,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         private static ExpandedNodeId AbsoluteTarget1 => new ExpandedNodeId(100u, "http://example.com/ns");
         private static ExpandedNodeId AbsoluteTarget2 => new ExpandedNodeId(200u, "http://example.com/ns");
 
+#pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private static IReference MakeRef(NodeId refType, bool isInverse, ExpandedNodeId target)
+#pragma warning restore CA1859 // Use concrete types when possible for improved performance
         {
             return new ReferenceNode(refType, isInverse, target);
         }
@@ -939,7 +941,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerGetReturnsValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
             dict.Add(reference, "value1");
 
             string result = dict[reference];
@@ -951,7 +953,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerGetAbsoluteTargetReturnsValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, AbsoluteTarget1);
+            IReference reference = MakeRef(RefType1, false, AbsoluteTarget1);
             dict.Add(reference, "absolute-value");
 
             string result = dict[reference];
@@ -963,7 +965,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerGetInverseReferenceReturnsValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, true, Target1);
+            IReference reference = MakeRef(RefType1, true, Target1);
             dict.Add(reference, "inverse-value");
 
             string result = dict[reference];
@@ -975,7 +977,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerGetInverseAbsoluteReferenceReturnsValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, true, AbsoluteTarget1);
+            IReference reference = MakeRef(RefType1, true, AbsoluteTarget1);
             dict.Add(reference, "inv-abs-value");
 
             string result = dict[reference];
@@ -1008,7 +1010,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerSetReplacesExistingValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
             dict.Add(reference, "value1");
 
             dict[reference] = "value2";
@@ -1021,7 +1023,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerSetAddsNewEntry()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
 
             dict[reference] = "value1";
 
@@ -1033,7 +1035,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void IndexerSetReplacesAbsoluteTargetEntry()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, AbsoluteTarget1);
+            IReference reference = MakeRef(RefType1, false, AbsoluteTarget1);
             dict.Add(reference, "old-value");
 
             dict[reference] = "new-value";
@@ -1334,7 +1336,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void RemoveKeyValuePairReturnsTrue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
             dict.Add(reference, "value1");
 
             bool result = dict.Remove(new KeyValuePair<IReference, string>(reference, "value1"));
@@ -1492,7 +1494,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.RemoveAll(RefType1, false);
 
             // Type entry should be fully removed
-            var found = dict.Find(RefType1, false);
+            IList<IReference> found = dict.Find(RefType1, false);
             Assert.That(found, Is.Empty);
         }
 
@@ -1710,7 +1712,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ContainsReturnsTrueForExistingPair()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
             dict.Add(reference, "value1");
 
             bool result = dict.Contains(
@@ -1723,7 +1725,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ContainsReturnsFalseForMismatchedValue()
         {
             var dict = new ReferenceDictionary<string>();
-            var reference = MakeRef(RefType1, false, Target1);
+            IReference reference = MakeRef(RefType1, false, Target1);
             dict.Add(reference, "value1");
 
             bool result = dict.Contains(
@@ -1817,7 +1819,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Add(MakeRef(RefType2, true, Target2), "v2");
 
             var entries = new List<KeyValuePair<IReference, string>>();
-            foreach (var entry in dict)
+            foreach (KeyValuePair<IReference, string> entry in dict)
             {
                 entries.Add(entry);
             }
@@ -1857,11 +1859,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict.Count, Is.EqualTo(4));
 
             // Verify forward finds both internal and external
-            var forwardRefs = dict.Find(RefType1, false);
+            IList<IReference> forwardRefs = dict.Find(RefType1, false);
             Assert.That(forwardRefs.Count, Is.EqualTo(2));
 
             // Verify inverse finds both internal and external
-            var inverseRefs = dict.Find(RefType1, true);
+            IList<IReference> inverseRefs = dict.Find(RefType1, true);
             Assert.That(inverseRefs.Count, Is.EqualTo(2));
         }
 

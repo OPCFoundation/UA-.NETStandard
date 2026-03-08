@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
 
@@ -1055,12 +1054,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementPropertiesAreSettable()
         {
-            var element = new RelativePathFormatter.Element();
-
-            element.ElementType = RelativePathFormatter.ElementType.InverseReference;
-            element.ReferenceTypeName = new QualifiedName("TestRef", 2);
-            element.IncludeSubtypes = false;
-            element.TargetName = new QualifiedName("TestTarget", 3);
+            var element = new RelativePathFormatter.Element
+            {
+                ElementType = RelativePathFormatter.ElementType.InverseReference,
+                ReferenceTypeName = new QualifiedName("TestRef", 2),
+                IncludeSubtypes = false,
+                TargetName = new QualifiedName("TestTarget", 3)
+            };
 
             Assert.That(element.ElementType, Is.EqualTo(RelativePathFormatter.ElementType.InverseReference));
             Assert.That(element.ReferenceTypeName.Name, Is.EqualTo("TestRef"));

@@ -31,7 +31,6 @@ using System;
 using System.Globalization;
 using System.Text;
 using NUnit.Framework;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -173,7 +172,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetCodeReturnsNewStatusCodeWithSpecifiedCode()
         {
             var sc = new StatusCode(0x00000000, "Good");
-            var result = sc.SetCode(0x80000000);
+            StatusCode result = sc.SetCode(0x80000000);
             Assert.That(result.Code, Is.EqualTo(0x80000000));
         }
 
@@ -188,7 +187,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithCodeBitsUintSetsUpperBitsPreservesLower()
         {
             var sc = new StatusCode(0x0000FFFF);
-            var result = sc.WithCodeBits(0x80010000);
+            StatusCode result = sc.WithCodeBits(0x80010000);
             Assert.That(result.CodeBits, Is.EqualTo(0x80010000));
             Assert.That(result.FlagBits, Is.EqualTo(0x0000FFFF));
         }
@@ -198,7 +197,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x00000005);
             var source = new StatusCode(0x80010000);
-            var result = sc.WithCodeBits(source);
+            StatusCode result = sc.WithCodeBits(source);
             Assert.That(result.CodeBits, Is.EqualTo(0x80010000));
             Assert.That(result.FlagBits, Is.EqualTo(0x00000005));
         }
@@ -214,7 +213,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithFlagBitsSetsLowerBitsPreservesUpper()
         {
             var sc = new StatusCode(0x80010000);
-            var result = sc.WithFlagBits(0x00001234);
+            StatusCode result = sc.WithFlagBits(0x00001234);
             Assert.That(result.CodeBits, Is.EqualTo(0x80010000));
             Assert.That(result.FlagBits, Is.EqualTo(0x00001234));
         }
@@ -229,7 +228,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithSubCodeSetsSubCodeBits()
         {
-            var result = new StatusCode(0x00000000).WithSubCode(0x0ABC0000);
+            StatusCode result = new StatusCode(0x00000000).WithSubCode(0x0ABC0000);
             Assert.That(result.SubCode, Is.EqualTo(0x0ABC0000));
         }
 
@@ -252,7 +251,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetStructureChangedTrueSetsTheBit()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.SetStructureChanged(true);
+            StatusCode result = sc.SetStructureChanged(true);
             Assert.That(result.StructureChanged, Is.True);
             Assert.That(result.Code & 0x8000, Is.EqualTo(0x8000));
         }
@@ -261,7 +260,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetStructureChangedFalseClearsTheBit()
         {
             var sc = new StatusCode(0x00008000);
-            var result = sc.SetStructureChanged(false);
+            StatusCode result = sc.SetStructureChanged(false);
             Assert.That(result.StructureChanged, Is.False);
             Assert.That(result.Code & 0x8000, Is.EqualTo(0u));
         }
@@ -285,7 +284,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetSemanticsChangedTrueSetsTheBit()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.SetSemanticsChanged(true);
+            StatusCode result = sc.SetSemanticsChanged(true);
             Assert.That(result.SemanticsChanged, Is.True);
             Assert.That(result.Code & 0x4000, Is.EqualTo(0x4000));
         }
@@ -294,7 +293,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetSemanticsChangedFalseClearsTheBit()
         {
             var sc = new StatusCode(0x00004000);
-            var result = sc.SetSemanticsChanged(false);
+            StatusCode result = sc.SetSemanticsChanged(false);
             Assert.That(result.SemanticsChanged, Is.False);
             Assert.That(result.Code & 0x4000, Is.EqualTo(0u));
         }
@@ -318,7 +317,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetHasDataValueInfoTrueSetsTheBit()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.SetHasDataValueInfo(true);
+            StatusCode result = sc.SetHasDataValueInfo(true);
             Assert.That(result.HasDataValueInfo, Is.True);
             Assert.That(result.Code & 0x0400, Is.EqualTo(0x0400));
         }
@@ -328,7 +327,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // When setting to false, clears both the bit and all info bits (0xFFFFFC00 mask)
             var sc = new StatusCode(0x000004FF);
-            var result = sc.SetHasDataValueInfo(false);
+            StatusCode result = sc.SetHasDataValueInfo(false);
             Assert.That(result.HasDataValueInfo, Is.False);
             Assert.That(result.Code & 0x000003FF, Is.EqualTo(0u));
         }
@@ -345,7 +344,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithLimitBitsSetsLimitBitsAndDataValueInfoBit()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.WithLimitBits(LimitBits.High);
+            StatusCode result = sc.WithLimitBits(LimitBits.High);
             Assert.That(result.LimitBits, Is.EqualTo(LimitBits.High));
             Assert.That(result.HasDataValueInfo, Is.True);
         }
@@ -354,7 +353,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithLimitBitsConstantSetsCorrectValue()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.WithLimitBits(LimitBits.Constant);
+            StatusCode result = sc.WithLimitBits(LimitBits.Constant);
             Assert.That(result.LimitBits, Is.EqualTo(LimitBits.Constant));
         }
 
@@ -386,7 +385,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetOverflowTrueSetsOverflowAndDataValueInfoBit()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.SetOverflow(true);
+            StatusCode result = sc.SetOverflow(true);
             Assert.That(result.Overflow, Is.True);
             Assert.That(result.HasDataValueInfo, Is.True);
             Assert.That(result.Code & 0x0080, Is.EqualTo(0x0080));
@@ -396,7 +395,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SetOverflowFalseClearsOverflowBitKeepsDataValueInfo()
         {
             var sc = new StatusCode(0x00000480); // Both DataValueInfo and Overflow set
-            var result = sc.SetOverflow(false);
+            StatusCode result = sc.SetOverflow(false);
             Assert.That(result.Overflow, Is.False);
             // DataValueInfo should still be set
             Assert.That(result.HasDataValueInfo, Is.True);
@@ -415,7 +414,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithAggregateBitsSetsAggregateBitsAndDataValueInfo()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.WithAggregateBits(AggregateBits.Interpolated);
+            StatusCode result = sc.WithAggregateBits(AggregateBits.Interpolated);
             Assert.That(result.AggregateBits, Is.EqualTo(AggregateBits.Interpolated));
             Assert.That(result.HasDataValueInfo, Is.True);
         }
@@ -424,7 +423,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithAggregateBitsPartialSetsCorrectValue()
         {
             var sc = new StatusCode(0x00000000);
-            var result = sc.WithAggregateBits(AggregateBits.Partial | AggregateBits.Calculated);
+            StatusCode result = sc.WithAggregateBits(AggregateBits.Partial | AggregateBits.Calculated);
             Assert.That(result.AggregateBits, Is.EqualTo(AggregateBits.Partial | AggregateBits.Calculated));
         }
 
@@ -983,7 +982,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void InternedStatusCodesReturnsCollection()
         {
-            var collection = StatusCode.InternedStatusCodes;
+            StatusCodeCollection collection = StatusCode.InternedStatusCodes;
             Assert.That(collection, Is.Not.Null);
             Assert.That(collection.Count, Is.GreaterThan(0));
         }
@@ -1038,8 +1037,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void SerializableStatusCodeCodePropertySetUpdatesValue()
         {
-            var ssc = new SerializableStatusCode();
-            ssc.Code = 0x80010000;
+            var ssc = new SerializableStatusCode
+            {
+                Code = 0x80010000
+            };
             Assert.That(ssc.Value.Code, Is.EqualTo(0x80010000));
         }
 

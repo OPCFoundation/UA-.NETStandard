@@ -52,7 +52,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void GoodPropertyReturnsGoodStatusCode()
         {
-            var result = ServiceResult.Good;
+            ServiceResult result = ServiceResult.Good;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good.Code));
         }
@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void BadPropertyReturnsBadStatusCode()
         {
-            var result = ServiceResult.Bad;
+            ServiceResult result = ServiceResult.Bad;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Bad.Code));
         }
@@ -519,7 +519,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: ServiceResult(StatusCode, DiagnosticInfo, ArrayOf<string>) - lines 421-447
             var stringTable = new ArrayOf<string>(
-                new[] { "http://ns.org", "MySymbolicId", "en-US", "A localized message" });
+                ["http://ns.org", "MySymbolicId", "en-US", "A localized message"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,
@@ -541,7 +541,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoNullLeavesDefaults()
         {
             // Covers: null diagnosticInfo path - line 428
-            var stringTable = new ArrayOf<string>(new[] { "unused" });
+            var stringTable = new ArrayOf<string>(["unused"]);
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, (DiagnosticInfo?)null, stringTable);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -553,7 +553,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoAndBadInnerStatusCreatesInnerResult()
         {
             // Covers: lines 439-445 - inner status code is bad, creates InnerResult
-            var stringTable = new ArrayOf<string>(new[] { "http://ns.org", "SymId", "en", "text" });
+            var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var innerDiag = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,
@@ -579,7 +579,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoAndGoodInnerStatusNoInnerResult()
         {
             // Covers: line 439 - inner status code is good, no InnerResult
-            var stringTable = new ArrayOf<string>(new[] { "http://ns.org", "SymId", "en", "text" });
+            var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,
@@ -598,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: ServiceResult(StatusCode, int, ArrayOf<DiagnosticInfo>, ArrayOf<string>) - lines 452-484
             var stringTable = new ArrayOf<string>(
-                new[] { "http://ns.org", "SymId", "en", "indexed message" });
+                ["http://ns.org", "SymId", "en", "indexed message"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,
@@ -606,7 +606,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 LocalizedText = 3,
                 AdditionalInfo = "indexed info"
             };
-            var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new[] { diagInfo });
+            var diagnosticInfos = new ArrayOf<DiagnosticInfo>([diagInfo]);
 
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, 0, diagnosticInfos, stringTable);
 
@@ -621,8 +621,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithIndexedDiagnosticInfoOutOfRangeIgnored()
         {
             // Covers: index out of range path - line 460
-            var stringTable = new ArrayOf<string>(new[] { "unused" });
-            var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new DiagnosticInfo[] { new DiagnosticInfo() });
+            var stringTable = new ArrayOf<string>(["unused"]);
+            var diagnosticInfos = new ArrayOf<DiagnosticInfo>([new DiagnosticInfo()]);
 
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, 5, diagnosticInfos, stringTable);
 
@@ -634,8 +634,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithIndexedDiagnosticInfoNegativeIndexIgnored()
         {
             // Covers: negative index path - line 460
-            var stringTable = new ArrayOf<string>(new[] { "unused" });
-            var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new DiagnosticInfo[] { new DiagnosticInfo() });
+            var stringTable = new ArrayOf<string>(["unused"]);
+            var diagnosticInfos = new ArrayOf<DiagnosticInfo>([new DiagnosticInfo()]);
 
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, -1, diagnosticInfos, stringTable);
 
@@ -647,7 +647,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithIndexedDiagnosticInfoNullEntryIgnored()
         {
             // Covers: null diagnosticInfo entry at valid index - line 464
-            var stringTable = new ArrayOf<string>(new[] { "unused" });
+            var stringTable = new ArrayOf<string>(["unused"]);
             var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new DiagnosticInfo?[] { null }!);
 
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, 0, diagnosticInfos, stringTable);
@@ -660,7 +660,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithIndexedDiagnosticInfoBadInnerStatusCreatesInnerResult()
         {
             // Covers: lines 475-481 - inner status code is bad for indexed constructor
-            var stringTable = new ArrayOf<string>(new[] { "http://ns.org", "SymId", "en", "text" });
+            var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,
@@ -668,7 +668,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 LocalizedText = 3,
                 InnerStatusCode = StatusCodes.BadDecodingError
             };
-            var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new[] { diagInfo });
+            var diagnosticInfos = new ArrayOf<DiagnosticInfo>([diagInfo]);
 
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, 0, diagnosticInfos, stringTable);
 
@@ -680,7 +680,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoOutOfBoundsStringIndex()
         {
             // Covers: LookupString with out-of-bounds index returns null - lines 800-808
-            var stringTable = new ArrayOf<string>(new[] { "only one" });
+            var stringTable = new ArrayOf<string>(["only one"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 99, // out of bounds
                 SymbolicId = -1,   // negative
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: GetServiceResultException() - lines 50-53
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
-            var exception = result.GetServiceResultException();
+            ServiceResultException exception = result.GetServiceResultException();
 
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception, Is.InstanceOf<ServiceResultException>());
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: SymbolicId setter - line 724
             // The setter is invoked via the DiagnosticInfo constructor path
-            var stringTable = new ArrayOf<string>(new[] { "ns", "MyId", "en", "text" });
+            var stringTable = new ArrayOf<string>(["ns", "MyId", "en", "text"]);
             var diagInfo = new DiagnosticInfo {
                 NamespaceUri = 0,
                 SymbolicId = 1,

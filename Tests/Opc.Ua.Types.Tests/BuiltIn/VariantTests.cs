@@ -36,10 +36,15 @@ using System.Reflection;
 using System.Xml;
 using NUnit.Framework;
 
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable UA_NETStandard_1
+
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
-    /// Comprehensive tests for the Variant built-in type.
+    /// Coverage tests for Variant: explicit/implicit operators, equality operators,
+    /// ConvertTo methods, GetHashCode, ValueIsDefaultOrNull, ToString, FromEnumeration,
+    /// CreateDefault, and SerializableVariant.
     /// </summary>
     [TestFixture]
     [Category("BuiltInType")]
@@ -573,7 +578,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void MatrixConstructor_PreservesMatrixTypeInfo()
         {
-            var matrix = ArrayOf.Wrapped(1, 2, 3, 4).ToMatrix([2, 2]);
+            MatrixOf<int> matrix = ArrayOf.Wrapped(1, 2, 3, 4).ToMatrix([2, 2]);
             var variant = new Variant(matrix);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
@@ -781,7 +786,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetMatrix_ReturnsMatrix()
         {
-            var matrix = ArrayOf.Wrapped(1f, 2f, 3f, 4f).ToMatrix(2, 2);
+            MatrixOf<float> matrix = ArrayOf.Wrapped(1f, 2f, 3f, 4f).ToMatrix(2, 2);
             var variant = Variant.From(matrix);
             object[] args = Array<object>(null, BuiltInType.Float);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
@@ -1063,14 +1068,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             return new TestCaseData(descriptor);
         }
 
-        private static XmlElement CreateXmlElement(string name)
-        {
-            var document = new XmlDocument();
-            System.Xml.XmlElement element = document.CreateElement(name);
-            element.InnerText = name;
-            return (XmlElement)element;
-        }
-
         private static object CreateDefaultValue(Type type)
         {
             if (type.IsValueType)
@@ -1140,5 +1137,3249 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(actual, Is.EqualTo(expected));
         }
+
+        private enum TestEnum
+        {
+            Zero = 0,
+            One = 1,
+            Two = 2,
+            Negative = -1
+        }
+
+        private enum ByteEnum : byte
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum ShortEnum : short
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum LongEnum : long
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum UShortEnum : ushort
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum UIntEnum : uint
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum ULongEnum : ulong
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        private enum SByteEnum : sbyte
+        {
+            Zero = 0,
+            One = 1
+        }
+
+        #region Explicit cast operators: Variant -> scalar
+
+        [Test]
+        public void ExplicitCastToBoolReturnsValue()
+        {
+            var v = new Variant(true);
+            bool result = (bool)v;
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void ExplicitCastToSByteReturnsValue()
+        {
+            var v = new Variant((sbyte)-5);
+            sbyte result = (sbyte)v;
+            Assert.That(result, Is.EqualTo((sbyte)-5));
+        }
+
+        [Test]
+        public void ExplicitCastToByteReturnsValue()
+        {
+            var v = new Variant((byte)42);
+            byte result = (byte)v;
+            Assert.That(result, Is.EqualTo((byte)42));
+        }
+
+        [Test]
+        public void ExplicitCastToInt16ReturnsValue()
+        {
+            var v = new Variant((short)-100);
+            short result = (short)v;
+            Assert.That(result, Is.EqualTo((short)-100));
+        }
+
+        [Test]
+        public void ExplicitCastToUInt16ReturnsValue()
+        {
+            var v = new Variant((ushort)200);
+            ushort result = (ushort)v;
+            Assert.That(result, Is.EqualTo((ushort)200));
+        }
+
+        [Test]
+        public void ExplicitCastToInt32ReturnsValue()
+        {
+            var v = new Variant(-300);
+            int result = (int)v;
+            Assert.That(result, Is.EqualTo(-300));
+        }
+
+        [Test]
+        public void ExplicitCastToUInt32ReturnsValue()
+        {
+            var v = new Variant(400u);
+            uint result = (uint)v;
+            Assert.That(result, Is.EqualTo(400u));
+        }
+
+        [Test]
+        public void ExplicitCastToInt64ReturnsValue()
+        {
+            var v = new Variant(-500L);
+            long result = (long)v;
+            Assert.That(result, Is.EqualTo(-500L));
+        }
+
+        [Test]
+        public void ExplicitCastToUInt64ReturnsValue()
+        {
+            var v = new Variant(600UL);
+            ulong result = (ulong)v;
+            Assert.That(result, Is.EqualTo(600UL));
+        }
+
+        [Test]
+        public void ExplicitCastToFloatReturnsValue()
+        {
+            var v = new Variant(1.5f);
+            float result = (float)v;
+            Assert.That(result, Is.EqualTo(1.5f));
+        }
+
+        [Test]
+        public void ExplicitCastToDoubleReturnsValue()
+        {
+            var v = new Variant(2.5d);
+            double result = (double)v;
+            Assert.That(result, Is.EqualTo(2.5d));
+        }
+
+        [Test]
+        public void ExplicitCastToStringReturnsValue()
+        {
+            var v = new Variant("hello");
+            string result = (string)v;
+            Assert.That(result, Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void ExplicitCastToDateTimeUtcReturnsValue()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            DateTimeUtc result = (DateTimeUtc)v;
+            Assert.That(result, Is.EqualTo(dt));
+        }
+
+        [Test]
+        public void ExplicitCastToUuidReturnsValue()
+        {
+            var guid = Uuid.NewUuid();
+            var v = new Variant(guid);
+            Uuid result = (Uuid)v;
+            Assert.That(result, Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void ExplicitCastToByteStringReturnsValue()
+        {
+            var bs = ByteString.From(1, 2, 3);
+            var v = new Variant(bs);
+            ByteString result = (ByteString)v;
+            Assert.That(result, Is.EqualTo(bs));
+        }
+
+        [Test]
+        public void ExplicitCastToXmlElementReturnsValue()
+        {
+            XmlElement xml = CreateXmlElement("Test");
+            var v = new Variant(xml);
+            XmlElement result = (XmlElement)v;
+            Assert.That(result, Is.EqualTo(xml));
+        }
+
+        [Test]
+        public void ExplicitCastToNodeIdReturnsValue()
+        {
+            var nodeId = new NodeId(10, 1);
+            var v = new Variant(nodeId);
+            NodeId result = (NodeId)v;
+            Assert.That(result, Is.EqualTo(nodeId));
+        }
+
+        [Test]
+        public void ExplicitCastToExpandedNodeIdReturnsValue()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=Test;s=Node");
+            var v = new Variant(eni);
+            ExpandedNodeId result = (ExpandedNodeId)v;
+            Assert.That(result, Is.EqualTo(eni));
+        }
+
+        [Test]
+        public void ExplicitCastToStatusCodeReturnsValue()
+        {
+            var sc = new StatusCode(123u);
+            var v = new Variant(sc);
+            StatusCode result = (StatusCode)v;
+            Assert.That(result, Is.EqualTo(sc));
+        }
+
+        [Test]
+        public void ExplicitCastToQualifiedNameReturnsValue()
+        {
+            var qn = new QualifiedName("name", 2);
+            var v = new Variant(qn);
+            QualifiedName result = (QualifiedName)v;
+            Assert.That(result, Is.EqualTo(qn));
+        }
+
+        [Test]
+        public void ExplicitCastToLocalizedTextReturnsValue()
+        {
+            var lt = new LocalizedText("en", "text");
+            var v = new Variant(lt);
+            LocalizedText result = (LocalizedText)v;
+            Assert.That(result, Is.EqualTo(lt));
+        }
+
+        [Test]
+        public void ExplicitCastToExtensionObjectReturnsValue()
+        {
+            var eo = new ExtensionObject(new Argument());
+            var v = new Variant(eo);
+            ExtensionObject result = (ExtensionObject)v;
+            Assert.That(result, Is.Not.Null);
+        }
+
+        [Test]
+        public void ExplicitCastToDataValueReturnsValue()
+        {
+            var dv = new DataValue(5);
+            var v = new Variant(dv);
+            DataValue result = (DataValue)v;
+            Assert.That(result, Is.Not.Null);
+        }
+
+        #endregion
+
+        #region Explicit cast operators: Variant -> ArrayOf<T>
+
+        [Test]
+        public void ExplicitCastToArrayOfBoolReturnsValue()
+        {
+            ArrayOf<bool> arr = [true, false];
+            var v = new Variant(arr);
+            ArrayOf<bool> result = (ArrayOf<bool>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfSByteReturnsValue()
+        {
+            ArrayOf<sbyte> arr = [-1, 1];
+            var v = new Variant(arr);
+            ArrayOf<sbyte> result = (ArrayOf<sbyte>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfByteReturnsValue()
+        {
+            ArrayOf<byte> arr = [1, 2];
+            var v = new Variant(arr);
+            ArrayOf<byte> result = (ArrayOf<byte>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfInt16ReturnsValue()
+        {
+            ArrayOf<short> arr = [-1, 1];
+            var v = new Variant(arr);
+            ArrayOf<short> result = (ArrayOf<short>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfUInt16ReturnsValue()
+        {
+            ArrayOf<ushort> arr = [1, 2];
+            var v = new Variant(arr);
+            ArrayOf<ushort> result = (ArrayOf<ushort>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfInt32ReturnsValue()
+        {
+            ArrayOf<int> arr = [-1, 1];
+            var v = new Variant(arr);
+            ArrayOf<int> result = (ArrayOf<int>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfUInt32ReturnsValue()
+        {
+            ArrayOf<uint> arr = [1u, 2u];
+            var v = new Variant(arr);
+            ArrayOf<uint> result = (ArrayOf<uint>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfInt64ReturnsValue()
+        {
+            ArrayOf<long> arr = [-1L, 1L];
+            var v = new Variant(arr);
+            ArrayOf<long> result = (ArrayOf<long>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfUInt64ReturnsValue()
+        {
+            ArrayOf<ulong> arr = [1UL, 2UL];
+            var v = new Variant(arr);
+            ArrayOf<ulong> result = (ArrayOf<ulong>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfFloatReturnsValue()
+        {
+            ArrayOf<float> arr = [1.0f, 2.0f];
+            var v = new Variant(arr);
+            ArrayOf<float> result = (ArrayOf<float>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfDoubleReturnsValue()
+        {
+            ArrayOf<double> arr = [1.0, 2.0];
+            var v = new Variant(arr);
+            ArrayOf<double> result = (ArrayOf<double>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfStringReturnsValue()
+        {
+            ArrayOf<string> arr = ["a", "b"];
+            var v = new Variant(arr);
+            ArrayOf<string> result = (ArrayOf<string>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfDateTimeUtcReturnsValue()
+        {
+            var dt1 = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            var dt2 = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc);
+            ArrayOf<DateTimeUtc> arr = [dt1, dt2];
+            var v = new Variant(arr);
+            ArrayOf<DateTimeUtc> result = (ArrayOf<DateTimeUtc>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfUuidReturnsValue()
+        {
+            ArrayOf<Uuid> arr = [Uuid.NewUuid(), Uuid.NewUuid()];
+            var v = new Variant(arr);
+            ArrayOf<Uuid> result = (ArrayOf<Uuid>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfByteStringReturnsValue()
+        {
+            ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
+            var v = new Variant(arr);
+            ArrayOf<ByteString> result = (ArrayOf<ByteString>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfXmlElementReturnsValue()
+        {
+            ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
+            var v = new Variant(arr);
+            ArrayOf<XmlElement> result = (ArrayOf<XmlElement>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfNodeIdReturnsValue()
+        {
+            ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
+            var v = new Variant(arr);
+            ArrayOf<NodeId> result = (ArrayOf<NodeId>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfExpandedNodeIdReturnsValue()
+        {
+            ArrayOf<ExpandedNodeId> arr = [
+                ExpandedNodeId.Parse("nsu=T;s=A"),
+                ExpandedNodeId.Parse("nsu=T;s=B")
+            ];
+            var v = new Variant(arr);
+            ArrayOf<ExpandedNodeId> result = (ArrayOf<ExpandedNodeId>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfStatusCodeReturnsValue()
+        {
+            ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
+            var v = new Variant(arr);
+            ArrayOf<StatusCode> result = (ArrayOf<StatusCode>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfQualifiedNameReturnsValue()
+        {
+            ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
+            var v = new Variant(arr);
+            ArrayOf<QualifiedName> result = (ArrayOf<QualifiedName>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfLocalizedTextReturnsValue()
+        {
+            ArrayOf<LocalizedText> arr = [
+                new LocalizedText("en", "a"),
+                new LocalizedText("de", "b")
+            ];
+            var v = new Variant(arr);
+            ArrayOf<LocalizedText> result = (ArrayOf<LocalizedText>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfExtensionObjectReturnsValue()
+        {
+            ArrayOf<ExtensionObject> arr = [
+                new ExtensionObject(new Argument()),
+                new ExtensionObject(new Argument())
+            ];
+            var v = new Variant(arr);
+            ArrayOf<ExtensionObject> result = (ArrayOf<ExtensionObject>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfDataValueReturnsValue()
+        {
+            ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
+            var v = new Variant(arr);
+            ArrayOf<DataValue> result = (ArrayOf<DataValue>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ExplicitCastToArrayOfVariantReturnsValue()
+        {
+            ArrayOf<Variant> arr = [new Variant(1), new Variant("two")];
+            var v = new Variant(arr);
+            ArrayOf<Variant> result = (ArrayOf<Variant>)v;
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        #endregion
+
+        #region Explicit cast operators: Variant -> MatrixOf<T>
+
+        [Test]
+        public void ExplicitCastToMatrixOfBoolReturnsValue()
+        {
+            MatrixOf<bool> matrix = new bool[,] { { true, false }, { false, true } };
+            var v = new Variant(matrix);
+            MatrixOf<bool> result = (MatrixOf<bool>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfSByteReturnsValue()
+        {
+            MatrixOf<sbyte> matrix = new sbyte[,] { { -1, 1 }, { -2, 2 } };
+            var v = new Variant(matrix);
+            MatrixOf<sbyte> result = (MatrixOf<sbyte>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfByteReturnsValue()
+        {
+            MatrixOf<byte> matrix = new byte[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<byte> result = (MatrixOf<byte>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfInt16ReturnsValue()
+        {
+            MatrixOf<short> matrix = new short[,] { { -1, 1 }, { -2, 2 } };
+            var v = new Variant(matrix);
+            MatrixOf<short> result = (MatrixOf<short>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfUInt16ReturnsValue()
+        {
+            MatrixOf<ushort> matrix = new ushort[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<ushort> result = (MatrixOf<ushort>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfInt32ReturnsValue()
+        {
+            MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<int> result = (MatrixOf<int>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfUInt32ReturnsValue()
+        {
+            MatrixOf<uint> matrix = new uint[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<uint> result = (MatrixOf<uint>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfInt64ReturnsValue()
+        {
+            MatrixOf<long> matrix = new long[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<long> result = (MatrixOf<long>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfUInt64ReturnsValue()
+        {
+            MatrixOf<ulong> matrix = new ulong[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(matrix);
+            MatrixOf<ulong> result = (MatrixOf<ulong>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfFloatReturnsValue()
+        {
+            MatrixOf<float> matrix = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
+            var v = new Variant(matrix);
+            MatrixOf<float> result = (MatrixOf<float>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfDoubleReturnsValue()
+        {
+            MatrixOf<double> matrix = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
+            var v = new Variant(matrix);
+            MatrixOf<double> result = (MatrixOf<double>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfStringReturnsValue()
+        {
+            MatrixOf<string> matrix = new string[,] { { "a", "b" }, { "c", "d" } };
+            var v = new Variant(matrix);
+            MatrixOf<string> result = (MatrixOf<string>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfDateTimeUtcReturnsValue()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            MatrixOf<DateTimeUtc> matrix = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
+            var v = new Variant(matrix);
+            MatrixOf<DateTimeUtc> result = (MatrixOf<DateTimeUtc>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfUuidReturnsValue()
+        {
+            var u = Uuid.NewUuid();
+            MatrixOf<Uuid> matrix = new Uuid[,] { { u, u }, { u, u } };
+            var v = new Variant(matrix);
+            MatrixOf<Uuid> result = (MatrixOf<Uuid>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfByteStringReturnsValue()
+        {
+            var bs = ByteString.From(1);
+            MatrixOf<ByteString> matrix = new ByteString[,] { { bs, bs }, { bs, bs } };
+            var v = new Variant(matrix);
+            MatrixOf<ByteString> result = (MatrixOf<ByteString>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfXmlElementReturnsValue()
+        {
+            XmlElement xml = CreateXmlElement("M");
+            MatrixOf<XmlElement> matrix = new XmlElement[,] { { xml, xml }, { xml, xml } };
+            var v = new Variant(matrix);
+            MatrixOf<XmlElement> result = (MatrixOf<XmlElement>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfNodeIdReturnsValue()
+        {
+            var nid = new NodeId(1);
+            MatrixOf<NodeId> matrix = new NodeId[,] { { nid, nid }, { nid, nid } };
+            var v = new Variant(matrix);
+            MatrixOf<NodeId> result = (MatrixOf<NodeId>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfExpandedNodeIdReturnsValue()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=T;s=A");
+            MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
+            var v = new Variant(matrix);
+            MatrixOf<ExpandedNodeId> result = (MatrixOf<ExpandedNodeId>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfStatusCodeReturnsValue()
+        {
+            var sc = new StatusCode(1u);
+            MatrixOf<StatusCode> matrix = new StatusCode[,] { { sc, sc }, { sc, sc } };
+            var v = new Variant(matrix);
+            MatrixOf<StatusCode> result = (MatrixOf<StatusCode>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfQualifiedNameReturnsValue()
+        {
+            var qn = new QualifiedName("q");
+            MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { qn, qn }, { qn, qn } };
+            var v = new Variant(matrix);
+            MatrixOf<QualifiedName> result = (MatrixOf<QualifiedName>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfLocalizedTextReturnsValue()
+        {
+            var lt = new LocalizedText("en", "t");
+            MatrixOf<LocalizedText> matrix = new LocalizedText[,] { { lt, lt }, { lt, lt } };
+            var v = new Variant(matrix);
+            MatrixOf<LocalizedText> result = (MatrixOf<LocalizedText>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfExtensionObjectReturnsValue()
+        {
+            var eo = new ExtensionObject(new Argument());
+            MatrixOf<ExtensionObject> matrix = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
+            var v = new Variant(matrix);
+            MatrixOf<ExtensionObject> result = (MatrixOf<ExtensionObject>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfDataValueReturnsValue()
+        {
+            var dv = new DataValue(1);
+            MatrixOf<DataValue> matrix = new DataValue[,] { { dv, dv }, { dv, dv } };
+            var v = new Variant(matrix);
+            MatrixOf<DataValue> result = (MatrixOf<DataValue>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ExplicitCastToMatrixOfVariantReturnsValue()
+        {
+            var vr = new Variant(1);
+            MatrixOf<Variant> matrix = new Variant[,] { { vr, vr }, { vr, vr } };
+            var v = new Variant(matrix);
+            MatrixOf<Variant> result = (MatrixOf<Variant>)v;
+            Assert.That(result.Count, Is.EqualTo(4));
+        }
+
+        #endregion
+
+        #region Implicit operator: ArrayOf<T> -> Variant
+
+        [Test]
+        public void ImplicitFromArrayOfSByteCreatesVariant()
+        {
+            ArrayOf<sbyte> arr = [-1, 1];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.SByte));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfByteCreatesVariant()
+        {
+            ArrayOf<byte> arr = [1, 2];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Byte));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfInt16CreatesVariant()
+        {
+            ArrayOf<short> arr = [-1, 1];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int16));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfUInt16CreatesVariant()
+        {
+            ArrayOf<ushort> arr = [1, 2];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfInt32CreatesVariant()
+        {
+            ArrayOf<int> arr = [-1, 1];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfUInt32CreatesVariant()
+        {
+            ArrayOf<uint> arr = [1u, 2u];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfInt64CreatesVariant()
+        {
+            ArrayOf<long> arr = [-1L, 1L];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfUInt64CreatesVariant()
+        {
+            ArrayOf<ulong> arr = [1UL, 2UL];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt64));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfFloatCreatesVariant()
+        {
+            ArrayOf<float> arr = [1.0f, 2.0f];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Float));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfDoubleCreatesVariant()
+        {
+            ArrayOf<double> arr = [1.0, 2.0];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfStringCreatesVariant()
+        {
+            ArrayOf<string> arr = ["a", "b"];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfDateTimeUtcCreatesVariant()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            ArrayOf<DateTimeUtc> arr = [dt, dt];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DateTime));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfUuidCreatesVariant()
+        {
+            ArrayOf<Uuid> arr = [Uuid.NewUuid(), Uuid.NewUuid()];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Guid));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfByteStringCreatesVariant()
+        {
+            ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfXmlElementCreatesVariant()
+        {
+            ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfNodeIdCreatesVariant()
+        {
+            ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfExpandedNodeIdCreatesVariant()
+        {
+            ArrayOf<ExpandedNodeId> arr = [
+                ExpandedNodeId.Parse("nsu=T;s=A"),
+                ExpandedNodeId.Parse("nsu=T;s=B")
+            ];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExpandedNodeId));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfStatusCodeCreatesVariant()
+        {
+            ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfQualifiedNameCreatesVariant()
+        {
+            ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.QualifiedName));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfLocalizedTextCreatesVariant()
+        {
+            ArrayOf<LocalizedText> arr = [new LocalizedText("en", "a"), new LocalizedText("de", "b")];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfExtensionObjectCreatesVariant()
+        {
+            ArrayOf<ExtensionObject> arr = [
+                new ExtensionObject(new Argument()),
+                new ExtensionObject(new Argument())
+            ];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfDataValueCreatesVariant()
+        {
+            ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DataValue));
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfVariantCreatesVariant()
+        {
+            ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
+        }
+
+        #endregion
+
+        #region Implicit operator: MatrixOf<T> -> Variant
+
+        [Test]
+        public void ImplicitFromMatrixOfBoolCreatesVariant()
+        {
+            MatrixOf<bool> m = new bool[,] { { true, false }, { false, true } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
+            Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfSByteCreatesVariant()
+        {
+            MatrixOf<sbyte> m = new sbyte[,] { { -1, 1 }, { -2, 2 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.SByte));
+            Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfByteCreatesVariant()
+        {
+            MatrixOf<byte> m = new byte[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Byte));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfInt16CreatesVariant()
+        {
+            MatrixOf<short> m = new short[,] { { -1, 1 }, { -2, 2 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int16));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfUInt16CreatesVariant()
+        {
+            MatrixOf<ushort> m = new ushort[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfInt32CreatesVariant()
+        {
+            MatrixOf<int> m = new int[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfUInt32CreatesVariant()
+        {
+            MatrixOf<uint> m = new uint[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfInt64CreatesVariant()
+        {
+            MatrixOf<long> m = new long[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfUInt64CreatesVariant()
+        {
+            MatrixOf<ulong> m = new ulong[,] { { 1, 2 }, { 3, 4 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt64));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfFloatCreatesVariant()
+        {
+            MatrixOf<float> m = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Float));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfDoubleCreatesVariant()
+        {
+            MatrixOf<double> m = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfStringCreatesVariant()
+        {
+            MatrixOf<string> m = new string[,] { { "a", "b" }, { "c", "d" } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfDateTimeUtcCreatesVariant()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            MatrixOf<DateTimeUtc> m = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DateTime));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfUuidCreatesVariant()
+        {
+            var u = Uuid.NewUuid();
+            MatrixOf<Uuid> m = new Uuid[,] { { u, u }, { u, u } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Guid));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfByteStringCreatesVariant()
+        {
+            var bs = ByteString.From(1);
+            MatrixOf<ByteString> m = new ByteString[,] { { bs, bs }, { bs, bs } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfXmlElementCreatesVariant()
+        {
+            XmlElement xml = CreateXmlElement("M");
+            MatrixOf<XmlElement> m = new XmlElement[,] { { xml, xml }, { xml, xml } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfNodeIdCreatesVariant()
+        {
+            var nid = new NodeId(1);
+            MatrixOf<NodeId> m = new NodeId[,] { { nid, nid }, { nid, nid } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfExpandedNodeIdCreatesVariant()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=T;s=A");
+            MatrixOf<ExpandedNodeId> m = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExpandedNodeId));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfStatusCodeCreatesVariant()
+        {
+            var sc = new StatusCode(1u);
+            MatrixOf<StatusCode> m = new StatusCode[,] { { sc, sc }, { sc, sc } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfQualifiedNameCreatesVariant()
+        {
+            var qn = new QualifiedName("q");
+            MatrixOf<QualifiedName> m = new QualifiedName[,] { { qn, qn }, { qn, qn } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.QualifiedName));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfLocalizedTextCreatesVariant()
+        {
+            var lt = new LocalizedText("en", "t");
+            MatrixOf<LocalizedText> m = new LocalizedText[,] { { lt, lt }, { lt, lt } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfExtensionObjectCreatesVariant()
+        {
+            var eo = new ExtensionObject(new Argument());
+            MatrixOf<ExtensionObject> m = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfDataValueCreatesVariant()
+        {
+            var dv = new DataValue(1);
+            MatrixOf<DataValue> m = new DataValue[,] { { dv, dv }, { dv, dv } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DataValue));
+        }
+
+        [Test]
+        public void ImplicitFromMatrixOfVariantCreatesVariant()
+        {
+            var vr = new Variant(1);
+            MatrixOf<Variant> m = new Variant[,] { { vr, vr }, { vr, vr } };
+            Variant v = m;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
+        }
+
+        #endregion
+
+        #region Equality operators: Variant == scalar type (covers all type-specific overloads)
+
+        [Test]
+        public void EqualityOperatorWithBoolValue()
+        {
+            var v = new Variant(true);
+            Assert.That(v == true, Is.True);
+            Assert.That(v != true, Is.False);
+            Assert.That(v == false, Is.False);
+            Assert.That(v != false, Is.True);
+        }
+
+        [Test]
+        public void EqualityOperatorWithSByteValue()
+        {
+            var v = new Variant((sbyte)-5);
+            Assert.That(v == (sbyte)-5, Is.True);
+            Assert.That(v != (sbyte)-5, Is.False);
+            Assert.That(v == (sbyte)0, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithByteValue()
+        {
+            var v = new Variant((byte)42);
+            Assert.That(v == (byte)42, Is.True);
+            Assert.That(v != (byte)42, Is.False);
+            Assert.That(v == (byte)0, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithInt16Value()
+        {
+            var v = new Variant((short)-100);
+            Assert.That(v == (short)-100, Is.True);
+            Assert.That(v != (short)-100, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithUInt16Value()
+        {
+            var v = new Variant((ushort)200);
+            Assert.That(v == (ushort)200, Is.True);
+            Assert.That(v != (ushort)200, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithInt32Value()
+        {
+            var v = new Variant(-300);
+            Assert.That(v == -300, Is.True);
+            Assert.That(v != -300, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithUInt32Value()
+        {
+            var v = new Variant(400u);
+            Assert.That(v == 400u, Is.True);
+            Assert.That(v != 400u, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithInt64Value()
+        {
+            var v = new Variant(-500L);
+            Assert.That(v == -500L, Is.True);
+            Assert.That(v != -500L, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithUInt64Value()
+        {
+            var v = new Variant(600UL);
+            Assert.That(v == 600UL, Is.True);
+            Assert.That(v != 600UL, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithFloatValue()
+        {
+            var v = new Variant(1.5f);
+            Assert.That(v == 1.5f, Is.True);
+            Assert.That(v != 1.5f, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithDoubleValue()
+        {
+            var v = new Variant(2.5d);
+            Assert.That(v == 2.5d, Is.True);
+            Assert.That(v != 2.5d, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithStringValue()
+        {
+            var v = new Variant("hello");
+            Assert.That(v == "hello", Is.True);
+            Assert.That(v != "hello", Is.False);
+            Assert.That(v == "world", Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithDateTimeUtcValue()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            Assert.That(v == dt, Is.True);
+            Assert.That(v != dt, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithUuidValue()
+        {
+            var guid = Uuid.NewUuid();
+            var v = new Variant(guid);
+            Assert.That(v == guid, Is.True);
+            Assert.That(v != guid, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithByteStringValue()
+        {
+            var bs = ByteString.From(1, 2, 3);
+            var v = new Variant(bs);
+            Assert.That(v == bs, Is.True);
+            Assert.That(v != bs, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithXmlElementValue()
+        {
+            XmlElement xml = CreateXmlElement("Test");
+            var v = new Variant(xml);
+            Assert.That(v == xml, Is.True);
+            Assert.That(v != xml, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithNodeIdValue()
+        {
+            var nid = new NodeId(10, 1);
+            var v = new Variant(nid);
+            Assert.That(v == nid, Is.True);
+            Assert.That(v != nid, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithExpandedNodeIdValue()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=T;s=Node");
+            var v = new Variant(eni);
+            Assert.That(v == eni, Is.True);
+            Assert.That(v != eni, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithStatusCodeValue()
+        {
+            var sc = new StatusCode(123u);
+            var v = new Variant(sc);
+            Assert.That(v == sc, Is.True);
+            Assert.That(v != sc, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithQualifiedNameValue()
+        {
+            var qn = new QualifiedName("name", 2);
+            var v = new Variant(qn);
+            Assert.That(v == qn, Is.True);
+            Assert.That(v != qn, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithLocalizedTextValue()
+        {
+            var lt = new LocalizedText("en", "text");
+            var v = new Variant(lt);
+            Assert.That(v == lt, Is.True);
+            Assert.That(v != lt, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithExtensionObjectValue()
+        {
+            var eo = new ExtensionObject(new Argument());
+            var v = new Variant(eo);
+            Assert.That(v == eo, Is.True);
+            Assert.That(v != eo, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithDataValueValue()
+        {
+            var dv = new DataValue(5);
+            var v = new Variant(dv);
+            Assert.That(v == dv, Is.True);
+            Assert.That(v != dv, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithEnumValue()
+        {
+            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            Assert.That(v == (Enum)TestEnum.One, Is.True);
+            Assert.That(v != (Enum)TestEnum.One, Is.False);
+        }
+
+        #endregion
+
+        #region Equality operators: Variant == ArrayOf<T>
+
+        [Test]
+        public void EqualityOperatorWithArrayOfBool()
+        {
+            ArrayOf<bool> arr = [true, false];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfSByte()
+        {
+            ArrayOf<sbyte> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfByte()
+        {
+            ArrayOf<byte> arr = [1, 2];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfInt16()
+        {
+            ArrayOf<short> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfUInt16()
+        {
+            ArrayOf<ushort> arr = [1, 2];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfInt32()
+        {
+            ArrayOf<int> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfUInt32()
+        {
+            ArrayOf<uint> arr = [1u, 2u];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfInt64()
+        {
+            ArrayOf<long> arr = [-1L, 1L];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfUInt64()
+        {
+            ArrayOf<ulong> arr = [1UL, 2UL];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfFloat()
+        {
+            ArrayOf<float> arr = [1.0f, 2.0f];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfDouble()
+        {
+            ArrayOf<double> arr = [1.0, 2.0];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfString()
+        {
+            ArrayOf<string> arr = ["a", "b"];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfDateTimeUtc()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            ArrayOf<DateTimeUtc> arr = [dt, dt];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfUuid()
+        {
+            var u = Uuid.NewUuid();
+            ArrayOf<Uuid> arr = [u, u];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfByteString()
+        {
+            ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfXmlElement()
+        {
+            ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfNodeId()
+        {
+            ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfExpandedNodeId()
+        {
+            ArrayOf<ExpandedNodeId> arr = [
+                ExpandedNodeId.Parse("nsu=T;s=A"),
+                ExpandedNodeId.Parse("nsu=T;s=B")
+            ];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfStatusCode()
+        {
+            ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfQualifiedName()
+        {
+            ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfLocalizedText()
+        {
+            ArrayOf<LocalizedText> arr = [new LocalizedText("en", "a"), new LocalizedText("de", "b")];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfExtensionObject()
+        {
+            ArrayOf<ExtensionObject> arr = [
+                new ExtensionObject(new Argument()),
+                new ExtensionObject(new Argument())
+            ];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfDataValue()
+        {
+            ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithArrayOfVariant()
+        {
+            ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
+            var v = new Variant(arr);
+            Assert.That(v == arr, Is.True);
+            Assert.That(v != arr, Is.False);
+        }
+
+        #endregion
+
+        #region Equality operators: Variant == MatrixOf<T> (representative subset)
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfBool()
+        {
+            MatrixOf<bool> m = new bool[,] { { true, false }, { false, true } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfSByte()
+        {
+            MatrixOf<sbyte> m = new sbyte[,] { { -1, 1 }, { -2, 2 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfByte()
+        {
+            MatrixOf<byte> m = new byte[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfInt16()
+        {
+            MatrixOf<short> m = new short[,] { { -1, 1 }, { -2, 2 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfUInt16()
+        {
+            MatrixOf<ushort> m = new ushort[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfInt32()
+        {
+            MatrixOf<int> m = new int[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfUInt32()
+        {
+            MatrixOf<uint> m = new uint[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfInt64()
+        {
+            MatrixOf<long> m = new long[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfUInt64()
+        {
+            MatrixOf<ulong> m = new ulong[,] { { 1, 2 }, { 3, 4 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfFloat()
+        {
+            MatrixOf<float> m = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfDouble()
+        {
+            MatrixOf<double> m = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfString()
+        {
+            MatrixOf<string> m = new string[,] { { "a", "b" }, { "c", "d" } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfDateTimeUtc()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            MatrixOf<DateTimeUtc> m = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfUuid()
+        {
+            var u = Uuid.NewUuid();
+            MatrixOf<Uuid> m = new Uuid[,] { { u, u }, { u, u } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfByteString()
+        {
+            var bs = ByteString.From(1);
+            MatrixOf<ByteString> m = new ByteString[,] { { bs, bs }, { bs, bs } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfXmlElement()
+        {
+            XmlElement xml = CreateXmlElement("E");
+            MatrixOf<XmlElement> m = new XmlElement[,] { { xml, xml }, { xml, xml } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfNodeId()
+        {
+            var nid = new NodeId(1);
+            MatrixOf<NodeId> m = new NodeId[,] { { nid, nid }, { nid, nid } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfExpandedNodeId()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=T;s=A");
+            MatrixOf<ExpandedNodeId> m = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfStatusCode()
+        {
+            var sc = new StatusCode(1u);
+            MatrixOf<StatusCode> m = new StatusCode[,] { { sc, sc }, { sc, sc } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfQualifiedName()
+        {
+            var qn = new QualifiedName("q");
+            MatrixOf<QualifiedName> m = new QualifiedName[,] { { qn, qn }, { qn, qn } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfLocalizedText()
+        {
+            var lt = new LocalizedText("en", "t");
+            MatrixOf<LocalizedText> m = new LocalizedText[,] { { lt, lt }, { lt, lt } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfExtensionObject()
+        {
+            var eo = new ExtensionObject(new Argument());
+            MatrixOf<ExtensionObject> m = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfDataValue()
+        {
+            var dv = new DataValue(1);
+            MatrixOf<DataValue> m = new DataValue[,] { { dv, dv }, { dv, dv } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        [Test]
+        public void EqualityOperatorWithMatrixOfVariant()
+        {
+            var vr = new Variant(1);
+            MatrixOf<Variant> m = new Variant[,] { { vr, vr }, { vr, vr } };
+            var v = new Variant(m);
+            Assert.That(v == m, Is.True);
+            Assert.That(v != m, Is.False);
+        }
+
+        #endregion
+
+        #region ConvertTo methods
+
+        [Test]
+        public void ConvertToBooleanFromInt32()
+        {
+            var v = new Variant(1);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromString()
+        {
+            var v = new Variant("true");
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromSByte()
+        {
+            var v = new Variant((sbyte)1);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromByte()
+        {
+            var v = new Variant((byte)0);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.False);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromInt16()
+        {
+            var v = new Variant((short)1);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromUInt16()
+        {
+            var v = new Variant((ushort)0);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.False);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromUInt32()
+        {
+            var v = new Variant(1u);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromInt64()
+        {
+            var v = new Variant(1L);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromUInt64()
+        {
+            var v = new Variant(0UL);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.False);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromFloat()
+        {
+            var v = new Variant(1.0f);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToBooleanFromDouble()
+        {
+            var v = new Variant(0.0d);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.False);
+        }
+
+        [Test]
+        public void ConvertToBooleanReturnsSelfForBool()
+        {
+            var v = new Variant(true);
+            Variant result = v.ConvertToBoolean();
+            Assert.That((bool)result, Is.True);
+        }
+
+        [Test]
+        public void ConvertToSByteFromVariousTypes()
+        {
+            Assert.That((sbyte)new Variant(true).ConvertToSByte(), Is.EqualTo((sbyte)1));
+            Assert.That((sbyte)new Variant((byte)5).ConvertToSByte(), Is.EqualTo((sbyte)5));
+            Assert.That((sbyte)new Variant((short)10).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant((ushort)10).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10u).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10L).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10UL).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10.0f).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant(10.0d).ConvertToSByte(), Is.EqualTo((sbyte)10));
+            Assert.That((sbyte)new Variant("10").ConvertToSByte(), Is.EqualTo((sbyte)10));
+        }
+
+        [Test]
+        public void ConvertToSByteReturnsSelfForSByte()
+        {
+            var v = new Variant((sbyte)-5);
+            Variant result = v.ConvertToSByte();
+            Assert.That((sbyte)result, Is.EqualTo((sbyte)-5));
+        }
+
+        [Test]
+        public void ConvertToByteFromVariousTypes()
+        {
+            Assert.That((byte)new Variant(true).ConvertToByte(), Is.EqualTo((byte)1));
+            Assert.That((byte)new Variant((sbyte)5).ConvertToByte(), Is.EqualTo((byte)5));
+            Assert.That((byte)new Variant((short)10).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant((ushort)10).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10u).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10L).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10UL).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10.0f).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant(10.0d).ConvertToByte(), Is.EqualTo((byte)10));
+            Assert.That((byte)new Variant("10").ConvertToByte(), Is.EqualTo((byte)10));
+        }
+
+        [Test]
+        public void ConvertToByteReturnsSelfForByte()
+        {
+            var v = new Variant((byte)42);
+            Variant result = v.ConvertToByte();
+            Assert.That((byte)result, Is.EqualTo((byte)42));
+        }
+
+        [Test]
+        public void ConvertToInt16FromVariousTypes()
+        {
+            Assert.That((short)new Variant(true).ConvertToInt16(), Is.EqualTo((short)1));
+            Assert.That((short)new Variant((sbyte)5).ConvertToInt16(), Is.EqualTo((short)5));
+            Assert.That((short)new Variant((byte)5).ConvertToInt16(), Is.EqualTo((short)5));
+            Assert.That((short)new Variant(10).ConvertToInt16(), Is.EqualTo((short)10));
+            Assert.That((short)new Variant("100").ConvertToInt16(), Is.EqualTo((short)100));
+        }
+
+        [Test]
+        public void ConvertToUInt16FromVariousTypes()
+        {
+            Assert.That((ushort)new Variant(true).ConvertToUInt16(), Is.EqualTo((ushort)1));
+            Assert.That((ushort)new Variant((byte)5).ConvertToUInt16(), Is.EqualTo((ushort)5));
+            Assert.That((ushort)new Variant(10).ConvertToUInt16(), Is.EqualTo((ushort)10));
+            Assert.That((ushort)new Variant("100").ConvertToUInt16(), Is.EqualTo((ushort)100));
+        }
+
+        [Test]
+        public void ConvertToInt32FromVariousTypes()
+        {
+            Assert.That((int)new Variant(true).ConvertToInt32(), Is.EqualTo(1));
+            Assert.That((int)new Variant((sbyte)5).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant((byte)5).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant((short)5).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant((ushort)5).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant(5u).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant(5L).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant(5UL).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant(5.0f).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant(5.0d).ConvertToInt32(), Is.EqualTo(5));
+            Assert.That((int)new Variant("5").ConvertToInt32(), Is.EqualTo(5));
+        }
+
+        [Test]
+        public void ConvertToUInt32FromVariousTypes()
+        {
+            Assert.That((uint)new Variant(true).ConvertToUInt32(), Is.EqualTo(1u));
+            Assert.That((uint)new Variant((byte)5).ConvertToUInt32(), Is.EqualTo(5u));
+            Assert.That((uint)new Variant(5).ConvertToUInt32(), Is.EqualTo(5u));
+            Assert.That((uint)new Variant("5").ConvertToUInt32(), Is.EqualTo(5u));
+        }
+
+        [Test]
+        public void ConvertToInt64FromVariousTypes()
+        {
+            Assert.That((long)new Variant(true).ConvertToInt64(), Is.EqualTo(1L));
+            Assert.That((long)new Variant((byte)5).ConvertToInt64(), Is.EqualTo(5L));
+            Assert.That((long)new Variant(5).ConvertToInt64(), Is.EqualTo(5L));
+            Assert.That((long)new Variant("5").ConvertToInt64(), Is.EqualTo(5L));
+        }
+
+        [Test]
+        public void ConvertToUInt64FromVariousTypes()
+        {
+            Assert.That((ulong)new Variant(true).ConvertToUInt64(), Is.EqualTo(1UL));
+            Assert.That((ulong)new Variant((byte)5).ConvertToUInt64(), Is.EqualTo(5UL));
+            Assert.That((ulong)new Variant(5).ConvertToUInt64(), Is.EqualTo(5UL));
+            Assert.That((ulong)new Variant("5").ConvertToUInt64(), Is.EqualTo(5UL));
+        }
+
+        [Test]
+        public void ConvertToFloatFromVariousTypes()
+        {
+            Assert.That((float)new Variant(true).ConvertToFloat(), Is.EqualTo(1.0f));
+            Assert.That((float)new Variant((byte)5).ConvertToFloat(), Is.EqualTo(5.0f));
+            Assert.That((float)new Variant(5).ConvertToFloat(), Is.EqualTo(5.0f));
+            Assert.That((float)new Variant(5.0d).ConvertToFloat(), Is.EqualTo(5.0f));
+            Assert.That((float)new Variant("5").ConvertToFloat(), Is.EqualTo(5.0f));
+        }
+
+        [Test]
+        public void ConvertToDoubleFromVariousTypes()
+        {
+            Assert.That((double)new Variant(true).ConvertToDouble(), Is.EqualTo(1.0d));
+            Assert.That((double)new Variant((byte)5).ConvertToDouble(), Is.EqualTo(5.0d));
+            Assert.That((double)new Variant(5).ConvertToDouble(), Is.EqualTo(5.0d));
+            Assert.That((double)new Variant(5.0f).ConvertToDouble(), Is.EqualTo(5.0d));
+            Assert.That((double)new Variant("5").ConvertToDouble(), Is.EqualTo(5.0d));
+        }
+
+        [Test]
+        public void ConvertToStringFromVariousScalarTypes()
+        {
+            // Tests ConvertToString for all numeric and complex types
+            Assert.That((string)new Variant(true).ConvertToString(), Is.EqualTo("true"));
+            Assert.That((string)new Variant((sbyte)-1).ConvertToString(), Is.EqualTo("-1"));
+            Assert.That((string)new Variant((byte)42).ConvertToString(), Is.EqualTo("42"));
+            Assert.That((string)new Variant((short)-100).ConvertToString(), Is.EqualTo("-100"));
+            Assert.That((string)new Variant((ushort)200).ConvertToString(), Is.EqualTo("200"));
+            Assert.That((string)new Variant(300).ConvertToString(), Is.EqualTo("300"));
+            Assert.That((string)new Variant(400u).ConvertToString(), Is.EqualTo("400"));
+            Assert.That((string)new Variant(500L).ConvertToString(), Is.EqualTo("500"));
+            Assert.That((string)new Variant(600UL).ConvertToString(), Is.EqualTo("600"));
+            Assert.That((string)new Variant(1.5f).ConvertToString(), Is.Not.Null);
+            Assert.That((string)new Variant(2.5d).ConvertToString(), Is.Not.Null);
+        }
+
+        [Test]
+        public void ConvertToStringReturnsSelfForString()
+        {
+            var v = new Variant("hello");
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void ConvertToStringFromDateTime()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15, 10, 30, 0), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromGuid()
+        {
+            var guid = Uuid.NewUuid();
+            var v = new Variant(guid);
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromNodeId()
+        {
+            var v = new Variant(new NodeId(10, 1));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromExpandedNodeId()
+        {
+            var v = new Variant(ExpandedNodeId.Parse("nsu=T;s=A"));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromLocalizedText()
+        {
+            var v = new Variant(new LocalizedText("en", "mytext"));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.EqualTo("mytext"));
+        }
+
+        [Test]
+        public void ConvertToStringFromQualifiedName()
+        {
+            var v = new Variant(new QualifiedName("qname", 2));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromXmlElement()
+        {
+            XmlElement xml = CreateXmlElement("Test");
+            var v = new Variant(xml);
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ConvertToStringFromStatusCode()
+        {
+            var v = new Variant(new StatusCode(123u));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.EqualTo("123"));
+        }
+
+        [Test]
+        public void ConvertToStringFromExtensionObject()
+        {
+            var v = new Variant(new ExtensionObject(new Argument()));
+            Variant result = v.ConvertToString();
+            Assert.That((string)result, Is.Not.Null);
+        }
+
+        [Test]
+        public void ConvertToStringFromNullReturnsDefault()
+        {
+            Variant v = default;
+            Variant result = v.ConvertTo(BuiltInType.String);
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        #endregion
+
+        #region ConvertTo generic dispatcher
+
+        [Test]
+        public void ConvertToReturnsDefaultForNullVariant()
+        {
+            Variant v = default;
+            Variant result = v.ConvertTo(BuiltInType.Int32);
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ConvertToReturnsSelfForSameType()
+        {
+            var v = new Variant(42);
+            Variant result = v.ConvertTo(BuiltInType.Int32);
+            Assert.That((int)result, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void ConvertToVariantReturnsSelf()
+        {
+            var v = new Variant(42);
+            Variant result = v.ConvertTo(BuiltInType.Variant);
+            Assert.That((int)result, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void ConvertToNumberConvertsToDouble()
+        {
+            var v = new Variant(42);
+            Variant result = v.ConvertTo(BuiltInType.Number);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+        }
+
+        [Test]
+        public void ConvertToIntegerConvertsToInt64()
+        {
+            var v = new Variant(42);
+            Variant result = v.ConvertTo(BuiltInType.Integer);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
+        }
+
+        [Test]
+        public void ConvertToUIntegerConvertsToUInt64()
+        {
+            var v = new Variant(42u);
+            Variant result = v.ConvertTo(BuiltInType.UInteger);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt64));
+        }
+
+        [Test]
+        public void ConvertToEnumerationConvertsToInt32()
+        {
+            var v = new Variant((byte)5);
+            Variant result = v.ConvertTo(BuiltInType.Enumeration);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+        }
+
+        [Test]
+        public void ConvertToThrowsForUnsupportedCast()
+        {
+            var v = new Variant(42);
+            Assert.Throws<InvalidCastException>(() => v.ConvertTo(BuiltInType.ExtensionObject));
+        }
+
+        [Test]
+        public void ConvertToThrowsForDataValue()
+        {
+            var v = new Variant(42);
+            Assert.Throws<InvalidCastException>(() => v.ConvertTo(BuiltInType.DataValue));
+        }
+
+        [Test]
+        public void ConvertToThrowsForNullTarget()
+        {
+            var v = new Variant(42);
+            Assert.Throws<InvalidCastException>(() => v.ConvertTo(BuiltInType.Null));
+        }
+
+        [Test]
+        public void ConvertToArrayConvertsElementwise()
+        {
+            ArrayOf<int> arr = [1, 2, 3];
+            var v = new Variant(arr);
+            Variant result = v.ConvertTo(BuiltInType.Double);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+            Assert.That(result.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void ConvertToXmlElementFromString()
+        {
+            var v = new Variant("<Root>Test</Root>");
+            Variant result = v.ConvertTo(BuiltInType.XmlElement);
+            Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
+        }
+
+        #endregion
+
+        #region GetHashCode coverage
+
+        [Test]
+        public void GetHashCodeForNullVariantReturnsZero()
+        {
+            Variant v = default;
+            Assert.That(v.GetHashCode(), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void GetHashCodeForBooleanScalar()
+        {
+            var v = new Variant(true);
+            // Just ensure it doesn't throw and returns a value
+            Assert.That(v.GetHashCode(), Is.Not.EqualTo(new Variant(false).GetHashCode()).Or.EqualTo(v.GetHashCode()));
+        }
+
+        [Test]
+        public void GetHashCodeForIntegerScalars()
+        {
+            Assert.That(new Variant((sbyte)1).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((byte)1).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((short)1).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ushort)1).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1u).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1L).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1UL).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1.0f).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(1.0d).GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForDateTimeScalar()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            Assert.That(v.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForStatusCodeScalar()
+        {
+            var v = new Variant(new StatusCode(123u));
+            Assert.That(v.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForStringScalar()
+        {
+            var v = new Variant("test");
+            Assert.That(v.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForGuidScalar()
+        {
+            var v = new Variant(Uuid.NewUuid());
+            Assert.That(v.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForNodeIdScalar()
+        {
+            var v = new Variant(new NodeId(10, 1));
+            Assert.That(v.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForArrays()
+        {
+            // Covers array hash code paths
+            Assert.That(new Variant((ArrayOf<bool>)[true, false]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<sbyte>)[-1, 1]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<byte>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<short>)[-1, 1]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<ushort>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<int>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<uint>)[1u, 2u]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<long>)[1L, 2L]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<ulong>)[1UL, 2UL]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<float>)[1.0f, 2.0f]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<double>)[1.0, 2.0]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<string>)["a", "b"]).GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void GetHashCodeForComplexArrays()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<StatusCode>)[new StatusCode(1u)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<Uuid>)[Uuid.NewUuid()]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<XmlElement>)[CreateXmlElement("A")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<NodeId>)[new NodeId(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<ExpandedNodeId>)[ExpandedNodeId.Parse("nsu=T;s=A")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<QualifiedName>)[new QualifiedName("q")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<LocalizedText>)[new LocalizedText("en", "t")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<ExtensionObject>)[new ExtensionObject(new Argument())]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<DataValue>)[new DataValue(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant((ArrayOf<Variant>)[new Variant(1)]).GetHashCode(), Is.TypeOf<int>());
+        }
+
+        #endregion
+
+        #region ValueIsDefaultOrNull
+
+        [Test]
+        public void ValueIsDefaultOrNullForNullVariant()
+        {
+            Variant v = default;
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultBool()
+        {
+            var v = new Variant(false);
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForNonDefaultBool()
+        {
+            var v = new Variant(true);
+            Assert.That(v.ValueIsDefaultOrNull, Is.False);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultInt32()
+        {
+            var v = new Variant(0);
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForNonDefaultInt32()
+        {
+            var v = new Variant(42);
+            Assert.That(v.ValueIsDefaultOrNull, Is.False);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultNumericTypes()
+        {
+            Assert.That(new Variant((sbyte)0).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant((byte)0).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant((short)0).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant((ushort)0).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant(0u).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant(0L).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant(0UL).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant(0.0f).ValueIsDefaultOrNull, Is.True);
+            Assert.That(new Variant(0.0d).ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultDateTime()
+        {
+            var v = new Variant(default(DateTimeUtc));
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultStatusCode()
+        {
+            var v = new Variant(new StatusCode(0));
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForDefaultGuid()
+        {
+            var v = new Variant(Uuid.Empty);
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForNonDefaultGuid()
+        {
+            var v = new Variant(Uuid.NewUuid());
+            Assert.That(v.ValueIsDefaultOrNull, Is.False);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForNullString()
+        {
+            var v = new Variant((string)null);
+            // Null string creates a null variant
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        [Test]
+        public void ValueIsDefaultOrNullForNullByteString()
+        {
+            var v = new Variant(default(ByteString));
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
+        }
+
+        #endregion
+
+        #region CreateDefault
+
+        [Test]
+        public void CreateDefaultReturnsVariantWithSpecifiedTypeInfo()
+        {
+            var v = Variant.CreateDefault(TypeInfo.Scalars.Int32);
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(v.TypeInfo.IsScalar, Is.True);
+        }
+
+        [Test]
+        public void CreateDefaultArrayReturnsVariantWithArrayTypeInfo()
+        {
+            var v = Variant.CreateDefault(TypeInfo.Arrays.Double);
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+            Assert.That(v.TypeInfo.IsArray, Is.True);
+        }
+
+        #endregion
+
+        #region ToString coverage
+
+        [Test]
+        public void ToStringForScalarBool()
+        {
+            var v = new Variant(true);
+            Assert.That(v.ToString(), Is.EqualTo("True"));
+        }
+
+        [Test]
+        public void ToStringForScalarSByte()
+        {
+            var v = new Variant((sbyte)-5);
+            Assert.That(v.ToString(), Is.EqualTo("-5"));
+        }
+
+        [Test]
+        public void ToStringForScalarByte()
+        {
+            var v = new Variant((byte)42);
+            Assert.That(v.ToString(), Is.EqualTo("42"));
+        }
+
+        [Test]
+        public void ToStringForScalarInt16()
+        {
+            var v = new Variant((short)-100);
+            Assert.That(v.ToString(), Is.EqualTo("-100"));
+        }
+
+        [Test]
+        public void ToStringForScalarUInt16()
+        {
+            var v = new Variant((ushort)200);
+            Assert.That(v.ToString(), Is.EqualTo("200"));
+        }
+
+        [Test]
+        public void ToStringForScalarInt32()
+        {
+            var v = new Variant(42);
+            Assert.That(v.ToString(), Is.EqualTo("42"));
+        }
+
+        [Test]
+        public void ToStringForScalarUInt32()
+        {
+            var v = new Variant(42u);
+            Assert.That(v.ToString(), Is.EqualTo("42"));
+        }
+
+        [Test]
+        public void ToStringForScalarInt64()
+        {
+            var v = new Variant(42L);
+            Assert.That(v.ToString(), Is.EqualTo("42"));
+        }
+
+        [Test]
+        public void ToStringForScalarUInt64()
+        {
+            var v = new Variant(42UL);
+            Assert.That(v.ToString(), Is.EqualTo("42"));
+        }
+
+        [Test]
+        public void ToStringForScalarFloat()
+        {
+            var v = new Variant(1.5f);
+            Assert.That(v.ToString(), Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ToStringForScalarDouble()
+        {
+            var v = new Variant(2.5d);
+            Assert.That(v.ToString(), Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ToStringForScalarDateTime()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            Assert.That(v.ToString(), Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void ToStringForScalarStatusCode()
+        {
+            var v = new Variant(new StatusCode(0));
+            Assert.That(v.ToString(), Is.Not.Null);
+        }
+
+        [Test]
+        public void ToStringForNullVariant()
+        {
+            Variant v = default;
+            Assert.That(v.ToString(), Is.EqualTo("<null>"));
+        }
+
+        [Test]
+        public void ToStringForScalarEnumeration()
+        {
+            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            string s = v.ToString();
+            Assert.That(s, Is.Not.Null.And.Not.Empty);
+        }
+
+        #endregion
+
+        #region FromEnumeration
+
+        [Test]
+        public void FromEnumerationWithIntEnumType()
+        {
+            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+            Assert.That(v.TypeInfo.IsScalar, Is.True);
+        }
+
+        [Test]
+        public void FromEnumerationWithByteEnumType()
+        {
+            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithShortEnumType()
+        {
+            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithLongEnumType()
+        {
+            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithUShortEnumType()
+        {
+            var v = Variant.FromEnumeration(UShortEnum.One, typeof(UShortEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithUIntEnumType()
+        {
+            var v = Variant.FromEnumeration(UIntEnum.One, typeof(UIntEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithULongEnumType()
+        {
+            var v = Variant.FromEnumeration(ULongEnum.One, typeof(ULongEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithSByteEnumType()
+        {
+            var v = Variant.FromEnumeration(SByteEnum.One, typeof(SByteEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithIntValue()
+        {
+            var v = Variant.FromEnumeration(42, typeof(TestEnum));
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithIntValueNoType()
+        {
+            var v = Variant.FromEnumeration(42);
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+        }
+
+        [Test]
+        public void FromEnumerationWithIntArrayValue()
+        {
+            ArrayOf<int> arr = [1, 2, 3];
+            var v = Variant.FromEnumeration(arr);
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+            Assert.That(v.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void FromEnumerationWithNullIntArrayReturnsDefault()
+        {
+            ArrayOf<int> arr = default;
+            var v = Variant.FromEnumeration(arr);
+            Assert.That(v.IsNull, Is.True);
+        }
+
+        [Test]
+        public void FromEnumerationWithIntMatrixValue()
+        {
+            MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
+            var v = Variant.FromEnumeration(matrix);
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+            Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FromEnumerationWithNullMatrixReturnsDefault()
+        {
+            MatrixOf<int> matrix = default;
+            var v = Variant.FromEnumeration(matrix);
+            Assert.That(v.IsNull, Is.True);
+        }
+
+        #endregion
+
+        #region AsBoxedObject
+
+        [Test]
+        public void AsBoxedObjectForScalarBoolReturnsBoxedBool()
+        {
+            var v = new Variant(true);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(true));
+        }
+
+        [Test]
+        public void AsBoxedObjectForScalarInt32ReturnsBoxedInt()
+        {
+            var v = new Variant(42);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void AsBoxedObjectForNullVariantReturnsNull()
+        {
+            Variant v = default;
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectForNodeIdReturnsNodeId()
+        {
+            var nid = new NodeId(10, 1);
+            var v = new Variant(nid);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(nid));
+        }
+
+        [Test]
+        public void AsBoxedObjectForExpandedNodeIdReturnsExpandedNodeId()
+        {
+            var eni = ExpandedNodeId.Parse("nsu=T;s=A");
+            var v = new Variant(eni);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(eni));
+        }
+
+        [Test]
+        public void AsBoxedObjectForLocalizedTextReturnsLocalizedText()
+        {
+            var lt = new LocalizedText("en", "t");
+            var v = new Variant(lt);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(lt));
+        }
+
+        [Test]
+        public void AsBoxedObjectForQualifiedNameReturnsQualifiedName()
+        {
+            var qn = new QualifiedName("q", 1);
+            var v = new Variant(qn);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.EqualTo(qn));
+        }
+
+        [Test]
+        public void AsBoxedObjectForExtensionObjectReturnsExtensionObject()
+        {
+            var eo = new ExtensionObject(new Argument());
+            var v = new Variant(eo);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            Assert.That(boxed, Is.Not.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectForAllPrimitiveTypes()
+        {
+            Assert.That(new Variant((sbyte)-1).AsBoxedObject(false), Is.EqualTo((sbyte)-1));
+            Assert.That(new Variant((byte)1).AsBoxedObject(false), Is.EqualTo((byte)1));
+            Assert.That(new Variant((short)-1).AsBoxedObject(false), Is.EqualTo((short)-1));
+            Assert.That(new Variant((ushort)1).AsBoxedObject(false), Is.EqualTo((ushort)1));
+            Assert.That(new Variant(1u).AsBoxedObject(false), Is.EqualTo(1u));
+            Assert.That(new Variant(1L).AsBoxedObject(false), Is.EqualTo(1L));
+            Assert.That(new Variant(1UL).AsBoxedObject(false), Is.EqualTo(1UL));
+            Assert.That(new Variant(1.5f).AsBoxedObject(false), Is.EqualTo(1.5f));
+            Assert.That(new Variant(2.5d).AsBoxedObject(false), Is.EqualTo(2.5d));
+        }
+
+        [Test]
+        public void AsBoxedObjectForDateTimeReturnsDateTime()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            var v = new Variant(dt);
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.EqualTo(dt));
+        }
+
+        [Test]
+        public void AsBoxedObjectForStatusCodeReturnsStatusCode()
+        {
+            var v = new Variant(new StatusCode(123u));
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.InstanceOf<StatusCode>());
+        }
+
+        [Test]
+        public void AsBoxedObjectForEnumerationReturnsEnumValue()
+        {
+            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.Not.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectForByteEnumerationReturnsEnumValue()
+        {
+            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.Not.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectForShortEnumerationReturnsEnumValue()
+        {
+            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.Not.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectForLongEnumerationReturnsEnumValue()
+        {
+            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            object boxed = v.AsBoxedObject(false);
+            Assert.That(boxed, Is.Not.Null);
+        }
+
+        [Test]
+        public void AsBoxedObjectWithLegacyTypesForArrayConvertsToArray()
+        {
+            ArrayOf<int> arr = [1, 2, 3];
+            var v = new Variant(arr);
+            object boxed = v.AsBoxedObject(returnLegacyTypes: true);
+            Assert.That(boxed, Is.InstanceOf<int[]>());
+        }
+
+        #endregion
+
+        #region SerializableVariant
+
+        [Test]
+        public void SerializableVariantDefaultConstructor()
+        {
+            var sv = new SerializableVariant();
+            Assert.That(sv.Value.IsNull, Is.True);
+        }
+
+        [Test]
+        public void SerializableVariantValueConstructor()
+        {
+            var v = new Variant(42);
+            var sv = new SerializableVariant(v);
+            Assert.That((int)sv.Value, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void SerializableVariantGetValue()
+        {
+            var v = new Variant(42);
+            var sv = new SerializableVariant(v);
+            Assert.That(sv.GetValue(), Is.Not.Null);
+        }
+
+        [Test]
+        public void SerializableVariantEqualsVariant()
+        {
+            var v = new Variant(42);
+            var sv = new SerializableVariant(v);
+            Assert.That(sv.Equals(v), Is.True);
+        }
+
+        [Test]
+        public void SerializableVariantEqualsSerializableVariant()
+        {
+            var v = new Variant(42);
+            var sv1 = new SerializableVariant(v);
+            var sv2 = new SerializableVariant(v);
+            Assert.That(sv1.Equals(sv2), Is.True);
+        }
+
+        [Test]
+        public void SerializableVariantEqualsNull()
+        {
+            var sv = new SerializableVariant(new Variant(42));
+#pragma warning disable CA1508 // Avoid dead conditional code
+            Assert.That(sv.Equals((SerializableVariant)null), Is.False);
+#pragma warning restore CA1508 // Avoid dead conditional code
+        }
+
+        [Test]
+        public void SerializableVariantEqualsObject()
+        {
+            var v = new Variant(42);
+            var sv = new SerializableVariant(v);
+            Assert.That(sv.Equals((object)new SerializableVariant(v)), Is.True);
+            Assert.That(sv.Equals((object)v), Is.True);
+            Assert.That(sv.Equals((object)42), Is.True);
+        }
+
+        [Test]
+        public void SerializableVariantGetHashCode()
+        {
+            var sv = new SerializableVariant(new Variant(42));
+            Assert.That(sv.GetHashCode(), Is.TypeOf<int>());
+        }
+
+        [Test]
+        public void SerializableVariantEqualityOperator()
+        {
+            var sv1 = new SerializableVariant(new Variant(42));
+            var sv2 = new SerializableVariant(new Variant(42));
+            Assert.That(sv1 == sv2, Is.True);
+            Assert.That(sv1 != sv2, Is.False);
+        }
+
+        [Test]
+        public void SerializableVariantEqualityWithVariantOperator()
+        {
+            var sv = new SerializableVariant(new Variant(42));
+            var v = new Variant(42);
+            Assert.That(sv == v, Is.True);
+            Assert.That(sv != v, Is.False);
+        }
+
+        [Test]
+        public void SerializableVariantImplicitFromVariant()
+        {
+            Variant v = new Variant(42);
+            SerializableVariant sv = v;
+            Assert.That((int)sv.Value, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void SerializableVariantImplicitToVariant()
+        {
+            var sv = new SerializableVariant(new Variant(42));
+            Variant v = sv;
+            Assert.That((int)v, Is.EqualTo(42));
+        }
+
+        #endregion
+
+        #region Equals typed overloads (Variant.Equals(T))
+
+        [Test]
+        public void EqualsTypedOverloadForAllScalarTypes()
+        {
+            // Covers the Equals(T) overloads that delegate to TryGet
+            Assert.That(new Variant(true).Equals(true), Is.True);
+            Assert.That(new Variant((sbyte)-1).Equals((sbyte)-1), Is.True);
+            Assert.That(new Variant((byte)1).Equals((byte)1), Is.True);
+            Assert.That(new Variant((short)-1).Equals((short)-1), Is.True);
+            Assert.That(new Variant((ushort)1).Equals((ushort)1), Is.True);
+            Assert.That(new Variant(42).Equals(42), Is.True);
+            Assert.That(new Variant(42u).Equals(42u), Is.True);
+            Assert.That(new Variant(42L).Equals(42L), Is.True);
+            Assert.That(new Variant(42UL).Equals(42UL), Is.True);
+            Assert.That(new Variant(1.5f).Equals(1.5f), Is.True);
+            Assert.That(new Variant(2.5d).Equals(2.5d), Is.True);
+            Assert.That(new Variant("test").Equals("test"), Is.True);
+        }
+
+        [Test]
+        public void EqualsTypedOverloadForComplexTypes()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            Assert.That(new Variant(dt).Equals(dt), Is.True);
+
+            var guid = Uuid.NewUuid();
+            Assert.That(new Variant(guid).Equals(guid), Is.True);
+
+            var bs = ByteString.From(1, 2);
+            Assert.That(new Variant(bs).Equals(bs), Is.True);
+
+            XmlElement xml = CreateXmlElement("T");
+            Assert.That(new Variant(xml).Equals(xml), Is.True);
+
+            var nid = new NodeId(10, 1);
+            Assert.That(new Variant(nid).Equals(nid), Is.True);
+
+            var eni = ExpandedNodeId.Parse("nsu=T;s=A");
+            Assert.That(new Variant(eni).Equals(eni), Is.True);
+
+            var sc = new StatusCode(123u);
+            Assert.That(new Variant(sc).Equals(sc), Is.True);
+
+            var qn = new QualifiedName("q", 1);
+            Assert.That(new Variant(qn).Equals(qn), Is.True);
+
+            var lt = new LocalizedText("en", "t");
+            Assert.That(new Variant(lt).Equals(lt), Is.True);
+        }
+
+        [Test]
+        public void EqualsTypedOverloadForExtensionObjectAndDataValue()
+        {
+            var eo = new ExtensionObject(new Argument());
+            Assert.That(new Variant(eo).Equals(eo), Is.True);
+
+            var dv = new DataValue(42);
+            Assert.That(new Variant(dv).Equals(dv), Is.True);
+        }
+
+        [Test]
+        public void EqualsFloatNanValues()
+        {
+            var v = new Variant(float.NaN);
+            Assert.That(v.Equals(float.NaN), Is.True);
+        }
+
+        [Test]
+        public void EqualsDoubleNanValues()
+        {
+            var v = new Variant(double.NaN);
+            Assert.That(v.Equals(double.NaN), Is.True);
+        }
+
+        [Test]
+        public void EqualsTypedOverloadReturnsFalseForTypeMismatch()
+        {
+            var v = new Variant("hello");
+            Assert.That(v.Equals(42), Is.False);
+        }
+
+        #endregion
+
+        #region Equals ArrayOf<T> overloads
+
+        [Test]
+        public void EqualsArrayOfBoolOverload()
+        {
+            ArrayOf<bool> arr = [true, false];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfSByteOverload()
+        {
+            ArrayOf<sbyte> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfByteOverload()
+        {
+            ArrayOf<byte> arr = [1, 2];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfInt16Overload()
+        {
+            ArrayOf<short> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfUInt16Overload()
+        {
+            ArrayOf<ushort> arr = [1, 2];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfInt32Overload()
+        {
+            ArrayOf<int> arr = [-1, 1];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfUInt32Overload()
+        {
+            ArrayOf<uint> arr = [1u, 2u];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfInt64Overload()
+        {
+            ArrayOf<long> arr = [-1L, 1L];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfUInt64Overload()
+        {
+            ArrayOf<ulong> arr = [1UL, 2UL];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfFloatOverload()
+        {
+            ArrayOf<float> arr = [1.0f, 2.0f];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfDoubleOverload()
+        {
+            ArrayOf<double> arr = [1.0, 2.0];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfStringOverload()
+        {
+            ArrayOf<string> arr = ["a", "b"];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfComplexTypes()
+        {
+            var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
+            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]).Equals((ArrayOf<DateTimeUtc>)[dt]), Is.True);
+
+            var u = Uuid.NewUuid();
+            Assert.That(new Variant((ArrayOf<Uuid>)[u]).Equals((ArrayOf<Uuid>)[u]), Is.True);
+
+            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]).Equals((ArrayOf<ByteString>)[ByteString.From(1)]), Is.True);
+
+            var nid = new NodeId(1);
+            Assert.That(new Variant((ArrayOf<NodeId>)[nid]).Equals((ArrayOf<NodeId>)[nid]), Is.True);
+
+            var sc = new StatusCode(1u);
+            Assert.That(new Variant((ArrayOf<StatusCode>)[sc]).Equals((ArrayOf<StatusCode>)[sc]), Is.True);
+
+            var qn = new QualifiedName("q");
+            Assert.That(new Variant((ArrayOf<QualifiedName>)[qn]).Equals((ArrayOf<QualifiedName>)[qn]), Is.True);
+
+            var lt = new LocalizedText("en", "t");
+            Assert.That(new Variant((ArrayOf<LocalizedText>)[lt]).Equals((ArrayOf<LocalizedText>)[lt]), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfExtensionObjectOverload()
+        {
+            var eo = new ExtensionObject(new Argument());
+            ArrayOf<ExtensionObject> arr = [eo];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfDataValueOverload()
+        {
+            ArrayOf<DataValue> arr = [new DataValue(1)];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        [Test]
+        public void EqualsArrayOfVariantOverload()
+        {
+            ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
+            var v = new Variant(arr);
+            Assert.That(v.Equals(arr), Is.True);
+        }
+
+        #endregion
+
+        #region Variant.Equals(Variant) and Variant.Equals(object)
+
+        [Test]
+        public void EqualsVariantBothNullReturnsTrue()
+        {
+            Variant a = default;
+            Variant b = default;
+            Assert.That(a.Equals(b), Is.True);
+        }
+
+        [Test]
+        public void EqualsVariantSameIntValue()
+        {
+            var a = new Variant(42);
+            var b = new Variant(42);
+            Assert.That(a.Equals(b), Is.True);
+        }
+
+        [Test]
+        public void EqualsVariantDifferentTypes()
+        {
+            var a = new Variant(42);
+            var b = new Variant("42");
+            Assert.That(a.Equals(b), Is.False);
+        }
+
+        [Test]
+        public void EqualsObjectWithBoxedValue()
+        {
+            var v = new Variant(42);
+            Assert.That(v.Equals((object)42), Is.True);
+        }
+
+        #endregion
+
+        #region Misc edge cases
+
+        [Test]
+        public void ExplicitCastFromWrongTypeThrowsInvalidCastException()
+        {
+            var v = new Variant("not a bool");
+            Assert.Throws<InvalidCastException>(() => { bool _ = (bool)v; });
+        }
+
+        [Test]
+        public void ConvertToBooleanFromUnsupportedTypeThrows()
+        {
+            var v = new Variant(Uuid.NewUuid());
+            Assert.Throws<InvalidCastException>(() => v.ConvertToBoolean());
+        }
+
+        [Test]
+        public void VariantIsNullForDefaultVariant()
+        {
+            Variant v = default;
+            Assert.That(v.IsNull, Is.True);
+        }
+
+        [Test]
+        public void VariantIsNotNullForValueVariant()
+        {
+            var v = new Variant(42);
+            Assert.That(v.IsNull, Is.False);
+        }
+
+        [Test]
+        public void VariantNullStaticField()
+        {
+            Assert.That(Variant.Null.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ImplicitFromArrayOfBoolCreatesVariant()
+        {
+            ArrayOf<bool> arr = [true, false];
+            Variant v = arr;
+            Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
+            Assert.That(v.TypeInfo.IsArray, Is.True);
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private static XmlElement CreateXmlElement(string name)
+        {
+            var document = new XmlDocument();
+            System.Xml.XmlElement element = document.CreateElement(name);
+            element.InnerText = name;
+            return (XmlElement)element;
+        }
+
+        #endregion
     }
 }

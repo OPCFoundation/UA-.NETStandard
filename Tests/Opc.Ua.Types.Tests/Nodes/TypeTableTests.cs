@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Types.Tests.Nodes
 {
@@ -44,7 +43,7 @@ namespace Opc.Ua.Types.Tests.Nodes
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class TypeTableCoverageTests
+    public class TypeTableTests
     {
         #region Test Constants
         private static readonly NodeId RootTypeId = new NodeId(1000);
@@ -335,28 +334,28 @@ namespace Opc.Ua.Types.Tests.Nodes
         public async Task FindSuperTypeAsyncExpandedReturnsParent()
         {
             ExpandedNodeId id = ChildTypeId;
-            var result = await m_typeTable.FindSuperTypeAsync(id, CancellationToken.None).ConfigureAwait(false);
+            NodeId result = await m_typeTable.FindSuperTypeAsync(id, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(RootTypeId));
         }
 
         [Test]
         public async Task FindSuperTypeAsyncNodeIdReturnsParent()
         {
-            var result = await m_typeTable.FindSuperTypeAsync(ChildTypeId, CancellationToken.None).ConfigureAwait(false);
+            NodeId result = await m_typeTable.FindSuperTypeAsync(ChildTypeId, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(RootTypeId));
         }
 
         [Test]
         public async Task FindSuperTypeAsyncExpandedReturnsNullForNull()
         {
-            var result = await m_typeTable.FindSuperTypeAsync(ExpandedNodeId.Null, CancellationToken.None).ConfigureAwait(false);
+            NodeId result = await m_typeTable.FindSuperTypeAsync(ExpandedNodeId.Null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 
         [Test]
         public async Task FindSuperTypeAsyncNodeIdReturnsNullForNull()
         {
-            var result = await m_typeTable.FindSuperTypeAsync(NodeId.Null, CancellationToken.None).ConfigureAwait(false);
+            NodeId result = await m_typeTable.FindSuperTypeAsync(NodeId.Null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
         #endregion
@@ -365,7 +364,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindSubTypesReturnsEmptyForNull()
         {
-            var result = m_typeTable.FindSubTypes(ExpandedNodeId.Null);
+            IList<NodeId> result = m_typeTable.FindSubTypes(ExpandedNodeId.Null);
             Assert.That(result, Is.Empty);
         }
 
@@ -373,7 +372,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsEmptyForUnresolvableNamespace()
         {
             var id = new ExpandedNodeId(1000, 0, "http://unknown.example.com", 0);
-            var result = m_typeTable.FindSubTypes(id);
+            IList<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
 
@@ -381,7 +380,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsEmptyForUnknownType()
         {
             ExpandedNodeId id = UnknownTypeId;
-            var result = m_typeTable.FindSubTypes(id);
+            IList<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
 
@@ -389,7 +388,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsDirectChildren()
         {
             ExpandedNodeId id = RootTypeId;
-            var result = m_typeTable.FindSubTypes(id);
+            IList<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result, Does.Contain(ChildTypeId));
         }
@@ -398,7 +397,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsEmptyForLeafType()
         {
             ExpandedNodeId id = GrandchildTypeId;
-            var result = m_typeTable.FindSubTypes(id);
+            IList<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
         #endregion
@@ -532,7 +531,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferenceTypeNameReturnsDefaultForUnknownType()
         {
-            var result = m_typeTable.FindReferenceTypeName(UnknownTypeId);
+            QualifiedName result = m_typeTable.FindReferenceTypeName(UnknownTypeId);
             Assert.That(result, Is.EqualTo(default(QualifiedName)));
         }
 
@@ -550,14 +549,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferenceTypeReturnsDefaultForNullBrowseName()
         {
-            var result = m_typeTable.FindReferenceType(default);
+            NodeId result = m_typeTable.FindReferenceType(default);
             Assert.That(result, Is.EqualTo(default(NodeId)));
         }
 
         [Test]
         public void FindReferenceTypeReturnsDefaultForUnknownBrowseName()
         {
-            var result = m_typeTable.FindReferenceType(new QualifiedName("NoSuchRef"));
+            NodeId result = m_typeTable.FindReferenceType(new QualifiedName("NoSuchRef"));
             Assert.That(result, Is.EqualTo(default(NodeId)));
         }
 
@@ -957,13 +956,13 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void RemoveUpdatesParentSubTypeList()
         {
             // Before removal: RootTypeId has ChildTypeId as a subtype
-            var subtypesBefore = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
+            IList<NodeId> subtypesBefore = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
             Assert.That(subtypesBefore, Does.Contain(ChildTypeId));
 
             m_typeTable.Remove(new ExpandedNodeId(ChildTypeId));
 
             // After removal: ChildTypeId should be gone from parent's subtype list
-            var subtypesAfter = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
+            IList<NodeId> subtypesAfter = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
             Assert.That(subtypesAfter, Does.Not.Contain(ChildTypeId));
         }
 
@@ -974,7 +973,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_typeTable.Remove(new ExpandedNodeId(GrandchildTypeId));
 
             // ChildTypeId should now have no subtypes (SubTypes set to null internally)
-            var subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(ChildTypeId));
+            IList<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(ChildTypeId));
             Assert.That(subtypes, Is.Empty);
         }
         #endregion
@@ -1026,7 +1025,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddIgnoresNodeWithNullId()
         {
-            var node = CreateMockNode(NodeId.Null, NodeClass.ObjectType);
+            Mock<ILocalNode> node = CreateMockNode(NodeId.Null, NodeClass.ObjectType);
             m_typeTable.Add(node.Object);
             // No exception
         }
@@ -1035,7 +1034,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void AddIgnoresNonTypeNodeClass()
         {
             var nodeId = new NodeId(8000);
-            var node = CreateMockNode(nodeId, NodeClass.Object);
+            Mock<ILocalNode> node = CreateMockNode(nodeId, NodeClass.Object);
             m_typeTable.Add(node.Object);
 
             Assert.That(m_typeTable.IsKnown(nodeId), Is.False);
@@ -1045,7 +1044,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void AddObjectTypeWithNoSuperType()
         {
             var nodeId = new NodeId(8001);
-            var node = CreateMockNode(nodeId, NodeClass.ObjectType);
+            Mock<ILocalNode> node = CreateMockNode(nodeId, NodeClass.ObjectType);
             m_typeTable.Add(node.Object);
 
             Assert.That(m_typeTable.IsKnown(nodeId), Is.True);
@@ -1060,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var childNodeId = new NodeId(8011);
             m_typeTable.AddSubtype(superNodeId, NodeId.Null);
 
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 childNodeId,
                 NodeClass.VariableType,
                 superTypeTarget: new ExpandedNodeId(superNodeId));
@@ -1083,7 +1082,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 CreateMockReference(new ExpandedNodeId(encNodeId2))
             };
 
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 dtNodeId,
                 NodeClass.DataType,
                 encodings: encodings);
@@ -1100,7 +1099,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var refNodeId = new NodeId(8030);
             var browseName = new QualifiedName("CustomReference");
 
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 refNodeId,
                 NodeClass.ReferenceType,
                 browseName: browseName);
@@ -1116,7 +1115,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var nodeId = new NodeId(8040);
             var badSuper = new ExpandedNodeId(9999, 0, "http://unknown.example.com", 0);
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 nodeId,
                 NodeClass.ObjectType,
                 superTypeTarget: badSuper);
@@ -1130,7 +1129,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var nodeId = new NodeId(8050);
             // Reference a super type that's not registered in the table
             var missingSuperType = new ExpandedNodeId(new NodeId(9997));
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 nodeId,
                 NodeClass.ObjectType,
                 superTypeTarget: missingSuperType);
@@ -1150,7 +1149,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             {
                 CreateMockReference(new ExpandedNodeId(enc1))
             };
-            var node1 = CreateMockNode(dtNodeId, NodeClass.DataType, encodings: encodings1);
+            Mock<ILocalNode> node1 = CreateMockNode(dtNodeId, NodeClass.DataType, encodings: encodings1);
             m_typeTable.Add(node1.Object);
             Assert.That(m_typeTable.FindDataTypeId(enc1), Is.EqualTo(dtNodeId));
 
@@ -1159,7 +1158,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             {
                 CreateMockReference(new ExpandedNodeId(enc2))
             };
-            var node2 = CreateMockNode(dtNodeId, NodeClass.DataType, encodings: encodings2);
+            Mock<ILocalNode> node2 = CreateMockNode(dtNodeId, NodeClass.DataType, encodings: encodings2);
             m_typeTable.Add(node2.Object);
 
             Assert.That(m_typeTable.FindDataTypeId(enc1), Is.EqualTo(NodeId.Null));
@@ -1173,12 +1172,12 @@ namespace Opc.Ua.Types.Tests.Nodes
             var oldName = new QualifiedName("OldRefName");
             var newName = new QualifiedName("NewRefName");
 
-            var node1 = CreateMockNode(refNodeId, NodeClass.ReferenceType, browseName: oldName);
+            Mock<ILocalNode> node1 = CreateMockNode(refNodeId, NodeClass.ReferenceType, browseName: oldName);
             m_typeTable.Add(node1.Object);
             Assert.That(m_typeTable.FindReferenceType(oldName), Is.EqualTo(refNodeId));
 
             // Re-add with new browse name
-            var node2 = CreateMockNode(refNodeId, NodeClass.ReferenceType, browseName: newName);
+            Mock<ILocalNode> node2 = CreateMockNode(refNodeId, NodeClass.ReferenceType, browseName: newName);
             m_typeTable.Add(node2.Object);
 
             Assert.That(m_typeTable.FindReferenceType(oldName), Is.EqualTo(default(NodeId)));
@@ -1192,13 +1191,13 @@ namespace Opc.Ua.Types.Tests.Nodes
             var childId = new NodeId(8081);
             m_typeTable.AddSubtype(parentId, NodeId.Null);
 
-            var node = CreateMockNode(
+            Mock<ILocalNode> node = CreateMockNode(
                 childId,
                 NodeClass.ObjectType,
                 superTypeTarget: new ExpandedNodeId(parentId));
             m_typeTable.Add(node.Object);
 
-            var subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(parentId));
+            IList<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(parentId));
             Assert.That(subtypes, Does.Contain(childId));
         }
         #endregion
