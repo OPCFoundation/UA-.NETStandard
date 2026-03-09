@@ -1446,7 +1446,7 @@ namespace Opc.Ua.Client
                     identity.IssuedTokenType,
                     securityPolicyUri)
                 ?? throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenRejected,
+                    StatusCodes.BadIdentityTokenInvalid,
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
@@ -2336,7 +2336,7 @@ namespace Opc.Ua.Client
                         "Reconnect: Endpoint does not support the user identity type provided.");
 
                     throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenRejected,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Endpoint does not support the user identity type provided.");
                 }
 
@@ -3792,7 +3792,7 @@ namespace Opc.Ua.Client
                     identity.IssuedTokenType,
                     securityPolicyUri) ??
                     throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenRejected,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Endpoint does not support the user identity type provided.");
 
                 identity.TokenHandler.UpdatePolicy(identityPolicy);

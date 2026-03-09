@@ -1355,7 +1355,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentException"></exception>
         private static void PrepareValidationCache<T>(
             List<T> nodesCollection,
-            out Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributes)
+            out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
             var uniqueNodes = new HashSet<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
@@ -1854,7 +1854,7 @@ namespace Opc.Ua.Server
 
             PrepareValidationCache(
                 nodesToRead,
-                out Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesReadAttributes);
+                out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -3584,7 +3584,7 @@ namespace Opc.Ua.Server
         protected async ValueTask<ServiceResult> ValidateReadRequestAsync(
             OperationContext operationContext,
             ReadValueId readValueId,
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesReadAttributes = null,
+            Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
@@ -3723,7 +3723,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeId nodeId,
             PermissionType requestedPermision,
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributes = null,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
@@ -3763,7 +3763,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             object nodeHandle,
             PermissionType requestedPermision,
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributes = null,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {

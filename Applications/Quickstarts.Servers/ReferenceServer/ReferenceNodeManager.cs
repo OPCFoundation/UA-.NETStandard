@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -45,7 +46,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : CustomNodeManager2
+    public class ReferenceNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -161,10 +162,12 @@ namespace Quickstarts.ReferenceServer
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 if (!externalReferences.TryGetValue(
                     ObjectIds.ObjectsFolder,
@@ -178,7 +181,7 @@ namespace Quickstarts.ReferenceServer
                 references.Add(
                     new NodeStateReference(ReferenceTypes.Organizes, false, root.NodeId));
                 root.EventNotifier = EventNotifiers.SubscribeToEvents;
-                AddRootNotifier(root);
+                await AddRootNotifierAsync(root, cancellationToken).ConfigureAwait(false);
 
                 var variables = new List<BaseDataVariableState>();
 
@@ -2960,11 +2963,12 @@ namespace Quickstarts.ReferenceServer
                     ResetRandomGenerator(18);
                     FolderState viewsFolder = CreateFolder(root, "Views", "Views");
                     const string views = "Views_";
-                    ViewState viewStateOperations = CreateView(
+                    ViewState viewStateOperations = await CreateViewAsync(
                         viewsFolder,
                         externalReferences,
                         views + "Operations",
-                        "Operations");
+                        "Operations",
+                        cancellationToken).ConfigureAwait(false);
                     viewStateOperations.AddReference(
                         ReferenceTypes.Organizes,
                         false,
@@ -2974,11 +2978,12 @@ namespace Quickstarts.ReferenceServer
                         true,
                         viewStateOperations.NodeId);
 
-                    ViewState viewStateEngineering = CreateView(
+                    ViewState viewStateEngineering = await CreateViewAsync(
                         viewsFolder,
                         externalReferences,
                         views + "Engineering",
-                        "Engineering");
+                        "Engineering",
+                        cancellationToken).ConfigureAwait(false);
                     viewStateEngineering.AddReference(
                         ReferenceTypes.Organizes,
                         false,
@@ -3714,7 +3719,7 @@ namespace Quickstarts.ReferenceServer
                     m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
-                AddPredefinedNode(SystemContext, root);
+                await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
 
                 if (m_simulationEnabled)
                 {
@@ -3724,6 +3729,10 @@ namespace Quickstarts.ReferenceServer
                     Utils.SilentDispose(m_simulationTimer);
                     m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
                 }
+            }
+            finally
+            {
+                m_semaphore.Release();
             }
         }
 
@@ -4559,11 +4568,12 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new view.
         /// </summary>
-        private ViewState CreateView(
+        private async ValueTask<ViewState> CreateViewAsync(
             NodeState parent,
             IDictionary<NodeId, IList<IReference>> externalReferences,
             string path,
-            string name)
+            string name,
+            CancellationToken cancellationToken = default)
         {
             var type = new ViewState
             {
@@ -4592,7 +4602,7 @@ namespace Quickstarts.ReferenceServer
                 type.AddReference(ReferenceTypes.Organizes, true, parent.NodeId);
             }
 
-            AddPredefinedNode(SystemContext, type);
+            await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
             return type;
         }
 
@@ -4839,7 +4849,8 @@ namespace Quickstarts.ReferenceServer
                         "Simulation timer fired while {Count} simulations are already queued to run.",
                         running);
                 }
-                lock (Lock)
+                m_semaphore.Wait();
+                try
                 {
                     DateTimeUtc timeStamp = DateTimeUtc.Now;
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
@@ -4848,6 +4859,10 @@ namespace Quickstarts.ReferenceServer
                         variable.Timestamp = timeStamp;
                         variable.ClearChangeMasks(SystemContext, false);
                     }
+                }
+                finally
+                {
+                    m_semaphore.Release();
                 }
             }
             catch (Exception e)
@@ -4863,21 +4878,20 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
-        public override void DeleteAddressSpace()
+        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            lock (Lock)
-            {
-                // TBD
-            }
+            // TBD
+            return new ValueTask();
         }
 
         /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
-        protected override NodeHandle GetManagerHandle(
+        protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
             ServerSystemContext context,
             NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache)
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
             // quickly exclude nodes that are not in the namespace.
             if (!IsNodeIdInNamespace(nodeId))
@@ -4901,28 +4915,30 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Verifies that the specified node exists.
         /// </summary>
-        protected override NodeState ValidateNode(
+        protected override ValueTask<NodeState> ValidateNodeAsync(
             ServerSystemContext context,
             NodeHandle handle,
-            IDictionary<NodeId, NodeState> cache)
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
             // not valid if no root.
             if (handle == null)
             {
-                return null;
+                return new ValueTask<NodeState>(result: null);
             }
 
             // check if previously validated.
             if (handle.Validated)
             {
-                return handle.Node;
+                return new ValueTask<NodeState>(handle.Node);
             }
 
             // TBD
 
-            return null;
+            return new ValueTask<NodeState>(result: null);
         }
 
+        private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource;
         private DataGenerator m_generator;
         private Timer m_simulationTimer;

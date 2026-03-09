@@ -81,8 +81,9 @@ jobs:
     displayName: 'List of assemblies to sign'
     inputs:
       script: |
-        dir /b /s Stack\Opc.Ua.*.dll > .\list.txt
-        dir /b /s Libraries\Opc.Ua.*.dll >> .\list.txt
+        dir /b /s Stack\Opc.Ua*.dll > .\list.txt
+        dir /b /s Tools\Opc.Ua*.dll >> .\list.txt
+        dir /b /s Libraries\Opc.Ua*.dll >> .\list.txt
         dir /b /s .azurepipelines\*.* >> .\list.txt
         type .\list.txt
   - task: CmdLine@2

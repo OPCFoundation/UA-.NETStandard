@@ -1177,13 +1177,13 @@ namespace Opc.Ua.Server
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
         /// <returns>The values of the attributes</returns>
         private static ArrayOf<Variant> ReadAndCacheValidationAttributes(
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributes,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
             NodeId key)
         {
             ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target);
-            uniqueNodesServiceAttributes[key] = values;
+            uniqueNodesServiceAttributes[key] = values.ToArray();
 
             return values;
         }
@@ -4778,7 +4778,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -4812,7 +4812,7 @@ namespace Opc.Ua.Server
                     NodeId key = handle.NodeId;
                     if (uniqueNodesServiceAttributesCache.ContainsKey(key))
                     {
-                        if (uniqueNodesServiceAttributesCache[key].Count == 0)
+                        if (uniqueNodesServiceAttributesCache[key].Length == 0)
                         {
                             values = ReadAndCacheValidationAttributes(
                                 uniqueNodesServiceAttributesCache,
