@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -13,6 +14,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class TypeInfoTests
     {
+        [Test]
+        public void Construct_ForListOfInt_ReturnsIntArray()
+        {
+            TypeInfo typeInfo = TypeInfo.Construct(typeof(List<int>));
+            Assert.That(typeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(typeInfo.IsArray, Is.True);
+        }
+
         [Test]
         public void Construct_ForNonEnumerableGenericType_ReturnsUnknown()
         {
