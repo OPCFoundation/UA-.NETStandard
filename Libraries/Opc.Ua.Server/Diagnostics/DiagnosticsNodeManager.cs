@@ -32,12 +32,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class DiagnosticsNodeManager : CustomNodeManager2, IDiagnosticsNodeManager
+    public class DiagnosticsNodeManager : AsyncCustomNodeManager, IDiagnosticsNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -90,7 +91,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                lock (Lock)
+                m_modifyAddressSpaceSemaphoreSlim.Wait(10);
+                try
                 {
                     Utils.SilentDispose(m_diagnosticsScanTimer);
                     m_diagnosticsScanTimer = null;
@@ -98,6 +100,12 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_samplingTimer);
                     m_samplingTimer = null;
                 }
+                finally
+                {
+                    m_modifyAddressSpaceSemaphoreSlim.Release();
+                }
+
+                m_modifyAddressSpaceSemaphoreSlim.Dispose();
             }
 
             base.Dispose(disposing);
@@ -123,95 +131,97 @@ namespace Opc.Ua.Server
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
+            // sampling interval diagnostics not supported by the server.
+            ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
+                ObjectIds.Server_ServerDiagnostics);
+
+            if (serverDiagnosticsNode != null)
             {
-                base.CreateAddressSpace(externalReferences);
+                NodeState samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
+                    SystemContext,
+                    QualifiedName.From(BrowseNames.SamplingIntervalDiagnosticsArray));
 
-                // sampling interval diagnostics not supported by the server.
-                ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
-                    ObjectIds.Server_ServerDiagnostics);
-
-                if (serverDiagnosticsNode != null)
+                if (samplingDiagnosticsArrayNode != null)
                 {
-                    NodeState samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
+                    await DeleteNodeAsync(
                         SystemContext,
-                        QualifiedName.From(BrowseNames.SamplingIntervalDiagnosticsArray));
-
-                    if (samplingDiagnosticsArrayNode != null)
-                    {
-                        DeleteNode(
-                            SystemContext,
-                            VariableIds.Server_ServerDiagnostics_SamplingIntervalDiagnosticsArray);
-                        serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
-                    }
+                        VariableIds.Server_ServerDiagnostics_SamplingIntervalDiagnosticsArray,
+                        cancellationToken).ConfigureAwait(false);
+                    serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
                 }
-
-                // The nodes are now loaded by the DiagnosticsNodeManager from the file
-                // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
-                // via the ImportNodes() method when the DiagnosticsNodeManager starts.
-                Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
-
-                // hook up the server GetMonitoredItems method.
-                GetMonitoredItemsMethodState getMonitoredItems = FindPredefinedNode<GetMonitoredItemsMethodState>(
-                    MethodIds.Server_GetMonitoredItems);
-
-                getMonitoredItems?.OnCallMethod = OnGetMonitoredItems;
-
-                // set ArrayDimensions for GetMonitoredItems.OutputArguments.Value.
-                PropertyState getMonitoredItemsOutputArguments = FindPredefinedNode<PropertyState>(
-                    VariableIds.Server_GetMonitoredItems_OutputArguments);
-
-                if (getMonitoredItemsOutputArguments != null)
-                {
-                    if (getMonitoredItemsOutputArguments.Value.TryGetStructure(out Argument[] outputArgumentsValue))
-                    {
-                        foreach (Argument argument in outputArgumentsValue)
-                        {
-                            argument.ArrayDimensions = [0];
-                        }
-
-                        getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
-                    }
-                }
-
-                if (m_durableSubscriptionsEnabled)
-                {
-                    // hook up the server SetSubscriptionDurable method.
-                    SetSubscriptionDurableMethodState setSubscriptionDurable
-                        = FindPredefinedNode<SetSubscriptionDurableMethodState>(
-                        MethodIds.Server_SetSubscriptionDurable);
-
-                    setSubscriptionDurable?.OnCall = OnSetSubscriptionDurable;
-                }
-                else
-                {
-                    // Subscription Durable mode not supported by the server.
-                    ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
-                        ObjectIds.Server);
-
-                    if (serverObject != null)
-                    {
-                        NodeState setSubscriptionDurableNode = serverObject.FindChild(
-                            SystemContext,
-                            QualifiedName.From(BrowseNames.SetSubscriptionDurable));
-
-                        if (setSubscriptionDurableNode != null)
-                        {
-                            DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
-                            serverObject.SetSubscriptionDurable = null;
-                        }
-                    }
-                }
-                // hookup server ResendData method.
-
-                ResendDataMethodState resendData = FindPredefinedNode<ResendDataMethodState>(
-                    MethodIds.Server_ResendData);
-
-                resendData?.OnCallMethod = OnResendData;
             }
+
+            // The nodes are now loaded by the DiagnosticsNodeManager from the file
+            // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
+            // via the ImportNodes() method when the DiagnosticsNodeManager starts.
+            await Server.CoreNodeManager.ImportNodesAsync(
+                SystemContext,
+                PredefinedNodes.Values,
+                true,
+                cancellationToken).ConfigureAwait(false);
+
+            // hook up the server GetMonitoredItems method.
+            GetMonitoredItemsMethodState getMonitoredItems = FindPredefinedNode<GetMonitoredItemsMethodState>(
+                MethodIds.Server_GetMonitoredItems);
+
+            getMonitoredItems?.OnCallMethod = OnGetMonitoredItems;
+
+            // set ArrayDimensions for GetMonitoredItems.OutputArguments.Value.
+            PropertyState getMonitoredItemsOutputArguments = FindPredefinedNode<PropertyState>(
+                VariableIds.Server_GetMonitoredItems_OutputArguments);
+
+            if (getMonitoredItemsOutputArguments != null &&
+                getMonitoredItemsOutputArguments.Value.TryGetStructure(out Argument[] outputArgumentsValue))
+            {
+                foreach (Argument argument in outputArgumentsValue)
+                {
+                    argument.ArrayDimensions = [0];
+                }
+
+                getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
+            }
+
+            if (m_durableSubscriptionsEnabled)
+            {
+                // hook up the server SetSubscriptionDurable method.
+                SetSubscriptionDurableMethodState setSubscriptionDurable
+                    = FindPredefinedNode<SetSubscriptionDurableMethodState>(
+                    MethodIds.Server_SetSubscriptionDurable);
+
+                setSubscriptionDurable?.OnCall = OnSetSubscriptionDurable;
+            }
+            else
+            {
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
+                    ObjectIds.Server);
+
+                if (serverObject != null)
+                {
+                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        QualifiedName.From(BrowseNames.SetSubscriptionDurable));
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        await DeleteNodeAsync(SystemContext, MethodIds.Server_SetSubscriptionDurable, cancellationToken)
+                            .ConfigureAwait(false);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
+            }
+            // hookup server ResendData method.
+
+            ResendDataMethodState resendData = FindPredefinedNode<ResendDataMethodState>(
+                MethodIds.Server_ResendData);
+
+            resendData?.OnCallMethod = OnResendData;
         }
 
         /// <summary>
@@ -360,7 +370,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
-        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        protected override async ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
             return new NodeStateCollection().AddOpcUa(context);
         }
@@ -368,9 +380,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(
+        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
-            NodeState predefinedNode)
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
         {
             if (predefinedNode is not BaseObjectState passiveNode)
             {
@@ -447,7 +460,7 @@ namespace Opc.Ua.Server
                     activeNode.Create(context, passiveNode);
 
                     // add the server object as the root notifier.
-                    AddRootNotifier(activeNode);
+                    await AddRootNotifierAsync(activeNode, cancellationToken).ConfigureAwait(false);
 
                     // replace the node in the parent.
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -579,11 +592,15 @@ namespace Opc.Ua.Server
         public bool DiagnosticsEnabled { get; private set; }
 
         /// <inheritdoc/>
-        public void SetDiagnosticsEnabled(ServerSystemContext context, bool enabled)
+        public async ValueTask SetDiagnosticsEnabledAsync(
+            ServerSystemContext context,
+            bool enabled,
+            CancellationToken cancellationToken = default)
         {
             var nodesToDelete = new List<NodeState>();
 
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 if (enabled == DiagnosticsEnabled)
                 {
@@ -684,20 +701,26 @@ namespace Opc.Ua.Server
                     DoScan(true);
                 }
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
 
             for (int ii = 0; ii < nodesToDelete.Count; ii++)
             {
-                DeleteNode(context, nodesToDelete[ii].NodeId);
+                await DeleteNodeAsync(context, nodesToDelete[ii].NodeId, cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        public void CreateServerDiagnostics(
+        public async ValueTask CreateServerDiagnosticsAsync(
             ServerSystemContext systemContext,
             ServerDiagnosticsSummaryDataType diagnostics,
-            NodeValueSimpleEventHandler updateCallback)
+            NodeValueSimpleEventHandler updateCallback,
+            CancellationToken cancellationToken)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // get the node.
                 ServerDiagnosticsSummaryState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsSummaryState>(
@@ -707,7 +730,7 @@ namespace Opc.Ua.Server
                 var diagnosticsValue = new ServerDiagnosticsSummaryValue(
                     diagnosticsNode,
                     diagnostics,
-                    Lock)
+                    m_diagnosticsLock)
                 {
                     // must ensure the first update gets sent.
                     Value = null,
@@ -757,29 +780,36 @@ namespace Opc.Ua.Server
                 // send initial update.
                 DoScan(true);
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
         }
 
         /// <inheritdoc/>
-        public NodeId CreateSessionDiagnostics(
+        public async ValueTask<NodeId> CreateSessionDiagnosticsAsync(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,
             NodeValueSimpleEventHandler updateCallback,
             SessionSecurityDiagnosticsDataType securityDiagnostics,
-            NodeValueSimpleEventHandler updateSecurityCallback)
+            NodeValueSimpleEventHandler updateSecurityCallback,
+            CancellationToken cancellationToken = default)
         {
             NodeId nodeId = default;
 
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 var sessionNode = new SessionDiagnosticsObjectState(null);
 
                 // create a new instance and assign ids.
-                nodeId = CreateNode(
+                nodeId = await CreateNodeAsync(
                     SystemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
                     QualifiedName.From(diagnostics.SessionName),
-                    sessionNode);
+                    sessionNode,
+                    cancellationToken).ConfigureAwait(false);
 
                 diagnostics.SessionId = nodeId;
                 securityDiagnostics.SessionId = nodeId;
@@ -814,7 +844,7 @@ namespace Opc.Ua.Server
                 var diagnosticsValue = new SessionDiagnosticsVariableValue(
                     diagnosticsNode,
                     diagnostics,
-                    Lock)
+                    m_diagnosticsLock)
                 {
                     // must ensure the first update gets sent.
                     Value = null,
@@ -834,7 +864,7 @@ namespace Opc.Ua.Server
                 var securityDiagnosticsValue = new SessionSecurityDiagnosticsValue(
                     securityDiagnosticsNode,
                     securityDiagnostics,
-                    Lock)
+                    m_diagnosticsLock)
                 {
                     // must ensure the first update gets sent.
                     Value = null,
@@ -856,14 +886,22 @@ namespace Opc.Ua.Server
                 // send initial update.
                 DoScan(true);
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
 
             return nodeId;
         }
 
         /// <inheritdoc/>
-        public void DeleteSessionDiagnostics(ServerSystemContext systemContext, NodeId nodeId)
+        public async ValueTask DeleteSessionDiagnosticsAsync(
+            ServerSystemContext systemContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 for (int ii = 0; ii < m_sessions.Count; ii++)
                 {
@@ -882,19 +920,25 @@ namespace Opc.Ua.Server
                     m_serverLockHolder = default;
                 }
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
 
-            DeleteNode(SystemContext, nodeId);
+            await DeleteNodeAsync(SystemContext, nodeId, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public NodeId CreateSubscriptionDiagnostics(
+        public async ValueTask<NodeId> CreateSubscriptionDiagnosticsAsync(
             ServerSystemContext systemContext,
             SubscriptionDiagnosticsDataType diagnostics,
-            NodeValueSimpleEventHandler updateCallback)
+            NodeValueSimpleEventHandler updateCallback,
+            CancellationToken cancellationToken = default)
         {
             NodeId nodeId = default;
 
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // check if diagnostics have been enabled.
                 if (!DiagnosticsEnabled)
@@ -905,13 +949,14 @@ namespace Opc.Ua.Server
                 var diagnosticsNode = new SubscriptionDiagnosticsState(null);
 
                 // create a new instance and assign ids.
-                nodeId = CreateNode(
+                nodeId = await CreateNodeAsync(
                     SystemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
                     QualifiedName.From(
                         diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
-                    diagnosticsNode);
+                    diagnosticsNode,
+                    cancellationToken).ConfigureAwait(false);
 
                 // add reference to subscription array.
                 diagnosticsNode.AddReference(
@@ -923,7 +968,7 @@ namespace Opc.Ua.Server
                 var diagnosticsValue = new SubscriptionDiagnosticsValue(
                     diagnosticsNode,
                     diagnostics,
-                    Lock)
+                    m_diagnosticsLock)
                 {
                     CopyPolicy = VariableCopyPolicy.Never,
                     OnBeforeRead = OnBeforeReadDiagnostics,
@@ -972,14 +1017,22 @@ namespace Opc.Ua.Server
                 // send initial update.
                 DoScan(true);
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
 
             return nodeId;
         }
 
         /// <inheritdoc/>
-        public void DeleteSubscriptionDiagnostics(ServerSystemContext systemContext, NodeId nodeId)
+        public async ValueTask DeleteSubscriptionDiagnosticsAsync(
+            ServerSystemContext systemContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 for (int ii = 0; ii < m_subscriptions.Count; ii++)
                 {
@@ -992,14 +1045,19 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
 
-            DeleteNode(SystemContext, nodeId);
+            await DeleteNodeAsync(SystemContext, nodeId, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public HistoryServerCapabilitiesState GetDefaultHistoryCapabilities()
+        public async ValueTask<HistoryServerCapabilitiesState> GetDefaultHistoryCapabilitiesAsync(CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 if (m_historyCapabilities != null)
                 {
@@ -1016,12 +1074,13 @@ namespace Opc.Ua.Server
                     // create new node if not found.
                     historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
 
-                    NodeId nodeId = CreateNode(
+                    NodeId nodeId = await CreateNodeAsync(
                         SystemContext,
                         default,
                         ReferenceTypeIds.HasComponent,
                         QualifiedName.From(BrowseNames.HistoryServerCapabilities),
-                        historyServerCapabilitiesNode);
+                        historyServerCapabilitiesNode,
+                        cancellationToken).ConfigureAwait(false);
 
                     historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
                     historyServerCapabilitiesNode.AccessHistoryEventsCapability.Value = false;
@@ -1053,22 +1112,27 @@ namespace Opc.Ua.Server
                             parent.NodeId);
                     }
 
-                    AddPredefinedNode(SystemContext, historyServerCapabilitiesNode);
+                    await AddPredefinedNodeAsync(SystemContext, historyServerCapabilitiesNode, cancellationToken).ConfigureAwait(false);
                 }
 
                 m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
         }
 
         /// <inheritdoc/>
-        public virtual void UpdateServerEventNotifier()
+        public virtual async ValueTask UpdateServerEventNotifierAsync(CancellationToken cancellationToken = default)
         {
-            lock (Lock)
-            {
-                // Get or create the history capabilities
-                HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
+            // Get or create the history capabilities
+            HistoryServerCapabilitiesState historyCapabilities = await GetDefaultHistoryCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
                 // Find the Server object
                 ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
                     ObjectIds.Server);
@@ -1107,15 +1171,21 @@ namespace Opc.Ua.Server
                     serverObject.EventNotifier = eventNotifier;
                 }
             }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
         }
 
         /// <inheritdoc/>
-        public void AddAggregateFunction(
+        public async ValueTask AddAggregateFunctionAsync(
             NodeId aggregateId,
             string aggregateName,
-            bool isHistorical)
+            bool isHistorical,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 var state = new FolderState(null)
                 {
@@ -1151,16 +1221,22 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                AddPredefinedNode(SystemContext, state);
+                await AddPredefinedNodeAsync(SystemContext, state, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }
 
         /// <inheritdoc/>
-        public void AddModellingRule(
+        public async ValueTask AddModellingRuleAsync(
             NodeId modellingRuleId,
-            string modellingRuleName)
+            string modellingRuleName,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 var state = new FolderState(null)
                 {
@@ -1184,7 +1260,11 @@ namespace Opc.Ua.Server
                     state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
                 }
 
-                AddPredefinedNode(SystemContext, state);
+                await AddPredefinedNodeAsync(SystemContext, state, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }
 
@@ -1484,7 +1564,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (Lock)
+            lock (m_diagnosticsLock)
             {
                 if (!DiagnosticsEnabled)
                 {
@@ -1508,7 +1588,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (Lock)
+            lock (m_diagnosticsLock)
             {
                 if (!DiagnosticsEnabled)
                 {
@@ -1610,7 +1690,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                lock (Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (!DiagnosticsEnabled || m_doScanBusy)
                     {
@@ -1829,10 +1909,12 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="handle">The handle for the node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected override void OnMonitoredItemDeleted(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override ValueTask OnMonitoredItemDeletedAsync(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
         {
             // check if diagnostics collection needs to be turned off.
             if (IsDiagnosticsNode(handle.Node) &&
@@ -1859,6 +1941,8 @@ namespace Opc.Ua.Server
             {
                 DeleteSampledItem(monitoredItem);
             }
+
+            return new ValueTask();
         }
 
         /// <summary>
@@ -1869,12 +1953,14 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItem">The monitored item.</param>
         /// <param name="previousMode">The previous monitoring mode.</param>
         /// <param name="monitoringMode">The current monitoring mode.</param>
-        protected override void OnMonitoringModeChanged(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async ValueTask OnMonitoringModeChangedAsync(
             ServerSystemContext context,
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
-            MonitoringMode monitoringMode)
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken = default)
         {
             if (previousMode != MonitoringMode.Disabled)
             {
@@ -1896,140 +1982,6 @@ namespace Opc.Ua.Server
                 m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
             }
         }
-
-#if V1_Methods
-        /// <summary>
-        /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
-        /// </summary>
-        /// <remarks>
-        /// Returns the server's default index (1) if the namespaceUri is empty or null.
-        /// </remarks>
-        public ushort GetNamespaceIndex(string namespaceUri)
-        {
-            int namespaceIndex = 1;
-
-            if (!String.IsNullOrEmpty(namespaceUri))
-            {
-                namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
-
-                if (namespaceIndex == -1)
-                {
-                    namespaceIndex = Server.NamespaceUris.Append(namespaceUri);
-                }
-            }
-
-            return (ushort)namespaceIndex;
-        }
-
-        public NodeId FindTargetId(NodeId sourceId, NodeId referenceTypeId, bool isInverse, QualifiedName browseName)
-        {
-            return null;
-        }
-
-        public ILocalNode GetLocalNode(NodeId nodeId)
-        {
-            return null;
-        }
-
-        public ILocalNode GetTargetNode(
-            NodeId sourceId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes,
-            QualifiedName browseName)
-        {
-            return null;
-        }
-
-        private ILocalNode GetTargetNode(
-            ILocalNode source,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes,
-            QualifiedName browseName)
-        {
-            return null;
-        }
-
-        public void AttachNode(ILocalNode node) { }
-
-        public void ReplaceNode(ILocalNode existingNode, ILocalNode newNode) { }
-
-        public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent) { }
-
-        public ILocalNode ReferenceSharedNode(
-            ILocalNode source,
-            NodeId referenceTypeId,
-            bool isInverse,
-            QualifiedName browseName)
-        {
-            return null;
-        }
-
-        public ILocalNode UnreferenceSharedNode(
-            ILocalNode source,
-            NodeId referenceTypeId,
-            bool isInverse,
-            QualifiedName browseName)
-        {
-            return null;
-        }
-
-        public NodeId CreateUniqueNodeId()
-        {
-            return null;
-        }
-
-        public NodeId CreateObject(
-            NodeId parentId,
-            NodeId referenceTypeId,
-            NodeId nodeId,
-            QualifiedName browseName,
-            ObjectAttributes attributes,
-            ExpandedNodeId typeDefinitionId)
-        {
-            return null;
-        }
-
-        public NodeId CreateObjectType(
-            NodeId parentId,
-            NodeId nodeId,
-            QualifiedName browseName,
-            ObjectTypeAttributes attributes)
-        {
-            return null;
-        }
-
-        public NodeId CreateVariable(
-            NodeId parentId,
-            NodeId referenceTypeId,
-            NodeId nodeId,
-            QualifiedName browseName,
-            VariableAttributes attributes,
-            ExpandedNodeId typeDefinitionId)
-        {
-            return null;
-        }
-
-        public NodeId CreateVariableType(
-            NodeId parentId,
-            NodeId nodeId,
-            QualifiedName browseName,
-            VariableTypeAttributes attributes)
-        {
-            return null;
-        }
-
-        public NodeId CreateMethod(
-            NodeId parentId,
-            NodeId referenceTypeId,
-            NodeId nodeId,
-            QualifiedName browseName,
-            MethodAttributes attributes)
-        {
-            return null;
-        }
-#endif
 
         /// <summary>
         /// Stores the callback information for a session diagnostics structures.
@@ -2118,7 +2070,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                lock (Lock)
+                lock (m_diagnosticsLock)
                 {
                     for (int ii = 0; ii < m_sampledItems.Count; ii++)
                     {
@@ -2164,6 +2116,8 @@ namespace Opc.Ua.Server
             }
         }
 
+        private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
+        private readonly object m_diagnosticsLock = new();
         private readonly ushort m_namespaceIndex;
         private uint m_lastUsedId;
         private Timer m_diagnosticsScanTimer;

@@ -43,11 +43,11 @@ namespace Opc.Ua.Server.Tests
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
 
             m_diagnosticsNodeManagerMock
-                .Setup(d => d.CreateSubscriptionDiagnostics(
+                .Setup(d => d.CreateSubscriptionDiagnosticsAsync(
                     It.IsAny<ServerSystemContext>(),
                     It.IsAny<SubscriptionDiagnosticsDataType>(),
                     It.IsAny<NodeValueSimpleEventHandler>()))
-                .Returns(new NodeId(1));
+                .ReturnsAsync(new NodeId(1));
         }
 
         private Subscription CreateSubscription(double publishingInterval = 1000)

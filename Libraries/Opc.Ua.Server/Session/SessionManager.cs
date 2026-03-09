@@ -452,7 +452,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This method should not throw an exception if the session no longer exists.
         /// </remarks>
-        public virtual void CloseSession(NodeId sessionId)
+        public virtual async ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default)
         {
             ISession session = null;
 
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server
                 RaiseSessionEvent(session, SessionEventReason.Closing);
 
                 // close the session.
-                session.Close();
+                await session.CloseAsync(cancellationToken).ConfigureAwait(false);
 
                 // update diagnostics.
                 lock (m_server.DiagnosticsWriteLock)
@@ -497,10 +497,11 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual OperationContext ValidateRequest(
+        public virtual async ValueTask<OperationContext> ValidateRequestAsync(
             RequestHeader requestHeader,
             SecureChannelContext secureChannelContext,
-            RequestType requestType)
+            RequestType requestType,
+            CancellationToken cancellationToken = default)
         {
             if (requestHeader == null)
             {
@@ -553,7 +554,7 @@ namespace Opc.Ua.Server
             {
                 if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    CloseSession(session.Id);
+                    await CloseSessionAsync(session.Id, cancellationToken).ConfigureAwait(false);
                 }
                 throw;
             }

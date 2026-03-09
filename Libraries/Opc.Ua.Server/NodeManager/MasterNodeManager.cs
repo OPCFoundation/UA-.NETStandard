@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
                 = server.MainNodeManagerFactory.CreateConfigurationNodeManager();
 
             RegisterNodeManager(
-                configurationAndDiagnosticsManager.ToAsyncNodeManager(),
+                configurationAndDiagnosticsManager,
                 registeredManagers,
                 namespaceManagers);
 
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
             // always add the core node manager to the second of the list.
             ICoreNodeManager coreNodeManager = server.MainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex);
 
-            m_nodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
+            m_nodeManagers.Add(coreNodeManager);
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -303,14 +303,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
+        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1] as ICoreNodeManager;
 
         /// <inheritdoc/>
         public IDiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IDiagnosticsNodeManager;
+            => m_nodeManagers[0] as IDiagnosticsNodeManager;
+
         /// <inheritdoc/>
         public IConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IConfigurationNodeManager;
+            => m_nodeManagers[0] as IConfigurationNodeManager;
 
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
