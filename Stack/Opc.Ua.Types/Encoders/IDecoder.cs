@@ -418,16 +418,18 @@ namespace Opc.Ua
             where T : struct, Enum;
 
         /// <summary>
-        /// Reads a variant value from the stream with the specified TypeInfo.
-        /// If type info is <see cref="TypeInfo.Unknown"/> the value is read
-        /// as <see cref="ReadVariant(string)"/>.
+        /// Reads a value of a <see cref="Variant"/> from the stream with
+        /// the specified TypeInfo.
         /// </summary>
         /// <remarks>
         /// Replaced the former untyped ReadArray method to read any value
-        /// corresponding to the type information.
+        /// corresponding to the type information. The value is not read using
+        /// the defined variant encoding, but using the encoding defined by
+        /// the type information provided.
         /// </remarks>
         /// <param name="fieldName">The field name.</param>
-        /// <param name="typeInfo">The type info deciding the Variant</param>
+        /// <param name="typeInfo">The type info deciding the encoding to use
+        /// for the built in type.</param>
         /// <returns></returns>
         Variant ReadVariantValue(string fieldName, TypeInfo typeInfo);
 
@@ -437,7 +439,8 @@ namespace Opc.Ua
         /// <param name="switches">The list of field names in the order of
         /// the union selector.</param>
         /// <param name="fieldName">Returns an alternate fieldName for the
-        /// encoded union property if the encoder requires it, null otherwise.</param>
+        /// encoded union property if the encoder requires it, null
+        /// otherwise.</param>
         uint ReadSwitchField(IList<string> switches, out string fieldName);
 
         /// <summary>

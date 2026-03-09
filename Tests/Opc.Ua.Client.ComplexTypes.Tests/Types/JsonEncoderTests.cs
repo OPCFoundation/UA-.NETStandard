@@ -118,8 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
                 null },
             { BuiltInType.Float, (float)3.14, "3.14", "3.14" },
-            // TODO: why is JToken.DeepEquals failing here?
-            //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
+            { BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
             { BuiltInType.Double, 7.77, "7.77", "7.77" }
         }.ToArray();
 
@@ -227,10 +226,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         EncoderContext,
                         encoderStream,
                         typeof(ExtensionObject),
-                        jsonEncoding,
-                        topLevelIsArray))
+                        jsonEncoding))
                 {
-                    Encode(encoder, BuiltInType.ExtensionObject, builtInType.ToString(), data);
+                    encoder.WriteVariantValue(builtInType.ToString(), data);
                 }
                 buffer = encoderStream.ToArray();
             }

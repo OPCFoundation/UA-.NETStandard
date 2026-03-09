@@ -192,27 +192,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
-            using (var jsonEncoder = new JsonEncoder(
-                memoryStream,
-                m_context,
-                JsonEncoderOptions.Compact))
+            int length1 = 0;
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
-                _ = jsonEncoder.Close();
+                length1 = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoder(
-                memoryStream,
-                m_context,
-                JsonEncoderOptions.Compact))
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 if (toArray)
                 {
-                    int length = jsonEncoder.Close();
-                    Assert.AreEqual(length, memoryStream.Position);
+                    int length2 = jsonEncoder.Close();
+                    Assert.AreEqual(length2 + length1, memoryStream.Position);
                     byte[] result = memoryStream.ToArray();
                     Assert.NotNull(result);
-                    Assert.AreEqual(length, result.Length);
+                    Assert.AreEqual(length2 + length1, result.Length);
                 }
                 else
                 {

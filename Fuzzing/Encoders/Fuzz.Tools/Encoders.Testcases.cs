@@ -92,7 +92,7 @@ namespace Opc.Ua.Fuzzing
             {
                 byte[] message;
                 using (var memoryStream = new MemoryStream(0x1000))
-                using (var encoder = new JsonEncoderOld(FuzzableCode.MessageContext, JsonEncodingType.Verbose, false, memoryStream))
+                using (var encoder = new JsonEncoder(memoryStream, FuzzableCode.MessageContext))
                 {
                     messageEncoder(encoder);
                     encoder.Close();

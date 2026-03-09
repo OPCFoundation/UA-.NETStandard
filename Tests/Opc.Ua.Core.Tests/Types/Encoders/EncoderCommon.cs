@@ -196,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object data,
+            Variant data,
             JsonEncodingType encoding)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType} Encoding:{encoding}";
@@ -229,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object data)
+            Variant data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Encode and decode object, validate result.
+        /// Encode and decode Variant, validate result.
         /// </summary>
         protected void EncodeDecode(
             EncodingType encoderType,
@@ -330,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             type,
                             jsonEncodingType))
                     {
-                        Encode(encoder, builtInType, builtInType.ToString(), expected);
+                        encoder.WriteVariantValue(builtInType.ToString(), expected);
                     }
                     buffer = encoderStream.ToArray();
                 }
@@ -351,14 +351,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (var decoderStream = new MemoryStream(buffer))
                 using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
                 {
-                    result = Decode(decoder, builtInType, builtInType.ToString(), type);
+                    result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
                 }
 
-                expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
                 Assert.AreEqual(expected, result, encodeInfo);
-                Assert.IsTrue(
-                    Utils.IsEqual(expected, result),
-                    "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
             {
@@ -377,16 +373,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Encode object as JSON and validate against expected JSON string.
+        /// Encode Variant as JSON and validate against expected JSON string.
         /// </summary>
         protected void EncodeJsonVerifyResult(
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
             Variant data,
             JsonEncodingType jsonEncoding,
-            string expected,
-            bool topLevelIsArray,
-            bool includeDefaults)
+            string expected)
         {
             string result = null;
             string formattedResult = null;
@@ -403,11 +397,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     expected = "{}";
                 }
 
-                bool isNumber = TypeInfo.IsNumericType(builtInType) ||
-                    builtInType == BuiltInType.Boolean;
-                bool includeDefaultValues = !isNumber && includeDefaults;
-                bool includeDefaultNumbers = !isNumber || includeDefaults;
-
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
@@ -417,12 +406,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             Context,
                             encoderStream,
                             typeof(DataValue),
-                            jsonEncoding,
-                            topLevelIsArray,
-                            includeDefaultValues,
-                            includeDefaultNumbers))
+                            jsonEncoding))
                     {
-                          Encode(encoder, builtInType, builtInType.ToString(), data);
+                        if (builtInType == BuiltInType.Variant)
+                        {
+                            encoder.WriteVariant(builtInType.ToString(), data);
+                        }
+                        else
+                        {
+                            encoder.WriteVariantValue(builtInType.ToString(), data);
+                        }
                     }
                     buffer = encoderStream.ToArray();
                 }
@@ -528,6 +521,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var jsonWriter = new JsonTextWriter(stringWriter)
                 {
                     FloatFormatHandling = FloatFormatHandling.String,
+                    StringEscapeHandling = StringEscapeHandling.EscapeHtml,
                     Formatting = Newtonsoft.Json.Formatting.Indented,
                     Culture = System.Globalization.CultureInfo.InvariantCulture
                 };
@@ -579,10 +573,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IServiceMessageContext context,
             Stream stream,
             Type systemType,
-            JsonEncodingType jsonEncoding = JsonEncodingType.Verbose,
-            bool topLevelIsArray = false,
-            bool includeDefaultValues = false,
-            bool includeDefaultNumbers = true)
+            JsonEncodingType jsonEncoding = JsonEncodingType.Verbose)
         {
             switch (encoderType)
             {
@@ -628,110 +619,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Wrap object in a DataValue.
+        /// Wrap Variant in a DataValue.
         /// </summary>
-        protected DataValue CreateDataValue(BuiltInType builtInType, object data)
+        protected DataValue CreateDataValue(BuiltInType builtInType, Variant variant)
         {
             var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            var sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
-            Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant v)
-                ? v
-                : new Variant(data);
+            var sourceTimeStamp = (DateTimeUtc)DataGenerator.GetRandom(BuiltInType.DateTime);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
-        }
-
-        /// <summary>
-        /// Helper for encoding of built in types.
-        /// </summary>
-        protected void Encode(
-            IEncoder encoder,
-            BuiltInType builtInType,
-            string fieldName,
-            Variant value)
-        {
-            encoder.WriteVariantValue(fieldName, value);
-        }
-
-        /// <summary>
-        /// Helper for decoding of builtin types.
-        /// </summary>
-        protected Variant Decode(
-            IDecoder decoder,
-            BuiltInType builtInType,
-            string fieldName,
-            Type type)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.Null:
-                    return decoder.ReadVariant(fieldName);
-                case BuiltInType.Boolean:
-                    return decoder.ReadBoolean(fieldName);
-                case BuiltInType.SByte:
-                    return decoder.ReadSByte(fieldName);
-                case BuiltInType.Byte:
-                    return decoder.ReadByte(fieldName);
-                case BuiltInType.Int16:
-                    return decoder.ReadInt16(fieldName);
-                case BuiltInType.UInt16:
-                    return decoder.ReadUInt16(fieldName);
-                case BuiltInType.Int32:
-                    return decoder.ReadInt32(fieldName);
-                case BuiltInType.UInt32:
-                    return decoder.ReadUInt32(fieldName);
-                case BuiltInType.Int64:
-                    return decoder.ReadInt64(fieldName);
-                case BuiltInType.UInt64:
-                    return decoder.ReadUInt64(fieldName);
-                case BuiltInType.Float:
-                    return decoder.ReadFloat(fieldName);
-                case BuiltInType.Double:
-                    return decoder.ReadDouble(fieldName);
-                case BuiltInType.String:
-                    return decoder.ReadString(fieldName);
-                case BuiltInType.DateTime:
-                    return decoder.ReadDateTime(fieldName);
-                case BuiltInType.Guid:
-                    return decoder.ReadGuid(fieldName);
-                case BuiltInType.ByteString:
-                    return decoder.ReadByteString(fieldName);
-                case BuiltInType.XmlElement:
-                    return decoder.ReadXmlElement(fieldName);
-                case BuiltInType.NodeId:
-                    return decoder.ReadNodeId(fieldName);
-                case BuiltInType.ExpandedNodeId:
-                    return decoder.ReadExpandedNodeId(fieldName);
-                case BuiltInType.StatusCode:
-                    return decoder.ReadStatusCode(fieldName);
-                case BuiltInType.QualifiedName:
-                    return decoder.ReadQualifiedName(fieldName);
-                case BuiltInType.LocalizedText:
-                    return decoder.ReadLocalizedText(fieldName);
-                case BuiltInType.ExtensionObject:
-                    return decoder.ReadExtensionObject(fieldName);
-                case BuiltInType.DataValue:
-                    return decoder.ReadDataValue(fieldName);
-                case BuiltInType.Enumeration:
-                    // TODO return type.IsEnum
-                    // TODO     ? decoder.ReadEnumerated(fieldName, type)
-                    // TODO     : decoder.ReadInt32(fieldName);
-                case BuiltInType.Variant:
-                    return decoder.ReadVariant(fieldName);
-                default:
-                    NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-                    return default;
-            }
-        }
-
-        /// <summary>
-        /// Adjust expected values to encoder specific results.
-        /// </summary>
-        protected Variant AdjustExpectedBoundaryValues(
-            EncodingType encoderType,
-            BuiltInType builtInType,
-            Variant value)
-        {
-            return value;
         }
 
         /// <summary>

@@ -114,11 +114,11 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     DateTimeUtc.Now);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc));
+                    new DateTimeUtc(1600, 12, 31, 23, 59, 59));
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                    new DateTimeUtc(1601, 1, 1, 0, 0, 0));
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+                    new DateTimeUtc(2024, 1, 1, 12, 0, 0));
                 yield return new TestCaseData(
                     DateTimeUtc.MinValue);
                 yield return new TestCaseData(
@@ -131,21 +131,21 @@ namespace Opc.Ua.Tests
             get
             {
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc), 0);
+                    new DateTimeUtc(1600, 12, 31, 23, 59, 59), 0);
                 yield return new TestCaseData(
                     DateTimeUtc.Now, 4);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc), 4);
+                    new DateTimeUtc(1600, 12, 31, 23, 59, 59), 4);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc), 8);
+                    new DateTimeUtc(1601, 1, 1, 0, 0, 0), 8);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), 8);
+                    new DateTimeUtc(2024, 1, 1, 12, 0, 0), 8);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), 8);
+                    new DateTimeUtc(2024, 1, 1, 12, 0, 0), 8);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(2024, 6, 15, 8, 30, 0, DateTimeKind.Utc), 8);
+                    new DateTimeUtc(2024, 6, 15, 8, 30, 30), 8);
                 yield return new TestCaseData(
-                    (DateTimeUtc)new DateTime(2024, 12, 31, 23, 59, 59, DateTimeKind.Utc), 8);
+                    new DateTimeUtc(2024, 12, 31, 23, 59, 59), 8);
                 yield return new TestCaseData(
                     DateTimeUtc.MinValue, 0);
                 yield return new TestCaseData(
@@ -464,7 +464,7 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     QualifiedName.Null);
                 yield return new TestCaseData(
-                    new QualifiedName("http://qnurl"));
+                    new QualifiedName("adfadfasdfasdfsadfs"));
                 yield return new TestCaseData(
                     new QualifiedName("test", 8));
             }
@@ -479,7 +479,7 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     QualifiedName.Null, 55);
                 yield return new TestCaseData(
-                    new QualifiedName("http://qnurl"), 154);
+                    new QualifiedName("adfadfasdfasdfsadfs"), 154);
                 yield return new TestCaseData(
                     new QualifiedName("test", 8), 2);
             }
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     Variant.From("hello"));
                 yield return new TestCaseData(
-                    Variant.From((DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+                    Variant.From(new DateTimeUtc(2024, 1, 1, 0, 0, 0)));
                 yield return new TestCaseData(
                     Variant.From(new Uuid(Guid.Empty)));
                 yield return new TestCaseData(
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     Variant.From(s_stringArray));
                 yield return new TestCaseData(
-                    Variant.From([(DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)]));
+                    Variant.From([new DateTimeUtc(2024, 1, 1, 0, 0, 0)]));
                 yield return new TestCaseData(
                     Variant.From([new Uuid(Guid.Empty)]));
                 yield return new TestCaseData(
@@ -1153,10 +1153,10 @@ namespace Opc.Ua.Tests
                 yield return new TestCaseData(
                     Variant.From(new[]
                     {
-                    (DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    (DateTimeUtc)new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-                    (DateTimeUtc)new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc),
-                    (DateTimeUtc)new DateTime(2024, 1, 4, 0, 0, 0, DateTimeKind.Utc)
+                    new DateTimeUtc(2024, 1, 1, 0, 0, 0),
+                    new DateTimeUtc(2024, 1, 2, 0, 0, 0),
+                    new DateTimeUtc(2024, 1, 3, 0, 0, 0),
+                    new DateTimeUtc(2024, 1, 4, 0, 0, 0)
                     }.ToMatrixOf(2, 2)),
                     BuiltInType.DateTime);
                 yield return new TestCaseData(

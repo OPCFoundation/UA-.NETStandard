@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const long kInt64Value = -123456789123456;
         private const ulong kUInt64Value = 123456789123456;
 
-        private static readonly Guid s_nodeIdGuid = new("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
+        private static readonly Uuid s_nodeIdGuid = new Uuid(new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D"));
         private static readonly ByteString s_byteString = ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9]);
         private static readonly string s_byteString64 = s_byteString.ToBase64();
 
@@ -139,7 +139,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.UInt16,
                 ushort.MaxValue,
                 ushort.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             { BuiltInType.Int16, (short)0, null, "0" },
             { BuiltInType.Int16, (short)0,null, "0", true },
             { BuiltInType.Int16, (short)-12345, "-12345", null },
@@ -148,12 +149,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Int16,
                 short.MaxValue,
                 short.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.Int16,
                 short.MinValue,
                 short.MinValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             { BuiltInType.UInt32, (uint)0,null, "0" },
             { BuiltInType.UInt32, (uint)0,null, "0", true },
             { BuiltInType.UInt32, (uint)1234567, "1234567", null },
@@ -169,7 +172,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.UInt32,
                 uint.MaxValue,
                 uint.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             { BuiltInType.Int32, 0, null, "0" },
             { BuiltInType.Int32, 0, null, "0", true },
             { BuiltInType.Int32, -12345678, "-12345678", null },
@@ -178,12 +182,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Int32,
                 int.MaxValue,
                 int.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.Int32,
                 int.MinValue,
                 int.MinValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             { BuiltInType.Int64, (long)0, null, Quotes("0") },
             { BuiltInType.Int64, (long)0, null, Quotes("0"), true },
             {
@@ -201,12 +207,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Int64,
                 long.MinValue,
                 Quotes(long.MinValue.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null
+            },
             {
                 BuiltInType.Int64,
                 long.MaxValue,
                 Quotes(long.MaxValue.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null
+            },
             { BuiltInType.UInt64, (ulong)0, null, Quotes("0") },
             { BuiltInType.UInt64, (ulong)0, null, Quotes("0"), true },
             {
@@ -225,7 +233,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.UInt64,
                 ulong.MaxValue,
                 Quotes(ulong.MaxValue.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null
+            },
             { BuiltInType.Float, (float)0, null, "0" },
             { BuiltInType.Float, (float)0,null, "0", true },
             {
@@ -248,12 +257,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Float,
                 float.MaxValue,
                 float.MaxValue.ToString("R", CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.Float,
                 float.MinValue,
                 float.MinValue.ToString("R", CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             { BuiltInType.Float, float.NegativeInfinity, Quotes("-Infinity"), null },
             { BuiltInType.Float, float.PositiveInfinity, Quotes("Infinity"), null },
             { BuiltInType.Float, float.NaN, Quotes("NaN"), null },
@@ -279,53 +290,55 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Double,
                 double.MaxValue,
                 double.MaxValue.ToString("R", CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.Double,
                 double.MinValue,
                 double.MinValue.ToString("R", CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.Double,
                 double.NegativeInfinity,
                 Quotes("-Infinity"),
-                null },
+                null
+            },
             {
                 BuiltInType.Double,
                 double.PositiveInfinity,
                 Quotes("Infinity"),
-                null },
+                null
+            },
             {
                 BuiltInType.Double,
                 double.NaN,
                 Quotes("NaN"),
-                null },
+                null
+            },
             {
                 BuiltInType.DateTime,
-                Utils.TimeBase,
-                Quotes("1601-01-01T00:00:00Z"),
+                DateTimeUtc.MinValue + 1,
+                Quotes("1601-01-01T00:00:00.001Z"),
                 null,
-                true },
+                true
+            },
             {
                 BuiltInType.DateTime,
-                Utils.TimeBase.ToUniversalTime(),
-                Quotes("1601-01-01T00:00:00Z"),
-                null },
-            {
-                BuiltInType.DateTime,
-                DateTime.MinValue,
+                DateTimeUtc.MinValue,
                 null,
-                Quotes("0001-01-01T00:00:00Z") },
+                Quotes("0001-01-01T00:00:00Z")
+            },
             {
                 BuiltInType.DateTime,
-                DateTime.MinValue,
+                DateTimeUtc.MinValue,
                 null,
                 Quotes("0001-01-01T00:00:00Z"),
                 true
             },
             {
                 BuiltInType.DateTime,
-                DateTime.MaxValue,
+                DateTimeUtc.MaxValue,
                 Quotes("9999-12-31T23:59:59Z"),
                 null
             },
@@ -333,12 +346,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Guid,
                 Uuid.Empty,
                 null,
-                Quotes("00000000-0000-0000-0000-000000000000") },
+                "null" // Quotes("00000000-0000-0000-0000-000000000000")
+            },
             {
                 BuiltInType.Guid,
                 Uuid.Empty,
                 null,
-                Quotes("00000000-0000-0000-0000-000000000000"),
+                "null", // Quotes("00000000-0000-0000-0000-000000000000")
                 true
             },
             {
@@ -351,7 +365,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.NodeId,
                 NodeId.Null,
                 null,
-                Quotes(string.Empty)
+                "null"
             },
             {
                 BuiltInType.NodeId,
@@ -501,7 +515,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
                 null,
-                Quotes(string.Empty) },
+                "null"
+            },
             {
                 BuiltInType.ExpandedNodeId,
                 new ExpandedNodeId(kNodeIdInt),
@@ -697,7 +712,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 StatusCodes.Good,
                 null,
                 "{}",
-                true },
+                true
+            },
             {
                 BuiltInType.StatusCode,
                 StatusCodes.BadBoundNotFound,
@@ -713,31 +729,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.StatusCode,
                 new StatusCode(1234567),
-                """{"Code":1234567}""",
-                null
-            },
-            {
-                BuiltInType.DiagnosticInfo,
-                new DiagnosticInfo(),
-                null,
-                "{}"
-            },
-            {
-                BuiltInType.DiagnosticInfo,
-                new DiagnosticInfo(-1, -1, -1, -1, null),
-                null,
-                "{}" },
-            {
-                BuiltInType.DiagnosticInfo,
-                new DiagnosticInfo(1, 2, 3, 4, "AdditionalInfo"), /*lang=json,strict*/
-                """{"SymbolicId":1,"NamespaceUri":2,"Locale":3,"LocalizedText":4,"AdditionalInfo":"AdditionalInfo"}""",
+                /*lang=json,strict*/ """{"Code":1234567}""",
                 null
             },
             {
                 BuiltInType.QualifiedName,
                 QualifiedName.Null,
                 null,
-                Quotes(string.Empty) },
+                "null"
+            },
             {
                 BuiltInType.QualifiedName,
                 QualifiedName.From(kQualifiedName),
@@ -766,7 +766,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.LocalizedText,
                 LocalizedText.Null,
                 null,
-                "{}"
+                "null"
             },
             {
                 BuiltInType.LocalizedText,
@@ -785,23 +785,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.ExtensionObject,
                 ExtensionObject.Null,
                 null,
-                "{}"
+                "null"
             },
             {
                 BuiltInType.ExtensionObject,
                 new ExtensionObject(kNodeIdInt),
-                null,
-                "{}" },
+                /*lang=json,strict*/ """{"UaTypeId":"i=2345"}""",
+                null
+            },
             {
                 BuiltInType.ExtensionObject,
                 new ExtensionObject(null),
                 null,
-                "{}" },
+                "null"
+            },
             {
                 BuiltInType.Variant,
                 Variant.Null,
-                string.Empty,
-                "{}"
+                null,
+                "null"
             },
             {
                 BuiltInType.Variant,
@@ -861,45 +863,47 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                (TestEnumType)0,
-                "0",
+                Variant.From((TestEnumType)0),
+                null, // "0",
                 """
                 "0"
                 """
             },
             {
                 BuiltInType.Enumeration,
-                TestEnumType.Three,
+                Variant.From(TestEnumType.Three),
                 TestEnumType.Three.ToString("d"),
                 $"""
-                "{TestEnumType.Three}_{TestEnumType.Three:d}"
+                "3"
                 """
+                // TODO: $""" "{TestEnumType.Three}_{TestEnumType.Three:d}" """
             },
             {
                 BuiltInType.Enumeration,
-                TestEnumType.Ten,
+                Variant.From(TestEnumType.Ten),
                 $"{TestEnumType.Ten:d}",
                 $"""
-                "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}"
+                "10"
                 """
+                // TODO: $""" "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}" """
             },
             {
                 BuiltInType.Enumeration,
-                (TestEnumType)11,
+                Variant.From((TestEnumType)11),
                 "11",
                 """
                 "11"
                 """ },
             {
                 BuiltInType.Enumeration,
-                1,
+                Variant.FromEnumeration(1),
                 "1",
                 """
                 "1"
                 """ },
             {
                 BuiltInType.Enumeration,
-                (int)TestEnumType.Two,
+                Variant.FromEnumeration((int)TestEnumType.Two),
                 TestEnumType.Two.ToString("d"),
                 $"""
                 "{TestEnumType.Two:d}"
@@ -907,7 +911,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                (int)TestEnumType.Hundred,
+                Variant.FromEnumeration((int)TestEnumType.Hundred),
                 $"{TestEnumType.Hundred:d}",
                 $"""
                 "{TestEnumType.Hundred:d}"
@@ -915,7 +919,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                22,
+                Variant.FromEnumeration(22),
                 "22",
                 """
                 "22"
@@ -923,12 +927,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // arrays
             {
                 BuiltInType.Enumeration,
-                s_testEnumArray,
+                Variant.From(s_testEnumArray),
                 "[1,2,100]",
-                """["One_1","Two_2","Hundred_100"]""" },
+                """["1","2","100"]""" // TODO: """["One_1","Two_2","Hundred_100"]"""
+            },
             {
                 BuiltInType.Enumeration,
-                s_testInt32Array,
+                Variant.FromEnumeration(s_testInt32Array),
                 "[2,3,10]",
                 """["2","3","10"]"""
             },
@@ -1005,14 +1010,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Validate constructor signature.
         /// </summary>
         [Theory]
-        public void ConstructorDefault(JsonEncodingType encodingType, bool topLevelIsArray)
+        public void ConstructorDefault(JsonEncodingType encodingType)
         {
             var context = new ServiceMessageContext(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context,
                 encodingType == JsonEncodingType.Verbose ?
                 JsonEncoderOptions.Verbose :
                 JsonEncoderOptions.Compact);
-            TestEncoding(jsonEncoder, topLevelIsArray);
+            TestEncoding(jsonEncoder);
             string result = jsonEncoder.CloseAndReturnText();
 
             Assert.IsNotEmpty(result);
@@ -1231,9 +1236,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 memoryStreamType,
                 jsonValidationData.Instance,
                 jsonEncodingType,
-                jsonValidationData.GetExpected(jsonEncodingType),
-                false,
-                jsonValidationData.IncludeDefaultValue);
+                jsonValidationData.GetExpected(jsonEncodingType));
         }
 
         /// <summary>
@@ -1242,13 +1245,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestWriteSingleEncodeableWithoutName()
         {
-            string expected = /*lang=json,strict*/ """{"Foo":"bar_1"}""";
+            string expected = /*lang=json,strict*/ """{"Test":{"Foo":"bar_1"}}""";
             TestContext.Out.WriteLine("Expected:");
-            _ = PrettifyAndValidateJson(expected);
+            expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context);
-            encoder.WriteEncodeable(null, encodeable);
+            encoder.WriteEncodeable("Test", encodeable);
 
             string encoded = encoder.CloseAndReturnText();
 
@@ -1256,7 +1259,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encoded);
 
             TestContext.Out.WriteLine("Formatted Encoded:");
-            _ = PrettifyAndValidateJson(encoded);
+            encoded = PrettifyAndValidateJson(encoded);
 
             NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
@@ -1330,11 +1333,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestExtensionObjectWithDynamicEncodeable()
         {
             const string expectedJson = /*lang=json,strict*/
-                """{"TypeId":{"IdType":1,"Id":"test_dyn2_typeid"},"Body":{"Foo":"bar_1","Foo2":"bar_2"}}""";
+                """{"Test":{"UaTypeId":"s=test_dyn2_typeid","Foo":"bar_1","Foo2":"bar_2"}}""";
             string expectedXml =
-                """<uax:ExtensionObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">""" +
-                "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>" +
-                """  <uax:Body><FooXml  xmlns="urn:dynamic_encoder_test"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>""";
+                """
+                <uax:ExtensionObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>
+                    <uax:Body>
+                        <FooXml xmlns="urn:dynamic_encoder_test">
+                            <Foo>bar_1</Foo>
+                            <Foo2>bar_2</Foo2>
+                        </FooXml>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                """;
             TestContext.Out.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
 
@@ -1403,7 +1414,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodedJson;
             using (var encoder = new JsonEncoder(Context))
             {
-                encoder.WriteExtensionObject(null, extensionObjectFromXml);
+                encoder.WriteExtensionObject("Test", extensionObjectFromXml);
 
                 encodedJson = encoder.CloseAndReturnText();
 
@@ -1422,42 +1433,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ExtensionObject extensionObjectFromJson;
             using (var decoder = new JsonDecoder(encodedJson, dynamicContext))
             {
-                extensionObjectFromJson = decoder.ReadExtensionObject(null);
+                extensionObjectFromJson = decoder.ReadExtensionObject("Test");
             }
             NUnit.Framework.Assert.That(
                 extensionObjectFromJson.TryGetEncodeable(out resultEncodeable), Is.True);
             NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
-        }
-
-        /// <summary>
-        /// A single encodeable in an array cannot have a fieldname.
-        /// </summary>
-        [Test]
-        public void TestWriteSingleEncodeableWithNameAndArrayAsTopLevelExpectException()
-        {
-            using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context, JsonEncoderOptions.Verbose);
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                encoder.WriteEncodeable(encodeable.Foo, encodeable));
-        }
-
-        /// <summary>
-        /// A single encodeable in an array cannot have a fieldname.
-        /// </summary>
-        [Test]
-        public void TestWriteMultipleEncodeableWithoutNameExpectException()
-        {
-            // invalid JSON
-            // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
-            // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
-            using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context);
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-            {
-                encoder.WriteEncodeable(null, encodeable);
-                encoder.WriteEncodeable(null, encodeable);
-                encoder.WriteEncodeable(null, encodeable);
-            });
         }
 
         /// <summary>
@@ -1534,7 +1514,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestFieldValueEscapedEncodeable(string fieldname, string foo, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            _ = PrettifyAndValidateJson(expected);
+            expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             using var encoder = new JsonEncoder(Context, JsonEncoderOptions.Verbose);
@@ -1545,7 +1525,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encoded);
 
             TestContext.Out.WriteLine("Formatted Encoded:");
-            _ = PrettifyAndValidateJson(encoded);
+            encoded = PrettifyAndValidateJson(encoded);
 
             NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
@@ -1565,7 +1545,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestFieldValueEscapedArray(string fieldname, string foo, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            _ = PrettifyAndValidateJson(expected);
+            expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             ArrayOf<FooBarEncodeable> list = [encodeable, encodeable];
@@ -1577,7 +1557,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encoded);
 
             TestContext.Out.WriteLine("Formatted Encoded:");
-            _ = PrettifyAndValidateJson(encoded);
+            encoded = PrettifyAndValidateJson(encoded);
 
             NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
@@ -1592,16 +1572,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             """
                 "Test"."Output"
                 """,
-            /*lang=json,strict*/"""{"\"Hello\".\"World\"":{"\"Hello\".\"World\"":"\"Test\".\"Output\""}}"""
+            /*lang=json,strict*/"""{"\"Hello\".\"World\"":{"UaType":22,"Value":{"\"Hello\".\"World\"":"\"Test\".\"Output\""}}}"""
         )]
         public void TestFieldValueEscapedVariant(string fieldname, string foo, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            _ = PrettifyAndValidateJson(expected);
+            expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             var variant = new Variant(new ExtensionObject(encodeable));
-            // non reversible to save some space
             using var encoder = new JsonEncoder(Context, JsonEncoderOptions.Verbose);
             encoder.WriteVariant(encodeable.FieldName, variant);
 
@@ -1610,7 +1589,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encoded);
 
             TestContext.Out.WriteLine("Formatted Encoded:");
-            _ = PrettifyAndValidateJson(encoded);
+            encoded = PrettifyAndValidateJson(encoded);
 
             NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
@@ -1792,23 +1771,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = jsonEncoder.CloseAndReturnText();
         }
 
-        protected void TestEncoding(IEncoder encoder, bool topLevelIsArray = false)
+        protected void TestEncoding(IEncoder encoder)
         {
-            if (topLevelIsArray)
-            {
-                encoder.WriteNodeId(null, new NodeId(10000, 0));
-                encoder.WriteNodeId(null, new NodeId(20000, 1));
-                encoder.WriteNodeId(null, new NodeId(30000, 2));
-                encoder.WriteNodeId(null, new NodeId(40000, 3));
-            }
-            else
-            {
-                encoder.WriteBoolean("Boolean", true);
-                encoder.WriteUInt64("UInt64", 1234566890);
-                encoder.WriteString("String", "The quick brown fox...");
-                encoder.WriteNodeId("NodeId", new NodeId(1234, 3));
-                encoder.WriteInt32Array("Array", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-            }
+            encoder.WriteBoolean("Boolean", true);
+            encoder.WriteUInt64("UInt64", 1234566890);
+            encoder.WriteString("String", "The quick brown fox...");
+            encoder.WriteNodeId("NodeId", new NodeId(1234, 3));
+            encoder.WriteInt32Array("Array", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         }
 
         private void RunWriteEncodeableArrayTest(

@@ -69,21 +69,19 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         [Category("WriteValue")]
         public void MatrixIndexRangeValidationTest()
         {
-            int[,] int3x3Matrix = new int[,]
+            MatrixOf<int> int3x3Matrix = new int[,]
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
                 { 7, 8, 9 }
             };
 
-            var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
-
             // Positive test
             var writeValue = new WriteValue
             {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue(new Variant(matrix)),
+                Value = new DataValue(Variant.From(int3x3Matrix)),
                 IndexRange = "1,1"
             };
 

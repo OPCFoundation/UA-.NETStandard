@@ -727,9 +727,11 @@ namespace Opc.Ua
         /// <param name="namespaceTable">The namespace table that contains all
         /// the namespaces needed to resolve the namespace index as encoded within
         /// this object. </param>
+        /// <param name="updateNamespaceTable">Update the namespace table.</param>
         public static NodeId ToNodeId(
             ExpandedNodeId nodeId,
-            NamespaceTable namespaceTable)
+            NamespaceTable namespaceTable,
+            bool updateNamespaceTable = false)
         {
             // check for null.
             if (nodeId.IsNull)
@@ -751,7 +753,9 @@ namespace Opc.Ua
 
             if (namespaceTable != null)
             {
-                index = namespaceTable.GetIndex(nodeId.NamespaceUri);
+                index = updateNamespaceTable ?
+                    namespaceTable.GetIndexOrAppend(nodeId.NamespaceUri) :
+                    namespaceTable.GetIndex(nodeId.NamespaceUri);
             }
 
             if (index < 0)

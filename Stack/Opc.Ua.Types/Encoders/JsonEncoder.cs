@@ -1219,21 +1219,26 @@ namespace Opc.Ua
         private void WriteEnumerated<T>(T value) where T : struct, Enum
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            string numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (m_options.EnumerationAsNumber)
             {
-                m_writer.WriteStringValue(numericString);
+                m_writer.WriteNumberValue(numeric);
                 return;
             }
-            string valueString = value.ToString();
-            if (valueString == numericString)
+            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", value, numeric));
+        }
+
+        /// <summary>
+        /// Write enumeration as integer
+        /// </summary>
+        private void WriteEnumerated(int value)
+        {
+            int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            if (m_options.EnumerationAsNumber)
             {
-                m_writer.WriteStringValue(numericString);
+                m_writer.WriteNumberValue(numeric);
+                return;
             }
-            else
-            {
-                m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", valueString, numeric));
-            }
+            m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
         }
 
         /// <summary>
@@ -1241,6 +1246,19 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         private void WriteEnumeratedArray<T>(ArrayOf<T> values) where T : struct, Enum
+        {
+            StartArray(values.Count);
+            for (int i = 0; i < values.Count; i++)
+            {
+                WriteEnumerated(values.Span[i]);
+            }
+            EndArray();
+        }
+
+        /// <summary>
+        /// Write enumeration values as integers
+        /// </summary>
+        private void WriteEnumeratedArray(ArrayOf<int> values)
         {
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -1295,50 +1313,40 @@ namespace Opc.Ua
 
             StartObject();
 
-            if (encodeable != null)
+            if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
             {
-                if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
-                {
-                    WriteNodeId(JsonProperties.UaTypeId, localTypeId);
-                }
-                encodeable.Encode(this);
+                WriteNodeId(JsonProperties.UaTypeId, localTypeId);
             }
-            else if (value.TryGetAsJson(out string text))
+            switch (value.Encoding)
             {
-                if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
-                {
-                    WriteNodeId(JsonProperties.UaTypeId, localTypeId);
-                }
-                // Write inline without object curly braces
-                text = text.Trim();
-                if (text.Length > 1 && text[0] == '{' && text[^1] == '}')
-                {
-                    m_writer.WriteRawValue(text[1..^1]);
-                }
-            }
-            else if (value.Encoding == ExtensionObjectEncoding.Binary)
-            {
-                if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
-                {
-                    WriteNodeId(JsonProperties.UaTypeId, localTypeId);
-                }
-
-                WriteByte(JsonProperties.UaEncoding, (byte)ExtensionObjectEncoding.Binary);
-                WriteByteString(
-                    JsonProperties.UaBody,
-                    value.TryGetAsBinary(out ByteString b) ? b : default);
-            }
-            else if (value.Encoding == ExtensionObjectEncoding.Xml)
-            {
-                if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
-                {
-                    WriteNodeId(JsonProperties.UaTypeId, localTypeId);
-                }
-
-                WriteByte(JsonProperties.UaEncoding, (byte)ExtensionObjectEncoding.Xml);
-                WriteXmlElement(
-                    JsonProperties.UaBody,
-                    value.TryGetAsXml(out XmlElement x) ? x : default);
+                case ExtensionObjectEncoding.Json:
+                    if (!value.TryGetAsJson(out string rawJson))
+                    {
+                        break;
+                    }
+                    // Write inline without object curly braces
+                    rawJson = rawJson.Trim();
+                    if (rawJson.Length > 1 && rawJson[0] == '{' && rawJson[^1] == '}')
+                    {
+                        m_writer.WriteRawValue(rawJson[1..^1]);
+                    }
+                    break;
+                case ExtensionObjectEncoding.Binary:
+                    WriteByte(JsonProperties.UaEncoding, (byte)ExtensionObjectEncoding.Binary);
+                    WriteByteString(
+                        JsonProperties.UaBody,
+                        value.TryGetAsBinary(out ByteString b) ? b : default);
+                    break;
+                case ExtensionObjectEncoding.Xml:
+                    WriteByte(JsonProperties.UaEncoding, (byte)ExtensionObjectEncoding.Xml);
+                    WriteXmlElement(
+                        JsonProperties.UaBody,
+                        value.TryGetAsXml(out XmlElement x) ? x : default);
+                    break;
+                default:
+                    // Encode inline into the current object or do nothing here
+                    encodeable?.Encode(this);
+                    break;
             }
 
             EndObject();
@@ -1851,6 +1859,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         m_writer.WriteNumberValue(value.GetUInt16());
                         return;
+                    case BuiltInType.Enumeration when writeRawValue:
+                        WriteEnumerated(value.GetInt32());
+                        break;
                     // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
@@ -1941,8 +1952,11 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         WriteUInt16Array(value.GetUInt16Array());
                         break;
-                    case BuiltInType.Int32:
+                    case BuiltInType.Enumeration when writeRawValue:
+                        WriteEnumeratedArray(value.GetInt32Array());
+                        break;
                     case BuiltInType.Enumeration:
+                    case BuiltInType.Int32:
                         WriteInt32Array(value.GetInt32Array());
                         break;
                     case BuiltInType.UInt32:
@@ -2040,8 +2054,11 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         WriteUInt16Array(value.GetUInt16Matrix().ToArrayOf(out dim));
                         break;
-                    case BuiltInType.Int32:
+                    case BuiltInType.Enumeration when writeRawValue:
+                        WriteEnumeratedArray(value.GetInt32Matrix().ToArrayOf(out dim));
+                        break;
                     case BuiltInType.Enumeration:
+                    case BuiltInType.Int32:
                         WriteInt32Array(value.GetInt32Matrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.UInt32:

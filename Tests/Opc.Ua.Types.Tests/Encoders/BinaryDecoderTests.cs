@@ -1120,7 +1120,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadVariantValueThrowsForOneDimensionWithNullBuiltInTypeAndNoEncodeableType()
+        public void ReadVariantValueReturnsVariantNullForUnknownTypeInfo()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1129,11 +1129,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadVariantValue(
-                    null,
-                    TypeInfo.Create(BuiltInType.Null, ValueRanks.OneDimension)));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Variant variant = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Null, ValueRanks.TwoDimensions));
+            Assert.That(variant.IsNull, Is.True);
         }
 
         [Test]
@@ -2895,7 +2894,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             var mockFactory = new Mock<IEncodeableFactory>();
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestComplexTypeInstance));
-            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestComplexTypeInstance());
+            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestComplexTypeInstance
+            {
+                // Create instance sets it to the type id
+                TypeId = new ExpandedNodeId(1234)
+            });
             IEncodeableType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
                 .Returns(true);
@@ -4548,8 +4551,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var sourceTime = (DateTimeUtc)new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
-            var serverTime = (DateTimeUtc)new DateTime(2024, 6, 15, 12, 0, 1, DateTimeKind.Utc);
+            var sourceTime = new DateTimeUtc(2024, 6, 15, 12, 0, 0);
+            var serverTime = new DateTimeUtc(2024, 6, 15, 12, 0, 1);
             var dataValue = new DataValue
             {
                 Value = new Variant(42),
@@ -4989,7 +4992,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var dt = (DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var dt = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
 
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<DateTimeUtc> values = [dt];

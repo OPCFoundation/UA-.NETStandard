@@ -102,9 +102,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             object element = input.GetValue(index % input.Length);
 
-            if (element is byte[] oid)
+            if (element is ByteString oid)
             {
-                return Convert.ToBase64String(oid);
+                return oid.ToBase64();
             }
 
             if (element is string sid)
@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
                 }
 
-""";
+            """;
 
             var context = new ServiceMessageContext(telemetry);
 
@@ -401,11 +401,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
                 }
 
-""";
+            """;
 
             var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
-            EncoderCommon.PrettifyAndValidateJson(expected, true);
+            string expected = EncoderCommon.PrettifyAndValidateJson(
+                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
 
             var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -436,8 +436,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     Get(OpaqueIds, index),
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
-            string actual = encoder.CloseAndReturnText();
-            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            string actual = EncoderCommon.PrettifyAndValidateJson(encoder.CloseAndReturnText(), true);
             Assert.AreEqual(expected, actual);
         }
 
@@ -472,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 )}}"
                 }
 
-""";
+            """;
 
             var context = new ServiceMessageContext(telemetry);
 
@@ -520,8 +519,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 """;
 
             var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
-            EncoderCommon.PrettifyAndValidateJson(expected, true);
+            string expected = EncoderCommon.PrettifyAndValidateJson(
+                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
 
             var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -582,8 +581,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     null,
                     (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
-            string actual = encoder.CloseAndReturnText();
-            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            string actual = EncoderCommon.PrettifyAndValidateJson(
+                encoder.CloseAndReturnText(), true);
             Assert.AreEqual(expected, actual);
         }
 
@@ -680,54 +679,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        public void DecodeReversibleQualifiedName()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var context1 = new ServiceMessageContext(telemetry);
-            context1.NamespaceUris.Append(NamespaceUris[0]);
-            context1.NamespaceUris.Append(NamespaceUris[1]);
-            context1.NamespaceUris.Append(NamespaceUris[2]);
-
-            string data = $$"""
-
-                {
-                    "D0": { "Name": "ServerStatus" },
-                    "D1": { "Name": "N1", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))}} },
-                    "D2": { "Name": "N2", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 1))}} },
-                    "D3": { "Name": "N3", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 2))}} },
-                    "D4": { "Name": "N4", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 3))}} }
-                }
-
-""";
-
-            var context2 = new ServiceMessageContext(telemetry);
-            context2.NamespaceUris.Append(NamespaceUris[2]);
-            context2.NamespaceUris.Append(NamespaceUris[0]);
-            context2.NamespaceUris.Append(NamespaceUris[1]);
-
-            using var decoder = new JsonDecoder(data, context2, new JsonDecoderOptions
-            {
-                UpdateNamespaceTable = true
-            });
-            decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
-            CheckDecodedQualfiiedNames(context2, decoder, 0);
-        }
-
-        [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string data = /*lang=json,strict*/
                 """
-
                 {
-                    "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
-                    "D1": { "Dimensions": [ 1, 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] }
+                    "D0": { "Dimensions": [ 2, 3 ], "Array": [ "1", "2", "3", "4", "5", "6" ] },
+                    "D1": { "Dimensions": [ 1, 2, 3 ], "Array": [ "1", "2", "3", "4", "5", "6" ] }
                 }
-
-""";
+                """;
 
             var context = new ServiceMessageContext(telemetry);
 
@@ -759,11 +721,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 """
 
                 {
-                    "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
-                    "D1": { "Dimensions": [ 1, 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] }
+                    "D0": { "Array": [ 1, 2, 3, 4, 5, 6 ], "Dimensions": [ 2, 3 ] },
+                    "D1": { "Array": [ 1, 2, 3, 4, 5, 6 ], "Dimensions": [ 1, 2, 3 ] }
                 }
 
-""";
+            """;
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -812,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     },
                     "D1": {
                         "UaType": 22,
-                        "Body": {
+                        "Value": {
                             "UaTypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
                             "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
                             "ApplicationUri": "urn:localhost:test.org:client",
@@ -824,7 +786,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
 
-""";
+            """;
 
             var context = new ServiceMessageContext(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
@@ -925,27 +887,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 {
                     "D0": {
-                        "TypeId": "i=884",
-                        "Body": { "Low": 0, "High": 9876.5432 }
+                        "UaTypeId": "i=884",
+                        "Low": 0,
+                        "High": 9876.5432
                     },
                     "D1": {
-                        "Type": 22,
-                        "Body": {
-                            "TypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
-                            "Body": {
-                                "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
-                                "ApplicationUri": "urn:localhost:test.org:client",
-                                "ApplicationType": "Client_1",
-                                "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
-                                "ProductUri": "http://test.org/client",
-                                "DiscoveryUrls": ["opc.tcp://localhost/"],
-                                "ServerCapabilities": []
-                            }
+                        "UaType": 22,
+                        "Value": {
+                            "UaTypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
+                            "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
+                            "ApplicationUri": "urn:localhost:test.org:client",
+                            "ApplicationType": "Client_1",
+                            "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                            "ProductUri": "http://test.org/client",
+                            "DiscoveryUrls": ["opc.tcp://localhost/"],
+                            "ServerCapabilities": []
                         }
                     }
                 }
 
-""";
+            """;
 
             var context = new ServiceMessageContext(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
@@ -1036,106 +997,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
             Assert.AreEqual(expected, actual);
-        }
-
-        [Test]
-        public void DecodeReversibleExtensionObject()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            const string data = /*lang=json,strict*/
-                """
-
-                {
-                    "D0": {
-                        "TypeId": { "Id": 884 },
-                        "Body": { "High": 9876.5432 }
-                    },
-                    "D1": {
-                        "Type": 22,
-                        "Body": {
-                            "TypeId": { "Id": 1, "Namespace": 2 },
-                            "Body": {
-                                "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":1 },
-                                "ApplicationUri": "urn:localhost:test.org:client",
-                                "ApplicationType": 1,
-                                "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
-                                "ProductUri": "http://test.org/client",
-                                "DiscoveryUrls": ["opc.tcp://localhost/"]
-                            }
-                        }
-                    }
-                }
-
-""";
-
-            var context = new ServiceMessageContext(telemetry);
-            context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
-            context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
-
-            using var decoder = new JsonDecoder(data, context);
-            ExtensionObject eo = decoder.ReadExtensionObject("D0");
-            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
-            Assert.IsNotNull(range);
-            Assert.AreEqual(0, range.Low);
-            Assert.AreEqual(9876.5432, range.High);
-
-            Variant v1 = decoder.ReadVariant("D1");
-            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
-
-            eo = v1.GetExtensionObject();
-            Assert.IsNotNull(eo);
-            Assert.AreEqual(
-                Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
-                eo.TypeId.ToString());
-
-            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
-            Assert.IsNotNull(record);
-            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
-        }
-
-        [Test]
-        public void DecodeNonReversibleExtensionObject()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            const string data = /*lang=json,strict*/
-                """
-
-                {
-                    "D0": { "Low": 0, "High": 9876.5432 },
-                    "D1": {
-                        "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":"urn:localhost:server" },
-                        "ApplicationUri": "urn:localhost:test.org:client",
-                        "ApplicationType": "Client_1",
-                        "ApplicationNames": ["Test Client"],
-                        "ProductUri": "http://test.org/client",
-                        "DiscoveryUrls": ["opc.tcp://localhost/"],
-                        "ServerCapabilities": []
-                    }
-                }
-
-""";
-
-            var context = new ServiceMessageContext(telemetry);
-            context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
-
-            using var decoder = new JsonDecoder(data, context);
-            var range = decoder.ReadEncodeable<Range>("D0");
-            Assert.IsNotNull(range);
-            Assert.AreEqual(0, range.Low);
-            Assert.AreEqual(9876.5432, range.High);
-
-            var record =
-                decoder.ReadEncodeable<Gds.ApplicationRecordDataType>(
-                    "D1");
-            Assert.IsNotNull(record);
-            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
         }
     }
 }

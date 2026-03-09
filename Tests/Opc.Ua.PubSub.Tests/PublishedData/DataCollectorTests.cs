@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataStore.WritePublishedDataItem(
                 new NodeId("DateTime", NamespaceIndex),
                 0,
-                new DataValue(new Variant(DateTime.MaxValue)));
+                new DataValue(new Variant(DateTimeUtc.MaxValue)));
 
             var dataCollector = new DataCollector(dataStore, telemetry);
 
@@ -211,21 +211,21 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             // validate collected values
             Assert.AreEqual(
-                collectedDataSet.Fields[0].Value.Value,
+                collectedDataSet.Fields[0].Value.WrappedValue.GetBoolean(),
                 false,
-                "collectedDataSet.Fields[0].Value.Value does not match.");
+                "collectedDataSet.Fields[0].Value does not match.");
             Assert.AreEqual(
-                collectedDataSet.Fields[1].Value.Value,
+                collectedDataSet.Fields[1].Value.WrappedValue.GetInt32(),
                 1,
-                "collectedDataSet.Fields[1].Value.Value does not match.");
+                "collectedDataSet.Fields[1].Value does not match.");
             Assert.AreEqual(
-                collectedDataSet.Fields[2].Value.Value,
+                collectedDataSet.Fields[2].Value.WrappedValue.GetInt32(),
                 2,
-                "collectedDataSet.Fields[2].Value.Value does not match.");
+                "collectedDataSet.Fields[2].Value does not match.");
             Assert.AreEqual(
-                collectedDataSet.Fields[3].Value.Value,
-                DateTime.MaxValue,
-                "collectedDataSet.Fields[3].Value.Value does not match.");
+                collectedDataSet.Fields[3].Value.WrappedValue.GetDateTime(),
+                DateTimeUtc.MaxValue,
+                "collectedDataSet.Fields[3].Value does not match.");
         }
 
         [Test(Description = "Validate CollectData from ExtensionFields.")]
@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 "collectedDataSet.Fields[2].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[3].Value.Value,
-                DateTime.Today,
+                new DateTimeUtc(DateTime.Today),
                 "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 

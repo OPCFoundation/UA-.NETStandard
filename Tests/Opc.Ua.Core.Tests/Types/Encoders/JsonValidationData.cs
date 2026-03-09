@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public void Add(
             BuiltInType builtInType,
-            object instance,
+            Variant instance,
             string expectedCompact,
             string expectedVerbose)
         {
@@ -107,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
+                    Instance = instance,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose
                 });
@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public void Add(
             BuiltInType builtInType,
-            object instance,
+            Variant instance,
             string expectedCompact,
             string expectedVerbose,
             bool includeDefaultValue)
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
+                    Instance = instance,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose,
                     IncludeDefaultValue = includeDefaultValue

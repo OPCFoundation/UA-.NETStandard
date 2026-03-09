@@ -835,54 +835,60 @@ namespace Opc.Ua.Test
         /// Get random array value wrapped in a variant.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomArrayVariant(BuiltInType builtInType, int length)
+        public Variant GetRandomArrayVariant(
+            BuiltInType builtInType,
+            int length,
+            bool useBoundaryValues = true,
+            bool fixedLength = true)
         {
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
-                    return Variant.From(GetRandomArray<bool>(true, length, true));
+                    return Variant.From(GetRandomArray<bool>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.SByte:
-                    return Variant.From(GetRandomArray<sbyte>(true, length, true));
+                    return Variant.From(GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Byte:
-                    return Variant.From(GetRandomArray<byte>(true, length, true));
+                    return Variant.From(GetRandomArray<byte>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Int16:
-                    return Variant.From(GetRandomArray<short>(true, length, true));
+                    return Variant.From(GetRandomArray<short>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.UInt16:
-                    return Variant.From(GetRandomArray<ushort>(true, length, true));
+                    return Variant.From(GetRandomArray<ushort>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Int32:
-                    return Variant.From(GetRandomArray<int>(true, length, true));
+                    return Variant.From(GetRandomArray<int>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.UInt32:
-                    return Variant.From(GetRandomArray<uint>(true, length, true));
+                    return Variant.From(GetRandomArray<uint>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Int64:
-                    return Variant.From(GetRandomArray<long>(true, length, true));
+                    return Variant.From(GetRandomArray<long>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.UInt64:
-                    return Variant.From(GetRandomArray<ulong>(true, length, true));
+                    return Variant.From(GetRandomArray<ulong>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Float:
-                    return Variant.From(GetRandomArray<float>(true, length, true));
+                    return Variant.From(GetRandomArray<float>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Double:
-                    return Variant.From(GetRandomArray<double>(true, length, true));
+                    return Variant.From(GetRandomArray<double>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.String:
-                    return Variant.From(GetRandomArray<string>(true, length, true));
+                    return Variant.From(GetRandomArray<string>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.DateTime:
-                    return Variant.From(GetRandomArray<DateTimeUtc>(true, length, true));
+                    return Variant.From(GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Guid:
-                    return Variant.From(GetRandomArray<Uuid>(true, length, true));
+                    return Variant.From(GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.ByteString:
-                    return Variant.From(GetRandomArray<ByteString>(true, length, true));
+                    return Variant.From(GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.XmlElement:
-                    return Variant.From(GetRandomArray<XmlElement>(true, length, true));
+                    return Variant.From(GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.NodeId:
-                    return Variant.From(GetRandomArray<NodeId>(true, length, true));
+                    return Variant.From(GetRandomArray<NodeId>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.ExpandedNodeId:
-                    return Variant.From(GetRandomArray<ExpandedNodeId>(true, length, true));
+                    return Variant.From(GetRandomArray<ExpandedNodeId>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.QualifiedName:
-                    return Variant.From(GetRandomArray<QualifiedName>(true, length, true));
+                    return Variant.From(GetRandomArray<QualifiedName>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.LocalizedText:
-                    return Variant.From(GetRandomArray<LocalizedText>(true, length, true));
+                    return Variant.From(GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.StatusCode:
-                    return Variant.From(GetRandomArray<StatusCode>(true, length, true));
+                    return Variant.From(GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Variant:
-                    return Variant.From(GetRandomVariantArray(true, length, true));
+                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Enumeration:
+                    return Variant.FromEnumeration(GetRandomArray<int>(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Null:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
@@ -890,8 +896,103 @@ namespace Opc.Ua.Test
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
+                    return Variant.Null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {builtInType}");
+            }
+        }
+
+        /// <summary>
+        /// Get random matrix value wrapped in a variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant GetRandomMatrixVariant(
+            BuiltInType builtInType,
+            int length,
+            int[] dimensions,
+            bool useBoundaryValues = true,
+            bool fixedLength = true)
+        {
+            switch (builtInType)
+            {
+                case BuiltInType.Boolean:
+                    return Variant.From(GetRandomArray<bool>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.SByte:
+                    return Variant.From(GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Byte:
+                    return Variant.From(GetRandomArray<byte>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int16:
+                    return Variant.From(GetRandomArray<short>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt16:
+                    return Variant.From(GetRandomArray<ushort>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int32:
+                    return Variant.From(GetRandomArray<int>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt32:
+                    return Variant.From(GetRandomArray<uint>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int64:
+                    return Variant.From(GetRandomArray<long>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt64:
+                    return Variant.From(GetRandomArray<ulong>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Float:
+                    return Variant.From(GetRandomArray<float>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Double:
+                    return Variant.From(GetRandomArray<double>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.String:
+                    return Variant.From(GetRandomArray<string>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.DateTime:
+                    return Variant.From(GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Guid:
+                    return Variant.From(GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.ByteString:
+                    return Variant.From(GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.XmlElement:
+                    return Variant.From(GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.NodeId:
+                    return Variant.From(GetRandomArray<NodeId>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(GetRandomArray<ExpandedNodeId>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(GetRandomArray<QualifiedName>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.StatusCode:
+                    return Variant.From(GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Variant:
+                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
                 case BuiltInType.Enumeration:
-                    return Variant.From(GetRandomScalar(builtInType));
+                    return Variant.FromEnumeration(GetRandomArray<int>(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    return Variant.Null;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {builtInType}");
@@ -1247,7 +1348,7 @@ namespace Opc.Ua.Test
                 DateTimeUtc.MaxValue,
                 new DateTimeUtc(1099, 1, 1),
                 new DateTimeUtc(2039, 4, 4),
-                (DateTimeUtc)new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
+                new DateTimeUtc(new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local))
             ),
             new(BuiltInType.Guid, Uuid.Empty),
             new(BuiltInType.ByteString, ByteString.Empty, (ByteString)default),

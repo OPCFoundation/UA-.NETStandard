@@ -170,7 +170,7 @@ namespace Opc.Ua
             {
                 if (!encodingId.IsNull)
                 {
-                    IEncodeableType? type = ReflectionBasedType.From(systemType);
+                    IEncodeableType? type = ReflectionBasedType.From(systemType, encodingId);
                     if (type != null)
                     {
                         m_encodeableTypes[encodingId] = type;
@@ -360,7 +360,8 @@ namespace Opc.Ua
             /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
             /// referenced by object name.</param>
             /// <exception cref="InvalidOperationException"></exception>
-            private void AddEncodeableType(IEncodeableType encodeableType,
+            private void AddEncodeableType(
+                IEncodeableType encodeableType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
                 if (encodeableType.Type.IsEnum)
@@ -384,6 +385,11 @@ namespace Opc.Ua
                     }
 
                     m_encodeableTypes[nodeId] = encodeableType;
+
+                    if (encodeableType is ReflectionBasedType reflectionBasedType)
+                    {
+                        reflectionBasedType.TypeId = nodeId;
+                    }
                 }
 
                 nodeId = encodeable.BinaryEncodingId;
@@ -471,11 +477,14 @@ namespace Opc.Ua
             public XmlQualifiedName XmlName => field ??= GetXmlName();
 
             /// <summary>
+            /// Type id the encodeable type is registered for
+            /// </summary>
+            internal ExpandedNodeId TypeId { get; set; }
+
+            /// <summary>
             /// Create type wrapper from system type.
             /// </summary>
-            /// <param name="systemType"></param>
-            /// <returns></returns>
-            public static ReflectionBasedType? From(Type? systemType)
+            public static ReflectionBasedType? From(Type? systemType, ExpandedNodeId typeId = default)
             {
                 if (systemType == null)
                 {
@@ -490,7 +499,10 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                return new ReflectionBasedType(systemType);
+                return new ReflectionBasedType(systemType)
+                {
+                    TypeId = typeId
+                };
             }
 
             /// <inheritdoc/>
@@ -506,6 +518,10 @@ namespace Opc.Ua
                 {
                     throw new InvalidOperationException(
                         $"Cannot create instance of type {Type.FullName ?? Type.Name}");
+                }
+                if (encodeable is IDynamicComplexTypeInstance dynamicInstance)
+                {
+                    dynamicInstance.TypeId = TypeId;
                 }
                 return encodeable;
             }

@@ -285,7 +285,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        private void EncodeNetworkMessageHeader(IJsonEncoder jsonEncoder)
+        private void EncodeNetworkMessageHeader(IEncoder jsonEncoder)
         {
             jsonEncoder.WriteString(nameof(MessageId), MessageId);
             jsonEncoder.WriteString(nameof(MessageType), MessageType);

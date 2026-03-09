@@ -1068,14 +1068,6 @@ namespace Opc.Ua
             }
 
             var value = (T)activator.CreateInstance();
-            if (!encodeableTypeId.IsNull)
-            {
-                // set type identifier for custom complex data types before decode.
-                if (value is IComplexTypeInstance complexTypeInstance)
-                {
-                    complexTypeInstance.TypeId = encodeableTypeId;
-                }
-            }
             return ReadEncodeable(fieldName, value);
         }
 

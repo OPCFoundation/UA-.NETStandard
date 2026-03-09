@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -594,7 +595,16 @@ namespace Opc.Ua
 
             try
             {
-                return ReadVariantValue(null, default);
+                byte encodingByte = SafeReadByte();
+                var typeInfo = TypeInfo.Create(
+                    (BuiltInType)
+                        (encodingByte & (byte)VariantArrayEncodingBits.TypeMask),
+                    (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?
+                        ValueRanks.Scalar :
+                    (encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) == 0 ?
+                        ValueRanks.OneDimension :
+                        ValueRanks.TwoDimensions);
+                return ReadVariantValue(typeInfo, false);
             }
             finally
             {
@@ -747,12 +757,6 @@ namespace Opc.Ua
             if (systemType != null && length >= -1)
             {
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
-
-                // set type identifier for custom complex data types before decode.
-                if (encodeable is IComplexTypeInstance complexTypeInstance)
-                {
-                    complexTypeInstance.TypeId = extension.TypeId;
-                }
             }
 
             // process known type.
@@ -895,12 +899,6 @@ namespace Opc.Ua
             }
 
             var encodeable = (T)activator.CreateInstance();
-
-            // set type identifier for custom complex data types before decode.
-            if (encodeable is IComplexTypeInstance complexTypeInstance)
-            {
-                complexTypeInstance.TypeId = encodeableTypeId;
-            }
             CheckAndIncrementNestingLevel();
             try
             {
@@ -1544,20 +1542,35 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
-            // read the encoding byte if we do not have the type info.
-            bool readRawValue = !typeInfo.IsUnknown;
-            if (!readRawValue)
+            return ReadVariantValue(typeInfo, true);
+        }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        {
+            fieldName = null;
+            return ReadUInt32("SwitchField");
+        }
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(IList<string> masks)
+        {
+            return ReadUInt32("EncodingMask");
+        }
+
+        /// <summary>
+        /// Read variant value which is the content of the variant.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadVariantValue(TypeInfo typeInfo, bool readRawValue)
+        {
+            if (typeInfo.IsUnknown)
             {
-                byte encodingByte = SafeReadByte();
-                typeInfo = TypeInfo.Create(
-                    (BuiltInType)
-                        (encodingByte & (byte)VariantArrayEncodingBits.TypeMask),
-                    (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?
-                        ValueRanks.Scalar :
-                    (encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) == 0 ?
-                        ValueRanks.OneDimension :
-                        ValueRanks.TwoDimensions);
+                return default;
             }
+
+            // read the encoding byte if we do not have the type info.
             if (typeInfo.IsScalar)
             {
                 switch (typeInfo.BuiltInType)
@@ -1631,6 +1644,8 @@ namespace Opc.Ua
             {
                 switch (typeInfo.BuiltInType)
                 {
+                    case BuiltInType.Null:
+                        return Variant.Null;
                     case BuiltInType.Boolean:
                         return Variant.From(ReadBooleanArray(null));
                     case BuiltInType.SByte:
@@ -1709,6 +1724,8 @@ namespace Opc.Ua
                 int[] ReadDims() => dim ?? ReadInt32Array(null).ToArray();
                 switch (typeInfo.BuiltInType)
                 {
+                    case BuiltInType.Null:
+                        return Variant.Null;
                     case BuiltInType.Boolean:
                         return Variant.From(ReadBooleanArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.SByte:
@@ -1773,19 +1790,6 @@ namespace Opc.Ua
                             typeInfo);
                 }
             }
-        }
-
-        /// <inheritdoc/>
-        public uint ReadSwitchField(IList<string> switches, out string fieldName)
-        {
-            fieldName = null;
-            return ReadUInt32("SwitchField");
-        }
-
-        /// <inheritdoc/>
-        public uint ReadEncodingMask(IList<string> masks)
-        {
-            return ReadUInt32("EncodingMask");
         }
 
         /// <summary>

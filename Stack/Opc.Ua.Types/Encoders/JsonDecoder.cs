@@ -1621,16 +1621,18 @@ namespace Opc.Ua
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
                     int split = text.LastIndexOf('_');
+                    string? symbol = text;
                     if (split >= 0)
                     {
-                        if (int.TryParse(text[split..], out int enumValue))
-                        {
-                            value = EnumHelper.Int32ToEnum<T>(enumValue);
-                            return true;
-                        }
-                        text = text[..split];
+                        symbol = text[..split];
+                        text = text[split..];
                     }
-                    if (Enum.TryParse(text, true, out T o))
+                    if (int.TryParse(text, out int enumValue))
+                    {
+                        value = EnumHelper.Int32ToEnum<T>(enumValue);
+                        return true;
+                    }
+                    if (Enum.TryParse(symbol, true, out T o))
                     {
                         value = o;
                         return true;
@@ -1641,6 +1643,51 @@ namespace Opc.Ua
                     // Compact encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.1
                     value = EnumHelper.Int32ToEnum<T>(i);
+                    return true;
+                default:
+                    value = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Get enumeration from element
+        /// </summary>
+        private static bool TryGetEnumerationFromElement(JsonElement element, out int value)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Null or JsonValueKind.Undefined:
+                    value = default;
+                    return true;
+                case JsonValueKind.String:
+                    string? text = element.GetString();
+                    if (text == null)
+                    {
+                        value = default;
+                        return false;
+                    }
+                    // Verbose encoding
+                    // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
+                    int split = text.LastIndexOf('_');
+                    string? symbol = text;
+                    if (split >= 0)
+                    {
+                        symbol = text[..split];
+                        text = text[split..];
+                    }
+                    if (int.TryParse(text, out int enumValue))
+                    {
+                        value = enumValue;
+                        return true;
+                    }
+                    // TODO: Use the symbol for EnumValue
+                    value = default;
+                    return false;
+                case JsonValueKind.Number when element.TryGetInt32(out int i):
+                    // Compact or Variant encoding
+                    // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.1
+                    value = i;
                     return true;
                 default:
                     value = default;
@@ -1680,9 +1727,39 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Get enumeration values from element
+        /// </summary>
+        private static bool TryGetEnumerationArrayFromElement(
+            JsonElement element,
+            out ArrayOf<int> values)
+        {
+            if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
+            {
+                if (elements.IsNull)
+                {
+                    values = default;
+                    return true;
+                }
+                var result = new int[elements.Count];
+                for (int i = 0; i < elements.Count; i++)
+                {
+                    if (!TryGetEnumerationFromElement(elements[i], out result[i]))
+                    {
+                        values = default;
+                        return false;
+                    }
+                }
+                values = result;
+                return true;
+            }
+            values = default;
+            return false;
+        }
+
+        /// <summary>
         /// Get expanded node id from element
         /// </summary>
-        private static bool TryGetExpandedNodeIdFromElement(
+        private bool TryGetExpandedNodeIdFromElement(
             JsonElement element,
             out ExpandedNodeId value)
         {
@@ -1692,7 +1769,16 @@ namespace Opc.Ua
                     value = ExpandedNodeId.Null;
                     return true;
                 case JsonValueKind.String:
-                    return ExpandedNodeId.TryParse(element.GetString(), out value);
+                    return ExpandedNodeId.TryParse(
+                        Context,
+                        element.GetString(),
+                        new NodeIdParsingOptions
+                        {
+                            UpdateTables = m_options.UpdateNamespaceTable,
+                            NamespaceMappings = m_namespaceMappings,
+                            ServerMappings = m_serverMappings
+                        },
+                        out value);
                 case JsonValueKind.Number when element.TryGetUInt32(out uint id):
                     value = new ExpandedNodeId(id);
                     return true;
@@ -1705,7 +1791,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get expanded node id values from element
         /// </summary>
-        private static bool TryGetExpandedNodeIdArrayFromElement(
+        private bool TryGetExpandedNodeIdArrayFromElement(
             JsonElement element,
             out ArrayOf<ExpandedNodeId> values)
         {
@@ -2244,7 +2330,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get node id from element
         /// </summary>
-        private static bool TryGetNodeIdFromElement(
+        private bool TryGetNodeIdFromElement(
             JsonElement element,
             out NodeId value)
         {
@@ -2254,12 +2340,30 @@ namespace Opc.Ua
                     value = NodeId.Null;
                     return true;
                 case JsonValueKind.String:
-                    return NodeId.TryParse(element.GetString(), out value);
+                    if (ExpandedNodeId.TryParse(
+                        Context,
+                        element.GetString(),
+                        new NodeIdParsingOptions
+                        {
+                            UpdateTables = m_options.UpdateNamespaceTable,
+                            NamespaceMappings = m_namespaceMappings,
+                            ServerMappings = m_serverMappings
+                        },
+                        out ExpandedNodeId expandedNodeId))
+                    {
+                        value = ExpandedNodeId.ToNodeId(
+                            expandedNodeId,
+                            Context.NamespaceUris,
+                            m_options.UpdateNamespaceTable);
+                        return true;
+                    }
+                    value = default;
+                    return false;
                 case JsonValueKind.Number when element.TryGetUInt32(out uint id):
                     value = new NodeId(id);
                     return true;
                 default:
-                    value = NodeId.Null;
+                    value = default;
                     return false;
             }
         }
@@ -2267,7 +2371,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get node id values from element
         /// </summary>
-        private static bool TryGetNodeIdArrayFromElement(
+        private bool TryGetNodeIdArrayFromElement(
             JsonElement element,
             out ArrayOf<NodeId> values)
         {
@@ -2297,7 +2401,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get qualified name from element
         /// </summary>
-        private static bool TryGetQualifiedNameFromElement(
+        private bool TryGetQualifiedNameFromElement(
             JsonElement element,
             out QualifiedName value)
         {
@@ -2307,7 +2411,10 @@ namespace Opc.Ua
                     value = QualifiedName.Null;
                     return true;
                 case JsonValueKind.String:
-                    value = QualifiedName.Parse(element.GetString());
+                    value = QualifiedName.Parse(
+                        Context,
+                        element.GetString(),
+                        m_options.UpdateNamespaceTable);
                     return true;
                 default:
                     value = QualifiedName.Null;
@@ -2318,7 +2425,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get qualified name values from element
         /// </summary>
-        private static bool TryGetQualifiedNameArrayFromElement(
+        private bool TryGetQualifiedNameArrayFromElement(
             JsonElement element,
             out ArrayOf<QualifiedName> values)
         {
@@ -2690,11 +2797,6 @@ namespace Opc.Ua
             }
 
             value = (T)activator.CreateInstance();
-            // set type identifier for custom complex data types before decode.
-            if (value is IComplexTypeInstance complexTypeInstance)
-            {
-                complexTypeInstance.TypeId = encodeableTypeId;
-            }
             return TryGetEncodeableFromElement(value, element);
         }
 
@@ -3105,7 +3207,12 @@ namespace Opc.Ua
                         out ushort v):
                         value = Variant.From(v);
                         return true;
-                    case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32FromElement(
+                    case BuiltInType.Enumeration when TryGetEnumerationFromElement(
+                        element,
+                        out int v):
+                        value = Variant.FromEnumeration(v);
+                        return true;
+                    case BuiltInType.Int32 when TryGetInt32FromElement(
                         element,
                         out int v):
                         value = Variant.From(v);
@@ -3248,7 +3355,12 @@ namespace Opc.Ua
                         out ArrayOf<ushort> v):
                         value = Variant.From(v);
                         return true;
-                    case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32ArrayFromElement(
+                    case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
+                        element,
+                        out ArrayOf<int> v):
+                        value = Variant.FromEnumeration(v);
+                        return true;
+                    case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                         element,
                         out ArrayOf<int> v):
                         value = Variant.From(v);
@@ -3427,7 +3539,12 @@ namespace Opc.Ua
                             out ArrayOf<ushort> v):
                             value = Variant.From(v.ToMatrix(dims));
                             return true;
-                        case BuiltInType.Int32 or BuiltInType.Enumeration when TryGetInt32ArrayFromElement(
+                        case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
+                            element,
+                            out ArrayOf<int> v):
+                            value = Variant.FromEnumeration(v.ToMatrix(dims));
+                            return true;
+                        case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                             element,
                             out ArrayOf<int> v):
                             value = Variant.From(v.ToMatrix(dims));
