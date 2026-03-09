@@ -110,11 +110,17 @@ namespace Opc.Ua.Client.Tests
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers =
-            [
-                // create the custom node manager.
-                new ReferenceNodeManager(server, configuration)
-            ];
+            var asyncNodeManagers = new List<IAsyncNodeManager>();
+            var nodeManagers = new List<INodeManager>();
+
+            asyncNodeManagers =
+                [
+                    // create the custom node manager.
+                    new ReferenceNodeManager(
+                        server,
+                        configuration
+                        )
+                ];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
@@ -125,6 +131,7 @@ namespace Opc.Ua.Client.Tests
                 server,
                 configuration,
                 null,
+                asyncNodeManagers,
                 [.. nodeManagers]);
             // create master node manager.
             return MasterNodeManagerReference;
@@ -259,8 +266,9 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration,
             string dynamicNamespaceUri,
-            params INodeManager[] additionalManagers)
-            : base(server, configuration, dynamicNamespaceUri, additionalManagers)
+            IEnumerable<IAsyncNodeManager> additionalManagers,
+            IEnumerable<INodeManager> additionalSyncManagers)
+            : base(server, configuration, dynamicNamespaceUri, additionalManagers, additionalSyncManagers)
         {
             m_logger = server.Telemetry.CreateLogger<MasterNodeManagerWithLimits>();
         }

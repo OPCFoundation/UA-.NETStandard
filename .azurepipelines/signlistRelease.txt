@@ -1,3 +1,5 @@
+Tools\Opc.Ua.SourceGeneration.Core\bin\Release\netstandard2.0\Opc.Ua.SourceGeneration.Core.dll
+Tools\Opc.Ua.SourceGeneration\bin\Release\netstandard2.0\Opc.Ua.SourceGeneration.dll
 Stack\Opc.Ua.Types\bin\Release\netstandard2.0\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\netstandard2.1\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\net472\Opc.Ua.Types.dll
@@ -5,6 +7,12 @@ Stack\Opc.Ua.Types\bin\Release\net48\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\net8.0\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\net9.0\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\net10.0\Opc.Ua.Types.dll
+Stack\Opc.Ua\bin\Release\netstandard2.1\Opc.Ua.dll
+Stack\Opc.Ua\bin\Release\net472\Opc.Ua.dll
+Stack\Opc.Ua\bin\Release\net48\Opc.Ua.dll
+Stack\Opc.Ua\bin\Release\net8.0\Opc.Ua.dll
+Stack\Opc.Ua\bin\Release\net9.0\Opc.Ua.dll
+Stack\Opc.Ua\bin\Release\net10.0\Opc.Ua.dll
 Stack\Opc.Ua.Core\bin\Release\netstandard2.1\Opc.Ua.Core.dll
 Stack\Opc.Ua.Core\bin\Release\net472\Opc.Ua.Core.dll
 Stack\Opc.Ua.Core\bin\Release\net48\Opc.Ua.Core.dll
@@ -53,6 +61,12 @@ Libraries\Opc.Ua.Gds.Server.Common\bin\Release\net48\Opc.Ua.Gds.Server.Common.dl
 Libraries\Opc.Ua.Gds.Server.Common\bin\Release\net8.0\Opc.Ua.Gds.Server.Common.dll
 Libraries\Opc.Ua.Gds.Server.Common\bin\Release\net9.0\Opc.Ua.Gds.Server.Common.dll
 Libraries\Opc.Ua.Gds.Server.Common\bin\Release\net10.0\Opc.Ua.Gds.Server.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\netstandard2.1\Opc.Ua.Gds.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\net472\Opc.Ua.Gds.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\net48\Opc.Ua.Gds.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\net8.0\Opc.Ua.Gds.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\net9.0\Opc.Ua.Gds.Common.dll
+Libraries\Opc.Ua.Gds.Common\bin\Release\net10.0\Opc.Ua.Gds.Common.dll
 Libraries\Opc.Ua.Security.Certificates\bin\Release\netstandard2.1\Opc.Ua.Security.Certificates.dll
 Libraries\Opc.Ua.Security.Certificates\bin\Release\net472\Opc.Ua.Security.Certificates.dll
 Libraries\Opc.Ua.Security.Certificates\bin\Release\net48\Opc.Ua.Security.Certificates.dll

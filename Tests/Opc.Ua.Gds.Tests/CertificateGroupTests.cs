@@ -389,5 +389,23 @@ namespace Opc.Ua.Gds.Tests
                 Assert.AreEqual(1, crls.Count);
             }
         }
+
+        [Test]
+        public void TestUnknownCertificateTypeStringThrowsNotImplemented()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // A certificate type string that is not a well-known OPC UA type name should throw NotImplementedException
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Custom CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = ["NotAKnownCertificateType"]
+            };
+
+            Assert.That(
+                () => new CertificateGroup(telemetry).Create(m_path + "/authorities", configuration),
+                Throws.TypeOf<NotImplementedException>());
+        }
     }
 }

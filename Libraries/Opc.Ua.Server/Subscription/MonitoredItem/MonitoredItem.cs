@@ -92,6 +92,7 @@ namespace Opc.Ua.Server
             ClientHandle = clientHandle;
             Filter = originalFilter;
             m_filterToUse = filterToUse;
+            m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
             m_range = 0;
             m_samplingInterval = samplingInterval;
             QueueSize = queueSize;
@@ -189,6 +190,7 @@ namespace Opc.Ua.Server
             ClientHandle = storedMonitoredItem.ClientHandle;
             Filter = storedMonitoredItem.OriginalFilter;
             m_filterToUse = storedMonitoredItem.FilterToUse;
+            m_cachedDataChangeFilter = storedMonitoredItem.FilterToUse as DataChangeFilter;
             m_range = storedMonitoredItem.Range;
             m_samplingInterval = storedMonitoredItem.SamplingInterval;
             QueueSize = storedMonitoredItem.QueueSize;
@@ -299,7 +301,7 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
@@ -307,7 +309,7 @@ namespace Opc.Ua.Server
                 // check if it has been triggered.
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
@@ -315,7 +317,7 @@ namespace Opc.Ua.Server
                 // check if monitoring was turned off.
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
@@ -327,14 +329,14 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        ServerUtils.EventLog.MonitoredItemReady(
-                            Id,
-                            Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
+                        //ServerUtils.EventLog.MonitoredItemReady(
+                        //    Id,
+                        //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
-                ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
+                //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
@@ -347,16 +349,13 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
+                // only allow to trigger if sampling or reporting.
+                if (MonitoringMode == MonitoringMode.Disabled)
                 {
-                    // only allow to trigger if sampling or reporting.
-                    if (MonitoringMode == MonitoringMode.Disabled)
-                    {
-                        return false;
-                    }
-
-                    return m_readyToTrigger;
+                    return false;
                 }
+
+                return Volatile.Read(ref m_readyToTrigger);
             }
             set
             {
@@ -372,10 +371,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_resendData;
-                }
+                return Volatile.Read(ref m_resendData);
             }
         }
 
@@ -678,6 +674,7 @@ namespace Opc.Ua.Server
 
                 Filter = originalFilter;
                 m_filterToUse = filterToUse;
+                m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
 
                 if (range != null)
                 {
@@ -875,15 +872,7 @@ namespace Opc.Ua.Server
                             value.WrappedValue);
                     }
 
-                    value = new DataValue
-                    {
-                        WrappedValue = value.WrappedValue,
-                        StatusCode = value.StatusCode,
-                        SourceTimestamp = value.SourceTimestamp,
-                        SourcePicoseconds = value.SourcePicoseconds,
-                        ServerTimestamp = value.ServerTimestamp,
-                        ServerPicoseconds = value.ServerPicoseconds
-                    };
+                    value = new DataValue(value);
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
@@ -932,7 +921,7 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter to incoming item.
-                if (!AlwaysReportUpdates && !ignoreFilters && !ApplyFilter(value, error))
+                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(value, error))
                 {
                     ServerUtils.ReportFilteredValue(NodeId, Id, value);
                     return;
@@ -1418,12 +1407,15 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing or no items are queued
                 else
                 {
-                    m_logger.LogTrace(
-                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                        m_lastValue.WrappedValue,
-                        m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Overflow);
+                    if (m_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        m_logger.LogTrace(
+                            "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                            m_lastValue.WrappedValue,
+                            m_lastValue.StatusCode.Code,
+                            m_lastValue.StatusCode.Code,
+                            m_lastValue.StatusCode.Overflow);
+                    }
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
@@ -1618,7 +1610,7 @@ namespace Opc.Ua.Server
                 error,
                 m_lastValue,
                 m_lastError,
-                m_filterToUse as DataChangeFilter,
+                m_cachedDataChangeFilter,
                 m_range);
         }
 
@@ -1709,7 +1701,7 @@ namespace Opc.Ua.Server
             }
 
             // check if reference to same object.
-            if (!Equals(lastValue.Value, value.Value, deadbandType, deadband, range))
+            if (!Equals(lastValue.WrappedValue, value.WrappedValue, deadbandType, deadband, range))
             {
                 return true;
             }
@@ -1722,91 +1714,205 @@ namespace Opc.Ua.Server
         /// Checks if the two values are equal.
         /// </summary>
         protected static bool Equals(
-            object value1,
-            object value2,
+            Variant value1,
+            Variant value2,
             DeadbandType deadbandType,
             double deadband,
             double range)
         {
-            // check if reference to same object.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            // check for invalid values.
-            if (value1 == null || value2 == null)
-            {
-                return value1 == value2;
-            }
-
-            // check for type change.
-            if (value1.GetType() != value2.GetType())
-            {
-                return false;
-            }
-
-            // special case NaN is always not equal
-            if (value1.Equals(float.NaN) ||
-                value1.Equals(double.NaN) ||
-                value2.Equals(float.NaN) ||
-                value2.Equals(double.NaN))
-            {
-                return false;
-            }
-
-            // check if values are equal.
+            // check if equal
             if (value1.Equals(value2))
             {
                 return true;
             }
 
-            if (value1 is not Array array1 || value2 is not Array array2)
+            // handle scalars.
+            if (value1.TypeInfo.ValueRank == ValueRanks.Scalar)
             {
-                if (value1 is XmlElement xmlElement1 && value2 is XmlElement xmlElement2)
+                switch (value1.TypeInfo.BuiltInType)
                 {
-                    return xmlElement1.OuterXml
-                        .Equals(xmlElement2.OuterXml, StringComparison.Ordinal);
+                    case BuiltInType.Double:
+                        if (value1.TryGet(out double d1) && value2.TryGet(out double d2))
+                        {
+                            if (double.IsNaN(d1) || double.IsNaN(d2))
+                            {
+                                return false;
+                            }
+
+                            if (d1 == d2)
+                            {
+                                return true;
+                            }
+
+                            if (deadbandType == DeadbandType.None)
+                            {
+                                return false;
+                            }
+
+                            return !ExceedsDeadband(d1, d2, deadbandType, deadband, range);
+                        }
+                        return false;
+                    case BuiltInType.Float:
+                        if (value1.TryGet(out float f1) && value2.TryGet(out float f2))
+                        {
+                            if (float.IsNaN(f1) || float.IsNaN(f2))
+                            {
+                                return false;
+                            }
+
+                            if (f1 == f2)
+                            {
+                                return true;
+                            }
+
+                            if (deadbandType == DeadbandType.None)
+                            {
+                                return false;
+                            }
+
+                            return !ExceedsDeadband((double)f1, (double)f2, deadbandType, deadband, range);
+                        }
+                        return false;
+                    case BuiltInType.XmlElement:
+                        if (value1.TryGet(out XmlElement xml1) && value2.TryGet(out XmlElement xml2))
+                        {
+                            return xml1 == xml2.OuterXml;
+                        }
+                        return false;
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Int32:
+                    case BuiltInType.UInt32:
+                    case BuiltInType.Int64:
+                    case BuiltInType.UInt64:
+                    case BuiltInType.Int16:
+                    case BuiltInType.UInt16:
+                    case BuiltInType.Byte:
+                    case BuiltInType.SByte:
+                        // Other numeric types check deadband if applicable
+                        if (deadbandType != DeadbandType.None)
+                        {
+                            return !ExceedsDeadband(value1.Value, value2.Value, deadbandType, deadband, range);
+                        }
+                        return false;
                 }
 
-                // nothing more to do if no deadband.
-                if (deadbandType == DeadbandType.None)
-                {
-                    return false;
-                }
-
-                // check deadband.
-                return !ExceedsDeadband(value1, value2, deadbandType, deadband, range);
-            }
-
-            // compare lengths.
-            if (array1.Length != array2.Length)
-            {
                 return false;
             }
 
-            // compare each element.
-            bool isVariant = array1.GetType().GetElementType() == typeof(Variant);
-
-            for (int ii = 0; ii < array1.Length; ii++)
+            // handle arrays.
+            switch (value1.TypeInfo.BuiltInType)
             {
-                object element1 = array1.GetValue(ii);
-                object element2 = array2.GetValue(ii);
-
-                if (isVariant)
+                case BuiltInType.Double:
                 {
-                    element1 = ((Variant)element1).AsBoxedObject(); // TODO: Rewrite to avoid boxing
-                    element2 = ((Variant)element2).AsBoxedObject();
+                    if (value1.TryGet(out ArrayOf<double> dArray1) && value2.TryGet(out ArrayOf<double> dArray2))
+                    {
+                        if (dArray1.Count != dArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < dArray1.Count; ii++)
+                        {
+                            double d1 = dArray1[ii];
+                            double d2 = dArray2[ii];
+
+                            if (double.IsNaN(d1) || double.IsNaN(d2))
+                            {
+                                return false;
+                            }
+
+                            if (d1 != d2)
+                            {
+                                if (deadbandType == DeadbandType.None ||
+                                    ExceedsDeadband(d1, d2, deadbandType, deadband, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
                 }
-
-                if (!Equals(element1, element2, deadbandType, deadband, range))
+                case BuiltInType.Float:
                 {
+                    if (value1.TryGet(out ArrayOf<float> fArray1) && value2.TryGet(out ArrayOf<float> fArray2))
+                    {
+                        if (fArray1.Count != fArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < fArray1.Count; ii++)
+                        {
+                            float f1 = fArray1[ii];
+                            float f2 = fArray2[ii];
+
+                            if (float.IsNaN(f1) || float.IsNaN(f2))
+                            {
+                                return false;
+                            }
+
+                            if (f1 != f2)
+                            {
+                                if (deadbandType == DeadbandType.None ||
+                                    ExceedsDeadband((double)f1, (double)f2, deadbandType, deadband, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Variant:
+                {
+                    if (value1.TryGet(out ArrayOf<Variant> vArray1) && value2.TryGet(out ArrayOf<Variant> vArray2))
+                    {
+                        if (vArray1.Count != vArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < vArray1.Count; ii++)
+                        {
+                            if (!Equals(vArray1[ii], vArray2[ii], deadbandType, deadband, range))
+                            {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.XmlElement:
+                {
+                    if (value1.TryGet(out ArrayOf<XmlElement> xArray1) && value2.TryGet(out ArrayOf<XmlElement> xArray2))
+                    {
+                        if (xArray1.Count != xArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < xArray1.Count; ii++)
+                        {
+                            XmlElement xml1 = xArray1[ii];
+                            XmlElement xml2 = xArray2[ii];
+
+                            if (xml1 != xml2)
+                            {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
                     return false;
                 }
             }
 
-            // must be equal.
-            return true;
+            return false;
         }
 
         /// <summary>
@@ -2097,6 +2203,7 @@ namespace Opc.Ua.Server
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;
         private MonitoringFilter m_filterToUse;
+        private DataChangeFilter m_cachedDataChangeFilter;
         private double m_range;
         private double m_samplingInterval;
         private bool m_discardOldest;

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -306,7 +307,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
@@ -322,12 +323,29 @@ namespace Opc.Ua.Server
             }
             if (SyncNodeManager is INodeManager2 nodeManager2)
             {
+                Dictionary<NodeId, Variant[]> syncuniqueNodesServiceAttributesCache = null;
+
+                if (targetHandle is NodeHandle nodeHandle &&
+                    uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out Variant[] attributes) == true)
+                {
+                    syncuniqueNodesServiceAttributesCache = new Dictionary<NodeId, Variant[]>
+                    {
+                        { nodeHandle.NodeId, attributes }
+                    };
+                }
+
                 NodeMetadata nodeMetadata = nodeManager2.GetPermissionMetadata(
                     context,
                     targetHandle,
                     resultMask,
-                    uniqueNodesServiceAttributesCache,
+                    syncuniqueNodesServiceAttributesCache,
                     permissionsOnly);
+
+                if (targetHandle is NodeHandle nodeHandleAfter &&
+                    syncuniqueNodesServiceAttributesCache?.TryGetValue(nodeHandleAfter.NodeId, out Variant[] attributesAfter) == true)
+                {
+                    uniqueNodesServiceAttributesCache[nodeHandleAfter.NodeId] = attributesAfter;
+                }
                 return new ValueTask<NodeMetadata>(nodeMetadata);
             }
 

@@ -94,6 +94,114 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Theory]
         [Category("BuiltInType")]
+        [Description("Ensures the Decoder reflects the Spec.: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17 -> " +
+            "SourcePicoseconds: [...] Not present if the SourcePicoseconds bit in the EncodingMask is False. " +
+            "If the source timestamp is missing the Picoseconds are ignored." +
+            "ServerPicoseconds: [...] Not present if the ServerPicoseconds bit in the EncodingMask is False. " +
+            "If the Server timestamp is missing the Picoseconds are ignored.")]
+        public void EncodeDataValueWithoutValueProperty()
+        {
+            var dataValue = new DataValue() { SourcePicoseconds = 1 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 01).ToUniversalTime() };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 02).ToUniversalTime() };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerPicoseconds = 2 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { StatusCode = StatusCodes.BadNotImplemented };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 03).ToUniversalTime(), SourcePicoseconds = 3 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 04).ToUniversalTime(), ServerPicoseconds = 4 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 05).ToUniversalTime(), ServerPicoseconds = 5 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 06).ToUniversalTime(), SourcePicoseconds = 6 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue()
+            {
+                ServerTimestamp = new DateTime(2001, 01, 07).ToUniversalTime(),
+                ServerPicoseconds = 7,
+                SourceTimestamp = new DateTime(2001, 01, 08).ToUniversalTime(),
+                SourcePicoseconds = 8,
+                StatusCode = StatusCodes.BadNotFound
+            };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+        }
+
+        private void EncodeDataValueWithoutValuePropertyTest(DataValue dataValue)
+        {
+            var encoderType = EncodingType.Binary;
+            var builtInType = BuiltInType.Null;
+            var memoryStreamType = MemoryStreamType.MemoryStream;
+            var jsonEncodingType = JsonEncodingType.Verbose;
+            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+            TestContext.Out.WriteLine(encodeInfo);
+            DataValue expected = dataValue;
+            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+
+            string formatted = null;
+            DataValue result = null;
+            byte[] buffer;
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            {
+                using (
+                    IEncoder encoder = CreateEncoder(
+                        encoderType,
+                        Context,
+                        encoderStream,
+                        typeof(DataValue),
+                        jsonEncodingType))
+                {
+                    encoder.WriteDataValue("DataValue", expected);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
+                    break;
+            }
+
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                Context,
+                decoderStream,
+                typeof(DataValue)))
+            {
+                result = decoder.ReadDataValue("DataValue");
+            }
+
+            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
+            // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
+            if (expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue ||
+                expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue)
+            {
+                Assert.That(expected, Is.Not.EqualTo(result), encodeInfo);
+                Assert.IsFalse(Utils.IsEqual(expected, result),"Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            }
+            else
+            {
+                Assert.That(expected, Is.EqualTo(result), encodeInfo);
+                Assert.IsTrue(
+                    Utils.IsEqual(expected, result),
+                    "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a default built in type
+        /// value as Variant in a DataValue.
+        /// </summary>
+        [Theory]
+        [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultVariantInDataValue(
             [ValueSource(
                 nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
@@ -411,7 +519,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var writer = XmlWriter.Create(stream, settings))
             using (
                 var encoder = new XmlEncoder(
-                    new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd),
+                    new XmlQualifiedName("ByteStrings", Opc.Ua.Types.Namespaces.OpcUaXsd),
                     writer,
                     new ServiceMessageContext(Telemetry)))
             {
