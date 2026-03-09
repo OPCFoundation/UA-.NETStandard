@@ -64,8 +64,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
             Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject.Encoding);
             Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
-            Assert.IsFalse(extensionObject.TryGetAsBinary(out var _));
-            Assert.IsFalse(extensionObject.TryGetAsXml(out var _));
+            Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
+            Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
             Assert.IsFalse(extensionObject.TryGetAsJson(out var _));
             Assert.IsTrue(extensionObject.IsNull);
             // static extensions
