@@ -977,7 +977,10 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.Ignore(
                     $"No endpoint found for {securityPolicy}");
             }
-            endpoint = (ConfiguredEndpoint)endpoint.Clone();
+            endpoint = new ConfiguredEndpoint(
+                null,
+                (EndpointDescription)endpoint.Description.MemberwiseClone(),
+                endpoint.Configuration);
             endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
             ConfiguredEndpoint tokenPolicyEndpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, userTokenPolicy, Endpoints)
