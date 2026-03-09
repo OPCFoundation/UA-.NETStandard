@@ -46,7 +46,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class DataValueTests
     {
-        #region Constructors
 
         [Test]
         public void DefaultConstructorSetsDefaults()
@@ -138,10 +137,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(dv.WrappedValue.IsNull, Is.True);
         }
-
-        #endregion
-
-        #region Equals
 
         [Test]
         public void EqualsObjectWithNull()
@@ -272,10 +267,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(dv1.Equals(dv2), Is.True);
         }
 
-        #endregion
-
-        #region Operators == and !=
-
         [Test]
         public void EqualityOperatorBothNull()
         {
@@ -338,10 +329,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(a != b, Is.False);
         }
 
-        #endregion
-
-        #region GetHashCode
-
         [Test]
         public void GetHashCodeWithNonNullValue()
         {
@@ -366,10 +353,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(hash, Is.EqualTo(StatusCodes.BadUnexpectedError.GetHashCode()));
         }
-
-        #endregion
-
-        #region ToString
 
         [Test]
         public void ToStringReturnsValueString()
@@ -404,10 +387,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<FormatException>());
         }
 
-        #endregion
-
-        #region Clone
-
         [Test]
         public void CloneReturnsDeepCopy()
         {
@@ -428,10 +407,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone.SourcePicoseconds, Is.EqualTo(original.SourcePicoseconds));
             Assert.That(clone.ServerPicoseconds, Is.EqualTo(original.ServerPicoseconds));
         }
-
-        #endregion
-
-        #region Value property
 
         [Test]
         public void ValueGetterReturnsBoxedObject()
@@ -465,10 +440,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(dv.WrappedValue, Is.EqualTo(variant));
         }
-
-        #endregion
-
-        #region Static quality methods: IsGood, IsNotGood, IsUncertain, IsNotUncertain, IsBad, IsNotBad
 
         [Test]
         public void IsGoodWithGoodDataValue()
@@ -614,10 +585,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(DataValue.IsNotBad(null), Is.False);
         }
 
-        #endregion
-
-        #region GetValue(Type expectedType)
-
         [Test]
         public void GetValueReturnsValueWhenTypeMatches()
         {
@@ -699,10 +666,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<ServiceResultException>());
         }
 
-        #endregion
-
-        #region GetValueOrDefault<T>()
-
         [Test]
         public void GetValueOrDefaultReturnsValueForGoodStatus()
         {
@@ -781,10 +744,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Name, Is.EqualTo("test"));
         }
 
-        #endregion
-
-        #region GetValue<T>(T defaultValue)
-
         [Test]
         public void GetValueGenericReturnsValueForGoodStatus()
         {
@@ -854,10 +813,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(result, Is.EqualTo("hello"));
         }
-
-        #endregion
-
-        #region Edge cases and combined scenarios
 
         [Test]
         public void EqualDataValuesHaveSameHashCode()
@@ -969,7 +924,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(result, Is.EqualTo(3.14));
         }
-
-        #endregion
     }
 }

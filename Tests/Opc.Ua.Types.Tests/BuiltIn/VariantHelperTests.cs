@@ -51,8 +51,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Two = 2
         }
 
-        #region TryCastTo - Null Variant
-
         [Test]
         public void TryCastToIntFromNullVariantReturnsDefault()
         {
@@ -71,10 +69,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value, Is.Null);
         }
 
-        #endregion
-
-        #region TryCastTo - Variant type
-
         [Test]
         public void TryCastToVariantReturnsVariant()
         {
@@ -84,17 +78,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.GetInt32(), Is.EqualTo(42));
         }
 
-        #endregion
-
-        #region TryCastTo - Enum
-
         // Note: TryCastTo<Enum> uses AsT which relies on Unsafe.As and has a
         // Debug.Assert that fires in debug builds (enum vs int type mismatch).
         // This path is covered by release-mode CI runs.
-
-        #endregion
-
-        #region TryCastTo - Scalar types
 
         [Test]
         public void TryCastToBoolReturnsBoolean()
@@ -319,10 +305,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.IsNull, Is.False);
         }
 
-        #endregion
-
-        #region TryCastTo - IEncodeable
-
         [Test]
         public void TryCastToIEncodeableReturnsEncodeable()
         {
@@ -344,10 +326,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
         }
-
-        #endregion
-
-        #region TryCastTo - ArrayOf types
 
         [Test]
         public void TryCastToArrayOfBoolReturnsArrayOfBool()
@@ -603,10 +581,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
-
-        #endregion
-
-        #region TryCastTo - MatrixOf types (using 2D arrays)
 
         [Test]
         public void TryCastToMatrixOfBoolReturnsMatrix()
@@ -872,10 +846,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.IsNull, Is.False);
         }
 
-        #endregion
-
-        #region TryCastTo - Native array types T[]
-
         [Test]
         public void TryCastToBoolArrayReturnsBoolArray()
         {
@@ -1106,10 +1076,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.Length, Is.EqualTo(1));
         }
 
-        #endregion
-
-        #region TryCastTo - IEncodeable[] and Enum array
-
         [Test]
         public void TryCastToIEncodeableArrayReturnsEncodeableArray()
         {
@@ -1154,10 +1120,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value, Is.EqualTo(default(TimeSpan)));
         }
 
-        #endregion
-
-        #region CastTo
-
         [Test]
         public void CastToWithValidTypeReturnsValue()
         {
@@ -1182,10 +1144,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo(default(TimeSpan)));
         }
 
-        #endregion
-
-        #region CastFromWithReflectionFallback
-
         [Test]
         public void CastFromWithReflectionFallbackValidValueReturnsVariant()
         {
@@ -1201,10 +1159,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => VariantHelper.CastFromWithReflectionFallback(new TimeSpan(100)),
                 Throws.TypeOf<ServiceResultException>());
         }
-
-        #endregion
-
-        #region TryCastFromWithReflectionFallback
 
         [Test]
         public void TryCastFromWithReflectionFallbackValidTypeReturnsTrue()
@@ -1263,10 +1217,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant.IsNull, Is.False);
         }
 
-        #endregion
-
-        #region CastFrom
-
         [Test]
         public void CastFromValidValueReturnsVariant()
         {
@@ -1283,10 +1233,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<ServiceResultException>());
         }
 
-        #endregion
-
-        #region TryCastFrom - Guid scalar
-
         [Test]
         public void TryCastFromGuidReturnsVariant()
         {
@@ -1295,10 +1241,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(variant.GetGuid().Guid, Is.EqualTo(guid));
         }
-
-        #endregion
-
-        #region TryCastFrom - IEncodeable scalar
 
         [Test]
         public void TryCastFromIEncodeableReturnsVariant()
@@ -1309,10 +1251,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant.IsNull, Is.False);
         }
 
-        #endregion
-
-        #region TryCastFrom - ArrayOf<Guid>
-
         [Test]
         public void TryCastFromArrayOfGuidReturnsVariant()
         {
@@ -1321,10 +1259,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(variant.IsNull, Is.False);
         }
-
-        #endregion
-
-        #region TryCastFrom - MatrixOf types
 
         [Test]
         public void TryCastFromMatrixOfBoolReturnsVariant()
@@ -1541,10 +1475,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
         }
 
-        #endregion
-
-        #region TryCastFrom - Enum[], IEncodeable[], object[]
-
         [Test]
         public void TryCastFromEnumArrayReturnsVariant()
         {
@@ -1582,10 +1512,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(variant.IsNull, Is.True);
         }
-
-        #endregion
-
-        #region TryCastFrom - IEnumerable types
 
         [Test]
         public void TryCastFromIEnumerableEnumReturnsVariant()
@@ -1813,10 +1739,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
-
-        #endregion
-
-        #region TryCastFrom(Matrix) - Old style matrix
 
         [Test]
         public void TryCastFromMatrixBooleanReturnsVariant()
@@ -2046,10 +1968,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         // cannot be tested via the public Matrix constructor in debug builds because
         // the constructor's SanityCheckArrayElements fires Debug.Assert for mismatched types.
 
-        #endregion
-
-        #region TryCastFrom Matrix via generic path
-
         [Test]
         public void TryCastFromMatrixViaGenericPathReturnsVariant()
         {
@@ -2059,10 +1977,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(variant.IsNull, Is.False);
         }
-
-        #endregion
-
-        #region Roundtrip tests
 
         [Test]
         public void RoundtripBoolThroughVariantHelper()
@@ -2090,7 +2004,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             variant.TryCastTo<string>(out string result);
             Assert.That(result, Is.EqualTo(original));
         }
-
-        #endregion
     }
 }

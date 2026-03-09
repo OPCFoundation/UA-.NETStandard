@@ -40,7 +40,6 @@ namespace Opc.Ua.Types.Tests.Utils
     [Parallelizable]
     public class NumericRangeTests
     {
-        #region Constructor Tests
 
         [Test]
         public void ConstructorWithBeginSetsBeginValue()
@@ -80,10 +79,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range.End, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region Begin Property Tests
-
         [TestCase(0)]
         [TestCase(5)]
         [TestCase(100)]
@@ -116,10 +111,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.Throws<ArgumentOutOfRangeException>(() => range.Begin = 3);
         }
 
-        #endregion
-
-        #region End Property Tests
-
         [TestCase(0)]
         [TestCase(10)]
         [TestCase(-1)]
@@ -151,10 +142,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.Throws<ArgumentOutOfRangeException>(() => range.End = 3);
         }
 
-        #endregion
-
-        #region Count Property Tests
-
         [Test]
         public void CountReturnsZeroWhenBeginIsMinusOne()
         {
@@ -178,10 +165,6 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(begin, end);
             Assert.That(range.Count, Is.EqualTo(expected));
         }
-
-        #endregion
-
-        #region Dimensions Property Tests
 
         [Test]
         public void DimensionsReturnsZeroWhenEmpty()
@@ -211,10 +194,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range.Dimensions, Is.EqualTo(3));
         }
 
-        #endregion
-
-        #region SubRanges Property Tests
-
         [Test]
         public void SubRangesIsNullForSimpleRange()
         {
@@ -230,10 +209,6 @@ namespace Opc.Ua.Types.Tests.Utils
             range.SubRanges = subRanges;
             Assert.That(range.SubRanges, Is.EqualTo(subRanges));
         }
-
-        #endregion
-
-        #region EnsureValid Tests
 
         [Test]
         public void EnsureValidWithCollectionUsesCount()
@@ -308,10 +283,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range.End, Is.EqualTo(10));
         }
 
-        #endregion
-
-        #region Equality Tests
-
         [Test]
         public void EqualsReturnsTrueForEqualRanges()
         {
@@ -382,10 +353,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range1 != range2, Is.False);
         }
 
-        #endregion
-
-        #region GetHashCode Tests
-
         [Test]
         public void GetHashCodeReturnsSameValueForEqualRanges()
         {
@@ -402,10 +369,6 @@ namespace Opc.Ua.Types.Tests.Utils
             // Not guaranteed, but very likely for distinct values
             Assert.That(range1.GetHashCode(), Is.Not.EqualTo(range2.GetHashCode()));
         }
-
-        #endregion
-
-        #region ToString Tests
 
         [Test]
         public void ToStringFormatsBeginOnlyWhenEndIsNegative()
@@ -450,10 +413,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.Throws<FormatException>(() => range.ToString("G", null));
         }
 
-        #endregion
-
-        #region Empty Property Tests
-
         [Test]
         public void EmptyHasMinusOneBeginAndEnd()
         {
@@ -473,10 +432,6 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             Assert.That(NumericRange.Empty.Dimensions, Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Validate Tests
 
         [Test]
         public void ValidateReturnsGoodForNullString()
@@ -618,10 +573,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range.End, Is.EqualTo(3));
         }
 
-        #endregion
-
-        #region Parse Tests
-
         [Test]
         public void ParseReturnsValidRangeForSingleNumber()
         {
@@ -677,10 +628,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(range.SubRanges, Is.Not.Null);
             Assert.That(range.SubRanges.Length, Is.EqualTo(2));
         }
-
-        #endregion
-
-        #region ApplyRange (object) Tests
 
         [Test]
         public void ApplyRangeReturnsGoodForEmptyRange()
@@ -821,10 +768,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That((int[])value, Is.EqualTo([10, 20, 30]));
         }
 
-        #endregion
-
-        #region ApplyRange (Variant) Tests
-
         [Test]
         public void ApplyRangeVariantReturnsGoodForNullVariant()
         {
@@ -842,10 +785,6 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref variant);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
-
-        #endregion
-
-        #region UpdateRange Tests
 
         [Test]
         public void UpdateRangeReturnsNoDataForNullDst()
@@ -1041,10 +980,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
-        #endregion
-
-        #region ApplyMultiRange Tests
-
         [Test]
         public void ApplyMultiRangeReturnsNoDataForNonArrayNonMatrix()
         {
@@ -1167,10 +1102,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
 
-        #endregion
-
-        #region ApplyRange IList Tests
-
         [Test]
         public void ApplyRangeWithListSubsets()
         {
@@ -1207,10 +1138,6 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(1, 100);
             Assert.Throws<ArgumentOutOfRangeException>(() => range.ApplyRange(ref value));
         }
-
-        #endregion
-
-        #region UpdateRange Multi-Dimensional Tests
 
         [Test]
         public void UpdateRangeWithSubRanges1DArray()
@@ -1370,10 +1297,6 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
-        #endregion
-
-        #region Additional Edge Case Tests
-
         [Test]
         public void ApplyRangeByteStringReturnsNoDataWhenBeyondLength()
         {
@@ -1527,7 +1450,5 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
-
-        #endregion
     }
 }

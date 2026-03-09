@@ -440,8 +440,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(NodeId.TryParse(context, string.Empty, out result), Is.True);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
-
-        #region Parse with Context
         [Test]
         public void ParseWithContextValidNumeric()
         {
@@ -617,9 +615,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool result = NodeId.TryParse(context, "ns=1;i=42", options, out NodeId value);
             Assert.That(result, Is.True);
         }
-        #endregion
-
-        #region TryParse Overloads
         [Test]
         public void TryParseWithErrorOutput()
         {
@@ -701,9 +696,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.Throws<ArgumentException>(() =>
                 NodeId.Parse("nsu=http://opcfoundation.org/UA/;i=1234"));
         }
-        #endregion
-
-        #region Format with Context
         [Test]
         public void FormatWithContextNullReturnsEmpty()
         {
@@ -778,9 +770,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = nodeId.Format(context);
             Assert.That(result, Is.EqualTo("s=TestString"));
         }
-        #endregion
-
-        #region Static Format Methods
         [Test]
         public void FormatStaticWithNodeIdToBuffer()
         {
@@ -855,9 +844,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId.Format(CultureInfo.InvariantCulture, buffer, "test", IdType.String, 7);
             Assert.That(buffer.ToString(), Does.Contain("ns=7;"));
         }
-        #endregion
-
-        #region Create Methods
         [Test]
         public void CreateStringWithNamespaceUri()
         {
@@ -932,9 +918,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
         }
 #pragma warning restore CS0618
-        #endregion
-
-        #region WithIdentifier Methods
         [Test]
         public void WithIdentifierUint()
         {
@@ -1027,9 +1010,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(9));
         }
 #pragma warning restore CS0618
-        #endregion
-
-        #region CompareTo Methods
         [Test]
         public void CompareToNodeIdBothNull()
         {
@@ -1346,9 +1326,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)3.14), Is.EqualTo(-1));
         }
-        #endregion
-
-        #region Comparison Operators
         [Test]
         public void OperatorGreaterThanOrEqual()
         {
@@ -1370,9 +1347,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(a <= b, Is.True);
             Assert.That(a <= c, Is.True);
         }
-        #endregion
-
-        #region ToString / IFormattable
         [Test]
         public void ToStringIFormattableNullFormat()
         {
@@ -1390,9 +1364,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.Throws<FormatException>(() =>
                 nodeId.ToString("G", CultureInfo.InvariantCulture));
         }
-        #endregion
-
-        #region Equals Methods
         [Test]
         public void EqualsObjectNull()
         {
@@ -1594,9 +1565,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nullId.Equals((string)null), Is.True);
             Assert.That(nullId.Equals(string.Empty), Is.True);
         }
-        #endregion
-
-        #region Equality and Comparison Operators
         [Test]
         public void OperatorEqualsObject()
         {
@@ -1698,9 +1666,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId != "other", Is.True);
         }
-        #endregion
-
-        #region TryGetIdentifier
         [Test]
         public void TryGetIdentifierUintFalseForNonNumeric()
         {
@@ -1761,9 +1726,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nodeId.TryGetIdentifier(out Guid result), Is.True);
             Assert.That(result, Is.EqualTo(guid));
         }
-        #endregion
-
-        #region Identifier and IdentifierAsString
 #pragma warning disable CS0618 // Type or member is obsolete
         [Test]
         public void IdentifierPropertyString()
@@ -1827,9 +1789,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string str = nodeId.IdentifierAsString;
             Assert.That(str, Is.EqualTo(guid.ToString()));
         }
-        #endregion
-
-        #region IsNull Property
         [Test]
         public void IsNullWithNonZeroNamespace()
         {
@@ -1867,9 +1826,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeId = new NodeId(new ByteString(new byte[] { 1 }));
             Assert.That(nodeId.IsNull, Is.False);
         }
-        #endregion
-
-        #region ToExpandedNodeId
         [Test]
         public void ToExpandedNodeIdNull()
         {
@@ -1902,9 +1858,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.NamespaceUri, Is.Null.Or.Empty);
         }
-        #endregion
-
-        #region Obsolete Constructor Tests
 #pragma warning disable CS0618 // Type or member is obsolete
         [Test]
         public void ObsoleteStringConstructor()
@@ -1968,9 +1921,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new NodeId((object)3.14, 0));
         }
 #pragma warning restore CS0618
-        #endregion
-
-        #region SerializableNodeId
         [Test]
         public void SerializableNodeIdDefaultConstructor()
         {
@@ -1996,9 +1946,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.TypeOf<NodeId>());
             Assert.That((NodeId)result, Is.EqualTo(nodeId));
         }
-        #endregion
-
-        #region NodeIdParsingOptions
         [Test]
         public void NodeIdParsingOptionsProperties()
         {
@@ -2013,9 +1960,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(options.NamespaceMappings, Has.Length.EqualTo(3));
             Assert.That(options.ServerMappings, Has.Length.EqualTo(2));
         }
-        #endregion
-
-        #region Implicit/Explicit Conversions
         [Test]
         public void ImplicitConversionFromUint()
         {
@@ -2039,9 +1983,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId nodeId = (NodeId)bytes;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Opaque));
         }
-        #endregion
-
-        #region Round-Trip Parsing
         [Test]
         public void RoundTripNumericWithNamespace()
         {
@@ -2097,9 +2038,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId parsed = NodeId.Parse(context, formatted);
             Assert.That(parsed, Is.EqualTo(original));
         }
-        #endregion
-
-        #region Edge Cases
         [Test]
         public void NullNodeIdToString()
         {
@@ -2167,6 +2105,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var b = new NodeId(42u, 0);
             Assert.That(a.CompareTo(b), Is.EqualTo(0));
         }
-        #endregion
     }
 }

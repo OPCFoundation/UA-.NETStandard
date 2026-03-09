@@ -71,8 +71,6 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
-        #region Constructor Tests
-
         [Test]
         public void BaseDataVariableTypeStateConstructorSetsDefaults()
         {
@@ -109,10 +107,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node, Is.Not.Null);
             Assert.That(node, Is.InstanceOf<PropertyTypeState>());
         }
-
-        #endregion
-
-        #region Value Property Tests
 
         [Test]
         public void ValueSetSetsValueChangeMask()
@@ -159,10 +153,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(variableType.Value));
         }
 
-        #endregion
-
-        #region DataType Property Tests
-
         [Test]
         public void DataTypeSetSetsNonValueChangeMask()
         {
@@ -194,10 +184,6 @@ namespace Opc.Ua.Types.Tests.State
                 variableType.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue),
                 Is.False);
         }
-
-        #endregion
-
-        #region ValueRank Property Tests
 
         [Test]
         public void ValueRankSetSetsNonValueChangeMask()
@@ -232,10 +218,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region ArrayDimensions Property Tests
-
         [Test]
         public void ArrayDimensionsSetSetsNonValueChangeMask()
         {
@@ -268,10 +250,6 @@ namespace Opc.Ua.Types.Tests.State
                 variableType.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue),
                 Is.False);
         }
-
-        #endregion
-
-        #region Clone Tests
 
         [Test]
         public void CloneCreatesDeepCopy()
@@ -310,10 +288,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.DataType, Is.EqualTo(propertyType.DataType));
         }
 
-        #endregion
-
-        #region Initialize from Source Tests
-
         [Test]
         public void InitializeFromSourceViaCloneCopiesAllProperties()
         {
@@ -333,10 +307,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.ArrayDimensions.Count,
                 Is.EqualTo(source.ArrayDimensions.Count));
         }
-
-        #endregion
-
-        #region DeepEquals Tests
 
         [Test]
         public void DeepEqualsReturnsTrueForEqualTypes()
@@ -425,10 +395,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(type1.DeepEquals(type2), Is.False);
         }
 
-        #endregion
-
-        #region DeepGetHashCode Tests
-
         [Test]
         public void DeepGetHashCodeReturnsSameForEqual()
         {
@@ -464,10 +430,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.Not.EqualTo(type2.DeepGetHashCode()));
         }
 
-        #endregion
-
-        #region Export Tests
-
         [Test]
         public void ExportToNodeTableCreatesVariableTypeNode()
         {
@@ -499,10 +461,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(varTypeNode.DataType, Is.EqualTo(DataTypeIds.Int32));
             Assert.That(varTypeNode.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
-
-        #endregion
-
-        #region GetAttributesToSave Tests
 
         [Test]
         public void GetAttributesToSaveIncludesValueWhenSet()
@@ -595,10 +553,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region Binary Save/Update Round Trip Tests
-
         [Test]
         public void BinarySaveAndUpdateRoundTrip()
         {
@@ -654,7 +608,5 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.Value.IsNull, Is.True);
             Assert.That(restored.ValueRank, Is.EqualTo(ValueRanks.Any));
         }
-
-        #endregion
     }
 }

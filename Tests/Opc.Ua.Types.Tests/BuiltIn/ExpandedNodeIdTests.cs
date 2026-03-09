@@ -310,8 +310,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo(ExpandedNodeId.Null));
         }
 
-        #region Constructors – lines 112-311
-
         [Test]
         public void ConstructorUintNamespaceIndexWithNamespaceUri()
         {
@@ -451,10 +449,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-        #endregion
-
-        #region Properties – lines 326-394
-
         [Test]
         public void IsNullReturnsTrueForDefault()
         {
@@ -512,10 +506,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
-        #endregion
-
-        #region With* Methods – lines 407-449
-
         [Test]
         public void WithInnerNode()
         {
@@ -548,10 +538,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ExpandedNodeId result = original.WithServerIndex(10);
             Assert.That(result.ServerIndex, Is.EqualTo(10u));
         }
-
-        #endregion
-
-        #region CompareTo – lines 452-510
 
         [Test]
         public void CompareToNullWhenIsNull()
@@ -652,10 +638,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nullId.CompareTo((object)nonNullId), Is.LessThan(0));
         }
 
-        #endregion
-
-        #region Comparison Operators – lines 513-534
-
         [Test]
         public void OperatorGreaterThanOrEqual()
         {
@@ -679,10 +661,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id1 <= id3, Is.True);
             Assert.That(id2 <= id1, Is.False);
         }
-
-        #endregion
-
-        #region Equals – lines 537-577
 
         [Test]
         public void EqualsObjectNull()
@@ -729,10 +707,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.Equals(nodeId), Is.False);
         }
 
-        #endregion
-
-        #region Equality Operators with Object – lines 611-644
-
         [Test]
         public void OperatorEqualsObject()
         {
@@ -769,10 +743,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(eid != nid, Is.True);
         }
 
-        #endregion
-
-        #region Explicit cast to NodeId – lines 650-662
-
         [Test]
         public void ExplicitCastToNodeIdNull()
         {
@@ -803,10 +773,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(3));
         }
 
-        #endregion
-
-        #region ToString / IFormattable – lines 705-720
-
         [Test]
         public void ToStringWithInvalidFormatThrows()
         {
@@ -824,10 +790,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = id.ToString(null, null);
             Assert.That(result, Is.EqualTo("i=1"));
         }
-
-        #endregion
-
-        #region Format(IServiceMessageContext, bool useUris) – lines 772-819
 
         [Test]
         public void FormatWithContextNullNodeId()
@@ -872,10 +834,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Does.StartWith("svr=5;"));
         }
 
-        #endregion
-
-        #region Parse(string, NamespaceTable) – lines 828-846
-
         [Test]
         public void ParseWithNamespaceTableNonAbsolute()
         {
@@ -907,10 +865,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => ExpandedNodeId.Parse("nsu=http://unknown.org/;i=42", nsTable),
                 Throws.TypeOf<ServiceResultException>());
         }
-
-        #endregion
-
-        #region Format(IFormatProvider) and overloads – lines 872-963
 
         [Test]
         public void FormatNullExpandedNodeIdReturnsEmpty()
@@ -962,10 +916,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Does.Contain("nsu=http://ns.org/;"));
             Assert.That(result, Does.Contain("ns=2;s=Hello"));
         }
-
-        #endregion
-
-        #region Parse(string, NamespaceTable, NamespaceTable) – lines 969-1012
 
         [Test]
         public void ParseWithCurrentAndTargetNamespacesWithNamespaceIndex()
@@ -1024,10 +974,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceUri, Is.EqualTo("http://ns.org/"));
         }
 
-        #endregion
-
-        #region TryParse overloads – lines 1058-1119
-
         [Test]
         public void TryParseWithError()
         {
@@ -1081,10 +1027,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
         }
 
-        #endregion
-
-        #region Parse(IServiceMessageContext, ...) – lines 1130-1149
-
         [Test]
         public void ParseWithContextSuccess()
         {
@@ -1118,10 +1060,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // The namespace should have been added to the table
             Assert.That(ctx.NamespaceUris.GetIndex("http://newns.org/"), Is.GreaterThanOrEqualTo(0));
         }
-
-        #endregion
-
-        #region InternalTryParse – lines 1223-1302
 
         [Test]
         public void TryParseInvalidServerIndexNoSemicolon()
@@ -1166,10 +1104,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.Unexpected));
         }
-
-        #endregion
-
-        #region InternalTryParseWithContext – lines 1315-1424
 
         [Test]
         public void TryParseWithContextEmptyText()
@@ -1279,10 +1213,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(success, Is.False);
         }
 
-        #endregion
-
-        #region GetHashCode – lines 580-608
-
         [Test]
         public void GetHashCodeForNullReturnsZero()
         {
@@ -1315,10 +1245,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int hash = id.GetHashCode();
             Assert.That(hash, Is.Not.EqualTo(0));
         }
-
-        #endregion
-
-        #region ToNodeId – lines 730-764
 
         [Test]
         public void ToNodeIdNullExpandedNodeId()
@@ -1368,10 +1294,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.NamespaceIndex, Is.GreaterThan(0));
         }
-
-        #endregion
-
-        #region SerializableExpandedNodeId – lines 1450-1583
 
         [Test]
         public void SerializableDefaultConstructor()
@@ -1511,10 +1433,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(n, Is.EqualTo(42u));
         }
 
-        #endregion
-
-        #region Implicit Conversions – lines 667-694
-
         [Test]
         public void ImplicitConversionFromNodeId()
         {
@@ -1554,10 +1472,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(eid.TryGetIdentifier(out ByteString result), Is.True);
             Assert.That(result, Is.EqualTo(bs));
         }
-
-        #endregion
-
-        #region EqualsExpandedNodeId detailed branches – lines 548-567
 
         [Test]
         public void EqualsExpandedNodeIdDifferentServerIndex()
@@ -1602,10 +1516,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(ExpandedNodeId.Null.Equals(ExpandedNodeId.Null), Is.True);
         }
 
-        #endregion
-
-        #region Format with escaped NamespaceUri containing special chars
-
         [Test]
         public void FormatAndParseRoundTripWithEscapedNamespaceUri()
         {
@@ -1632,10 +1542,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var parsed = ExpandedNodeId.Parse(formatted);
             Assert.That(parsed.NamespaceUri, Is.EqualTo("http://ns.org/100%done"));
         }
-
-        #endregion
-
-        #region Remaining gap coverage
 
         [Test]
         public void CompareToNodeIdNotNullWhenAbsolute()
@@ -1700,10 +1606,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             object val = s.GetValue();
             Assert.That(val, Is.EqualTo(eid));
         }
-
-        #endregion
-
-        #region Additional edge cases for full branch coverage
 
         [Test]
         public void CompareToAbsoluteNullNodeIdWithNonNullNodeId()
@@ -1798,7 +1700,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id = new ExpandedNodeId(bs, "http://ns.org/", 0);
             Assert.That(id.NamespaceUri, Is.EqualTo("http://ns.org/"));
         }
-
-        #endregion
     }
 }

@@ -44,7 +44,6 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public class EncodeableObjectTests
     {
-        #region Test Helpers
 
         private static ServiceMessageContext CreateContext()
         {
@@ -84,10 +83,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             return new Argument(name, new NodeId(1), -1, "Test Description");
         }
-
-        #endregion
-
-        #region Virtual Method Tests (lines 54-55, 59-60, 67-68, 205-207, 213-215)
 
         [Test]
         public void EncodeVirtualMethodDoesNotThrow()
@@ -153,10 +148,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(clone, Is.TypeOf<TestEncodeableObject>());
         }
 
-        #endregion
-
-        #region ApplyDataEncoding — Early Return Tests (lines 80-82, 86-88, 91-95)
-
         [Test]
         public void ApplyDataEncodingNullDataEncodingReturnsGood()
         {
@@ -218,10 +209,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDataEncodingInvalid));
         }
 
-        #endregion
-
-        #region ApplyDataEncoding — Scalar Path Tests (lines 91, 93, 139-144)
-
         [Test]
         public void ApplyDataEncodingScalarBinaryReturnsGood()
         {
@@ -255,10 +242,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
             Assert.That(value.TryGet(out ExtensionObject _), Is.True);
         }
-
-        #endregion
-
-        #region ApplyDataEncoding — Array Path Tests (lines 103-135)
 
         [Test]
         public void ApplyDataEncodingArrayBinaryReturnsGood()
@@ -340,10 +323,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
-        #endregion
-
-        #region ApplyDataEncoding — Fallback / Exception Tests (lines 147, 149-154)
-
         [Test]
         public void ApplyDataEncodingNonExtensionObjectReturnsBadDataEncodingUnsupported()
         {
@@ -375,10 +354,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
-        #endregion
-
-        #region Static Encode Tests (lines 165-176)
-
         [Test]
         public void EncodeStaticWithXmlReturnsXmlExtensionObject()
         {
@@ -409,10 +384,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
         }
 
-        #endregion
-
-        #region EncodeXml / EncodeBinary Tests (lines 182-189, 195-201)
-
         [Test]
         public void EncodeXmlReturnsValidXmlElement()
         {
@@ -441,7 +412,5 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Length, Is.GreaterThan(0));
         }
-
-        #endregion
     }
 }

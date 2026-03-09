@@ -61,8 +61,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable = new NodeTable(_namespaceTable, _serverTable, _typeTable);
         }
 
-        #region Helpers
-
         private Node CreateNode(uint id, string name = null)
         {
             name ??= $"Node{id}";
@@ -92,10 +90,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             return new ExpandedNodeId(id, "http://remote.server/", 1u);
         }
 
-        #endregion
-
-        #region Constructor and Properties
-
         // Covers line 133: ServerUris getter
         [Test]
         public void ServerUrisReturnsTableFromConstructor()
@@ -109,10 +103,6 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             Assert.That(_nodeTable.TypeTree, Is.SameAs(_typeTable));
         }
-
-        #endregion
-
-        #region Clear
 
         // Covers lines 633-636
         [Test]
@@ -136,10 +126,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
             Assert.DoesNotThrow(() => _nodeTable.Clear());
         }
-
-        #endregion
-
-        #region IEnumerable
 
         // Covers lines 273-276: non-generic GetEnumerator
         [Test]
@@ -176,10 +162,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             var allNodes = _nodeTable.ToList();
             Assert.That(allNodes, Has.Count.EqualTo(2));
         }
-
-        #endregion
-
-        #region Find(ExpandedNodeId) Edge Cases
 
         // Covers lines 700-702: InternalFind with null ExpandedNodeId
         [Test]
@@ -238,10 +220,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             INode result = _nodeTable.Find(LocalExpanded(999));
             Assert.That(result, Is.Null);
         }
-
-        #endregion
-
-        #region Find (5-param with QualifiedName)
 
         // Covers lines 157-163: source not found
         [Test]
@@ -361,10 +339,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        #endregion
-
-        #region Find (4-param returning IList)
-
         // Covers lines 210-219: source not found
         [Test]
         public void FindListReturnsEmptyWhenSourceNotFound()
@@ -437,10 +411,6 @@ namespace Opc.Ua.Types.Tests.Nodes
                 false);
             Assert.That(result, Has.Count.EqualTo(1));
         }
-
-        #endregion
-
-        #region Import(ReferenceDescription)
 
         // Covers lines 439-461: creates new local node
         [Test]
@@ -574,10 +544,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Updated")));
             Assert.That(result.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
         }
-
-        #endregion
-
-        #region Import(NodeSet)
 
         // Covers lines 292-297: null nodeSet
         [Test]
@@ -781,10 +747,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefs, Has.Count.EqualTo(1));
         }
 
-        #endregion
-
-        #region Attach
-
         // Covers lines 507-510: removes duplicate node
         [Test]
         public void AttachRemovesDuplicateNode()
@@ -912,10 +874,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(LocalExpanded(5000)), Is.True);
         }
 
-        #endregion
-
-        #region Remove
-
         // Covers lines 578-584: node not found
         [Test]
         public void RemoveReturnsFalseWhenNodeNotFound()
@@ -1019,10 +977,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region Count and Enumeration
-
         // Covers line 282: Count with both local and remote nodes
         [Test]
         public void CountIncludesBothLocalAndRemoteNodes()
@@ -1047,10 +1001,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             var allNodes = _nodeTable.ToList();
             Assert.That(allNodes, Is.Empty);
         }
-
-        #endregion
-
-        #region Import(NodeSet) with Remote References
 
         // Covers lines 346-355: remote node creation during Import(NodeSet)
         // Covers lines 670-678: InternalAdd(RemoteNode)
@@ -1121,10 +1071,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             List<Node> result = _nodeTable.Import(nodeSet, null);
             Assert.That(result, Has.Count.EqualTo(1));
         }
-
-        #endregion
-
-        #region Remove with Remote Nodes
 
         // Covers lines 605-612: RemoteNode cleanup during Remove
         // Covers lines 684-692: InternalRemove(RemoteNode)
@@ -1215,10 +1161,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             _nodeTable.Remove(new ExpandedNodeId(new NodeId(1001, 0)));
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Integration Scenarios
 
         [Test]
         public void AttachFindRemoveFullLifecycle()
@@ -1343,7 +1285,5 @@ namespace Opc.Ua.Types.Tests.Nodes
                 false);
             Assert.That(parents, Has.Count.EqualTo(1));
         }
-
-        #endregion
     }
 }

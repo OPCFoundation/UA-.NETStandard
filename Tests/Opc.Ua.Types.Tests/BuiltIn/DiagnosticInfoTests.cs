@@ -68,8 +68,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(diagnosticInfo.IsNullDiagnosticInfo, Is.True);
         }
 
-        #region Constructor Tests
-
         /// <summary>
         /// Copy constructor with null throws ArgumentNullException.
         /// Covers lines 87-88.
@@ -441,10 +439,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerDiagnosticInfo, Is.Null);
         }
 
-        #endregion
-
-        #region Equals Tests
-
         /// <summary>
         /// Equals returns true when comparing to same reference.
         /// Covers lines 526-528.
@@ -636,10 +630,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.True);
         }
 
-        #endregion
-
-        #region GetHashCode Tests
-
         /// <summary>
         /// GetHashCode returns a consistent value for the same object.
         /// Covers lines 441-445, 501-510.
@@ -701,10 +691,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(hash, Is.TypeOf<int>());
         }
 
-        #endregion
-
-        #region ToString Tests
-
         /// <summary>
         /// Parameterless ToString returns formatted string with field values.
         /// Covers lines 454-456.
@@ -759,10 +745,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo("-1:-1:-1:-1"));
         }
 
-        #endregion
-
-        #region Clone Tests
-
         /// <summary>
         /// Clone returns a deep copy that is equal but not same reference.
         /// Covers lines 484-486, 492-494.
@@ -804,10 +786,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone, Is.Not.SameAs(original));
             Assert.That(clone.SymbolicId, Is.EqualTo(1));
         }
-
-        #endregion
-
-        #region IsNullDiagnosticInfo Tests
 
         /// <summary>
         /// IsNullDiagnosticInfo returns false when SymbolicId is not default.
@@ -855,7 +833,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(di.IsNullDiagnosticInfo, Is.False);
         }
-
-        #endregion
     }
 }

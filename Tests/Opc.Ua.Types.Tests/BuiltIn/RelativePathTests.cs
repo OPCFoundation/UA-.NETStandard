@@ -46,7 +46,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class RelativePathTests
     {
-        #region RelativePath Constructors
 
         [Test]
         public void DefaultConstructorCreatesEmptyElements()
@@ -103,10 +102,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.Elements[0].TargetName, Is.EqualTo(browseName));
         }
 
-        #endregion
-
-        #region Elements Property
-
         [Test]
         public void ElementsSetterAcceptsCollection()
         {
@@ -140,10 +135,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.Elements.Count, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region TypeId / EncodingId Properties
-
         [Test]
         public void TypeIdReturnsExpectedValue()
         {
@@ -175,10 +166,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var path = new RelativePath();
             Assert.That(path.JsonEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultJson));
         }
-
-        #endregion
-
-        #region Encode / Decode
 
         [Test]
         public void EncodeWritesElementsArray()
@@ -220,10 +207,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.Elements.Count, Is.EqualTo(1));
             Assert.That(path.Elements[0].TargetName, Is.EqualTo(new QualifiedName("Prop1")));
         }
-
-        #endregion
-
-        #region IsEqual
 
         [Test]
         public void IsEqualWithSameReferenceReturnsTrue()
@@ -277,10 +260,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path1.IsEqual(path2), Is.True);
         }
 
-        #endregion
-
-        #region Clone / MemberwiseClone
-
         [Test]
         public void CloneReturnsDeepCopy()
         {
@@ -311,10 +290,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone.Elements.Count, Is.EqualTo(1));
         }
 
-        #endregion
-
-        #region Format
-
         [Test]
         public void FormatWithEmptyPathReturnsEmptyString()
         {
@@ -342,10 +317,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        #endregion
-
-        #region IsEmpty
-
         [Test]
         public void IsEmptyWithNullReturnsTrue()
         {
@@ -368,10 +339,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var path = new RelativePath(new QualifiedName("Node"));
             Assert.That(RelativePath.IsEmpty(path), Is.False);
         }
-
-        #endregion
-
-        #region Parse(string, ITypeTable)
 
         [Test]
         public void ParseWithNullTypeTreeThrowsArgumentNullException()
@@ -483,10 +450,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Elements[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
             Assert.That(result.Elements[1].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.Aggregates));
         }
-
-        #endregion
-
-        #region Parse(string, ITypeTable, NamespaceTable, NamespaceTable)
 
         [Test]
         public void ParseWithNamespaceTablesHierarchicalPath()
@@ -610,10 +573,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Elements[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
         }
 
-        #endregion
-
-        #region RelativePathElement Constructors and Properties
-
         [Test]
         public void RelativePathElementDefaultConstructorInitializesDefaults()
         {
@@ -645,10 +604,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(element.TargetName, Is.EqualTo(new QualifiedName("TestTarget", 3)));
         }
 
-        #endregion
-
-        #region RelativePathElement TypeId Properties
-
         [Test]
         public void RelativePathElementTypeIdReturnsExpectedValue()
         {
@@ -676,10 +631,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var element = new RelativePathElement();
             Assert.That(element.JsonEncodingId, Is.EqualTo(ObjectIds.RelativePathElement_Encoding_DefaultJson));
         }
-
-        #endregion
-
-        #region RelativePathElement Encode / Decode
 
         [Test]
         public void RelativePathElementEncodeWritesAllFields()
@@ -724,10 +675,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             mockDecoder.Verify(d => d.PushNamespace(Namespaces.OpcUaXsd), Times.Once);
             mockDecoder.Verify(d => d.PopNamespace(), Times.Once);
         }
-
-        #endregion
-
-        #region RelativePathElement IsEqual
 
         [Test]
         public void RelativePathElementIsEqualWithSameReferenceReturnsTrue()
@@ -856,10 +803,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(element1.IsEqual(element2), Is.False);
         }
 
-        #endregion
-
-        #region RelativePathElement Clone / MemberwiseClone
-
         [Test]
         public void RelativePathElementCloneReturnsDeepCopy()
         {
@@ -902,10 +845,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone.TargetName, Is.EqualTo(new QualifiedName("MemberwiseTest", 0)));
         }
 
-        #endregion
-
-        #region Round-trip Parse and Format
-
         [Test]
         public void ParseAndFormatHierarchicalPathRoundTrips()
         {
@@ -932,7 +871,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(formatted, Does.Contain("Server"));
             Assert.That(formatted, Does.Contain("Status"));
         }
-
-        #endregion
     }
 }

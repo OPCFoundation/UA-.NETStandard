@@ -43,7 +43,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class QualifiedNameTests
     {
-        #region CompareTo(object) – lines 129-136
 
         [Test]
         public void CompareToObjectWithString()
@@ -73,10 +72,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo(-1));
         }
 
-        #endregion
-
-        #region CompareTo(QualifiedName) – lines 140-147
-
         [Test]
         public void CompareToQualifiedNameDifferentNamespaceIndex()
         {
@@ -104,10 +99,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn2 = new QualifiedName("Same", 3);
             Assert.That(qn1.CompareTo(qn2), Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Comparison operators (QualifiedName vs QualifiedName) – lines 151-171
 
         [Test]
         public void OperatorGreaterThanQualifiedName()
@@ -153,10 +144,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn2 >= qn1, Is.False);
         }
 
-        #endregion
-
-        #region CompareTo(string) – lines 175-182
-
         [Test]
         public void CompareToStringWithNonZeroNamespaceIndex()
         {
@@ -174,10 +161,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn.CompareTo("Alpha"), Is.EqualTo(0));
             Assert.That(qn.CompareTo("AAAAAA"), Is.GreaterThan(0));
         }
-
-        #endregion
-
-        #region Comparison operators (QualifiedName vs string) – lines 186-206
 
         [Test]
         public void OperatorGreaterThanString()
@@ -217,10 +200,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn >= "Gamma", Is.False);
         }
 
-        #endregion
-
-        #region Equals(object) – lines 210-217
-
         [Test]
         public void EqualsObjectWithString()
         {
@@ -255,10 +234,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn.Equals((object)null), Is.False);
         }
 
-        #endregion
-
-        #region Equals(string) – lines 243-249
-
         [Test]
         public void EqualsStringWithNonZeroNamespaceIndex()
         {
@@ -275,10 +250,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn.Equals("Hello"), Is.True);
             Assert.That(qn.Equals("World"), Is.False);
         }
-
-        #endregion
-
-        #region Equality operators (QualifiedName vs string) – lines 253-261
 
         [Test]
         public void OperatorEqualityQualifiedNameString()
@@ -298,10 +269,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn != "Hello", Is.False);
         }
 
-        #endregion
-
-        #region ToString with format – lines 312-313
-
         [Test]
         public void ToStringWithInvalidFormatThrows()
         {
@@ -311,10 +278,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => qn.ToString("X", null),
                 Throws.TypeOf<FormatException>());
         }
-
-        #endregion
-
-        #region Create – lines 324-356
 
         [Test]
         public void CreateWithNullNameReturnsNull()
@@ -374,10 +337,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<ServiceResultException>());
         }
 
-        #endregion
-
-        #region IsValid – lines 366-379
-
         [Test]
         public void IsValidWithEmptyNameReturnsFalse()
         {
@@ -412,10 +371,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(QualifiedName.IsValid(qn, table), Is.True);
         }
 
-        #endregion
-
-        #region Parse(string) – lines 388-404
-
         [Test]
         public void ParseEmptyStringReturnsNull()
         {
@@ -423,10 +378,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(QualifiedName.Parse(null).IsNull, Is.True);
             Assert.That(QualifiedName.Parse("").IsNull, Is.True);
         }
-
-        #endregion
-
-        #region Parse(IServiceMessageContext, string, bool) – lines 419-476
 
         [Test]
         public void ParseContextEmptyStringReturnsNull()
@@ -508,10 +459,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region Format – lines 486-518
-
         [Test]
         public void FormatWithEmptyNameReturnsEmpty()
         {
@@ -564,10 +511,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo("SimpleName"));
         }
 
-        #endregion
-
-        #region From – lines 525-531
-
         [Test]
         public void FromNullReturnsNull()
         {
@@ -591,10 +534,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region Explicit operator – lines 538-540
-
         [Test]
         public void ExplicitOperatorFromString()
         {
@@ -611,10 +550,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(qn.IsNull, Is.True);
         }
 
-        #endregion
-
-        #region SerializableQualifiedName – lines 558-561
-
         [Test]
         public void SerializableQualifiedNameDefaultConstructor()
         {
@@ -622,10 +557,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sqn = new SerializableQualifiedName();
             Assert.That(sqn.Value.IsNull, Is.True);
         }
-
-        #endregion
-
-        #region Additional edge cases for branches
 
         [Test]
         public void CompareToQualifiedNameByNamespaceIndexReversed()
@@ -688,17 +619,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));
         }
 
-        #endregion
-
-        #region Helpers
-
         private static ServiceMessageContext CreateContext()
         {
 #pragma warning disable CS0618 // Type or member is obsolete
             return new ServiceMessageContext();
 #pragma warning restore CS0618
         }
-
-        #endregion
     }
 }

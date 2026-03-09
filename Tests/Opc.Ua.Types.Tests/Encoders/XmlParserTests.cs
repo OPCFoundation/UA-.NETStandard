@@ -1874,8 +1874,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static readonly string[] s_expectedStringArray = ["First", "Second", "Third"];
         private static readonly byte[] s_expectedByteArray = [1, 2, 3, 4];
 
-        #region Stream Constructor
-
         [Test]
         public void ConstructorWithStreamCreatesInstance()
         {
@@ -1912,10 +1910,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(42));
         }
 
-        #endregion
-
-        #region Close Methods
-
         [Test]
         public void CloseDoesNotThrow()
         {
@@ -1934,10 +1928,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => decoder.Close(true));
             Assert.DoesNotThrow(() => decoder.Close(false));
         }
-
-        #endregion
-
-        #region Peek(XmlNodeType)
 
         [Test]
         public void PeekXmlNodeTypeElementReturnsQualifiedName()
@@ -2003,10 +1993,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Null);
         }
 
-        #endregion
-
-        #region ReadVariant (wrapper method, lines 941-978)
-
         [Test]
         public void ReadVariantReturnsVariantWithValue()
         {
@@ -2054,10 +2040,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
-
-        #endregion
-
-        #region ReadDataValue (lines 981-1002)
 
         [Test]
         public void ReadDataValueReturnsAllFields()
@@ -2132,10 +2114,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.ServerPicoseconds, Is.EqualTo((ushort)0));
         }
 
-        #endregion
-
-        #region ReadVariant as scalar DataValue in variant (line 2131)
-
         [Test]
         public void ReadVariantValueContentsDataValueReturnsDataValue()
         {
@@ -2162,10 +2140,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dv = (DataValue)result.Value;
             Assert.That(dv.WrappedValue.Value, Is.EqualTo(77));
         }
-
-        #endregion
-
-        #region Array Reading — All Primitive Types
 
         [Test]
         public void ReadSByteArrayReturnsValues()
@@ -2658,10 +2632,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1].WrappedValue.Value, Is.EqualTo(20));
         }
 
-        #endregion
-
-        #region Array Reading — Variant-wrapped arrays (ListOf* via ReadVariantValue)
-
         [Test]
         public void ReadVariantValueListOfSByteReturnsArray()
         {
@@ -3038,10 +3008,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Value, Is.Not.Null);
         }
 
-        #endregion
-
-        #region Array — Nil and Empty Field Handling
-
         [Test]
         public void ReadInt32ArrayMissingFieldReturnsEmpty()
         {
@@ -3067,10 +3033,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result.Count, Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Array Length Exceeded
 
         [Test]
         public void ReadSByteArrayThrowsWhenMaxArrayLengthExceeded()
@@ -3471,10 +3433,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        #endregion
-
-        #region ExtensionObject Array
-
         [Test]
         public void ReadExtensionObjectArrayReturnsValues()
         {
@@ -3532,10 +3490,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result.Count, Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Matrix Reading (ReadMatrix in variant)
 
         [Test]
         public void ReadVariantValueMatrixInt32ReturnsMatrix()
@@ -4061,10 +4015,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
-        #endregion
-
-        #region Error Paths — Nesting Level
-
         [Test]
         public void ReadVariantThrowsWhenNestingLevelExceeded()
         {
@@ -4124,10 +4074,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        #endregion
-
-        #region Error Paths — SafeXmlConvert (overflow and format exceptions)
-
         [Test]
         public void ReadSByteOverflowThrowsBadDecodingError()
         {
@@ -4173,10 +4119,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
-        #endregion
-
-        #region Error Paths — SafeConvertFromBase64String (invalid base64)
-
         [Test]
         public void ReadByteStringInvalidBase64ThrowsBadDecodingError()
         {
@@ -4191,10 +4133,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadByteString("ByteString"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
-
-        #endregion
-
-        #region ReadEncodeableAsExtensionObject
 
         [Test]
         public void ReadEncodeableAsExtensionObjectReturnsEncodeable()
@@ -4241,10 +4179,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result, Is.Null);
         }
-
-        #endregion
-
-        #region ReadEncodeableArrayAsExtensionObjects
 
         [Test]
         public void ReadEncodeableArrayAsExtensionObjectsReturnsValues()
@@ -4317,10 +4251,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        #endregion
-
-        #region ReadEncodeableMatrix
-
         [Test]
         public void ReadEncodeableMatrixReturnsMatrix()
         {
@@ -4369,10 +4299,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsEmpty, Is.True);
         }
 
-        #endregion
-
-        #region ReadVariantValue with TypeInfo validation
-
         [Test]
         public void ReadVariantValueWithTypeMismatchThrows()
         {
@@ -4412,10 +4338,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result.Value, Is.EqualTo(42));
         }
-
-        #endregion
-
-        #region Test helper types
 
         [DataContract(Name = "TestEncodeable", Namespace = Namespaces.OpcUaXsd)]
         private sealed class CoverageTestEncodeable : IEncodeable
@@ -4461,16 +4383,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        #endregion
-
-        #region Helpers
-
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             return new ServiceMessageContext(telemetryContext);
         }
-
-        #endregion
     }
 }

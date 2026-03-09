@@ -44,7 +44,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class StatusCodeTests
     {
-        #region Constructor Tests
 
         [Test]
         public void ConstructorWithCodeSetsCode()
@@ -163,10 +162,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(ex, StatusCodes.BadUnexpectedError);
             Assert.That(sc.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
-
-        #endregion
-
-        #region Property and Bit Manipulation Tests
 
         [Test]
         public void SetCodeReturnsNewStatusCodeWithSpecifiedCode()
@@ -427,10 +422,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.AggregateBits, Is.EqualTo(AggregateBits.Partial | AggregateBits.Calculated));
         }
 
-        #endregion
-
-        #region IsGood / IsBad / IsUncertain Tests
-
         [Test]
         public void IsGoodReturnsTrueForGoodCode()
         {
@@ -533,10 +524,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(StatusCode.IsNotBad(new StatusCode(0x80000000)), Is.False);
         }
 
-        #endregion
-
-        #region CompareTo Tests
-
         [Test]
         public void CompareToObjectWithStatusCodeReturnsCorrectOrder()
         {
@@ -594,10 +581,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(sc.CompareTo(0x00000000), Is.GreaterThan(0));
             Assert.That(sc.CompareTo(0x40000000), Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Equals and GetHashCode Tests
 
         [Test]
         public void EqualsObjectWithStatusCodeComparesCodeBits()
@@ -663,10 +646,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(sc.GetHashCode(), Is.EqualTo(sc.GetHashCode()));
             Assert.That(sc.GetHashCode(), Is.EqualTo(0x80010000u.GetHashCode()));
         }
-
-        #endregion
-
-        #region ToString Tests
 
         [Test]
         public void ToStringWithSymbolicIdIncludesName()
@@ -734,10 +713,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => sc.ToString("X", CultureInfo.InvariantCulture),
                 Throws.TypeOf<FormatException>());
         }
-
-        #endregion
-
-        #region Operator Tests
 
         [Test]
         public void ImplicitConversionFromUintCreatesStatusCode()
@@ -861,10 +836,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(sc2 >= sc1, Is.False);
         }
 
-        #endregion
-
-        #region LookupSymbolicId and LookupUtf8SymbolicId Tests
-
 #pragma warning disable CS0618 // Type or member is obsolete
         [Test]
         public void LookupSymbolicIdReturnsNameForKnownCode()
@@ -908,10 +879,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] result = StatusCode.LookupUtf8SymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
-
-        #endregion
-
-        #region TryGetInternedStatusCode and Intern Tests
 
         [Test]
         public void TryGetInternedStatusCodeReturnsTrueForKnownCode()
@@ -987,10 +954,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(collection.Count, Is.GreaterThan(0));
         }
 
-        #endregion
-
-        #region Default Struct Tests
-
         [Test]
         public void DefaultStatusCodeIsZero()
         {
@@ -1007,10 +970,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(StatusCode.IsBad(sc), Is.False);
             Assert.That(StatusCode.IsUncertain(sc), Is.False);
         }
-
-        #endregion
-
-        #region SerializableStatusCode Tests
 
         [Test]
         public void SerializableStatusCodeDefaultConstructorCreatesDefault()
@@ -1053,7 +1012,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value, Is.TypeOf<StatusCode>());
             Assert.That(((StatusCode)value).Code, Is.EqualTo(0x80010000));
         }
-
-        #endregion
     }
 }

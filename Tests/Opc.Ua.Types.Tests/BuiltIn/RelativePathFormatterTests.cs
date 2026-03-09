@@ -43,7 +43,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class RelativePathFormatterTests
     {
-        #region RelativePathFormatter Constructor Tests
 
         [Test]
         public void DefaultConstructorCreatesEmptyElements()
@@ -107,10 +106,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(formatter.Elements[0].TargetName.Name, Is.EqualTo("Node1"));
             Assert.That(formatter.Elements[1].TargetName.Name, Is.EqualTo("Node2"));
         }
-
-        #endregion
-
-        #region Element Constructor Tests
 
         [Test]
         public void ElementConstructorWithNullElementThrowsArgumentNull()
@@ -245,10 +240,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(element.ReferenceTypeName.IsNull, Is.True);
             Assert.That(element.TargetName.IsNull, Is.True);
         }
-
-        #endregion
-
-        #region Parse Tests
 
         [Test]
         public void ParseNullStringReturnsEmptyFormatter()
@@ -519,10 +510,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Elements[1].TargetName.Name, Is.EqualTo("NodeA"));
         }
 
-        #endregion
-
-        #region ToString Tests
-
         [Test]
         public void ToStringEmptyFormatterReturnsEmptyString()
         {
@@ -676,10 +663,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(formatter.ToString(), Is.EqualTo("NodeA"));
         }
 
-        #endregion
-
-        #region Element ToString Tests
-
         [Test]
         public void ElementToStringWithInvalidFormatThrowsFormatException()
         {
@@ -726,10 +709,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(element.ToString(), Is.EqualTo("<5:MyRef>3:Target"));
         }
 
-        #endregion
-
-        #region IsEmpty Tests
-
         [Test]
         public void IsEmptyWithNullReturnsTrue()
         {
@@ -751,10 +730,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(RelativePathFormatter.IsEmpty(formatter), Is.False);
         }
-
-        #endregion
-
-        #region UpdateNamespaceTable Tests
 
         [Test]
         public void UpdateNamespaceTableAddsMissingNamespaces()
@@ -855,10 +830,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Namespace index 0 and 1 are not added; target already exists with ns:0
             Assert.That(targetTable.Count, Is.EqualTo(initialCount));
         }
-
-        #endregion
-
-        #region TranslateNamespaceIndexes Tests
 
         [Test]
         public void TranslateNamespaceIndexesUpdatesTargetName()
@@ -983,10 +954,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             formatter.TranslateNamespaceIndexes(currentTable, targetTable);
         }
 
-        #endregion
-
-        #region Round-Trip Tests
-
         [TestCase("/NodeA")]
         [TestCase(".NodeA")]
         [TestCase("/NodeA/NodeB")]
@@ -1014,10 +981,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(parsed.Elements[0].TargetName.Name, Is.EqualTo("Node/A"));
             Assert.That(parsed.ToString(), Is.EqualTo(original));
         }
-
-        #endregion
-
-        #region Edge Case Tests
 
         [Test]
         public void ParseSingleSlashYieldsOneElementWithNoTarget()
@@ -1164,7 +1127,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo("NodeA"));
         }
-
-        #endregion
     }
 }

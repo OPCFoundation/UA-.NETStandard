@@ -1188,8 +1188,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             One = 1
         }
 
-        #region Explicit cast operators: Variant -> scalar
-
         [Test]
         public void ExplicitCastToBoolReturnsValue()
         {
@@ -1384,10 +1382,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue result = (DataValue)v;
             Assert.That(result, Is.Not.Null);
         }
-
-        #endregion
-
-        #region Explicit cast operators: Variant -> ArrayOf<T>
 
         [Test]
         public void ExplicitCastToArrayOfBoolReturnsValue()
@@ -1615,10 +1609,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ArrayOf<Variant> result = (ArrayOf<Variant>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
-
-        #endregion
-
-        #region Explicit cast operators: Variant -> MatrixOf<T>
 
         [Test]
         public void ExplicitCastToMatrixOfBoolReturnsValue()
@@ -1848,10 +1838,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
-        #endregion
-
-        #region Implicit operator: ArrayOf<T> -> Variant
-
         [Test]
         public void ImplicitFromArrayOfSByteCreatesVariant()
         {
@@ -2042,10 +2028,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = arr;
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
         }
-
-        #endregion
-
-        #region Implicit operator: MatrixOf<T> -> Variant
 
         [Test]
         public void ImplicitFromMatrixOfBoolCreatesVariant()
@@ -2252,10 +2234,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = m;
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
         }
-
-        #endregion
-
-        #region Equality operators: Variant == scalar type (covers all type-specific overloads)
 
         [Test]
         public void EqualityOperatorWithBoolValue()
@@ -2464,10 +2442,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v == (Enum)TestEnum.One, Is.True);
             Assert.That(v != (Enum)TestEnum.One, Is.False);
         }
-
-        #endregion
-
-        #region Equality operators: Variant == ArrayOf<T>
 
         [Test]
         public void EqualityOperatorWithArrayOfBool()
@@ -2692,10 +2666,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v == arr, Is.True);
             Assert.That(v != arr, Is.False);
         }
-
-        #endregion
-
-        #region Equality operators: Variant == MatrixOf<T> (representative subset)
 
         [Test]
         public void EqualityOperatorWithMatrixOfBool()
@@ -2924,10 +2894,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v == m, Is.True);
             Assert.That(v != m, Is.False);
         }
-
-        #endregion
-
-        #region ConvertTo methods
 
         [Test]
         public void ConvertToBooleanFromInt32()
@@ -3263,10 +3229,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.True);
         }
 
-        #endregion
-
-        #region ConvertTo generic dispatcher
-
         [Test]
         public void ConvertToReturnsDefaultForNullVariant()
         {
@@ -3361,10 +3323,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant result = v.ConvertTo(BuiltInType.XmlElement);
             Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
         }
-
-        #endregion
-
-        #region GetHashCode coverage
 
         [Test]
         public void GetHashCodeForNullVariantReturnsZero()
@@ -3468,10 +3426,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(new Variant((ArrayOf<Variant>)[new Variant(1)]).GetHashCode(), Is.TypeOf<int>());
         }
 
-        #endregion
-
-        #region ValueIsDefaultOrNull
-
         [Test]
         public void ValueIsDefaultOrNullForNullVariant()
         {
@@ -3564,10 +3518,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
 
-        #endregion
-
-        #region CreateDefault
-
         [Test]
         public void CreateDefaultReturnsVariantWithSpecifiedTypeInfo()
         {
@@ -3583,10 +3533,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
             Assert.That(v.TypeInfo.IsArray, Is.True);
         }
-
-        #endregion
-
-        #region ToString coverage
 
         [Test]
         public void ToStringForScalarBool()
@@ -3695,10 +3641,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(s, Is.Not.Null.And.Not.Empty);
         }
 
-        #endregion
-
-        #region FromEnumeration
-
         [Test]
         public void FromEnumerationWithIntEnumType()
         {
@@ -3803,10 +3745,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = Variant.FromEnumeration(matrix);
             Assert.That(v.IsNull, Is.True);
         }
-
-        #endregion
-
-        #region AsBoxedObject
 
         [Test]
         public void AsBoxedObjectForScalarBoolReturnsBoxedBool()
@@ -3949,10 +3887,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(boxed, Is.InstanceOf<int[]>());
         }
 
-        #endregion
-
-        #region SerializableVariant
-
         [Test]
         public void SerializableVariantDefaultConstructor()
         {
@@ -4053,10 +3987,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That((int)v, Is.EqualTo(42));
         }
 
-        #endregion
-
-        #region Equals typed overloads (Variant.Equals(T))
-
         [Test]
         public void EqualsTypedOverloadForAllScalarTypes()
         {
@@ -4136,10 +4066,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant("hello");
             Assert.That(v.Equals(42), Is.False);
         }
-
-        #endregion
-
-        #region Equals ArrayOf<T> overloads
 
         [Test]
         public void EqualsArrayOfBoolOverload()
@@ -4286,10 +4212,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v.Equals(arr), Is.True);
         }
 
-        #endregion
-
-        #region Variant.Equals(Variant) and Variant.Equals(object)
-
         [Test]
         public void EqualsVariantBothNullReturnsTrue()
         {
@@ -4320,10 +4242,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant(42);
             Assert.That(v.Equals((object)42), Is.True);
         }
-
-        #endregion
-
-        #region Misc edge cases
 
         [Test]
         public void ExplicitCastFromWrongTypeThrowsInvalidCastException()
@@ -4368,10 +4286,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(v.TypeInfo.IsArray, Is.True);
         }
 
-        #endregion
-
-        #region Helpers
-
         private static XmlElement CreateXmlElement(string name)
         {
             var document = new XmlDocument();
@@ -4379,7 +4293,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             element.InnerText = name;
             return (XmlElement)element;
         }
-
-        #endregion
     }
 }

@@ -42,7 +42,6 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class VariableTypeNodeTests
     {
-        #region Helpers
 
         /// <summary>
         /// Test subclass that exposes protected Read/Write methods for direct testing.
@@ -90,10 +89,6 @@ namespace Opc.Ua.Types.Tests.Nodes
                 IsAbstract = false
             };
         }
-
-        #endregion
-
-        #region Constructor Tests
 
         /// <summary>
         /// Covers lines 46-57: copy constructor with IVariableType source.
@@ -145,10 +140,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.True);
             Assert.That(node.ValueRank, Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region Property Tests
 
         /// <summary>
         /// Covers lines 105, 109-114: ArrayDimensions getter and null-coercion in setter.
@@ -202,10 +193,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
         }
 
-        #endregion
-
-        #region Encoding ID Tests
-
         /// <summary>
         /// Covers line 125: TypeId property.
         /// </summary>
@@ -246,10 +233,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.JsonEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultJson));
         }
 
-        #endregion
-
-        #region Encode/Decode Tests
-
         /// <summary>
         /// Covers lines 138-150 (Encode) and 154-166 (Decode) via binary round-trip.
         /// </summary>
@@ -277,10 +260,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(original.IsEqual(decoded), Is.True);
         }
-
-        #endregion
-
-        #region IsEqual Tests
 
         /// <summary>
         /// Covers lines 170-173: IsEqual with same reference returns true.
@@ -385,10 +364,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.IsEqual(null), Is.False);
         }
 
-        #endregion
-
-        #region Clone Tests
-
         /// <summary>
         /// Covers lines 211-213 (Clone) and 217-227 (MemberwiseClone).
         /// </summary>
@@ -438,10 +413,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(clone.ValueRank, Is.EqualTo(1));
             Assert.That(clone.IsAbstract, Is.False);
         }
-
-        #endregion
-
-        #region SupportsAttribute Tests
 
         /// <summary>
         /// Covers line 249: SupportsAttribute for Value when Value is not null.
@@ -526,10 +497,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.DisplayName), Is.True);
         }
 
-        #endregion
-
-        #region Read Tests (Protected, via TestableVariableTypeNode)
-
         /// <summary>
         /// Covers line 271: Read returns DataType as Variant.
         /// </summary>
@@ -612,10 +579,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That((QualifiedName)result, Is.EqualTo(new QualifiedName("TestBrowseName")));
         }
-
-        #endregion
-
-        #region Write Tests (Protected, via TestableVariableTypeNode)
 
         /// <summary>
         /// Covers lines 300-301: Write Value clones and stores the value.
@@ -784,10 +747,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
         }
 
-        #endregion
-
-        #region DataContract Serialization Test
-
         /// <summary>
         /// Covers lines 68-70: OnDeserializing callback invoked during DataContract deserialization.
         /// The Initialize method sets defaults before properties are deserialized.
@@ -813,10 +772,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(deserialized.IsAbstract, Is.EqualTo(false));
             Assert.That(deserialized.ValueRank, Is.EqualTo(3));
         }
-
-        #endregion
-
-        #region Public Read/Write API Tests
 
         /// <summary>
         /// Tests reading Value attribute through the public ILocalNode.Read API.
@@ -857,7 +812,5 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
-
-        #endregion
     }
 }

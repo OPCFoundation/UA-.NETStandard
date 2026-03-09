@@ -44,8 +44,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             return new ReferenceNode(new NodeId(refTypeId), isInverse, new ExpandedNodeId(targetId));
         }
 
-        #region Clone and MemberwiseClone
-
         [Test]
         public void CloneReturnsNewInstanceWithSameValues()
         {
@@ -69,10 +67,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(clone.IsInverse, Is.EqualTo(original.IsInverse));
             Assert.That(clone.TargetId, Is.EqualTo(original.TargetId));
         }
-
-        #endregion
-
-        #region IsEqual
 
         [Test]
         public void IsEqualReturnsTrueForSameReference()
@@ -121,10 +115,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(a.IsEqual(b), Is.False);
         }
 
-        #endregion
-
-        #region ToString
-
         [Test]
         public void ToStringForInverseReferenceContainsInverseMarker()
         {
@@ -145,10 +135,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Does.StartWith("<"));
             Assert.That(result, Does.Not.Contain("<!"));
         }
-
-        #endregion
-
-        #region Equals(object) and Equals(ReferenceNode)
 
         [Test]
         public void EqualsObjectWithEqualReferenceNodeReturnsTrue()
@@ -204,10 +190,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(a.Equals(b), Is.False);
         }
 
-        #endregion
-
-        #region GetHashCode
-
         [Test]
         public void GetHashCodeReturnsSameValueOnMultipleCalls()
         {
@@ -223,10 +205,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Different property values should produce different hash codes
             Assert.That(a.GetHashCode(), Is.Not.EqualTo(b.GetHashCode()));
         }
-
-        #endregion
-
-        #region Equality and Inequality Operators
 
         [Test]
         public void EqualityOperatorReturnsTrueForEqualNodes()
@@ -280,10 +258,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.False);
         }
 
-        #endregion
-
-        #region CompareTo(object)
-
         [Test]
         public void CompareToObjectWithNullReturnsPositive()
         {
@@ -312,10 +286,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             object b = CreateNode(42, false, 100);
             Assert.That(a.CompareTo(b), Is.EqualTo(0));
         }
-
-        #endregion
-
-        #region CompareTo(ReferenceNode)
 
         [Test]
         public void CompareToNodeBothNullReferenceTypeIdReturnsZero()
@@ -380,10 +350,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             ReferenceNode b = CreateNode(42, false, 20);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
         }
-
-        #endregion
-
-        #region Comparison Operators
 
         [Test]
         public void LessThanOperatorReturnsTrueForSmallerNode()
@@ -465,10 +431,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(a >= b, Is.False);
         }
 
-        #endregion
-
-        #region Encode and Decode
-
         [Test]
         public void EncodeWritesAllProperties()
         {
@@ -507,7 +469,5 @@ namespace Opc.Ua.Types.Tests.Nodes
             decoder.Verify(d => d.PushNamespace(Namespaces.OpcUaXsd), Times.Once);
             decoder.Verify(d => d.PopNamespace(), Times.Once);
         }
-
-        #endregion
     }
 }

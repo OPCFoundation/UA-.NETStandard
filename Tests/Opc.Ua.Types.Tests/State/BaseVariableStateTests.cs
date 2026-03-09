@@ -71,8 +71,6 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
-        #region BaseVariableState Constructor Tests
-
         [Test]
         public void ConstructorWithNullParentSetsDefaults()
         {
@@ -109,8 +107,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(property.ValueRank, Is.EqualTo(ValueRanks.Any));
             Assert.That(property.Historizing, Is.False);
         }
-
-        #endregion
 
         /// <summary>
         /// Test that setting a value wrapped in an ExtensionObject extracts the body correctly.
@@ -244,8 +240,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(propertyState.Value.Name, Is.EqualTo("variantArg"));
         }
 
-        #region Value Property Tests
-
         [Test]
         public void ValuePropertySetSetsChangeMaskAndStatusCode()
         {
@@ -291,10 +285,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.WrappedValue, Is.EqualTo(variable.Value));
         }
 
-        #endregion
-
-        #region Timestamp Property Tests
-
         [Test]
         public void TimestampSetSetsChangeMask()
         {
@@ -325,10 +315,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region StatusCode Property Tests
-
         [Test]
         public void StatusCodeSetSetsChangeMask()
         {
@@ -357,10 +343,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.ChangeMasks.HasFlag(NodeStateChangeMasks.Value),
                 Is.False);
         }
-
-        #endregion
-
-        #region DataType Property Tests
 
         [Test]
         public void DataTypeSetSetsNonValueChangeMask()
@@ -392,10 +374,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region ValueRank Property Tests
-
         [Test]
         public void ValueRankSetSetsNonValueChangeMask()
         {
@@ -425,10 +403,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue),
                 Is.False);
         }
-
-        #endregion
-
-        #region ArrayDimensions Property Tests
 
         [Test]
         public void ArrayDimensionsSetSetsNonValueChangeMask()
@@ -461,10 +435,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue),
                 Is.False);
         }
-
-        #endregion
-
-        #region AccessLevel Property Tests
 
         [Test]
         public void AccessLevelSetSetsNonValueChangeMask()
@@ -551,10 +521,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.AccessLevelEx, Is.EqualTo(0xFF03u));
         }
 
-        #endregion
-
-        #region UserAccessLevel Property Tests
-
         [Test]
         public void UserAccessLevelSetSetsNonValueChangeMask()
         {
@@ -586,10 +552,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region MinimumSamplingInterval Property Tests
-
         [Test]
         public void MinimumSamplingIntervalSetSetsNonValueChangeMask()
         {
@@ -619,10 +581,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue),
                 Is.False);
         }
-
-        #endregion
-
-        #region Historizing Property Tests
 
         [Test]
         public void HistorizingSetSetsNonValueChangeMask()
@@ -654,10 +612,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
         }
 
-        #endregion
-
-        #region CopyPolicy Tests
-
         [Test]
         public void CopyPolicyDefaultIsCopyOnRead()
         {
@@ -677,10 +631,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(variable.CopyPolicy, Is.EqualTo(VariableCopyPolicy.Never));
         }
-
-        #endregion
-
-        #region Clone and CopyTo Tests
 
         [Test]
         public void CloneCreatesDeepCopy()
@@ -732,10 +682,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.DataType, Is.EqualTo(property.DataType));
         }
 
-        #endregion
-
-        #region Initialize from Source Tests
-
         [Test]
         public void InitializeFromSourceCopiesAllProperties()
         {
@@ -767,10 +713,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(source.MinimumSamplingInterval));
             Assert.That(target.Historizing, Is.EqualTo(source.Historizing));
         }
-
-        #endregion
-
-        #region DeepEquals Tests
 
         [Test]
         public void DeepEqualsReturnsTrueForSameReference()
@@ -892,10 +834,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(var1.DeepEquals(var2), Is.False);
         }
 
-        #endregion
-
-        #region DeepGetHashCode Tests
-
         [Test]
         public void DeepGetHashCodeExercisesAllFields()
         {
@@ -936,10 +874,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(var1.DeepGetHashCode(),
                 Is.Not.EqualTo(var2.DeepGetHashCode()));
         }
-
-        #endregion
-
-        #region Export Tests
 
         [Test]
         public void ExportToNodeTableCreatesVariableNode()
@@ -983,10 +917,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variableNode.Historizing, Is.True);
         }
 
-        #endregion
-
-        #region SetStatusCode Tests
-
         [Test]
         public void SetStatusCodeSetsCodeAndTimestamp()
         {
@@ -1016,10 +946,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
         }
-
-        #endregion
-
-        #region ArrayDimensionsToXml / ArrayDimensionsFromXml Tests
 
         [Test]
         public void ArrayDimensionsToXmlReturnsNullForEmpty()
@@ -1108,10 +1034,6 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(parsed[i], Is.EqualTo(original[i]));
             }
         }
-
-        #endregion
-
-        #region GetAttributesToSave Tests
 
         [Test]
         public void GetAttributesToSaveIncludesValueWhenSet()
@@ -1286,10 +1208,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(attrs.HasFlag(AttributesToSave.Historizing), Is.False);
         }
 
-        #endregion
-
-        #region Binary Save/Update Round Trip Tests
-
         [Test]
         public void BinarySaveAndUpdateRoundTripAllAttributes()
         {
@@ -1390,10 +1308,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(StatusCodes.BadWaitingForInitialData));
         }
 
-        #endregion
-
-        #region ApplyIndexRangeAndDataEncoding Tests
-
         [Test]
         public void ApplyIndexRangeAndDataEncodingWithEmptyRangeReturnsGood()
         {
@@ -1409,10 +1323,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((int)value, Is.EqualTo(42));
         }
-
-        #endregion
-
-        #region Typed Variable State Tests
 
         [Test]
         public void GenericPropertyStateValueSetAndGet()
@@ -1434,7 +1344,5 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(variable.Value, Is.EqualTo("hello"));
         }
-
-        #endregion
     }
 }

@@ -46,7 +46,6 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class ReferenceCollectionTests
     {
-        #region Test Data Helpers
         private static NodeId RefType1 => new NodeId(1u);
         private static NodeId RefType2 => new NodeId(2u);
         private static NodeId RefType3 => new NodeId(3u);
@@ -55,9 +54,6 @@ namespace Opc.Ua.Types.Tests.Nodes
         private static ExpandedNodeId Target3 => new ExpandedNodeId(300u);
         private static ExpandedNodeId AbsoluteTarget1 => new ExpandedNodeId(100u, "http://example.com/ns");
         private static ExpandedNodeId AbsoluteTarget2 => new ExpandedNodeId(200u, "http://example.com/ns");
-        #endregion
-
-        #region Constructor
         [Test]
         public void ConstructorCreatesEmptyCollection()
         {
@@ -66,9 +62,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(collection.Count, Is.EqualTo(0));
             Assert.That(collection.IsReadOnly, Is.False);
         }
-        #endregion
-
-        #region ToString
         [Test]
         public void ToStringReturnsReferenceCount()
         {
@@ -100,9 +93,6 @@ namespace Opc.Ua.Types.Tests.Nodes
                 () => collection.ToString("X", null),
                 Throws.TypeOf<FormatException>());
         }
-        #endregion
-
-        #region Add (typed parameters)
         [Test]
         public void AddForwardReferenceIncrementsCount()
         {
@@ -187,9 +177,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(collection.Count, Is.EqualTo(1));
         }
-        #endregion
-
-        #region Add (IReference)
         [Test]
         public void AddIReferenceIncrementsCount()
         {
@@ -200,9 +187,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(collection.Count, Is.EqualTo(1));
         }
-        #endregion
-
-        #region Remove (typed parameters)
         [Test]
         public void RemoveExistingReferenceReturnsTrue()
         {
@@ -237,9 +221,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region Remove (IReference)
         [Test]
         public void RemoveIReferenceExistingReturnsTrue()
         {
@@ -261,9 +242,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region RemoveAll
         [Test]
         public void RemoveAllForwardReferencesOfType()
         {
@@ -355,9 +333,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.True);
             Assert.That(collection.Count, Is.EqualTo(0));
         }
-        #endregion
-
-        #region Clear
         [Test]
         public void ClearRemovesAllReferences()
         {
@@ -369,9 +344,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(collection.Count, Is.EqualTo(0));
         }
-        #endregion
-
-        #region Contains
         [Test]
         public void ContainsReturnsTrueForExistingReference()
         {
@@ -404,9 +376,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region Exists
         [Test]
         public void ExistsReturnsTrueForExactMatch()
         {
@@ -469,9 +438,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region Find
         [Test]
         public void FindReturnsMatchingForwardReferences()
         {
@@ -572,9 +538,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result.Count, Is.EqualTo(2));
         }
-        #endregion
-
-        #region FindTarget
         [Test]
         public void FindTargetReturnsTargetAtIndex()
         {
@@ -631,9 +594,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Not.EqualTo(ExpandedNodeId.Null));
         }
-        #endregion
-
-        #region FindReferencesToTarget
         [Test]
         public void FindReferencesToTargetReturnsAllMatchingReferences()
         {
@@ -668,9 +628,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Empty);
         }
-        #endregion
-
-        #region CopyTo
         [Test]
         public void CopyToCopiesReferencesToArray()
         {
@@ -729,9 +686,6 @@ namespace Opc.Ua.Types.Tests.Nodes
                 () => collection.CopyTo(array, 1),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
-        #endregion
-
-        #region Enumeration
         [Test]
         public void GetEnumeratorIteratesAllReferences()
         {
@@ -764,7 +718,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(count, Is.EqualTo(1));
         }
-        #endregion
     }
 
     /// <summary>
@@ -777,7 +730,6 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class ReferenceDictionaryTests
     {
-        #region Test Data Helpers
         private static NodeId RefType1 => new NodeId(1u);
         private static NodeId RefType2 => new NodeId(2u);
         private static NodeId RefType3 => new NodeId(3u);
@@ -793,9 +745,6 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             return new ReferenceNode(refType, isInverse, target);
         }
-        #endregion
-
-        #region Constructor
         [Test]
         public void ConstructorCreatesEmptyDictionary()
         {
@@ -805,9 +754,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict.IsReadOnly, Is.False);
             Assert.That(dict.Version, Is.EqualTo(0));
         }
-        #endregion
-
-        #region Add and Count
         [Test]
         public void AddForwardReferenceIncrementsCount()
         {
@@ -934,9 +880,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(dict.Version, Is.GreaterThan(initialVersion));
         }
-        #endregion
-
-        #region Indexer
         [Test]
         public void IndexerGetReturnsValue()
         {
@@ -1043,9 +986,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict[reference], Is.EqualTo("new-value"));
             Assert.That(dict.Count, Is.EqualTo(1));
         }
-        #endregion
-
-        #region ContainsKey
         [Test]
         public void ContainsKeyReturnsTrueForExistingForwardReference()
         {
@@ -1126,9 +1066,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region ContainsKey with TypeTree
         [Test]
         public void ContainsKeyWithTypeTreeThrowsOnNullTypeTree()
         {
@@ -1177,9 +1114,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region TryGetValue
         [Test]
         public void TryGetValueReturnsTrueAndValueForExistingKey()
         {
@@ -1237,9 +1171,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo("inv-abs"));
         }
-        #endregion
-
-        #region Remove
         [Test]
         public void RemoveExistingForwardReferenceReturnsTrue()
         {
@@ -1407,9 +1338,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region RemoveAll
         [Test]
         public void RemoveAllForwardReferencesOfType()
         {
@@ -1511,9 +1439,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict.Count, Is.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, Target2)), Is.True);
         }
-        #endregion
-
-        #region Find (without type tree)
         [Test]
         public void FindReturnsForwardReferences()
         {
@@ -1587,9 +1512,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result.Count, Is.EqualTo(2));
         }
-        #endregion
-
-        #region Find (with type tree)
         [Test]
         public void FindWithTypeTreeThrowsOnNull()
         {
@@ -1642,9 +1564,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Empty);
         }
-        #endregion
-
-        #region FindReferencesToTarget
         [Test]
         public void FindReferencesToTargetReturnsMatchingReferences()
         {
@@ -1679,9 +1598,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Empty);
         }
-        #endregion
-
-        #region Clear
         [Test]
         public void ClearRemovesAllEntries()
         {
@@ -1705,9 +1621,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(dict.Version, Is.GreaterThan(versionBeforeClear));
         }
-        #endregion
-
-        #region Contains (KeyValuePair)
         [Test]
         public void ContainsReturnsTrueForExistingPair()
         {
@@ -1744,9 +1657,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region Keys and Values
         [Test]
         public void KeysReturnsAllReferenceKeys()
         {
@@ -1792,9 +1702,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(values, Is.Empty);
         }
-        #endregion
-
-        #region CopyTo
         [Test]
         public void CopyToCopiesAllEntries()
         {
@@ -1808,9 +1715,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(array[0].Value, Is.Not.Null);
             Assert.That(array[1].Value, Is.Not.Null);
         }
-        #endregion
-
-        #region Enumeration
         [Test]
         public void GetEnumeratorIteratesAllEntries()
         {
@@ -1842,9 +1746,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(count, Is.EqualTo(1));
         }
-        #endregion
-
-        #region Mixed Forward/Inverse with Internal/External Targets
         [Test]
         public void MixedReferencesAllDirectionsAndTargetTypes()
         {
@@ -1898,9 +1799,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict.ContainsKey(MakeRef(RefType1, false, Target1)), Is.True);
             Assert.That(dict.ContainsKey(MakeRef(RefType1, false, AbsoluteTarget1)), Is.True);
         }
-        #endregion
-
-        #region Edge Cases - Invalid References
         [Test]
         public void RemoveReferenceWithNullTypeIdReturnsFalse()
         {
@@ -1983,9 +1881,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
         }
-        #endregion
-
-        #region ContainsKey with TypeTree - Absolute/Inverse Targets
         [Test]
         public void ContainsKeyWithTypeTreeFindsAbsoluteForwardTarget()
         {
@@ -2076,9 +1971,6 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
-        #endregion
-
-        #region IsEmpty - External Target Branches
         [Test]
         public void RemoveAllForwardKeepsForwardExternalTargetsInEntry()
         {
@@ -2157,9 +2049,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(dict.Count, Is.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, AbsoluteTarget1)), Is.True);
         }
-        #endregion
-
-        #region Version Tracking
         [Test]
         public void VersionIncreasesOnEachMutation()
         {
@@ -2179,6 +2068,5 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Clear();
             Assert.That(dict.Version, Is.EqualTo(5));
         }
-        #endregion
     }
 }

@@ -46,7 +46,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class TypeInfoTests
     {
-        #region Constructor Tests
 
         [Test]
         public void ConstructorWithValueRankOutOfRangeThrows()
@@ -64,10 +63,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => new TypeInfo(BuiltInType.Int32, short.MinValue - 1),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
-
-        #endregion
-
-        #region GetHashCode / Equals / Operators Tests
 
         [Test]
         public void GetHashCodeForUnknownReturnsZero()
@@ -142,10 +137,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(a != b, Is.True);
         }
 
-        #endregion
-
-        #region ToString Tests
-
         [Test]
         public void ToStringScalarReturnsTypeName()
         {
@@ -185,10 +176,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<FormatException>());
         }
 
-        #endregion
-
-        #region WithBuiltInType / WithValueRank Tests
-
         [Test]
         public void WithBuiltInTypeReturnsNewTypeInfoWithSameValueRank()
         {
@@ -208,10 +195,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(changed.BuiltInType, Is.EqualTo(BuiltInType.Int32));
             Assert.That(changed.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
-
-        #endregion
-
-        #region IsNumericType Tests
 
         [TestCase(BuiltInType.SByte, true)]
         [TestCase(BuiltInType.Byte, true)]
@@ -236,10 +219,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.IsNumericType(type), Is.EqualTo(expected));
         }
 
-        #endregion
-
-        #region IsValueType Tests
-
         [TestCase(BuiltInType.Boolean, true)]
         [TestCase(BuiltInType.SByte, true)]
         [TestCase(BuiltInType.Double, true)]
@@ -256,10 +235,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.IsValueType(type), Is.EqualTo(expected));
         }
 
-        #endregion
-
-        #region IsEncodingNullableType Tests
-
         [TestCase(BuiltInType.Boolean, false)]
         [TestCase(BuiltInType.Int32, false)]
         [TestCase(BuiltInType.Double, false)]
@@ -275,10 +250,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Covers lines 949-961
             Assert.That(TypeInfo.IsEncodingNullableType(type), Is.EqualTo(expected));
         }
-
-        #endregion
-
-        #region GetBuiltInType(NodeId) Tests
 
         [Test]
         public void GetBuiltInTypeWithNullNodeIdReturnsNull()
@@ -386,10 +357,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.GetBuiltInType(new NodeId(9999u)), Is.EqualTo(BuiltInType.Null));
         }
 
-        #endregion
-
-        #region GetBuiltInType(NodeId, ITypeTable) Tests
-
         [Test]
         public void GetBuiltInTypeWithTypeTreeResolvesViaSuperType()
         {
@@ -423,10 +390,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             BuiltInType result = TypeInfo.GetBuiltInType(new NodeId(1000u), mockTypeTree.Object);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
-
-        #endregion
-
-        #region GetBuiltInTypeAsync Tests
 
         [Test]
         public async Task GetBuiltInTypeAsyncWithKnownTypeReturnsDirectly()
@@ -467,10 +430,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 NodeId.Null, null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
-
-        #endregion
-
-        #region GetDataTypeId(TypeInfo) Tests
 
         [TestCase(BuiltInType.Boolean)]
         [TestCase(BuiltInType.SByte)]
@@ -518,10 +477,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.True);
         }
 
-        #endregion
-
-        #region GetDataTypeId(Variant) Tests
-
         [Test]
         public void GetDataTypeIdForNullVariantReturnsNullNodeId()
         {
@@ -538,10 +493,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId result = TypeInfo.GetDataTypeId(variant);
             Assert.That(result, Is.EqualTo(new NodeId(6u))); // DataTypes.Int32
         }
-
-        #endregion
-
-        #region GetSystemType(ExpandedNodeId, IEncodeableTypeLookup) Tests
 
         [Test]
         public void GetSystemTypeWithNullExpandedNodeIdReturnsNull()
@@ -799,10 +750,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Type result = TypeInfo.GetSystemType(unknownId, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
-
-        #endregion
-
-        #region GetSystemType(BuiltInType, int valueRank) Tests
 
         [TestCase(BuiltInType.Boolean, typeof(bool))]
         [TestCase(BuiltInType.SByte, typeof(sbyte))]
@@ -1072,10 +1019,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.GetSystemType(BuiltInType.DataValue, ValueRanks.OneDimension), Is.EqualTo(typeof(DataValue[])));
         }
 
-        #endregion
-
-        #region Construct Tests
-
         [Test]
         public void ConstructFromNullObjectReturnsUnknown()
         {
@@ -1211,10 +1154,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.Construct(typeof(DataValue)).BuiltInType, Is.EqualTo(BuiltInType.DataValue));
         }
 
-        #endregion
-
-        #region GetDefaultVariantValue Tests
-
         [TestCase(BuiltInType.Boolean)]
         [TestCase(BuiltInType.SByte)]
         [TestCase(BuiltInType.Byte)]
@@ -1313,10 +1252,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant result = TypeInfo.GetDefaultVariantValue(new NodeId(50000u), ValueRanks.Scalar, mockTypeTree.Object);
             Assert.That(result.IsNull, Is.False);
         }
-
-        #endregion
-
-        #region GetDefaultValue Tests
 
         [TestCase(BuiltInType.Boolean)]
         [TestCase(BuiltInType.SByte)]
@@ -1423,10 +1358,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.Null);
         }
 
-        #endregion
-
-        #region CreateArray Tests
-
         [Test]
         public void CreateArrayWithNullDimensionsThrows()
         {
@@ -1518,10 +1449,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
         }
 
-        #endregion
-
-        #region GetDataTypeId(Type) Tests
-
         [Test]
         public void GetDataTypeIdForSystemTypeReturnsExpectedNodeId()
         {
@@ -1547,10 +1474,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId result = TypeInfo.GetDataTypeId(typeof(NodeClass[]));
             Assert.That(result, Is.EqualTo(new NodeId(29u)));
         }
-
-        #endregion
-
-        #region GetValueRank Tests
 
         [Test]
         public void GetValueRankForScalarReturnsScalar()
@@ -1578,10 +1501,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Covers lines 2527-2532: enum array path
             Assert.That(TypeInfo.GetValueRank(typeof(NodeClass[])), Is.EqualTo(ValueRanks.OneDimension));
         }
-
-        #endregion
-
-        #region GetXmlName Tests
 
         [Test]
         public void GetXmlNameForNullTypeReturnsNull()
@@ -1660,10 +1579,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.Not.Null);
         }
 
-        #endregion
-
-        #region Instance GetDataTypeId Tests
-
         [Test]
         public void InstanceGetDataTypeIdForNullBuiltInTypeReturnsNullNodeId()
         {
@@ -1681,10 +1596,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId result = typeInfo.GetDataTypeId(new Variant(42), null, null);
             Assert.That(result, Is.EqualTo(new NodeId(6u)));
         }
-
-        #endregion
-
-        #region Scalars / Arrays / OneOrMoreDimensions Static Fields Tests
 
         [Test]
         public void ScalarsStaticFieldsAreCorrect()
@@ -1740,10 +1651,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(TypeInfo.OneOrMoreDimensions.Enumeration.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
-        #endregion
-
-        #region Properties Tests
-
         [Test]
         public void IsUnknownReturnsTrueForDefault()
         {
@@ -1786,10 +1693,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(typeInfo.IsMatrix, Is.True);
         }
 
-        #endregion
-
-        #region Construct(Variant) Obsolete Test
-
         [Test]
 #pragma warning disable CS0618 // Type or member is obsolete
         public void ConstructFromVariantReturnsTypeInfo()
@@ -1801,10 +1704,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 #pragma warning restore CS0618
-
-        #endregion
-
-        #region Construct(Type) - Collection and Generic Paths
 
         [Test]
         public void ConstructFromObjectTypeReturnsVariant()
@@ -1837,7 +1736,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Double));
             Assert.That(result.ValueRank, Is.EqualTo(3));
         }
-
-        #endregion
     }
 }

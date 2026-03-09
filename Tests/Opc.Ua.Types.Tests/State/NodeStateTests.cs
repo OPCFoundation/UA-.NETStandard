@@ -67,8 +67,6 @@ namespace Opc.Ua.Types.Tests.State
             CoreUtils.SilentDispose(m_messageContext);
         }
 
-        #region Helper Methods
-
         private static BaseObjectState CreateObjectNode(
             NodeState parent = null,
             string name = "TestObject")
@@ -112,10 +110,6 @@ namespace Opc.Ua.Types.Tests.State
             return child;
         }
 
-        #endregion
-
-        #region Constructor and Dispose
-
         [Test]
         public void ConstructorSetsNodeClass()
         {
@@ -152,10 +146,6 @@ namespace Opc.Ua.Types.Tests.State
             using var objectType = new BaseObjectTypeState();
             Assert.That(objectType.NodeClass, Is.EqualTo(NodeClass.ObjectType));
         }
-
-        #endregion
-
-        #region Property Accessors and ChangeMasks
 
         [Test]
         public void NodeIdSetterUpdatesChangeMask()
@@ -335,10 +325,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node.ReleaseStatus, Is.EqualTo(Export.ReleaseStatus.Released));
         }
 
-        #endregion
-
-        #region ToString
-
         [Test]
         public void ToStringWithBrowseNameReturnsNodeClassAndDisplayName()
         {
@@ -372,10 +358,6 @@ namespace Opc.Ua.Types.Tests.State
             string result = node.ToString(null, null);
             Assert.That(result, Is.Not.Null.And.Not.Empty);
         }
-
-        #endregion
-
-        #region AddChild / RemoveChild / GetChildren / FindChild
 
         [Test]
         public void AddChildSetsParentAndAddsToChildren()
@@ -652,10 +634,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result, Is.Null);
         }
 
-        #endregion
-
-        #region AddReference / RemoveReference / ReferenceExists / GetReferences
-
         [Test]
         public void AddReferenceAddsAndCanBeFound()
         {
@@ -888,10 +866,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(count, Is.EqualTo(2));
         }
 
-        #endregion
-
-        #region UpdateChangeMasks / ClearChangeMasks
-
         [Test]
         public void UpdateChangeMasksOrsWithExistingValue()
         {
@@ -961,10 +935,6 @@ namespace Opc.Ua.Types.Tests.State
             node.ClearChangeMasks(m_context, false);
             Assert.That(invoked, Is.False);
         }
-
-        #endregion
-
-        #region DeepEquals and DeepGetHashCode
 
         [Test]
         public void DeepEqualsSameReferenceReturnsTrue()
@@ -1057,10 +1027,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node1.DeepEquals(node2), Is.False);
         }
 
-        #endregion
-
-        #region Clone
-
         [Test]
         public void CloneCopiesAllBaseProperties()
         {
@@ -1131,10 +1097,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(cloneChildren, Has.Count.EqualTo(1));
         }
 
-        #endregion
-
-        #region GetHierarchyRoot
-
         [Test]
         public void GetHierarchyRootReturnsRootForNestedChild()
         {
@@ -1166,10 +1128,6 @@ namespace Opc.Ua.Types.Tests.State
             using var typeNode = new BaseObjectTypeState();
             Assert.That(typeNode.GetHierarchyRoot(), Is.SameAs(typeNode));
         }
-
-        #endregion
-
-        #region Event Monitoring
 
         [Test]
         public void AreEventsMonitoredDefaultsFalse()
@@ -1224,10 +1182,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(child.AreEventsMonitored, Is.True);
         }
 
-        #endregion
-
-        #region Validate
-
         [Test]
         public void ValidateReturnsTrueByDefault()
         {
@@ -1257,10 +1211,6 @@ namespace Opc.Ua.Types.Tests.State
             node.OnValidate = (ctx, n) => true;
             Assert.That(node.ValidationRequired, Is.True);
         }
-
-        #endregion
-
-        #region Create / Delete
 
         [Test]
         public void CreateSetsNodeIdBrowseNameDisplayName()
@@ -1343,10 +1293,6 @@ namespace Opc.Ua.Types.Tests.State
             parent.Delete(m_context);
             Assert.That(childCapture.HasFlag(NodeStateChangeMasks.Deleted), Is.True);
         }
-
-        #endregion
-
-        #region ReadAttribute / ReadNonValueAttribute
 
         [Test]
         public void ReadAttributeReturnsBadForNullDataValue()
@@ -1509,10 +1455,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(values.Count, Is.EqualTo(1));
         }
 
-        #endregion
-
-        #region ReadAttribute with OnRead Handlers
-
         [Test]
         public void OnReadNodeIdHandlerInvoked()
         {
@@ -1650,10 +1592,6 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, Attributes.AccessRestrictions, NumericRange.Empty, default, dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
-
-        #endregion
-
-        #region WriteAttribute / WriteNonValueAttribute
 
         [Test]
         public void WriteAttributeReturnsBadForNullDataValue()
@@ -1870,10 +1808,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode == StatusCodes.BadTypeMismatch, Is.True);
         }
 
-        #endregion
-
-        #region WriteAttribute with OnWrite Handlers
-
         [Test]
         public void OnWriteNodeIdHandlerInvoked()
         {
@@ -2019,10 +1953,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(invoked, Is.True);
         }
 
-        #endregion
-
-        #region Export
-
         [Test]
         public void ExportToNodeTableCreatesObjectNode()
         {
@@ -2088,10 +2018,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(table.Find(child.NodeId), Is.Not.Null);
         }
 
-        #endregion
-
-        #region Binary Serialization
-
         [Test]
         public void SaveAndLoadAsBinaryRoundTrips()
         {
@@ -2148,10 +2074,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(refs, Has.Count.EqualTo(1));
         }
 
-        #endregion
-
-        #region XML Serialization
-
         [Test]
         public void SaveAndLoadAsXmlRoundTrips()
         {
@@ -2173,10 +2095,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(loaded.BrowseName, Is.EqualTo(original.BrowseName));
         }
-
-        #endregion
-
-        #region Notifier Management
 
         [Test]
         public void AddNotifierAddsRelationship()
@@ -2307,10 +2225,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(notifiers, Is.Empty);
         }
 
-        #endregion
-
-        #region ReportEvent
-
         [Test]
         public void ReportEventInvokesOnReportEventHandler()
         {
@@ -2339,10 +2253,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(parentEventReceived, Is.True);
         }
 
-        #endregion
-
-        #region ConditionRefresh
-
         [Test]
         public void ConditionRefreshInvokesHandler()
         {
@@ -2369,10 +2279,6 @@ namespace Opc.Ua.Types.Tests.State
             parent.ConditionRefresh(m_context, events, true);
             Assert.That(childInvoked, Is.True);
         }
-
-        #endregion
-
-        #region FindMethod
 
         [Test]
         public void FindMethodReturnsNullWhenNoMethods()
@@ -2412,10 +2318,6 @@ namespace Opc.Ua.Types.Tests.State
             MethodState found = parent.FindMethod(m_context, new NodeId(9999, 0));
             Assert.That(found, Is.Null);
         }
-
-        #endregion
-
-        #region ReadChildAttribute / WriteChildAttribute
 
         [Test]
         public void ReadChildAttributeReadsCurrentNodeWhenAtEnd()
@@ -2457,10 +2359,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((NodeId)dataValue.Value, Is.EqualTo(child.NodeId));
         }
-
-        #endregion
-
-        #region GetInstanceHierarchy
 
         [Test]
         public void GetInstanceHierarchyBuildsPathForChildren()
@@ -2504,10 +2402,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(hierarchy[new NodeId(5002, 0)], Does.Contain("Leaf"));
         }
 
-        #endregion
-
-        #region SetStatusCode
-
         [Test]
         public void SetStatusCodePropagatesRecursivelyToChildren()
         {
@@ -2518,10 +2412,6 @@ namespace Opc.Ua.Types.Tests.State
                     StatusCodes.Bad,
                     DateTimeUtc.Now));
         }
-
-        #endregion
-
-        #region GetHierarchyReferences
 
         [Test]
         public void GetHierarchyReferencesCollectsReferences()
@@ -2536,10 +2426,6 @@ namespace Opc.Ua.Types.Tests.State
             root.GetHierarchyReferences(m_context, "Root", hierarchy, references);
             Assert.That(references, Has.Count.GreaterThanOrEqualTo(1));
         }
-
-        #endregion
-
-        #region UpdateReferenceTargets
 
         [Test]
         public void UpdateReferenceTargetsRemapsNodeIds()
@@ -2575,10 +2461,6 @@ namespace Opc.Ua.Types.Tests.State
                 Is.True);
         }
 
-        #endregion
-
-        #region CreateBrowser
-
         [Test]
         public void CreateBrowserReturnsNonNull()
         {
@@ -2607,10 +2489,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(invoked, Is.True);
         }
 
-        #endregion
-
-        #region AssignNodeIds
-
         [Test]
         public void AssignNodeIdsWithNoFactoryIsNoOp()
         {
@@ -2625,10 +2503,6 @@ namespace Opc.Ua.Types.Tests.State
             node.AssignNodeIds(context, mapping);
             Assert.That(node.NodeId, Is.EqualTo(originalId));
         }
-
-        #endregion
-
-        #region Edge Cases
 
         [Test]
         public void MultipleChildrenWithSameBrowseNameFindReturnsFirst()
@@ -2704,7 +2578,5 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
         }
-
-        #endregion
     }
 }

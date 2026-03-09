@@ -39,7 +39,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantBuilderTests
     {
-        #region Helpers
 
         /// <summary>
         /// Asserts that WithValue followed by GetValue returns the original value.
@@ -67,10 +66,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Blue = 2,
             Alpha = 3
         }
-
-        #endregion
-
-        #region Scalar WithValue and GetValue
 
         [Test]
         public void WithValueAndGetValueBool()
@@ -231,10 +226,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Value, Is.EqualTo(input.Value));
         }
 
-        #endregion
-
-        #region Scalar WithValue Produces Correct BuiltInType
-
         [Test]
         public void WithValueBoolProducesCorrectType()
         {
@@ -266,10 +257,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant variant = builder.WithValue("hello");
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
         }
-
-        #endregion
-
-        #region Scalar Boundary Values
 
         [Test]
         public void WithValueAndGetValueSByteMinMax()
@@ -342,10 +329,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             AssertRoundTrip<double>(s_builder, double.MaxValue);
             AssertRoundTrip<double>(s_builder, 0.0);
         }
-
-        #endregion
-
-        #region Array WithValue and GetValue
 
         [Test]
         public void WithValueAndGetValueBoolArray()
@@ -511,10 +494,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var input = ArrayOf.Wrapped(Variant.From(42), Variant.From("test"));
             AssertRoundTrip<ArrayOf<Variant>>(s_builder, input);
         }
-
-        #endregion
-
-        #region Matrix WithValue and GetValue
 
         [Test]
         public void WithValueAndGetValueBoolMatrix()
@@ -708,10 +687,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             AssertRoundTrip<MatrixOf<Variant>>(s_builder, input);
         }
 
-        #endregion
-
-        #region EnumerationBuilder
-
         [Test]
         public void EnumerationBuilderScalarRoundTrip()
         {
@@ -742,10 +717,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             MatrixOf<TestColor> result = builder.GetValue(variant);
             Assert.That(result, Is.EqualTo(input));
         }
-
-        #endregion
-
-        #region StructureBuilder
 
         [Test]
         public void StructureBuilderScalarRoundTrip()
@@ -783,7 +754,5 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Count, Is.EqualTo(4));
             Assert.That(result.Dimensions, Has.Length.EqualTo(2));
         }
-
-        #endregion
     }
 }
