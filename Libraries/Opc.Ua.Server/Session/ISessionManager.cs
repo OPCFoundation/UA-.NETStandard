@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This method should not throw an exception if the session no longer exists.
         /// </remarks>
-        void CloseSession(NodeId sessionId);
+        ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Validates request header and returns a request context.
@@ -144,7 +144,11 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
-        OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
+        ValueTask<OperationContext> ValidateRequestAsync(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Triggers the <see cref="SessionDiagnosticsChanged"/> event so subscribers can react.

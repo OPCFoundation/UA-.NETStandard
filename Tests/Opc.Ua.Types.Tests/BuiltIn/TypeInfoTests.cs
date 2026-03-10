@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -37,7 +38,7 @@ using NUnit.Framework;
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
-    /// Coverage tests for the <see cref="TypeInfo"/> struct.
+    /// Tests for the <see cref="TypeInfo"/> struct.
     /// </summary>
     [TestFixture]
     [Category("TypeInfo")]
@@ -1989,6 +1990,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = TypeInfo.Construct(typeof(double[,,]));
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Double));
             Assert.That(result.ValueRank, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ConstructForListOfIntReturnsIntArray()
+        {
+            TypeInfo result = TypeInfo.Construct(typeof(List<int>));
+            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(result.IsArray, Is.True);
+        }
+
+        [Test]
+        public void ConstructForNonEnumerableGenericTypeReturnsUnknown()
+        {
+            TypeInfo result = TypeInfo.Construct(typeof(Task<int>));
+            Assert.That(result.IsUnknown, Is.True);
         }
     }
 }

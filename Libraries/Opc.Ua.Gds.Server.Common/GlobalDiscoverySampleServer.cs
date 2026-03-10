@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
@@ -139,12 +140,17 @@ namespace Opc.Ua.Gds.Server
         /// This method is called at the being of the thread that processes a request.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected override OperationContext ValidateRequest(
+        protected override async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            RequestType requestType)
+            RequestType requestType,
+            CancellationToken cancellationToken = default)
         {
-            OperationContext context = base.ValidateRequest(secureChannelContext, requestHeader, requestType);
+            OperationContext context = await base.ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                requestType,
+                cancellationToken).ConfigureAwait(false);
 
             if (requestType == RequestType.Write)
             {

@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Security.Cryptography;
 using System.Diagnostics;
-using System.Collections.Concurrent;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -47,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public class ConfigurationNodeManager : DiagnosticsNodeManager, ICallAsyncNodeManager, IConfigurationNodeManager
+    public class ConfigurationNodeManager : DiagnosticsNodeManager, IConfigurationNodeManager
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -157,9 +156,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(
+        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
-            NodeState predefinedNode)
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
         {
             if (predefinedNode is BaseObjectState passiveNode)
             {
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            return base.AddBehaviourToPredefinedNode(context, predefinedNode);
+            return await base.AddBehaviourToPredefinedNodeAsync(context, predefinedNode, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -362,7 +362,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            lock (Lock)
+            lock (m_namespaceMetadataStatesLock)
             {
                 if (m_namespaceMetadataStates.TryGetValue(
                     namespaceUri,
@@ -375,7 +375,7 @@ namespace Opc.Ua.Server
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
                 namespaceUri);
 
-            lock (Lock)
+            lock (m_namespaceMetadataStatesLock)
             {
                 // remember the result for faster access.
                 m_namespaceMetadataStates[namespaceUri] = namespaceMetadataState;
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server
         ///<inheritdoc/>
         public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
         {
-            lock (Lock)
+            lock (m_namespaceMetadataStatesLock)
             {
                 if (m_namespaceMetadataStatesByIndex.TryGetValue(
                     namespaceIndex,
@@ -400,7 +400,7 @@ namespace Opc.Ua.Server
             string namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
             NamespaceMetadataState namespaceMetadataState = GetNamespaceMetadataState(namespaceUri);
 
-            lock (Lock)
+            lock (m_namespaceMetadataStatesLock)
             {
                 m_namespaceMetadataStatesByIndex[namespaceIndex] = namespaceMetadataState;
             }
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri)
+        public async ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
                 namespaceUri);
@@ -446,7 +446,8 @@ namespace Opc.Ua.Server
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
                 serverNamespacesNode.ClearChangeMasks(SystemContext, true);
-                AddPredefinedNode(SystemContext, namespaceMetadataState);
+                await AddPredefinedNodeAsync(SystemContext, namespaceMetadataState, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // Subscribe to the default permission properties so that any future changes
@@ -1299,7 +1300,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    lock (Lock)
+                    lock (m_namespaceMetadataStatesLock)
                     {
                         m_namespaceMetadataStates.Clear();
                         m_namespaceMetadataStatesByIndex.Clear();
@@ -1410,5 +1411,6 @@ namespace Opc.Ua.Server
         private readonly CertificateStoreIdentifier m_rejectedStore;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
+        private readonly Lock m_namespaceMetadataStatesLock = new();
     }
 }

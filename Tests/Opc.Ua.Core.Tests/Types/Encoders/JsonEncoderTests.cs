@@ -91,49 +91,101 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [DatapointSource]
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection
         {
-            { BuiltInType.Boolean, true, "true", null },
-            { BuiltInType.Boolean, false, null, "false" },
-            { BuiltInType.Boolean, false, null, "false", true },
-            { BuiltInType.Byte, (byte)0, null, "0" },
-            { BuiltInType.Byte, (byte)0, null, "0", true },
-            { BuiltInType.Byte, (byte)88, "88", null },
-            { BuiltInType.Byte, (byte)188, "188", null },
+            {
+                BuiltInType.Boolean,
+                true,
+                "true",
+                null
+            },
+            {
+                BuiltInType.Boolean,
+                false,
+                null,
+                "false"
+            },
+            {
+                BuiltInType.Byte,
+                (byte)0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.Byte,
+                (byte)88,
+                "88",
+                null
+            },
+            {
+                BuiltInType.Byte,
+                (byte)188,
+                "188",
+                null
+            },
             {
                 BuiltInType.Byte,
                 byte.MinValue,
                 null,
-                byte.MinValue.ToString(CultureInfo.InvariantCulture),
-                true
+                byte.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.Byte,
                 byte.MaxValue,
                 byte.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
-            { BuiltInType.SByte, (sbyte)0, null, "0" },
-            { BuiltInType.SByte, (sbyte)0, null, "0", true },
-            { BuiltInType.SByte, (sbyte)-77, "-77", null },
-            { BuiltInType.SByte, (sbyte)77, "77", null },
+                null
+            },
+            {
+                BuiltInType.SByte,
+                (sbyte)0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.SByte,
+                (sbyte)-77,
+                "-77",
+                null
+            },
+            {
+                BuiltInType.SByte,
+                (sbyte)77,
+                "77",
+                null
+            },
             {
                 BuiltInType.SByte,
                 sbyte.MaxValue,
                 sbyte.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null },
+                null
+            },
             {
                 BuiltInType.SByte,
                 sbyte.MinValue,
                 sbyte.MinValue.ToString(CultureInfo.InvariantCulture),
-                null },
-            { BuiltInType.UInt16, (ushort)0, null, "0" },
-            { BuiltInType.UInt16, (ushort)0, null, "0", true },
-            { BuiltInType.UInt16, (ushort)12345, "12345", null },
-            { BuiltInType.UInt16, (ushort)44444, "44444", null },
+                null
+            },
+            {
+                BuiltInType.UInt16,
+                (ushort)0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.UInt16,
+                (ushort)12345,
+                "12345",
+                null
+            },
+            {
+                BuiltInType.UInt16,
+                (ushort)44444,
+                "44444",
+                null
+            },
             {
                 BuiltInType.UInt16,
                 ushort.MinValue,
                 null,
-                ushort.MinValue.ToString(CultureInfo.InvariantCulture),
-                true
+                ushort.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.UInt16,
@@ -141,10 +193,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ushort.MaxValue.ToString(CultureInfo.InvariantCulture),
                 null
             },
-            { BuiltInType.Int16, (short)0, null, "0" },
-            { BuiltInType.Int16, (short)0,null, "0", true },
-            { BuiltInType.Int16, (short)-12345, "-12345", null },
-            { BuiltInType.Int16, (short)12345, "12345", null },
+            {
+                BuiltInType.Int16,
+                (short)0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.Int16,
+                (short)-12345,
+                "-12345",
+                null
+            },
+            {
+                BuiltInType.Int16,
+                (short)12345,
+                "12345",
+                null
+            },
             {
                 BuiltInType.Int16,
                 short.MaxValue,
@@ -157,16 +223,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 short.MinValue.ToString(CultureInfo.InvariantCulture),
                 null
             },
-            { BuiltInType.UInt32, (uint)0,null, "0" },
-            { BuiltInType.UInt32, (uint)0,null, "0", true },
-            { BuiltInType.UInt32, (uint)1234567, "1234567", null },
-            { BuiltInType.UInt32, (uint)4444444, "4444444", null },
+            {
+                BuiltInType.UInt32,
+                (uint)0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.UInt32,
+                (uint)1234567,
+                "1234567",
+                null
+            },
+            {
+                BuiltInType.UInt32,
+                (uint)4444444,
+                "4444444",
+                null
+            },
             {
                 BuiltInType.UInt32,
                 uint.MinValue,
                 null,
-                uint.MinValue.ToString(CultureInfo.InvariantCulture),
-                true
+                uint.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.UInt32,
@@ -174,10 +253,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 uint.MaxValue.ToString(CultureInfo.InvariantCulture),
                 null
             },
-            { BuiltInType.Int32, 0, null, "0" },
-            { BuiltInType.Int32, 0, null, "0", true },
-            { BuiltInType.Int32, -12345678, "-12345678", null },
-            { BuiltInType.Int32, 12345678, "12345678", null },
+            {
+                BuiltInType.Int32,
+                0,
+                null,
+                "0"
+            },
+            {
+                BuiltInType.Int32,
+                -12345678,
+                "-12345678",
+                null
+            },
+            {
+                BuiltInType.Int32,
+                12345678,
+                "12345678",
+                null
+            },
             {
                 BuiltInType.Int32,
                 int.MaxValue,
@@ -190,8 +283,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 int.MinValue.ToString(CultureInfo.InvariantCulture),
                 null
             },
-            { BuiltInType.Int64, (long)0, null, Quotes("0") },
-            { BuiltInType.Int64, (long)0, null, Quotes("0"), true },
+            {
+                BuiltInType.Int64,
+                (long)0,
+                null,
+                Quotes("0")
+            },
             {
                 BuiltInType.Int64,
                 kInt64Value,
@@ -215,8 +312,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes(long.MaxValue.ToString(CultureInfo.InvariantCulture)),
                 null
             },
-            { BuiltInType.UInt64, (ulong)0, null, Quotes("0") },
-            { BuiltInType.UInt64, (ulong)0, null, Quotes("0"), true },
+            {
+                BuiltInType.UInt64,
+                (ulong)0,
+                null,
+                Quotes("0")
+            },
             {
                 BuiltInType.UInt64,
                 kUInt64Value,
@@ -226,8 +327,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.UInt64,
                 ulong.MinValue,
                 null,
-                Quotes(ulong.MinValue.ToString(CultureInfo.InvariantCulture)),
-                true
+                Quotes(ulong.MinValue.ToString(CultureInfo.InvariantCulture))
             },
             {
                 BuiltInType.UInt64,
@@ -235,8 +335,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes(ulong.MaxValue.ToString(CultureInfo.InvariantCulture)),
                 null
             },
-            { BuiltInType.Float, (float)0, null, "0" },
-            { BuiltInType.Float, (float)0,null, "0", true },
+            {
+                BuiltInType.Float,
+                (float)0,
+                null,
+                "0"
+            },
             {
                 BuiltInType.Float,
                 (float)-12345678.1234,
@@ -265,11 +369,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 float.MinValue.ToString("R", CultureInfo.InvariantCulture),
                 null
             },
-            { BuiltInType.Float, float.NegativeInfinity, Quotes("-Infinity"), null },
-            { BuiltInType.Float, float.PositiveInfinity, Quotes("Infinity"), null },
-            { BuiltInType.Float, float.NaN, Quotes("NaN"), null },
-            { BuiltInType.Double, (double)0,null, "0" },
-            { BuiltInType.Double, (double)0,null, "0", true },
+            {
+                BuiltInType.Float,
+                float.NegativeInfinity,
+                Quotes("-Infinity"),
+                null
+            },
+            {
+                BuiltInType.Float,
+                float.PositiveInfinity,
+                Quotes("Infinity"),
+                null
+            },
+            {
+                BuiltInType.Float,
+                float.NaN,
+                Quotes("NaN"),
+                null
+            },
+            {
+                BuiltInType.Double,
+                (double)0,
+                null,
+                "0"
+            },
             {
                 BuiltInType.Double,
                 -12345678.1234,
@@ -320,21 +443,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.DateTime,
                 DateTimeUtc.MinValue + 1,
                 Quotes("1601-01-01T00:00:00.001Z"),
-                null,
-                true
+                null
             },
             {
                 BuiltInType.DateTime,
                 DateTimeUtc.MinValue,
                 null,
                 Quotes("0001-01-01T00:00:00Z")
-            },
-            {
-                BuiltInType.DateTime,
-                DateTimeUtc.MinValue,
-                null,
-                Quotes("0001-01-01T00:00:00Z"),
-                true
             },
             {
                 BuiltInType.DateTime,
@@ -347,13 +462,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Uuid.Empty,
                 null,
                 "null" // Quotes("00000000-0000-0000-0000-000000000000")
-            },
-            {
-                BuiltInType.Guid,
-                Uuid.Empty,
-                null,
-                "null", // Quotes("00000000-0000-0000-0000-000000000000")
-                true
             },
             {
                 BuiltInType.Guid,
@@ -709,13 +817,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.StatusCode,
-                StatusCodes.Good,
-                null,
-                "{}",
-                true
-            },
-            {
-                BuiltInType.StatusCode,
                 StatusCodes.BadBoundNotFound,
                 $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}}""",
                 $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
@@ -772,8 +873,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocalizedText),
                 $$"""{"Text":"{{kLocalizedText}}"}""",
-                null,
-                true
+                null
             },
             {
                 BuiltInType.LocalizedText,

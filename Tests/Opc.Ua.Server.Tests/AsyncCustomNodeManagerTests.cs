@@ -3491,10 +3491,10 @@ namespace Opc.Ua.Server.Tests
         private AggregateManager CreateAndSetupAggregateManager(NodeId supportedAggregateId, double minimumProcessingInterval = 1000.0)
         {
             AggregateManager aggregateManager = CreateAndSetupAggregateManager(minimumProcessingInterval);
-            aggregateManager.RegisterFactory(
+            aggregateManager.RegisterFactoryAsync(
                 supportedAggregateId,
                 "TestAggregate",
-                (id, start, end, interval, stepped, cfg, telemetry) => null);
+                (id, start, end, interval, stepped, cfg, telemetry) => null).AsTask().GetAwaiter().GetResult();
             return aggregateManager;
         }
 

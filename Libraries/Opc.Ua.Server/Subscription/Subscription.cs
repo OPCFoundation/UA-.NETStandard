@@ -124,10 +124,10 @@ namespace Opc.Ua.Server
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(session);
 
-            m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnostics(
+            m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnosticsAsync(
                 systemContext,
                 Diagnostics,
-                OnUpdateDiagnostics);
+                OnUpdateDiagnostics).AsTask().GetAwaiter().GetResult();
 
             TraceState(LogLevel.Information, TraceStateId.Config, "CREATED");
         }
@@ -223,10 +223,10 @@ namespace Opc.Ua.Server
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy();
 
-            m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnostics(
+            m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnosticsAsync(
                 systemContext,
                 Diagnostics,
-                OnUpdateDiagnostics);
+                OnUpdateDiagnostics).AsTask().GetAwaiter().GetResult();
 
             TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
         }
@@ -396,8 +396,8 @@ namespace Opc.Ua.Server
             if (!m_diagnosticsId.IsNull)
             {
                 ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
-                m_server.DiagnosticsNodeManager
-                    .DeleteSubscriptionDiagnostics(systemContext, m_diagnosticsId);
+                await m_server.DiagnosticsNodeManager
+                    .DeleteSubscriptionDiagnosticsAsync(systemContext, m_diagnosticsId, cancellationToken).ConfigureAwait(false);
             }
 
             try

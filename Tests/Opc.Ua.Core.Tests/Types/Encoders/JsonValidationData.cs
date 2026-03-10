@@ -60,18 +60,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public Variant Instance { get; set; }
         public string ExpectedCompact { get; set; }
         public string ExpectedVerbose { get; set; }
-        public bool IncludeDefaultValue{ get; set; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (BuiltInType == BuiltInType.Variant)
             {
-                return $"Variant:{Instance.TypeInfo.BuiltInType}:{Instance}" +
-                    (IncludeDefaultValue
-                        ? ":Default"
-                        : string.Empty);
+                return $"Variant:{Instance.TypeInfo.BuiltInType}:{Instance}";
             }
-            return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : string.Empty);
+            return $"{BuiltInType}:{Instance}";
         }
     }
 
@@ -103,32 +99,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedCompact,
             string expectedVerbose)
         {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedCompact = expectedCompact,
-                    ExpectedVerbose = expectedVerbose
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            Variant instance,
-            string expectedCompact,
-            string expectedVerbose,
-            bool includeDefaultValue)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedCompact = expectedCompact,
-                    ExpectedVerbose = expectedVerbose,
-                    IncludeDefaultValue = includeDefaultValue
-                });
+            Add(new JsonValidationData
+            {
+                BuiltInType = builtInType,
+                Instance = instance,
+                ExpectedCompact = expectedCompact,
+                ExpectedVerbose = expectedVerbose
+            });
         }
     }
 

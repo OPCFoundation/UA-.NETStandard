@@ -280,7 +280,22 @@ namespace Opc.Ua
         /// <param name="other">The NumericRange to test against this</param>
         public readonly bool Equals(NumericRange other)
         {
-            return (other.m_begin == m_begin) && (other.m_end == m_end);
+            if (other.m_begin != m_begin || other.m_end != m_end)
+            {
+                return false;
+            }
+
+            if (SubRanges == null && other.SubRanges == null)
+            {
+                return true;
+            }
+
+            if (SubRanges == null ^ other.SubRanges == null)
+            {
+                return false;
+            }
+
+            return other.SubRanges.SequenceEqual(SubRanges);
         }
 
         /// <summary>
@@ -317,7 +332,19 @@ namespace Opc.Ua
         /// </remarks>
         public override readonly int GetHashCode()
         {
-            return HashCode.Combine(m_begin, m_end);
+            int hashCode = HashCode.Combine(m_begin, m_end);
+
+            if (SubRanges == null)
+            {
+                return hashCode;
+            }
+
+            foreach (NumericRange subRange in SubRanges)
+            {
+                hashCode = HashCode.Combine(hashCode, subRange);
+            }
+
+            return hashCode;
         }
 
         /// <summary>

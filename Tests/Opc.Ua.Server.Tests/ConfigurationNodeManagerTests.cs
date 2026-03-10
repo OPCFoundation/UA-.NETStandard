@@ -25,7 +25,7 @@ namespace Opc.Ua.Server.Tests
             const string namespaceUri = "http://test.org/UA/NamespaceMetadataTest";
 
             // Act 1: CreateNamespaceMetadataState
-            NamespaceMetadataState metadata = configManager.CreateNamespaceMetadataState(namespaceUri);
+            NamespaceMetadataState metadata = await configManager.CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.NamespaceUri.Value, Is.EqualTo(namespaceUri));
 

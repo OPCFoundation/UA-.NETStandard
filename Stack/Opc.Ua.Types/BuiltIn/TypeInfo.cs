@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1831,6 +1832,13 @@ namespace Opc.Ua
                 // check for generic type.
                 if (systemType.GetTypeInfo().IsGenericType)
                 {
+                    // at least require IEnumerable implementation to avoid trying to represent types like
+                    // Task<T> as T[].
+                    if (!typeof(IEnumerable).IsAssignableFrom(systemType))
+                    {
+                        return Unknown;
+                    }
+
                     Type[] argTypes = systemType.GetGenericArguments();
 
                     if (argTypes != null && argTypes.Length == 1)

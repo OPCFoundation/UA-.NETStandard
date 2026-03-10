@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void ApplyRangeWithListReturnsNoDataWhenBeginBeyondLength()
-        {
+            {
             object value = new List<int> { 10, 20, 30 };
             var range = new NumericRange(10);
             StatusCode result = range.ApplyRange(ref value);
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Types.Tests.Utils
             object value = new List<int> { 10, 20, 30 };
             var range = new NumericRange(1, 100);
             Assert.Throws<ArgumentOutOfRangeException>(() => range.ApplyRange(ref value));
-        }
+            }
 
         [Test]
         public void UpdateRangeWithSubRanges1DArray()
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void UpdateRangeWithByteStringArrayDst()
-        {
+            {
             // dst is a ByteString (will be treated as byte[] in array path)
             object dst = ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
             object src = new byte[] { 0xAA, 0xBB };
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void UpdateRangeWithSubRangesReturnsNoDataWhenDimensionsMismatch()
-        {
+            {
             // SubRanges has more dimensions than value rank, and type is not String/ByteString
             object dst = new int[] { 1, 2, 3 };
             object src = new int[] { 9, 8, 7 };
@@ -1442,6 +1442,25 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
 
+        /// <remarks>
+        /// NOTE: Could theoretically fail for hash collisions
+        /// </remarks>
+        [TestCaseSource(nameof(SubRangesCombinations))]
+        public bool GetHashCode_ForSubRanges(NumericRange[] subRanges1, NumericRange[] subRanges2)
+        {
+            var range1 = new NumericRange(1, 5)
+            {
+                SubRanges = subRanges1
+            };
+
+            var range2 = new NumericRange(1, 5)
+            {
+                SubRanges = subRanges2
+            };
+
+            return range1.GetHashCode() == range2.GetHashCode();
+        }
+
         [Test]
         public void ApplyRangeEmptyArray()
         {
@@ -1449,6 +1468,42 @@ namespace Opc.Ua.Types.Tests.Utils
             var range = new NumericRange(0);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        private static IEnumerable<TestCaseData> SubRangesCombinations
+        {
+            get
+            {
+                NumericRange[] range1 = [new(1, 3)];
+                NumericRange[] range2 = [new(2, 4)];
+                NumericRange[] empty = [];
+                NumericRange[] nullValue = null;
+
+                yield return new TestCaseData(range1, range2).Returns(false);
+                yield return new TestCaseData(empty, range1).Returns(false);
+                yield return new TestCaseData(range1, empty).Returns(false);
+                yield return new TestCaseData(nullValue, range1).Returns(false);
+                yield return new TestCaseData(range1, nullValue).Returns(false);
+
+                yield return new TestCaseData(range1, range1).Returns(true);
+                yield return new TestCaseData(nullValue, nullValue).Returns(true);
+            }
+        }
+
+        [TestCaseSource(nameof(SubRangesCombinations))]
+        public bool Equals_ForSubRanges(NumericRange[] subRanges1, NumericRange[] subRanges2)
+        {
+            var range1 = new NumericRange(1, 5)
+            {
+                SubRanges = subRanges1
+            };
+
+            var range2 = new NumericRange(1, 5)
+            {
+                SubRanges = subRanges2
+            };
+
+            return range1.Equals(range2);
         }
     }
 }
