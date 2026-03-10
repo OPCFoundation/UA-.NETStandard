@@ -334,10 +334,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
 
                 dataSetWriter.MessageSettings = new ExtensionObject(dataSetWriterMessage);
-                writerGroup1.DataSetWriters.Add(dataSetWriter);
+                writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter);
             }
 
-            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
 
             //create  the PubSub configuration root object
             var pubSubConfiguration = new PubSubConfigurationDataType
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 //create PublishedData based on metadata names
                 foreach (FieldMetaData field in dataSetMetaData.Fields)
                 {
-                    publishedDataSetSource.PublishedData.Add(
+                    publishedDataSetSource.PublishedData = publishedDataSetSource.PublishedData.AddItem(
                         new PublishedVariableDataType
                         {
                             PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
@@ -372,7 +372,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 publishedDataSetDataType.DataSetSource
                     = new ExtensionObject(publishedDataSetSource);
 
-                pubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
+                pubSubConfiguration.PublishedDataSets =
+                    pubSubConfiguration.PublishedDataSets.AddItem(publishedDataSetDataType);
             }
 
             return pubSubConfiguration;
@@ -452,11 +453,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 keyFrameCount: keyFrameCount);
 
             // add the udp connection too
-            if (udpPublisherConfiguration.Connections != null &&
-                udpPublisherConfiguration.Connections.Count > 0)
+            if (!udpPublisherConfiguration.Connections.IsEmpty)
             {
-                mqttPublisherConfiguration.Connections
-                    .Add(udpPublisherConfiguration.Connections[0]);
+                mqttPublisherConfiguration.Connections =
+                    mqttPublisherConfiguration.Connections.AddItem(udpPublisherConfiguration.Connections[0]);
             }
 
             return mqttPublisherConfiguration;
@@ -653,14 +653,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
 
                 dataSetWriter.MessageSettings = new ExtensionObject(dataSetWriterMessage);
-                writerGroup.DataSetWriters.Add(dataSetWriter);
+                writerGroup.DataSetWriters = writerGroup.DataSetWriters.AddItem(dataSetWriter);
             }
 
             PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(
                 transportProfileUri,
                 addressUrl,
                 publisherId: Variant.From(1));
-            pubSubConnection.WriterGroups.Add(writerGroup);
+            pubSubConnection.WriterGroups = pubSubConnection.WriterGroups.AddItem(writerGroup);
 
             //create  the PubSub configuration root object
             var pubSubConfiguration = new PubSubConfigurationDataType
@@ -683,7 +683,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 //create PublishedData based on metadata names
                 foreach (FieldMetaData field in dataSetMetaData.Fields)
                 {
-                    publishedDataSetSource.PublishedData.Add(
+                    publishedDataSetSource.PublishedData = publishedDataSetSource.PublishedData.AddItem(
                         new PublishedVariableDataType
                         {
                             PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
@@ -694,7 +694,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 publishedDataSetDataType.DataSetSource
                     = new ExtensionObject(publishedDataSetSource);
 
-                pubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
+                pubSubConfiguration.PublishedDataSets =
+                    pubSubConfiguration.PublishedDataSets.AddItem(publishedDataSetDataType);
             }
 
             return pubSubConfiguration;
@@ -796,7 +797,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSet.DataSetMetaData.Fields)
             {
-                publishedDataSetSimpleSource.PublishedData.Add(
+                publishedDataSetSimpleSource.PublishedData = publishedDataSetSimpleSource.PublishedData.AddItem(
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(field.Name, namespaceIndex),
@@ -999,7 +1000,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 var subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
                 foreach (FieldMetaData fieldMetaData in dataSetMetaData.Fields)
                 {
-                    subscribedDataSet.TargetVariables.Add(
+                    subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                         new FieldTargetDataType
                         {
                             DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -1011,11 +1012,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
 
                 dataSetReader.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
-
-                readerGroup1.DataSetReaders.Add(dataSetReader);
+                readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReader);
             }
 
-            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+            pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  the PubSub configuration root object
             return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
@@ -1095,11 +1095,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 nameSpaceIndexForData);
 
             // add the udp connection too
-            if (udpSubscriberConfiguration.Connections != null &&
-                udpSubscriberConfiguration.Connections.Count > 0)
+            if (!udpSubscriberConfiguration.Connections.IsEmpty)
             {
-                mqttSubscriberConfiguration.Connections
-                    .Add(udpSubscriberConfiguration.Connections[0]);
+                mqttSubscriberConfiguration.Connections =
+                    mqttSubscriberConfiguration.Connections.AddItem(udpSubscriberConfiguration.Connections[0]);
             }
 
             return mqttSubscriberConfiguration;

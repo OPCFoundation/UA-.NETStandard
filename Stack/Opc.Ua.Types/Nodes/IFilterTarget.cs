@@ -62,7 +62,7 @@ namespace Opc.Ua
         object GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             uint attributeId,
             NumericRange indexRange);
     }

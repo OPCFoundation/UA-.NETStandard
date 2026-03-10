@@ -832,7 +832,7 @@ namespace Opc.Ua.Client
                 // match null browse path.
                 if (browsePath == null || browsePath.Count == 0)
                 {
-                    if (clause.BrowsePath != null && clause.BrowsePath.Count > 0)
+                    if (!clause.BrowsePath.IsEmpty)
                     {
                         continue;
                     }

@@ -183,11 +183,8 @@ namespace Opc.Ua.Bindings
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
                 if (!httpsMutualTls)
                 {
-                    description.UserIdentityTokens =
-                    [
-                        .. description.UserIdentityTokens
-                            .Where(token => token.TokenType != UserTokenType.Anonymous)
-                    ];
+                    description.UserIdentityTokens = description.UserIdentityTokens
+                        .Filter(token => token.TokenType != UserTokenType.Anonymous);
                 }
 
                 ITransportListener listener = Create(serverBase.MessageContext.Telemetry);

@@ -126,7 +126,8 @@ namespace Opc.Ua.Server
                 AuthenticationMechanism = Identity.TokenType.ToString(),
                 Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
-            m_securityDiagnostics.ClientUserIdHistory.Add(Identity.DisplayName);
+            m_securityDiagnostics.ClientUserIdHistory =
+                m_securityDiagnostics.ClientUserIdHistory.AddItem(Identity.DisplayName);
 
             EndpointDescription description = context.ChannelContext.EndpointDescription;
 
@@ -854,8 +855,7 @@ namespace Opc.Ua.Server
                 identityToken.TryGetEncodeable(out AnonymousIdentityToken _))
             {
                 // check if an anonymous login is permitted.
-                if (EndpointDescription.UserIdentityTokens != null &&
-                    EndpointDescription.UserIdentityTokens.Count > 0)
+                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
                 {
                     bool found = false;
 
@@ -1111,8 +1111,8 @@ namespace Opc.Ua.Server
                 {
                     m_securityDiagnostics.ClientUserIdOfSession = identity.DisplayName;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
-
-                    m_securityDiagnostics.ClientUserIdHistory.Add(identity.DisplayName);
+                    m_securityDiagnostics.ClientUserIdHistory =
+                        m_securityDiagnostics.ClientUserIdHistory.AddItem(identity.DisplayName);
                 }
 
                 return changed;

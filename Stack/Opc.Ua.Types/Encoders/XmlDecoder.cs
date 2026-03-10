@@ -46,38 +46,42 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public XmlDecoder(XmlReader reader, IServiceMessageContext context)
+        public XmlDecoder(Stream stream, IServiceMessageContext context)
+            : this(XmlReader.Create(
+                stream,
+                CoreUtils.DefaultXmlReaderSettings()), context)
         {
-            Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
-            m_nestingLevel = 0;
-            m_reader = reader;
         }
 
         /// <summary>
         /// Initializes the object with an XML element to parse.
         /// </summary>
         public XmlDecoder(XmlElement element, IServiceMessageContext context)
-        {
-            Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
-            m_reader = XmlReader.Create(
+            : this(XmlReader.Create(
                 new StringReader(element.OuterXml),
-                CoreUtils.DefaultXmlReaderSettings());
-            m_nestingLevel = 0;
+                CoreUtils.DefaultXmlReaderSettings()), context)
+        {
         }
 
         /// <summary>
         /// Initializes the object with an XML element to parse.
         /// </summary>
         public XmlDecoder(System.Xml.XmlElement element, IServiceMessageContext context)
+            : this(XmlReader.Create(
+                new StringReader(element.OuterXml),
+                CoreUtils.DefaultXmlReaderSettings()), context)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
+        public XmlDecoder(XmlReader reader, IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
-            m_reader = XmlReader.Create(
-                new StringReader(element.OuterXml),
-                CoreUtils.DefaultXmlReaderSettings());
             m_nestingLevel = 0;
+            m_reader = reader;
         }
 
         /// <summary>

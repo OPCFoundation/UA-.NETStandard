@@ -66,9 +66,9 @@ namespace Opc.Ua.Bindings
                 bufferManager,
                 quotas,
                 serverCertificate,
-                endpoint != null ? [.. new EndpointDescription[] { endpoint }] : null,
-                endpoint != null ? endpoint.SecurityMode : MessageSecurityMode.None,
-                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
+                endpoint is not null ? [.. new EndpointDescription[] { endpoint }] : null,
+                endpoint is not null ? endpoint.SecurityMode : MessageSecurityMode.None,
+                endpoint is not null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
                 telemetry)
         {
             m_telemetry = telemetry;

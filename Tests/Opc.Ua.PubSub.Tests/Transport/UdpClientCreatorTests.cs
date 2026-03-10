@@ -191,11 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Check publisher connections
-            Assert.IsNotNull(
-                publisherConfiguration.Connections,
-                "publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                publisherConfiguration.Connections,
+            Assert.IsFalse(
+                publisherConfiguration.Connections.IsEmpty,
                 "publisherConfiguration.Connections should not be empty");
 
             PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];

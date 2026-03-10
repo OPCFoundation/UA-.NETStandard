@@ -7,7 +7,8 @@
     - [Improved Type safety](#improved-type-safety)
       - [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
       - [ByteString](#bytestring)
-      - [ArrayOf/MatrixOf](#arrayofmatrixof)
+      - [ArrayOf and MatrixOf](#arrayof-and-matrixof)
+      - [DateTimeUtc](#datetimeutc)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
       - [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
@@ -15,9 +16,13 @@
         - [Deprecated boxing behavior](#deprecated-boxing-behavior)
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [XmlElement](#xmlelement)
+      - [Other Data Types](#other-data-types)
       - [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
       - [APIs permanently removed](#apis-permanently-removed)
-    - [Node State handling](#node-state-handling)
+    - [Encoders and Decoders](#encoders-and-decoders)
+    - [Node States](#node-states)
+      - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
+      - [Predefined node processing](#predefined-node-processing)
     - [User Identity Token Handlers](#user-identity-token-handlers)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
@@ -81,7 +86,7 @@ New `Opc.Ua` project as an intermediate project. Impact:
 
 The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `LocalizedText` and `QualifiedName` are now `readonly struct`s. This is a large breaking change and affects existing usage:
 
-1. You cannot compare any of these types against `null`. Use the instance properties: `NodeId.IsNull`, `ExpandedNodeId.IsNull`, `QualifiedName.IsNull`, `LocalizedText.IsNullOrEmpty`, `ExtensionObject.IsNull`.
+1. You cannot compare any of these types against `null`. Use the instance properties: `NodeId.IsNull`, `ExpandedNodeId.IsNull`, `QualifiedName.IsNull`, `LocalizedText.IsNullOrEmpty`, `ExtensionObject.IsNull`. In case of `ArrayOf`/`MatrixOf`/`ByteString`, you can most often just check against `IsEmpty` which checks null and emptiness.
 2. The default item can be created by assigning `default`, e.g. producing `NodeId.Null` for NodeId and `QualifiedName.Null` for QualifiedName. It is recommended to use the `Null` property on these types for readability and per your coding conventions.
 3. Any API that mutated an instance of one of these built in types must be replaced with methods that return a new value of the type, e.g. `NodeId.WithNamespaceIndex(ushort)` as setters were removed.
 
@@ -104,7 +109,7 @@ To migrate, perform the following general replacements in your code:
 - If your code tried to set a byte in the ByteString, create a buffer `byte[]` and after changing convert to `ByteString` using `ByteString.From(buffer)` or `.ToByteString()` extension method
 - Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code as needed.
 
-#### ArrayOf/MatrixOf
+#### ArrayOf and MatrixOf
 
 Similar to `ByteString`, `ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable generic value types representing non-scalar values. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`).
 
@@ -112,16 +117,47 @@ In addition to slicing and range based access, both types provide the ability to
 
 Internally an `ArrayOf`/`MatrixOf` stores a reference to "memory" and a offset and length integer. They have the same layout as `ReadOnlyMemory<T>` although this is not guaranteed to stay so in the future. All generated collection types implicitly convert to and from `ArrayOf<T>` whereby `T` is the member type of the collection type.  E.g. `VariantCollection` is effectively `ArrayOf<Variant>`.
 
+`ArrayOf<T>` provides helper methods e.g. to  `Append` an item or `Concat` another `ArrayOf<T>` which generate a new `ArrayOf<T>`, very similar to the .net ImmutableCollection classes or the respective extension methods in the `System.Linq`. `Filter`, `Find` and `ConvertAll` methods mimic the Linq `Where`, `Any`, `FirstOrDefault`, `Select` or the respective `List<T>` methods. However, you cannot use `Linq` expressions without converting to a list (`ToList`) or array (`ToArray`) first.
+
 All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`MatrixOf` instead of the generated/built-in collection types or `System.Array`. (*) Current exception: all data types use the Collection model due to compatibilty with DataContractSerializer.
 
-Note that equality operators and methods now compare the content of the Array and Matrix, not just reference equality as with `T[]`. It supports checking for an empty array or matrix via `IsEmpty` and `IsNull` whereby the first checks whether the array is effecitvely a `ArrayOf.Empty<T>` amd the second is just a check against `ArrayOf<T>` initialized using `default` (since it is not a reference type anymore). `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
+Note that equality operators and methods now compare the content of the Array and Matrix, not just reference equality as with `T[]`. It supports checking for an empty array or matrix via `IsEmpty` and `IsNull` whereby the first checks whether the array is effectively a `ArrayOf.Empty<T>` amd the second is just a check against `ArrayOf<T>` initialized using `default` (since it is not a reference type anymore). `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
 
 **Change code as follows:**
 
 - Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
-- Indexing and enumeration is only supported via the `Span` property.
-- When trying to set a value in the previous array, create a buffer `T[]` and after mutating convert to `ArrayOf<T>` using `buffer.ToArrayOf()`
+- Change all use of `<Type>Collection` to either `List<Type>` or `ArrayOf<Type>`.
+- In case of errors related to enumeration via Span enumerator across async, convert to a list using `ToList()` then enumerate.
+- When trying to set a value in the previous array, create a buffer `T[]` and after mutating convert to `ArrayOf<T>` using `buffer.ToArrayOf()`.
+- To add items to an `ArrayOf` use the new `Append`/`Concat` methods where you would have used `Add` or `AddRange` before. Note that ArrayOf is immutable so the result needs to be assigned to the variable to which you want to add.
+- In performance intensive code it is best to first create a `List<T>` and then assign the list to a variable of `ArrayOf<T>` type.
 - Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code if needed.
+- Remove any use of `Matrix` which is deprecated and replace with `MatrixOf<T>` which is type safe.
+
+``` csharp
+    // Some examples
+    VariantCollection c = new VariantCollection();
+    // if (c != null) if c is passed from outside
+    c.Add(new Variant(1))
+    var first = c.FirstOrDefault();
+    Int32Collection i = c.Select(v => (int)v).ToList();
+    // need to change to
+    ArrayOf<Variant> c = [new Variant(1)]; // or
+    ArrayOf<Variant> c = default; c = c.Add(new Variant(1)); // or
+    ArrayOf<Variant> c = default; c = c + new Variant(1);
+    var first = !c.IsEmpty ? c[0] : default;
+    ArrayOf<int> i = c.ConvertAll(v => (int)v);
+```
+
+#### DateTimeUtc
+
+Previously the **DateTime** built in type was represented by the `System.DateTime` type. It is now represented by the `Opc.Ua.DateTimeUtc` type. This new type complies with the details of the spec without requiring external helper methods to be used. It's Value property returns the ticks, bounded by the information in Part 6 of the spec, and its time is always UTC. There are conversion operations to and from `DateTime`, but also `DateTimeOffset` and `long` and a minimal subset of `System.DateTime` API to allow for simpler porting. `DateTime` implicitly converts to `DateTimeUtc`, but not vice versa to force use of the new type.
+
+**Change code as follows:**
+
+- Replace `DateTime` with `DateTimeUtc` where appropriate, especially in places where comparing with `DateTime.MinValue`.
+- Replace `DateTime.UtcNow` with `DateTimeUtc.Now` for UTC time "right now". `DateTime.Now` or `DateTime.Today` can be cast or replaced with its Utc variant, which is likely intended anyway as all date/time values in OPC UA are UTC.
+- When assigning a `DateTime` value to a `DateTimeUtc` variable, add a cast, or use the corresponding `DateTimeUtc` constructor.
 
 #### QualifiedName and LocalizedText
 
@@ -153,12 +189,12 @@ Creating a `Variant` or `ExtensionObject` via the constructor taking a `object` 
 
 In some cases it is desirable to gain access to what was returned from the now obsoleted `Value` property. To make the fact that the returned value is likely boxed, the new API is named `AsBoxedObject()`. While the Variant has conversion operators from all supported types and corresponding `From(<Type> value)` APIs, it is sometimes necessary to convert from `System.Object`. Note that `AsBoxedObject()` does not return .net array types but `ArrayOf<T>`, and `ByteString` for - yes - ByteString. `Value` property converts to the old style type expectations.
 
-To perform conversion from `<T>` to a Variant, helper methods are available in `VariantHelper` static class that provide additional overloads of From.
+To perform conversion from `<T>` to a Variant, helper methods are available in `VariantHelper` static class. These helper methods are split into ones that use reflection and ones that do not. Overall, use of these helper methods is not recommended in favor of switching on the type information in the Variant.
 
 > (*) Note that Enumerations while sized always below or equal 8 bytes are only stored "unboxed" in .net 8 or higher, but boxed in .net framework due to missing APIs.
-> `DateTime` is always stored unboxed.
+> `DateTimeUtc` is always stored unboxed.
 > All other built in value types (`ExtensionObject`, `NodeId`, `QualifiedName`, `LocalizedText`, `Uuid`, etc.) are > 8 bytes in size and are therefore boxed when stored inside a Variant.
-> `ArrayOf`/`MatrixOf` are stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
+> `ArrayOf` is stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
 
 ##### Replacement of all use of System.Object in generated code and API
 
@@ -172,8 +208,6 @@ To perform conversion from `<T>` to a Variant, helper methods are available in `
 - *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo<BuiltInType>()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
 
 To migrate, perform the following general replacements in your code:
-
-**Change code as follows:**
 
 - If you are setting the `Value` property of Variant, change the code to create a `new Variant` with the value via constructor or `Variant.From` or by casting to `Variant`.
 - Generally replace all `IList<object>` with `IList<Variant>`
@@ -193,19 +227,32 @@ To migrate, perform the following general replacements in your code:
 
 #### XmlElement
 
-Previously `XmlElement` was the `System.Xml.XmlElement` system type. While officially a deprecated built in type, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.
+Previously the `XmlElement` built in type was represented by the `System.Xml.XmlElement` system type. While officially a deprecated, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation and equality/hashing operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.
+
+> `XmlElement` types are compared via a normalized version of the XML `string` contained, which removes all whitespace before comparing. This can result in some ambiguity, but operates well enough for test operations. For complete equality, cast to XNode and use `DeepEquals`.
+
+#### Other Data Types
+
+All generated data types implementing `IEncodeable` are now equality comparable using `==` and `!=` and implement `IEquatable<T>`. Equality defaults to the `IsEqual` implementation of the `IEncodeable` interface. In addition `ToString()` and `GetHashCode()` are implemented making all generated data types effectively equivalent to `record` classes with the exception of supporting `with` expressions.
+
+**Change code as follows:**
+
+No changes are required, however:
+
+- When comparing data type instances for reference equality, use `ReferenceEquals`, instead of `==` or `!=` operators.
+- When testing for `null`, use `is null` for more performant code.
 
 #### Obsoleted APIs and replacements
 
 - `NodeId(string text)` -> `NodeId.Parse(string)`
-- `NodeId(object identifier, ushort namespaceIndex)` -> typed constructors: `new NodeId(uint, ushort)`, `new NodeId(Guid, ushort)`, `new NodeId(string, ushort)`, `new NodeId(byte[], ushort)`
-- `NodeId.Create(object identifier, string namespaceUri, NamespaceTable namespaceTable)` -> typed overloads: `NodeId.Create(string|uint|Guid|byte[], string, NamespaceTable)`
-- `NodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|byte[])` or `IdentifierAsString`
+- `NodeId(object identifier, ushort namespaceIndex)` -> typed constructors: `new NodeId(uint, ushort)`, `new NodeId(Guid, ushort)`, `new NodeId(string, ushort)`, `new NodeId(ByteString, ushort)`
+- `NodeId.Create(object identifier, string namespaceUri, NamespaceTable namespaceTable)` -> typed overloads: `NodeId.Create(string|uint|Guid|ByteString, string, NamespaceTable)`
+- `NodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|ByteString)` or `IdentifierAsString`
 - `NodeId.SetNamespaceIndex(ushort)` -> `WithNamespaceIndex(ushort)` (store the return value)
-- `NodeId.SetIdentifier(IdType, object)` -> `WithIdentifier(uint|string|Guid|byte[])` or typed constructors
+- `NodeId.SetIdentifier(IdType, object)` -> `WithIdentifier(uint|string|Guid|ByteString)` or typed constructors
 - `ExpandedNodeId(string text)` -> `ExpandedNodeId.Parse(string)`
-- `ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)` -> typed constructors: `new ExpandedNodeId(uint|Guid|string|byte[], ushort, string, uint)`
-- `ExpandedNodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|byte[])` or `IdentifierAsString`
+- `ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)` -> typed constructors: `new ExpandedNodeId(uint|Guid|string|ByteString, ushort, string, uint)`
+- `ExpandedNodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|ByteString)` or `IdentifierAsString`
 - `NodeIdExtensions.IsNull(NodeId)` -> `NodeId.IsNull`
 - `NodeIdExtensions.IsNull(ExpandedNodeId)` -> `ExpandedNodeId.IsNull`
 - `QualifiedNameExtensions.IsNull(QualifiedName)` -> `QualifiedName.IsNull`
@@ -215,29 +262,86 @@ Previously `XmlElement` was the `System.Xml.XmlElement` system type. While offic
 - Implicit cast from `string` or `byte[]` to `NodeId`/`ExpandedNodeId` -> use explicit cast or `From()` API
 - Implicit cast from `string` to `LocalizedText`/`QualifiedName` -> use explicit cast or `From()` API
 - `Format` and `ToString` APIs return `string.Empty` instead of `null` for `NodeId`, `QualifiedName`, `ExpandedNodeId`, `LocalizedText` to prevent NullReferenceExceptions
+- `Matrix` class -> use `MatrixOf<T>`
+- `<T>Collection` classes -> use `ArrayOf<T>` or `List<T>`
+- `new Variant(object)` -> use `Variant.From(T)`
+- `Variant.Value` -> use `Variant.TryGet`, cast, or `AsBoxedObject` if absolutely necessary.
 
 #### APIs permanently removed
 
 - `ICloneable`/`Clone()`/`MemberwiseClone()` on the immutable built-in types -> use assignment for copies
+- Creating `NodeId` or `ExpandedNodeId` using `byte[]` -> use `ByteString` and type safe constructor.
 - Setters removed from immutable types:
   - `QualifiedName.Name`/`QualifiedName.NamespaceIndex` -> `WithName(string)`/`WithNamespaceIndex(ushort)`
   - `LocalizedText.Translations`/`LocalizedText.TranslationInfo` -> `WithTranslations(...)`/`WithTranslationInfo(...)`
   - `ExtensionObject.Body`/`ExtensionObject.TypeId` -> constructors and `WithTypeId(...)`
   - `NodeId.NamespaceIndex`/`NodeId.IdType`/`NodeId.Identifier` setters -> use constructors or `WithIdentifier(...)`
 - Implicit cast operator of type string to NodeId/ExpandedNodeId -> use Parse/TryParse
-- `WriteGuid(string, Guid)` -> use `WriteGuid(string, Uuid)`
-- `WriteGuidArray(string, IList<Guid>)` -> use `WriteGuidArray(string, IList<Uuid>)`
+- `WriteGuid(string, Guid)` -> use `WriteGuid(string, Uuid)` and - `WriteGuidArray(string, IList<Guid>)` -> use `WriteGuidArray(string, ArrayOf<Uuid>)`
+- `WriteDateTime(string, DateTime)` -> use `WriteDateTime(string, DateTimeUtc)` and - `WriteDateTimeArray(string, IList<DateTime>)` -> use `WriteDateTimeArray(string, ArrayOf<DateTimeUtc>)`
+- `WriteByteString(string, byte[])` -> use `WriteByteString(string, ByteString)` and - `WriteByteStringArray(string, IList<byte[]>)` -> use `WriteByteStringArray(string, ArrayOf<ByteString>)`
 - new `Variant(Guid)` -> use `Variant.From(Uuid)` or `new Variant(Uuid)`
+- new `Variant(DateTime)` -> use `Variant.From(DateTimeUtc)` or `new Variant(DateTimeUtc)`
+- new `Variant(byte[])` -> use `Variant.From(ByteString)` or `new Variant(ByteString)` or `Variant.From(ArrayOf<byte>)` or `new Variant(ArrayOf<byte>)`
 - Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
+- `byte[]` as ByteString -> use `ByteString`
 
-### Node State handling
+### Encoders and Decoders
+
+The `IEncoder` and `IDecoder` interfaces have changed to use `ArrayOf<T>` instead of Collection and `System.Array`. Also generic versions of `ReadEncodeable`/`WriteEncodeable` and `ReadEnumerated`/`WriteEnumerated` were added with the ones taking a `System.Type` paramter removed. There are 2 versions of `ReadEncodeable<T>` and `WriteEncodeable<T>`, one with a `new()` constraint bypassing `EncodeableFactory` lookups, and one with a `ExpandedNodeId` used to look up the concrete type and allowing to use `IEncodeable` as `T` constraint.
+
+Furthermore, `ReadArray`/`WriteArray` methods have been removed. A new `ReadVariantValue` and `WriteVariantValue` method has been added to write "only" the content (Value) of a Variant, or read the value using `TypeInfo` information. Neither supports `DiagnosticInfo` but also supports writing and reading scalar values. The return type is Variant. To read a `TypeInfo.Scalars.Variant` use ReadVariant instead because a Variant cannot contain a scalar Variant.
+
+**Change code as follows:**
+
+- Change all `ReadEncodeable`/`WriteEncodeable` calls to use the type as part of the generic expression. E.g. `ReadEncodeable("field", typeof(T))` to `ReadEncodeable<T>("field")` and `WriteEncodeable("field", value, typeof(T))` to `WriteEncodeable("field", value)`. If value is a type that cannot be created using a parameterless constructor, pass the type id as last argument.
+- Change all `ReadEnumerated` calls to use the enumeration type as part of the generic expression. E.g. `ReadEnumerated("field", typeof(T))` to `ReadEnumerated<T>("field")`.
+- Change calls to `ReadArray`/`WriteArray` to use `ReadVariantValue` and `WriteVariantValue` and extract the value from the returned `Variant` based on the type you intended to read. A good example can be found in `BaseComplexType` `EncodeProperty` and `DecodeProperty`.
+
+### Node States
+
+#### Generics and Typed BaseVariableState and BaseVariableTypeState
+
+With the changes to Variant, the generic node state classes reflecting the inner value of the variant "value" have been changed to not rely on "casting" from object to T. The conversion is "baked in" when creating an instance of a typed state using a "builder" struct. Whether the value is scalar, array or matrix is irrelevant to which builder to use. There are 3 situations and the respective builder struct to use:
+
+1. T is a built in type -> use `VariantBuilder`
+2. T is a instance of IEncodeable (a complex structure) -> Use `StructureBuilder<T>` where T is the name of the structure.
+3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name fo the enumeration type.
+
+E.g. to create an instance of a `PropertyState<T>` where T is `ArrayOf<ExtensionObject>` use
+
+``` csharp
+    var state = new PropertyState<ArrayOf<ExtensionObjecct>>.Implementation<VariantBuilder>(parent)
+    // or
+    var state = PropertyState<ArrayOf<ExtensionObjecct>>.With<VariantBuilder>(parent)
+```
+
+To create an instance of a `PropertyState<T>` where T is `Argument` (an IEncodeable type) use
+
+``` csharp
+    var state = new PropertyState<Argument>.Implementation<StructureBuilder<Argument>>(parent)
+    // or
+    var state = PropertyState<Argument>.With<StructureBuilder<Argument>>(parent)
+```
+
+To create an instance of a `PropertyState<T>` where T is `MatrixOf<ComplexType>` (an IEncodeable type) use
+
+``` csharp
+    var state = new PropertyState<MatrixOf<ComplexType>>.Implementation<StructureBuilder<ComplexType>>(parent)
+    // or
+    var state = PropertyState<MatrixOf<ComplexType>>.With<StructureBuilder<ComplexType>>(parent)
+```
+
+Note: While this looks clunky, it does not use reflection and comes with 0 allocation including any allocations for `Func` or `Action` delegates and works around .net limitations regarding overload resolution for generic arguments (which also required the use of `FromStructure` or `FromEnumeration` on the Variant type instead of using `From`). In future versions it is possible the source generator could generate away some of the redundancies in the above expressions.
+
+#### Predefined node processing
 
 Filling the predefined node state list is now generated as source code.  This means the predefined Variable and Object instance states are the generated classes, not the root node states. This has an
 impact on the AddBehaviorToPredefinedNode implementations which should use the received node state as "activeNode" and attach functionality to it instead of creating a active node.
 
 Example guidance (mirrors BoilerNodeManager): the node passed to `AddBehaviorToPredefinedNode` is already the generated instance state, so attach behavior directly to it instead of creating a new state. This ensures the predefined list stays consistent and the generated type-specific fields are available.
 
-    ```csharp
+``` csharp
     protected override void AddBehaviorToPredefinedNode(
         ISystemContext context,
         NodeState node)
@@ -252,7 +356,8 @@ Example guidance (mirrors BoilerNodeManager): the node passed to `AddBehaviorToP
         // Add callbacks to the node here if necessary
         // If not needed you do not need to implement this call at all.
     }
-    ```
+```
+
 See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more information.
 
 ### User Identity Token Handlers
@@ -261,28 +366,28 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 **Before**:
 
-    ```csharp
+```csharp
     var token = new X509IdentityToken();
     token.Encrypt(certificate, nonce, securityPolicy, context);
     token.Decrypt(certificate, nonce, securityPolicy, context);
     var signature = token.Sign(data, securityPolicy);
     bool isValid = token.Verify(data, signature, securityPolicy);
-    ```
+```
 
 **After**:
 
-    ```csharp
+```csharp
     var token = new X509IdentityToken();
     using var handler = token.AsTokenHandler();
     handler.Encrypt(certificate, nonce, securityPolicy, context);
     handler.Decrypt(certificate, nonce, securityPolicy, context);
     var signature = handler.Sign(data, securityPolicy);
     bool isValid = handler.Verify(data, signature, securityPolicy);
-    ```
+```
 
 **New Interface**:
 
-    ```csharp
+```csharp
     public interface IUserIdentityTokenHandler :
         IDisposable, ICloneable, IEquatable<IUserIdentityTokenHandler>
     {
@@ -298,7 +403,7 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
         SignatureData Sign(byte[] dataToSign, string securityPolicyUri);
         bool Verify(byte[] dataToVerify, SignatureData signatureData, string securityPolicyUri);
     }
-    ```
+```
 
 **Migration Required**:
 

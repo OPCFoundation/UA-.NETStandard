@@ -310,6 +310,7 @@ namespace Opc.Ua.SourceGeneration
                 node.Children.Values,
                 LoadTemplate_ListOfProperties,
                 WriteTemplate_ListOfProperties);
+
             context.Template.AddReplacement(
                 Tokens.ListOfChildOperations,
                 NodeStateTemplates.ChildOperations,
@@ -317,20 +318,22 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_FindChildMethods,
                 WriteTemplate_FindChildMethods);
 
+            List<InstanceDesign> properties =
+                GetChildrenWithProperties(node, true);
             context.Template.AddReplacement(
                 Tokens.ListOfChildCopies,
                 NodeStateTemplates.CloneChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
             context.Template.AddReplacement(
                 Tokens.ListOfChildHashes,
                 NodeStateTemplates.HashChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
             context.Template.AddReplacement(
                 Tokens.ListOfEqualityComparers,
                 NodeStateTemplates.CompareChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
 
             return context.Template.Render();
@@ -473,8 +476,7 @@ namespace Opc.Ua.SourceGeneration
                 ValueRank.Scalar,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
-                nullable: NullableAnnotation.NonNullable,
-                useArrayTypeInsteadOfCollection: true));
+                nullable: NullableAnnotation.NonNullable));
 
             context.Template.AddReplacement(
                 Tokens.ListOfChildInitializers,
@@ -561,8 +563,7 @@ namespace Opc.Ua.SourceGeneration
                     field.Value.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NonNullable,
-                    useArrayTypeInsteadOfCollection: true));
+                    nullable: NullableAnnotation.NonNullable));
 
             AddVariantAccesssor(context, field.Value.DataTypeNode);
 
@@ -1127,31 +1128,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            List<InstanceDesign> childrenWithProperties = [];
-            foreach (NodeToGenerate child in node.Children.Values)
-            {
-                if (child.Design is not InstanceDesign instance)
-                {
-                    continue;
-                }
-                if (child.IsNotExplicitlyDefined)
-                {
-                    continue;
-                }
-                if (instance.ModellingRule is
-                    not ModellingRule.Mandatory and
-                    not ModellingRule.Optional)
-                {
-                    continue;
-                }
-                if (instance.IsOverriddenWithSameClass(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces))
-                {
-                    continue;
-                }
-                childrenWithProperties.Add(instance);
-            }
+            List<InstanceDesign> childrenWithProperties = GetChildrenWithProperties(node);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFindChildCase,
@@ -1165,29 +1142,7 @@ namespace Opc.Ua.SourceGeneration
                 childrenWithProperties,
                 WriteTemplate_ListOfChildren);
 
-            List<InstanceDesign> additionalChildren = [];
-            foreach (NodeToGenerate child in node.Children.Values)
-            {
-                if (child.Design is not InstanceDesign instance)
-                {
-                    continue;
-                }
-                if (child.IsNotExplicitlyDefined)
-                {
-                    continue;
-                }
-                if (instance.ModellingRule is
-                    not ModellingRule.Mandatory and
-                    not ModellingRule.Optional)
-                {
-                    continue;
-                }
-                if (instance.IsOverridden())
-                {
-                    continue;
-                }
-                additionalChildren.Add(instance);
-            }
+            List<InstanceDesign> additionalChildren = GetAdditionalChildren(node);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFindChildren,
@@ -2693,6 +2648,72 @@ namespace Opc.Ua.SourceGeneration
                     !isInverse));
             }
             return references;
+        }
+
+        private static List<InstanceDesign> GetAdditionalChildren(NodeToGenerate node)
+        {
+            List<InstanceDesign> additionalChildren = [];
+            foreach (NodeToGenerate child in node.Children.Values)
+            {
+                if (child.Design is not InstanceDesign instance)
+                {
+                    continue;
+                }
+                if (child.IsNotExplicitlyDefined)
+                {
+                    continue;
+                }
+                if (instance.ModellingRule is
+                    not ModellingRule.Mandatory and
+                    not ModellingRule.Optional)
+                {
+                    continue;
+                }
+                if (instance.IsOverridden())
+                {
+                    continue;
+                }
+                additionalChildren.Add(instance);
+            }
+
+            return additionalChildren;
+        }
+
+        private List<InstanceDesign> GetChildrenWithProperties(
+            NodeToGenerate node,
+            bool excludeBuiltIn = false)
+        {
+            List<InstanceDesign> childrenWithProperties = [];
+            foreach (NodeToGenerate child in node.Children.Values)
+            {
+                if (child.Design is not InstanceDesign instance)
+                {
+                    continue;
+                }
+                if (child.IsNotExplicitlyDefined)
+                {
+                    continue;
+                }
+                if (instance.ModellingRule is
+                    not ModellingRule.Mandatory and
+                    not ModellingRule.Optional)
+                {
+                    continue;
+                }
+                if (instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces))
+                {
+                    continue;
+                }
+                if (excludeBuiltIn && IsBuiltInProperty(child))
+                {
+                    continue;
+                }
+                childrenWithProperties.Add(instance);
+            }
+
+            return childrenWithProperties;
         }
 
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)

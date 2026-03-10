@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
                 })
             };
             traceData = new AdditionalParametersType();
-            traceData.Parameters.Add(spanContextParameter);
+            traceData.Parameters = [spanContextParameter];
         }
 
         ///<inheritdoc/>
@@ -115,7 +115,8 @@ namespace Opc.Ua.Client
                     out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters.AddRange(traceData.Parameters);
+                    existingParameters.Parameters =
+                        existingParameters.Parameters.AddItems(traceData.Parameters);
                 }
             }
         }

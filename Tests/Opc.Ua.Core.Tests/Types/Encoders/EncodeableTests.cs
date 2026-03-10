@@ -67,6 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
             Assert.NotNull(testObject);
 
@@ -84,6 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecode(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.ExtensionObject,
                 memoryStreamType,
                 new ExtensionObject(testObject));
@@ -99,6 +101,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             int arrayLength = DataGenerator.GetRandomByte();
             var array = new ExtensionObject[arrayLength];
             ExpandedNodeId dataTypeId = NodeId.Null;
@@ -155,6 +158,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 Context,
                 decoderStream,
                 systemType))
@@ -182,6 +186,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             int matrixDimension = RandomSource.NextInt32(2) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
@@ -227,6 +232,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 Context,
                 decoderStream,
                 systemType))

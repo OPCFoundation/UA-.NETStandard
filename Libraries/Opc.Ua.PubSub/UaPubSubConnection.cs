@@ -452,7 +452,9 @@ namespace Opc.Ua.PubSub
             var responses = new List<DataSetWriterConfigurationResponse>();
 
             var writerGroupsIds = PubSubConnectionConfiguration
-                .WriterGroups.SelectMany(group => group.DataSetWriters)
+                .WriterGroups
+                .ToList()
+                .SelectMany(group => group.DataSetWriters.ToList())
                 .Select(writer => writer.DataSetWriterId)
                 .ToList();
 
@@ -468,9 +470,9 @@ namespace Opc.Ua.PubSub
                 }
                 else
                 {
-                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups
+                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.ToList()
                         .First(group =>
-                            group.DataSetWriters
+                            group.DataSetWriters.ToList()
                             .First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
 
                     response.DataSetWriterIds = [dataSetWriterId];

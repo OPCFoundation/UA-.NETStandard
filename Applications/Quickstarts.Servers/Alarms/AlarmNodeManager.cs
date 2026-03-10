@@ -952,8 +952,7 @@ namespace Alarms
             ByteString eventId = default;
 
             // Bad magic Numbers hereStart
-            if (request.InputArguments != null &&
-                request.InputArguments.Count == 2 &&
+            if (request.InputArguments.Count == 2 &&
                 request.InputArguments[0].TryGet(out ByteString byteString))
             {
                 eventId = byteString;

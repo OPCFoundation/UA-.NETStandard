@@ -226,8 +226,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // check also the field names from reader, if any extra field names then the payload is not matching
                 foreach (string key in payload.Keys)
                 {
-                    FieldMetaData field = dataSetReader.DataSetMetaData.Fields
-                        .FirstOrDefault(f => f.Name == key);
+                    FieldMetaData field = dataSetReader.DataSetMetaData.Fields.ToList().FirstOrDefault(f => f.Name == key);
                     if (field == null)
                     {
                         // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
@@ -406,7 +405,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                         is TargetVariablesDataType targetVariablesData &&
-                    targetVariablesData.TargetVariables != null &&
                     i < targetVariablesData.TargetVariables.Count)
                 {
                     // remember the target Attribute and target nodeId

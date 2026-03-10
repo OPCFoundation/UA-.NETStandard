@@ -644,7 +644,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
                 Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
                     out AdditionalParametersType additionalParameters), Is.True);
-                Assert.That(additionalParameters.Parameters.Any(k => k.Key == "SpanContext"), Is.True);
+                Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
             }
 
             sessionMock.Channel
@@ -706,7 +706,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
                     out AdditionalParametersType additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
-                Assert.That(additionalParameters.Parameters.Any(k => k.Key == "SpanContext"), Is.True);
+                Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
             }
 
             sessionMock.Channel
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response.Results.Count, Is.EqualTo(15));
             Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
             Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(8));
-            Assert.That(response.ResponseHeader.StringTable,
+            Assert.That(response.ResponseHeader.StringTable.ToArray(),
                 Is.EquivalentTo(["String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8"]));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
@@ -1147,7 +1147,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response.Results.Count, Is.EqualTo(15));
             Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
             Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(8));
-            Assert.That(response.ResponseHeader.StringTable,
+            Assert.That(response.ResponseHeader.StringTable.ToList(),
                 Is.EquivalentTo(["String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8"]));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response.Results.Count, Is.EqualTo(15));
             Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
             Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(6));
-            Assert.That(response.ResponseHeader.StringTable,
+            Assert.That(response.ResponseHeader.StringTable.ToList(),
                 Is.EquivalentTo(["String1", "String2", "String1", "String2", "String3", "String4"]));
 
             // Verify that the indexes in the diagnostic infos are correctly updated

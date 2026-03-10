@@ -1405,7 +1405,7 @@ namespace Opc.Ua.Server
                 FindPredefinedNode<ViewState>(view.ViewId)
                 ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
-            if (view.Timestamp != DateTime.MinValue)
+            if (view.Timestamp != DateTimeUtc.MinValue)
             {
                 throw new ServiceResultException(StatusCodes.BadViewTimestampInvalid);
             }
@@ -1716,8 +1716,8 @@ namespace Opc.Ua.Server
                 DataValue value = values[ii] = new DataValue();
 
                 value.Value = null;
-                value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
-                value.SourceTimestamp = DateTime.MinValue;
+                value.ServerTimestamp = DateTimeUtc.MinValue; // Will be set after ReadAttribute
+                value.SourceTimestamp = DateTimeUtc.MinValue;
                 value.StatusCode = StatusCodes.Good;
 
                 // check if the node is a area in memory.
@@ -1748,7 +1748,7 @@ namespace Opc.Ua.Server
                 // For other attributes, just ensure ServerTimestamp is set
                 if (nodeToRead.AttributeId == Attributes.Value)
                 {
-                    if (value.SourceTimestamp == DateTime.MinValue)
+                    if (value.SourceTimestamp == DateTimeUtc.MinValue)
                     {
                         value.SourceTimestamp = DateTime.UtcNow;
                     }
@@ -1757,7 +1757,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     // For non-value attributes, only ServerTimestamp is relevant
-                    if (value.ServerTimestamp == DateTime.MinValue)
+                    if (value.ServerTimestamp == DateTimeUtc.MinValue)
                     {
                         value.ServerTimestamp = DateTime.UtcNow;
                     }
@@ -2605,15 +2605,15 @@ namespace Opc.Ua.Server
             if (details is ReadRawModifiedDetails readRawModifiedDetails)
             {
                 // at least one must be provided.
-                if (readRawModifiedDetails.StartTime == DateTime.MinValue &&
-                    readRawModifiedDetails.EndTime == DateTime.MinValue)
+                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
+                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
 
                 // if one is null the num values must be provided.
-                if (readRawModifiedDetails.StartTime == DateTime.MinValue ||
-                    readRawModifiedDetails.EndTime == DateTime.MinValue)
+                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
+                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
                     {
@@ -2640,15 +2640,14 @@ namespace Opc.Ua.Server
             if (details is ReadProcessedDetails readProcessedDetails)
             {
                 // check the list of aggregates.
-                if (readProcessedDetails.AggregateType == null ||
-                    readProcessedDetails.AggregateType.Count != nodesToRead.Count)
+                if (readProcessedDetails.AggregateType.Count != nodesToRead.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
                 }
 
                 // check start/end time.
-                if (readProcessedDetails.StartTime == DateTime.MinValue ||
-                    readProcessedDetails.EndTime == DateTime.MinValue)
+                if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
+                    readProcessedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
@@ -2692,14 +2691,14 @@ namespace Opc.Ua.Server
                 // check start/end time and max values.
                 if (readEventDetails.NumValuesPerNode == 0)
                 {
-                    if (readEventDetails.StartTime == DateTime.MinValue ||
-                        readEventDetails.EndTime == DateTime.MinValue)
+                    if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                        readEventDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
                 }
-                else if (readEventDetails.StartTime == DateTime.MinValue &&
-                    readEventDetails.EndTime == DateTime.MinValue)
+                else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
+                    readEventDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
@@ -3273,13 +3272,16 @@ namespace Opc.Ua.Server
             // check for argument errors.
             bool argumentsValid = true;
 
+            var inputArgumentResults = new StatusCodeCollection();
+            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
+
             for (int jj = 0; jj < argumentErrors.Count; jj++)
             {
                 ServiceResult argumentError = argumentErrors[jj];
 
                 if (argumentError != null)
                 {
-                    result.InputArgumentResults.Add(argumentError.StatusCode);
+                    inputArgumentResults.Add(argumentError.StatusCode);
 
                     if (ServiceResult.IsBad(argumentError))
                     {
@@ -3293,7 +3295,7 @@ namespace Opc.Ua.Server
                     {
                         if (ServiceResult.IsBad(argumentError))
                         {
-                            result.InputArgumentDiagnosticInfos.Add(
+                            inputArgumentDiagnosticInfos.Add(
                                 new DiagnosticInfo(
                                     argumentError,
                                     systemContext.OperationContext.DiagnosticsMask,
@@ -3303,7 +3305,7 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            result.InputArgumentDiagnosticInfos.Add(null);
+                            inputArgumentDiagnosticInfos.Add(null);
                         }
                     }
                 }
@@ -3312,14 +3314,14 @@ namespace Opc.Ua.Server
             // check for validation errors.
             if (!argumentsValid)
             {
+                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
+                // when StatusCode is Good. Therefore set here to the argument results
+                // and return a Bad status code.
+                result.InputArgumentResults = inputArgumentResults;
+                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return result.StatusCode;
             }
-
-            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
-            // Clear diagnostics and argument results if there are no errors.
-            result.InputArgumentDiagnosticInfos.Clear();
-            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;
@@ -4041,7 +4043,7 @@ namespace Opc.Ua.Server
             {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
+                SourceTimestamp = DateTimeUtc.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
             };
 

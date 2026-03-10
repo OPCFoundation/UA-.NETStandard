@@ -248,11 +248,6 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
             }
 
-            if (application.ApplicationNames == null)
-            {
-                throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
-            }
-
             using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                 Certificates[certificateType],
                 null,
@@ -517,7 +512,7 @@ namespace Opc.Ua.Gds.Server
             {
                 await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
                     .ConfigureAwait(false);
-            }   
+            }
 
             return Certificates[certificateType];
         }
@@ -608,7 +603,7 @@ namespace Opc.Ua.Gds.Server
                 X509CRL result = null;
                 if (certCACrl == null || certCACrl.Count == 0)
                 {
-                    result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false); 
+                    result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false);
                     await store.AddCRLAsync(result, ct).ConfigureAwait(false);
                 }
                 else
@@ -664,7 +659,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
 
-            
+
             if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
             {
                 throw new ServiceResultException(

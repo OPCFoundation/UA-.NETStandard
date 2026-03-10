@@ -220,7 +220,9 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+                global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -305,8 +307,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -314,7 +321,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -331,6 +338,35 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -391,7 +427,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
+            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
                 /// <summary>
                 /// The default constructor.
@@ -459,8 +495,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public override bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -468,7 +509,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -476,6 +517,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -526,7 +608,9 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+                global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -591,8 +675,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -600,7 +689,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -610,6 +699,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -651,7 +781,9 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
-                {{Tokens.ExtraInterfaces}}global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+                {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -707,8 +839,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -716,7 +853,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -724,6 +861,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -758,7 +936,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
+            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
                 /// <summary>
                 /// The default constructor.
@@ -818,6 +996,11 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -825,7 +1008,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -833,6 +1016,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -872,6 +1096,85 @@ namespace Opc.Ua.SourceGeneration
             }
 
             {{Tokens.CollectionClass}}
+
+            """);
+
+        /// <summary>
+        /// Properties of data types
+        /// </summary>
+        public static readonly TemplateString ScalarProperty = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// {{Tokens.BrowseName}} property
+            /// </summary>
+            [global::System.Runtime.Serialization.DataMember(
+                Name = "{{Tokens.BrowseName}}",
+                IsRequired = {{Tokens.IsRequired}},
+                EmitDefaultValue = {{Tokens.EmitDefaultValue}},
+                Order = {{Tokens.FieldIndex}})]
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {
+                get => {{Tokens.FieldName}};
+                set => {{Tokens.FieldName}} = value;
+            }
+
+            """);
+
+        /// <summary>
+        /// Array Properties of data types
+        /// </summary>
+        public static readonly TemplateString ArrayProperty = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// {{Tokens.BrowseName}} property
+            /// </summary>
+            [global::System.Runtime.Serialization.DataMember(
+                Name = "{{Tokens.BrowseName}}",
+                IsRequired = {{Tokens.IsRequired}},
+                EmitDefaultValue = {{Tokens.EmitDefaultValue}},
+                Order = {{Tokens.FieldIndex}})]
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {
+                get => {{Tokens.FieldName}};
+                set => {{Tokens.FieldName}} = value == null ?
+                    ({{Tokens.TypeName}}){{Tokens.DefaultValue}} :
+                    value;
+            }
+
+            """);
+
+        /// <summary>
+        /// Hash property template
+        /// </summary>
+        public static readonly TemplateString HashProperty = TemplateString.Parse(
+            $$"""
+            hashCode = (hashCode * 16777619) ^
+                global::System.Collections.Generic.EqualityComparer<{{Tokens.TypeName}}>
+                .Default
+                .GetHashCode({{Tokens.FieldName}});
+            """);
+
+        /// <summary>
+        /// ToString property template
+        /// </summary>
+        public static readonly TemplateString AddPropertyToStringBuilder = TemplateString.Parse(
+            $$"""
+            sb = sb
+                .AppendFormat("{{Tokens.BrowseName}}={0}", {{Tokens.FieldName}})
+                .AppendLine();
+
+            """);
+
+        /// <summary>
+        /// Enumeration value of enum data types
+        /// </summary>
+        public static readonly TemplateString EnumerationValue = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// {{Tokens.EnumerationName}} enumeration value ({{Tokens.Identifier}})
+            /// </summary>
+            [global::System.Runtime.Serialization.EnumMember(Value = "{{Tokens.XmlIdentifier}}")]
+            {{Tokens.EnumerationName}} = {{Tokens.Identifier}},
 
             """);
 
@@ -966,63 +1269,6 @@ namespace Opc.Ua.SourceGeneration
                     return clone;
                 }
             }
-            """);
-
-        /// <summary>
-        /// Properties of data types
-        /// </summary>
-        public static readonly TemplateString ScalarProperty = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// {{Tokens.BrowseName}} property
-            /// </summary>
-            [global::System.Runtime.Serialization.DataMember(
-                Name = "{{Tokens.BrowseName}}",
-                IsRequired = {{Tokens.IsRequired}},
-                EmitDefaultValue = {{Tokens.EmitDefaultValue}},
-                Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
-            {
-                get => {{Tokens.FieldName}};
-                set => {{Tokens.FieldName}} = value;
-            }
-
-            """);
-
-        /// <summary>
-        /// Array Properties of data types
-        /// </summary>
-        public static readonly TemplateString ArrayProperty = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// {{Tokens.BrowseName}} property
-            /// </summary>
-            [global::System.Runtime.Serialization.DataMember(
-                Name = "{{Tokens.BrowseName}}",
-                IsRequired = {{Tokens.IsRequired}},
-                EmitDefaultValue = {{Tokens.EmitDefaultValue}},
-                Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
-            {
-                get => {{Tokens.FieldName}};
-                set => {{Tokens.FieldName}} = value == null ?
-                    ({{Tokens.TypeName}}){{Tokens.DefaultValue}} :
-                    value;
-            }
-
-            """);
-
-        /// <summary>
-        /// Enumeration value of enum data types
-        /// </summary>
-        public static readonly TemplateString EnumerationValue = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// {{Tokens.EnumerationName}} enumeration value ({{Tokens.Identifier}})
-            /// </summary>
-            [global::System.Runtime.Serialization.EnumMember(Value = "{{Tokens.XmlIdentifier}}")]
-            {{Tokens.EnumerationName}} = {{Tokens.Identifier}},
-
             """);
     }
 }

@@ -93,7 +93,7 @@ namespace Opc.Ua
         public object GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             uint attributeId,
             NumericRange indexRange)
         {
@@ -239,7 +239,7 @@ namespace Opc.Ua
         /// <returns>The value of the attribute for the specified child.</returns>
         private static Variant GetAttributeValue(
             ChildNode node,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             int index,
             uint attributeId)
         {

@@ -1041,7 +1041,8 @@ namespace Opc.Ua.Schema.Model
                                 ValueRank.Scalar,
                                 targetNamespace,
                                 namespaces,
-                                nullable: NullableAnnotation.NonNullable)), "Structure");
+                                nullable: NullableAnnotation.NonNullable)),
+                            "Structure");
                     }
                     return onUnknownElement?.Invoke();
                 default:
@@ -1395,7 +1396,7 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Namespace[] namespaces,
             NullableAnnotation nullable = NullableAnnotation.NonNullable,
-            bool useArrayTypeInsteadOfCollection = false)
+            bool useMatrixTypeInsteadOfVariant = false)
         {
             string typeName = dataType.GetDotNetTypeName(
                 targetNamespace,
@@ -1410,113 +1411,13 @@ namespace Opc.Ua.Schema.Model
                 {
                     case ValueRank.Scalar:
                         return typeName;
-                    case ValueRank.Array when useArrayTypeInsteadOfCollection:
-                        return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
                     case ValueRank.Array:
-                        // TODO: For now we use collection types as they are serializable
-                        // using data contract serializer, but remove this when collections
-                        // are gone.
-                        string collectionType = GetCollectionType();
-                        if (collectionType != null)
-                        {
-                            return collectionType;
-                        }
-                        break;
-                    case ValueRank.OneOrMoreDimensions when useArrayTypeInsteadOfCollection:
+                        return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
+                    case ValueRank.OneOrMoreDimensions when useMatrixTypeInsteadOfVariant:
                         return CoreUtils.Format("global::Opc.Ua.MatrixOf<{0}>", typeName);
                 }
             }
             return "global::Opc.Ua.Variant";
-
-            string GetCollectionType()
-            {
-                switch (dataType.BasicDataType)
-                {
-                    case BasicDataType.Boolean:
-                        return "global::Opc.Ua.BooleanCollection";
-                    case BasicDataType.SByte:
-                        return "global::Opc.Ua.SByteCollection";
-                    case BasicDataType.Byte:
-                        return "global::Opc.Ua.ByteCollection";
-                    case BasicDataType.Int16:
-                        return "global::Opc.Ua.Int16Collection";
-                    case BasicDataType.UInt16:
-                        return "global::Opc.Ua.UInt16Collection";
-                    case BasicDataType.Int32:
-                        return "global::Opc.Ua.Int32Collection";
-                    case BasicDataType.UInt32:
-                        return "global::Opc.Ua.UInt32Collection";
-                    case BasicDataType.Int64:
-                        return "global::Opc.Ua.Int64Collection";
-                    case BasicDataType.UInt64:
-                        return "global::Opc.Ua.UInt64Collection";
-                    case BasicDataType.Float:
-                        return "global::Opc.Ua.FloatCollection";
-                    case BasicDataType.Double:
-                        return "global::Opc.Ua.DoubleCollection";
-                    case BasicDataType.String:
-                        return "global::Opc.Ua.StringCollection";
-                    case BasicDataType.DateTime:
-                        return "global::Opc.Ua.DateTimeCollection";
-                    case BasicDataType.Guid:
-                        return "global::Opc.Ua.UuidCollection";
-                    case BasicDataType.ByteString:
-                        return "global::Opc.Ua.ByteStringCollection";
-                    case BasicDataType.XmlElement:
-                        return "global::Opc.Ua.XmlElementCollection";
-                    case BasicDataType.NodeId:
-                        return "global::Opc.Ua.NodeIdCollection";
-                    case BasicDataType.ExpandedNodeId:
-                        return "global::Opc.Ua.ExpandedNodeIdCollection";
-                    case BasicDataType.StatusCode:
-                        return "global::Opc.Ua.StatusCodeCollection";
-                    case BasicDataType.DiagnosticInfo:
-                        return "global::Opc.Ua.DiagnosticInfoCollection";
-                    case BasicDataType.QualifiedName:
-                        return "global::Opc.Ua.QualifiedNameCollection";
-                    case BasicDataType.LocalizedText:
-                        return "global::Opc.Ua.LocalizedTextCollection";
-                    case BasicDataType.DataValue:
-                        return "global::Opc.Ua.DataValueCollection";
-                    case BasicDataType.Number:
-                    case BasicDataType.Integer:
-                    case BasicDataType.UInteger:
-                    case BasicDataType.BaseDataType:
-                        return "global::Opc.Ua.VariantCollection";
-                    case BasicDataType.Structure:
-                        return "global::Opc.Ua.ExtensionObjectCollection";
-                    case BasicDataType.Enumeration:
-                        if (dataType.SymbolicId ==
-                            new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
-                        {
-                            return "global::Opc.Ua.Int32Collection";
-                        }
-
-                        if (dataType.IsOptionSet ||
-                            dataType.BaseType !=
-                                new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
-                        {
-                            return GetDotNetTypeName(
-                                (DataTypeDesign)dataType.BaseTypeNode,
-                                valueRank,
-                                targetNamespace,
-                                namespaces,
-                                nullable: NullableAnnotation.NonNullable,
-                                useArrayTypeInsteadOfCollection: false);
-                        }
-                        goto case BasicDataType.UserDefined;
-                    case BasicDataType.UserDefined:
-                        if (!dataType.NoArraysAllowed)
-                        {
-                            return CoreUtils.Format("{0}Collection",
-                                dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces));
-                        }
-                        // No collection type generate, return null to fallback to array
-                        break;
-
-                }
-                return null; // Default to variant
-            }
         }
 
         /// <summary>

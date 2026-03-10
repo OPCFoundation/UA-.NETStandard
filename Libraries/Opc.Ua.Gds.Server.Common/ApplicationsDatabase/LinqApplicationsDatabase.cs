@@ -180,20 +180,17 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 SaveChanges();
 
-                if (application.DiscoveryUrls != null)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
-                    foreach (string discoveryUrl in application.DiscoveryUrls)
-                    {
-                        ServerEndpoints.Add(
-                            new ServerEndpoint
-                            {
-                                ApplicationId = record.ApplicationId,
-                                DiscoveryUrl = discoveryUrl
-                            });
-                    }
+                    ServerEndpoints.Add(
+                        new ServerEndpoint
+                        {
+                            ApplicationId = record.ApplicationId,
+                            DiscoveryUrl = discoveryUrl
+                        });
                 }
 
-                if (application.ApplicationNames != null && application.ApplicationNames.Count > 0)
+                if (!application.ApplicationNames.IsEmpty)
                 {
                     foreach (LocalizedText applicationName in application.ApplicationNames)
                     {

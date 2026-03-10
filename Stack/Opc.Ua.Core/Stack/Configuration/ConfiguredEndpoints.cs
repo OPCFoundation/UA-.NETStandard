@@ -146,12 +146,7 @@ namespace Opc.Ua
                     endpoint.Description.Server.ApplicationUri = endpoint.Description.EndpointUrl;
                 }
 
-                if (endpoint.Description.Server.DiscoveryUrls == null)
-                {
-                    endpoint.Description.Server.DiscoveryUrls = [];
-                }
-
-                if (endpoint.Description.Server.DiscoveryUrls.Count == 0)
+                if (endpoint.Description.Server.DiscoveryUrls.IsEmpty)
                 {
                     string discoveryUrl = endpoint.Description.EndpointUrl;
 
@@ -160,7 +155,8 @@ namespace Opc.Ua
                         discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                     }
 
-                    endpoint.Description.Server.DiscoveryUrls.Add(discoveryUrl);
+                    endpoint.Description.Server.DiscoveryUrls =
+                        endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl);
                 }
 
                 // normalize transport profile uri.
@@ -696,18 +692,21 @@ namespace Opc.Ua
             if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 description.TransportProfileUri = Profiles.UaTcpTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
             else if (Utils.IsUriHttpsScheme(description.EndpointUrl))
             {
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                    description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
             else if (description.EndpointUrl
                 .StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
             {
                 description.TransportProfileUri = Profiles.UaTcpTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                    description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
 
             var endpoint = new ConfiguredEndpoint(this, description, null);
@@ -842,8 +841,8 @@ namespace Opc.Ua
                     m_description.EndpointUrl = url.ToString();
                     m_description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                     m_description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-                    m_description.UserIdentityTokens
-                        .Add(new UserTokenPolicy(UserTokenType.Anonymous));
+                    m_description.UserIdentityTokens = m_description.UserIdentityTokens
+                        .AddItem(new UserTokenPolicy(UserTokenType.Anonymous));
 
                     if (url.Scheme == Utils.UriSchemeOpcTcp)
                     {
@@ -1353,7 +1352,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_description != null && m_description.UserIdentityTokens != null)
+                if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
                     UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
 
@@ -1368,7 +1367,7 @@ namespace Opc.Ua
             }
             set
             {
-                if (m_description != null && m_description.UserIdentityTokens != null)
+                if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
                     UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
 
@@ -1551,8 +1550,7 @@ namespace Opc.Ua
                     match.EndpointUrl = uri.ToString();
 
                     // need to update the discovery urls.
-                    match.Server.DiscoveryUrls.Clear();
-                    match.Server.DiscoveryUrls.Add(discoveryUrl.ToString());
+                    match.Server.DiscoveryUrls = [discoveryUrl.ToString()];
                 }
             }
 

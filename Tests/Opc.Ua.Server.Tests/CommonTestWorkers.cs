@@ -452,7 +452,7 @@ namespace Opc.Ua.Server.Tests
                 allBrowsePaths.AddRange(translateResponse.Results);
                 foreach (BrowsePathResult result in translateResponse.Results)
                 {
-                    if (result.Targets?.Count > 0)
+                    if (!result.Targets.IsEmpty)
                     {
                         TestContext.Out.WriteLine("BrowsePath {0}",
                             result.Targets[0].TargetId.ToString());
@@ -833,7 +833,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(sendInitialData ? 1 : 0, publishResponse.NotificationMessage.NotificationData.Count);
             if (sendInitialData)
             {
-                ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
+                ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
                 Assert.IsTrue(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification));
                 MonitoredItemNotificationCollection monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.IsNotEmpty(monitoredItemsCollection);

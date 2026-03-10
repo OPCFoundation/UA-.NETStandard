@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -224,20 +225,18 @@ namespace Opc.Ua.Server
                     {
                         X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
-                        foreach (X509Certificate2 certificate in certificates)
-                        {
-                            trustList.TrustedCertificates.Add(certificate.RawData.ToByteString());
-                        }
+                        trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
+                            certificates
+                                .Cast<X509Certificate2>()
+                                .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
                     if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
                     {
                         X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
                             .ConfigureAwait(false);
-                        foreach (X509CRL crl in crls)
-                        {
-                            trustList.TrustedCrls.Add(crl.RawData.ToByteString());
-                        }
+                        trustList.TrustedCrls = trustList.TrustedCrls.AddItems(
+                             crls.Select(crl => crl.RawData.ToByteString()));
                     }
                 }
                 finally
@@ -258,20 +257,17 @@ namespace Opc.Ua.Server
                     {
                         X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
-                        foreach (X509Certificate2 certificate in certificates)
-                        {
-                            trustList.IssuerCertificates.Add(certificate.RawData.ToByteString());
-                        }
+                        trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
+                            .Cast<X509Certificate2>()
+                            .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
                     if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
                     {
                         X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
                             .ConfigureAwait(false);
-                        foreach (X509CRL crl in crls)
-                        {
-                            trustList.IssuerCrls.Add(crl.RawData.ToByteString());
-                        }
+                        trustList.IssuerCrls = trustList.IssuerCrls.AddItems(crls
+                            .Select(crl => crl.RawData.ToByteString()));
                     }
                 }
                 finally

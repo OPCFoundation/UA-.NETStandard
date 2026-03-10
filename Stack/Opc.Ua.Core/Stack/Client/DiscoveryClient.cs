@@ -625,10 +625,9 @@ namespace Opc.Ua
                     }
 
                     if (discoveryEndPoint.Server != null &&
-                        discoveryEndPoint.Server.DiscoveryUrls != null)
+                        !discoveryEndPoint.Server.DiscoveryUrls.IsNull)
                     {
-                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
-                        discoveryEndPoint.Server.DiscoveryUrls.Add(Endpoint.EndpointUrl);
+                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl];
                     }
                 }
             }

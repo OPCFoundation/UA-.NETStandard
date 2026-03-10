@@ -817,8 +817,12 @@ namespace Opc.Ua.Server
                     Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
-                var notification = new StatusChangeNotification { Status = StatusCodes.BadTimeout };
-                message.NotificationData.Add(new ExtensionObject(notification));
+                var notification = new StatusChangeNotification
+                {
+                    Status = StatusCodes.BadTimeout
+                };
+                message.NotificationData = message.NotificationData.AddItem(
+                    new ExtensionObject(notification));
             }
 
             return message;
@@ -850,7 +854,8 @@ namespace Opc.Ua.Server
                 {
                     Status = StatusCodes.GoodSubscriptionTransferred
                 };
-                message.NotificationData.Add(new ExtensionObject(notification));
+                message.NotificationData =
+                    message.NotificationData.AddItem(new ExtensionObject(notification));
             }
 
             return message;
@@ -1143,13 +1148,15 @@ namespace Opc.Ua.Server
             {
                 var notification = new EventNotificationList();
 
+                var eventList = new List<EventFieldList>();
                 while (events.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
                 {
-                    notification.Events.Add(events.Dequeue());
+                    eventList.Add(events.Dequeue());
                     notificationCount++;
                 }
-
-                message.NotificationData.Add(new ExtensionObject(notification));
+                notification.Events = eventList;
+                message.NotificationData =
+                    message.NotificationData.AddItem(new ExtensionObject(notification));
             }
 
             // add datachanges (space permitting).
@@ -1162,10 +1169,12 @@ namespace Opc.Ua.Server
                     DiagnosticInfos = new DiagnosticInfoCollection(datachanges.Count)
                 };
 
+                var dataChangeList = new List<MonitoredItemNotification>();
+                var diagnosticInfos = new List<DiagnosticInfo>();
                 while (datachanges.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
                 {
                     MonitoredItemNotification datachange = datachanges.Dequeue();
-                    notification.MonitoredItems.Add(datachange);
+                    dataChangeList.Add(datachange);
 
                     DiagnosticInfo diagnosticInfo = datachangeDiagnostics.Dequeue();
 
@@ -1174,18 +1183,15 @@ namespace Opc.Ua.Server
                         diagnosticsExist = true;
                     }
 
-                    notification.DiagnosticInfos.Add(diagnosticInfo);
-
+                    diagnosticInfos.Add(diagnosticInfo);
                     notificationCount++;
                 }
 
-                // clear diagnostics if not used.
-                if (!diagnosticsExist)
-                {
-                    notification.DiagnosticInfos.Clear();
-                }
+                notification.MonitoredItems = dataChangeList;
+                notification.DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default;
 
-                message.NotificationData.Add(new ExtensionObject(notification));
+                message.NotificationData =
+                    message.NotificationData.AddItem(new ExtensionObject(notification));
             }
 
             return message;

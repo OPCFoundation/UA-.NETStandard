@@ -138,9 +138,9 @@ namespace Opc.Ua
                 AttributeId = Attributes.Value
             };
 
-            clause.BrowsePath.Add(propertyName);
+            clause.BrowsePath = clause.BrowsePath.AddItem(propertyName);
 
-            SelectClauses.Add(clause);
+            SelectClauses = SelectClauses.AddItem(clause);
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Opc.Ua
                 clause.BrowsePath = SimpleAttributeOperand.Parse(browsePath);
             }
 
-            SelectClauses.Add(clause);
+            SelectClauses = SelectClauses.AddItem(clause);
         }
 
         /// <summary>
@@ -269,8 +269,8 @@ namespace Opc.Ua
                     {
                         if (ServiceResult.IsBad(clauseResult))
                         {
-                            result.SelectClauseResults.Add(clauseResult.StatusCode);
-                            result.SelectClauseDiagnosticInfos.Add(
+                            result.SelectClauseResults = result.SelectClauseResults.AddItem(clauseResult.StatusCode);
+                            result.SelectClauseDiagnosticInfos = result.SelectClauseDiagnosticInfos.AddItem(
                                 new DiagnosticInfo(
                                     clauseResult,
                                     diagnosticsMasks,
@@ -280,8 +280,10 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            result.SelectClauseResults.Add(StatusCodes.Good);
-                            result.SelectClauseDiagnosticInfos.Add(null);
+                            result.SelectClauseResults =
+                                result.SelectClauseResults.AddItem(StatusCodes.Good);
+                            result.SelectClauseDiagnosticInfos =
+                                result.SelectClauseDiagnosticInfos.AddItem(null);
                         }
                     }
                 }
@@ -393,20 +395,18 @@ namespace Opc.Ua
         public SimpleAttributeOperand(NodeId typeId, QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = [];
+            m_browsePath = [browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
-
-            m_browsePath.Add(browsePath);
         }
 
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(NodeId typeId, IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(NodeId typeId, ArrayOf<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = [.. browsePath];
+            m_browsePath = browsePath;
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -417,10 +417,10 @@ namespace Opc.Ua
         public SimpleAttributeOperand(
             IFilterContext context,
             ExpandedNodeId typeId,
-            IList<QualifiedName> browsePath)
+            ArrayOf<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-            m_browsePath = [.. browsePath];
+            m_browsePath = browsePath;
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -469,17 +469,6 @@ namespace Opc.Ua
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
         }
 
         /// <summary>
@@ -586,7 +575,7 @@ namespace Opc.Ua
         /// Formats a browse path.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static string Format(IList<QualifiedName> browsePath)
+        public static string Format(ArrayOf<QualifiedName> browsePath)
         {
             if (browsePath == null || browsePath.Count == 0)
             {

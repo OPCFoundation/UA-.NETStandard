@@ -35,6 +35,35 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
+    /// Compare node states
+    /// </summary>
+    public class NodeStateComparer : IEqualityComparer<NodeState>
+    {
+        /// <inheritdoc/>
+        public static NodeStateComparer Default { get; } = new();
+
+        /// <inheritdoc/>
+        public bool Equals(NodeState x, NodeState y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+            if (x is null || y is null)
+            {
+                return false;
+            }
+            return x.DeepEquals(y);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(NodeState obj)
+        {
+            return obj is null ? 0 : obj.DeepGetHashCode();
+        }
+    }
+
+    /// <summary>
     /// Helper which implements a NodeId IEqualityComparer for Linq queries.
     /// </summary>
     public class NodeIdComparer : IEqualityComparer<NodeId>

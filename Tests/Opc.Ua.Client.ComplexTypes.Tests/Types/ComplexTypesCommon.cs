@@ -292,6 +292,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             StructureType structureType,
             ExpandedNodeId nodeId,
             object data)
@@ -336,6 +337,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             using var decoderStream = new MemoryStream(buffer);
             using IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 encoderContext,
                 decoderStream,
                 typeof(DataValue));

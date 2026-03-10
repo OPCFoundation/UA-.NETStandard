@@ -51,21 +51,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         public EncodingTypeGroup(
             EncodingType encoderType,
-            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose)
+            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose,
+            bool useXmlParser = false)
         {
             EncoderType = encoderType;
             JsonEncodingType = jsonEncodingType;
+            UseXmlParser = useXmlParser;
         }
 
         public EncodingType EncoderType { get; }
 
         public JsonEncodingType JsonEncodingType { get; }
 
+        public bool UseXmlParser { get; }
+
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (EncoderType == EncodingType.Json)
             {
                 return Utils.Format("{0}:{1}", EncoderType, JsonEncodingType);
+            }
+            if (EncoderType == EncodingType.Xml)
+            {
+                return Utils.Format("{0}:{1}", EncoderType, UseXmlParser ? "Parser" : "Reader");
             }
             return Utils.Format("{0}", EncoderType);
         }
@@ -172,6 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
+                false,
                 Context,
                 decoderStream,
                 typeof(DataValue)))
@@ -209,10 +218,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             Variant defaultValue = Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 builtInType,
                 MemoryStreamType.MemoryStream,
                 defaultValue);
@@ -231,11 +242,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             Assume.That(builtInType != BuiltInType.DiagnosticInfo);
             Variant randomData = DataGenerator.GetRandomVariant(builtInType, false);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 builtInType,
                 MemoryStreamType.ArraySegmentStream,
                 randomData);
@@ -256,6 +269,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             // ensure different sized arrays contain different data set
             SetRandomSeed(arrayLength);
             Variant randomData = DataGenerator.GetRandomArrayVariant(
@@ -266,6 +280,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 builtInType,
                 MemoryStreamType.ArraySegmentStream,
                 randomData);
@@ -284,10 +299,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0, false, true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 builtInType,
                 MemoryStreamType.RecyclableMemoryStream,
                 randomData);
@@ -306,11 +323,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Variant randomData = DataGenerator.GetRandomVariant();
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.Variant,
                 MemoryStreamType.MemoryStream,
                 randomData);
@@ -427,6 +446,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var variant = Variant.From(
             [
                 Variant.From(4L),
@@ -441,6 +461,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.Variant,
                 MemoryStreamType.ArraySegmentStream,
                 variant);
@@ -562,6 +583,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
@@ -574,6 +596,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.Variant,
                 MemoryStreamType.RecyclableMemoryStream,
                 variant);
@@ -591,6 +614,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
@@ -630,7 +654,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
             {
                 result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
             }
@@ -654,6 +678,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             // reduce array dimension for arrays with large values
@@ -671,6 +696,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.Variant,
                 MemoryStreamType.RecyclableMemoryStream,
                 variant);
@@ -717,6 +743,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(3) + 2;
@@ -756,7 +783,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
             {
                 result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
             }

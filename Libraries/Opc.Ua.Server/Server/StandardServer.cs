@@ -460,11 +460,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var parameters =
-                    ExtensionObject.ToEncodeable(
-                        requestHeader.AdditionalHeader) as AdditionalParametersType;
-
-                if (parameters != null)
+                if (requestHeader.AdditionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
                 {
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
@@ -591,12 +587,9 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            AdditionalParametersType response = null;
-
-            if (parameters != null && parameters.Parameters != null)
+            var parameterList = new List<KeyValuePair>();
+            if (parameters != null)
             {
-                response = new AdditionalParametersType();
-
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
                     if (ii.Key == "ECDHPolicyUri")
@@ -607,7 +600,7 @@ namespace Opc.Ua.Server
                         {
                             session.SetEccUserTokenSecurityPolicy(policyUri);
                             EphemeralKeyType key = session.GetNewEccKey();
-                            response.Parameters.Add(
+                            parameterList.Add(
                                 new KeyValuePair
                                 {
                                     Key = QualifiedName.From("ECDHKey"),
@@ -616,18 +609,22 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            response.Parameters.Add(
+                            parameterList.Add(
                                 new KeyValuePair
                                 {
                                     Key = QualifiedName.From("ECDHKey"),
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
                         }
+                        continue;
                     }
+                    // TODO: parameterList.Add(ii); // Should we not pass original params too?
                 }
             }
-
-            return response;
+            return new AdditionalParametersType
+            {
+                Parameters = parameterList
+            };
         }
 
         /// <summary>
@@ -647,11 +644,14 @@ namespace Opc.Ua.Server
             if (key != null)
             {
                 response = new AdditionalParametersType();
-                response.Parameters.Add(new KeyValuePair
-                {
-                    Key = QualifiedName.From("ECDHKey"),
-                    Value = new ExtensionObject(key)
-                });
+                response.Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From("ECDHKey"),
+                        Value = new ExtensionObject(key)
+                    }
+                ];
             }
 
             return response;
@@ -2909,7 +2909,8 @@ namespace Opc.Ua.Server
                     {
                         ServerUri = serverDescription.ApplicationUri
                     };
-                    m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
+                    m_registrationInfo.ServerNames =
+                        m_registrationInfo.ServerNames.AddItem(serverDescription.ApplicationName);
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
                     m_registrationInfo.ServerType = serverDescription.ApplicationType;
                     m_registrationInfo.GatewayServerUri = null;
@@ -2919,6 +2920,7 @@ namespace Opc.Ua.Server
                     // add all discovery urls.
                     string computerName = Utils.GetHostName();
 
+                    var discoveryUrls = new List<string>();
                     for (int ii = 0; ii < BaseAddresses.Count; ii++)
                     {
                         var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
@@ -2931,8 +2933,9 @@ namespace Opc.Ua.Server
                             uri.Host = computerName;
                         }
 
-                        m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
+                        discoveryUrls.Add(uri.ToString());
                     }
+                    m_registrationInfo.DiscoveryUrls = discoveryUrls;
 
                     // build list of registration endpoints.
                     m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);

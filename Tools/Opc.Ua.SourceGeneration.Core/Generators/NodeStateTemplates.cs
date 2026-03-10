@@ -1096,8 +1096,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString CloneChild = TemplateString.Parse(
             $$"""
-            state.{{Tokens.FieldName}} =
-                ({{Tokens.ClassName}}){{Tokens.FieldName}}?.Clone();
+            state.{{Tokens.BrowseName}} =
+                ({{Tokens.ClassName}})global::Opc.Ua.CoreUtils.Clone({{Tokens.BrowseName}});
             """);
 
         /// <summary>
@@ -1105,9 +1105,9 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString CompareChild = TemplateString.Parse(
             $$"""
-            if (!global::System.Collections.Generic.EqualityComparer<{{Tokens.ClassName}}>
-                .Default
-                .Equals(state.{{Tokens.FieldName}}, {{Tokens.FieldName}}))
+            if (!global::Opc.Ua.NodeStateComparer.Default.Equals(
+                state.{{Tokens.BrowseName}},
+                {{Tokens.BrowseName}}))
             {
                 return false;
             }
@@ -1118,10 +1118,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString HashChild = TemplateString.Parse(
             $$"""
-            hash = (hash * 16777619) ^
-                global::System.Collections.Generic.EqualityComparer<{{Tokens.ClassName}}>
-                .Default
-                .GetHashCode(state.{{Tokens.FieldName}}));
+            hashCode = (hashCode * 16777619) ^
+                global::Opc.Ua.NodeStateComparer.Default.GetHashCode({{Tokens.BrowseName}});
             """);
 
         /// <summary>

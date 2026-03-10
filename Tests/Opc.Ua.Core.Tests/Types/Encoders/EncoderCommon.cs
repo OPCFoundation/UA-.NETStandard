@@ -176,14 +176,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static readonly EncodingTypeGroup[] EncodingTypesJsonBinaryXmlAndJsonCompact =
         [
             new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll =
         [
             new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
@@ -227,6 +229,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void EncodeDecodeDataValue(
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
             Variant data)
@@ -270,6 +273,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (var decoderStream = new MemoryStream(buffer))
                 using (IDecoder decoder = CreateDecoder(
                     encoderType,
+                    useXmlParser,
                     Context,
                     decoderStream,
                     typeof(DataValue)))
@@ -307,6 +311,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void EncodeDecode(
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
             Variant expected)
@@ -349,7 +354,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+                using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
                 {
                     result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
                 }
@@ -600,6 +605,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected IDecoder CreateDecoder(
             EncodingType decoderType,
+            bool useXmlParser,
             IServiceMessageContext context,
             Stream stream,
             Type systemType)
@@ -608,6 +614,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case EncodingType.Binary:
                     return new BinaryDecoder(stream, context);
+                case EncodingType.Xml when useXmlParser:
+                    return new XmlParser(systemType, stream, context);
                 case EncodingType.Xml:
                     var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     return new XmlDecoder(systemType, xmlReader, context);

@@ -69,8 +69,7 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application.ApplicationNames == null ||
-                application.ApplicationNames.Count == 0 ||
+            if (application.ApplicationNames.IsEmpty ||
                 application.ApplicationNames[0].IsNullOrEmpty)
             {
                 throw new ArgumentException(
@@ -90,40 +89,36 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application.DiscoveryUrls != null)
+            foreach (string discoveryUrl in application.DiscoveryUrls)
             {
-                foreach (string discoveryUrl in application.DiscoveryUrls)
+                if (string.IsNullOrEmpty(discoveryUrl))
                 {
-                    if (string.IsNullOrEmpty(discoveryUrl))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        throw new ArgumentException(
-                            discoveryUrl + " is not a valid URL.",
-                            nameof(application));
-                    }
+                if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
+                {
+                    throw new ArgumentException(
+                        discoveryUrl + " is not a valid URL.",
+                        nameof(application));
                 }
             }
 
             if (application.ApplicationType != ApplicationType.Client)
             {
-                if (application.DiscoveryUrls == null || application.DiscoveryUrls.Count == 0)
+                if (application.DiscoveryUrls.IsEmpty)
                 {
                     throw new ArgumentException(
                         "At least one DiscoveryUrl must be provided.",
                         nameof(application));
                 }
 
-                if (application.ServerCapabilities == null ||
-                    application.ServerCapabilities.Count == 0)
+                if (application.ServerCapabilities.IsEmpty)
                 {
                     application.ServerCapabilities = ["NA"];
                 }
             }
-            else if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
+            else if (!application.DiscoveryUrls.IsEmpty)
             {
                 throw new ArgumentException(
                     "DiscoveryUrls must not be specified for clients.",
@@ -296,37 +291,34 @@ namespace Opc.Ua.Gds.Server.Database
 
         public string ServerCapabilities(ApplicationRecordDataType application)
         {
-            if (application.ApplicationType != ApplicationType.Client)
+            if (application.ApplicationType != ApplicationType.Client &&
+                application.ServerCapabilities.IsEmpty)
             {
-                if (application.ServerCapabilities == null ||
-                    application.ServerCapabilities.Count == 0)
-                {
-                    throw new ArgumentException(
-                        "At least one Server Capability must be provided.",
-                        nameof(application));
-                }
+                throw new ArgumentException(
+                    "At least one Server Capability must be provided.",
+                    nameof(application));
             }
 
+            if (application.ServerCapabilities.IsEmpty)
+            {
+                return string.Empty;
+            }
+            var uniqueCapabilities = application.ServerCapabilities.ToList();
             var capabilities = new StringBuilder();
-            if (application.ServerCapabilities != null)
+            uniqueCapabilities.Sort();
+            foreach (string capability in uniqueCapabilities)
             {
-                application.ServerCapabilities.Sort();
-                foreach (string capability in application.ServerCapabilities)
+                if (string.IsNullOrEmpty(capability))
                 {
-                    if (string.IsNullOrEmpty(capability))
-                    {
-                        continue;
-                    }
-
-                    if (capabilities.Length > 0)
-                    {
-                        capabilities.Append(',');
-                    }
-
-                    capabilities.Append(capability);
+                    continue;
                 }
-            }
 
+                if (capabilities.Length > 0)
+                {
+                    capabilities.Append(',');
+                }
+                capabilities.Append(capability);
+            }
             return capabilities.ToString();
         }
 

@@ -339,6 +339,7 @@ namespace Opc.Ua
             {
                 var item = (T)serializer.ReadObject(reader);
                 Add(item);
+                reader.MoveToContent();
             }
             reader.ReadEndElement();
         }

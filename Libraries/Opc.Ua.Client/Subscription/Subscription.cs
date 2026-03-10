@@ -3002,7 +3002,7 @@ namespace Opc.Ua.Client
             IList<string> stringTable)
         {
             // check for empty monitored items list.
-            if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
+            if (notifications.MonitoredItems.IsEmpty)
             {
                 m_logger.LogInformation(
                     "Publish response contains empty MonitoredItems list for SubscriptionId={SubscriptionId}:.",

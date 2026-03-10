@@ -97,7 +97,7 @@ This method verifies the current session has the needed roles to access the meth
 ## GDS
 
 The GDS supports some additional well known roles starting with 
-[GDS: implement ApplicationSelfAdmin privilege in GlobalDiscoverySampleServer by romanett · Pull Request #2338](https://github.com/OPCFoundation/UA-.NETStandard/pull/2338)
+[GDS: implement ApplicationSelfAdmin privilege in GlobalDiscoverySampleServer by romanett ï¿½ Pull Request #2338](https://github.com/OPCFoundation/UA-.NETStandard/pull/2338)
 
 [UA Part 12: Discovery and Global Services - 6.2 Roles and Privileges](https://reference.opcfoundation.org/GDS/v105/docs/6.2)
 
@@ -109,7 +109,6 @@ The GDS supports some additional well known roles starting with
 - RegistrationAuthorityAdmin
 
 [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GdsRole.cs)
-
 
 Additionally the ApplicationSelfAdmin privilege is supported.
 In the UA .NET Standard Stack the ApplicationSelfAdmin privilege is implemented using a user defined role.
@@ -126,5 +125,5 @@ The GDS allows library users to supply their own implementation using the constr
 
 ## Limitations
 
-- Does not really make use of the permissions <-> roles 
+- Does not really make use of the permissions <-> roles
 - Does not implement the RoleBasedSecurity Information Model from: [](https://reference.opcfoundation.org/Core/Part18/v105/docs/)

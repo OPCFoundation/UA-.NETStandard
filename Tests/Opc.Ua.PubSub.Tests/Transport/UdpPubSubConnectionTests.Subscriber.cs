@@ -1299,7 +1299,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     Assert.IsNotNull(config.TransportSettings);
                     Assert.IsNotNull(config.MessageSettings);
                     Assert.IsNotEmpty(config.HeaderLayoutUri);
-                    Assert.IsTrue(config.DataSetWriters != null);
+                    Assert.IsFalse(config.DataSetWriters.IsNull);
 
                     foreach (DataSetWriterDataType writer in config.DataSetWriters)
                     {
@@ -1336,8 +1336,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 ids.AddRange(
                     connection
-                        .WriterGroups.Select(group => group.DataSetWriters)
-                        .SelectMany(writer => writer.Select(x => x.DataSetWriterId)));
+                        .WriterGroups
+                        .ToList()
+                        .Select(group => group.DataSetWriters)
+                        .SelectMany(writer => writer.ToList().Select(x => x.DataSetWriterId)));
             }
             return ids;
         }

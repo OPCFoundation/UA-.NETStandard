@@ -982,8 +982,7 @@ namespace Opc.Ua.Server
             IFilterTarget instance)
         {
             // fetch the event fields.
-            var fields = new EventFieldList { ClientHandle = ClientHandle, Handle = instance };
-
+            var eventFieldValues = new List<Variant>();
             foreach (SimpleAttributeOperand clause in filter.SelectClauses)
             {
                 // get the value of the attribute (apply localization).
@@ -1004,15 +1003,20 @@ namespace Opc.Ua.Server
                     }
 
                     // add value.
-                    fields.EventFields.Add(new Variant(value));
+                    eventFieldValues.Add(new Variant(value));
                 }
                 // add a dummy entry for missing values.
                 else
                 {
-                    fields.EventFields.Add(Variant.Null);
+                    eventFieldValues.Add(Variant.Null);
                 }
             }
-
+            var fields = new EventFieldList
+            {
+                ClientHandle = ClientHandle,
+                Handle = instance,
+                EventFields = eventFieldValues
+            };
             return fields;
         }
 
@@ -1119,7 +1123,7 @@ namespace Opc.Ua.Server
                 if (alarmCondition != null &&
                     alarmCondition.SupportsFilteredRetain != null &&
                     alarmCondition.SupportsFilteredRetain.Value &&
-                    filter.SelectClauses != null)
+                    !filter.SelectClauses.IsNull)
                 {
                     conditionId = alarmCondition.NodeId;
                 }

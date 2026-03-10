@@ -1876,7 +1876,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 : new ConfigurationVersionDataType();
             if (!hasMetaDataFields)
             {
-                jsonNetworkMessage.DataSetMetaData.Fields = null;
+                jsonNetworkMessage.DataSetMetaData.Fields = default;
             }
 
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);

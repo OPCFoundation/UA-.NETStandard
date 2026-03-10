@@ -135,12 +135,28 @@ namespace Opc.Ua
         /// Initializes the object with a system type and XML string.
         /// The root element is entered automatically so children are immediately accessible.
         /// </summary>
+        public XmlParser(Type systemType, Stream xml, IServiceMessageContext context)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<XmlParser>();
+            m_nestingLevel = 0;
+            m_document = new XmlDocument();
+            using (var reader = XmlReader.Create(xml, CoreUtils.DefaultXmlReaderSettings()))
+            {
+                m_document.Load(reader);
+            }
+            PushWithSystemType(systemType);
+        }
+
+        /// <summary>
+        /// Initializes the object with a system type and XML string.
+        /// The root element is entered automatically so children are immediately accessible.
+        /// </summary>
         public XmlParser(Type systemType, string xml, IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
-
             m_document = new XmlDocument();
             using (var reader = XmlReader.Create(
                 new StringReader(xml),
@@ -148,37 +164,7 @@ namespace Opc.Ua
             {
                 m_document.Load(reader);
             }
-
-            string ns = null;
-            string name = null;
-
-            if (systemType != null)
-            {
-                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
-                ns = typeName.Namespace;
-                name = typeName.Name;
-            }
-
-            var docElement = m_document.DocumentElement;
-
-            if (ns == null)
-            {
-                ns = docElement.NamespaceURI;
-                name = docElement.LocalName;
-            }
-
-            int index = name.IndexOf(':', StringComparison.Ordinal);
-
-            if (index != -1)
-            {
-                name = name[(index + 1)..];
-            }
-
-            PushNamespace(ns);
-
-            // Push the root element directly as context so children are
-            // immediately accessible (equivalent of BeginField in streaming).
-            m_contextStack.Push(new ElementContext(docElement));
+            PushWithSystemType(systemType);
         }
 
         /// <summary>
@@ -2762,6 +2748,40 @@ namespace Opc.Ua
                 throw CreateBadDecodingError(
                     fieldName, fe, functionName: functionName, value: xml);
             }
+        }
+
+        private void PushWithSystemType(Type systemType)
+        {
+            string ns = null;
+            string name = null;
+
+            if (systemType != null)
+            {
+                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
+                ns = typeName.Namespace;
+                name = typeName.Name;
+            }
+
+            var docElement = m_document.DocumentElement;
+
+            if (ns == null)
+            {
+                ns = docElement.NamespaceURI;
+                name = docElement.LocalName;
+            }
+
+            int index = name.IndexOf(':', StringComparison.Ordinal);
+
+            if (index != -1)
+            {
+                name = name[(index + 1)..];
+            }
+
+            PushNamespace(ns);
+
+            // Push the root element directly as context so children are
+            // immediately accessible (equivalent of BeginField in streaming).
+            m_contextStack.Push(new ElementContext(docElement));
         }
 
         /// <summary>

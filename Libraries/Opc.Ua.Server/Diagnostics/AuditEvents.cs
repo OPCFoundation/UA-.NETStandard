@@ -275,7 +275,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateDataDetails.UpdateValues.ToArrayOf(),
+                    updateDataDetails.UpdateValues,
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues.ToArrayOf(), false);
 
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateStructureDataDetails.UpdateValues?.ToArrayOf() ?? default,
+                    updateStructureDataDetails.UpdateValues,
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateEventDetails.EventData.ToArrayOf(),
+                    updateEventDetails.EventData,
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ReqTimes,
-                    deleteAtTimeDetails.ReqTimes.ToArrayOf(),
+                    deleteAtTimeDetails.ReqTimes,
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
 
@@ -568,7 +568,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.EventIds,
-                    Variant.From(deleteEventDetails.EventIds.ToArrayOf()),
+                    Variant.From(deleteEventDetails.EventIds),
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
 

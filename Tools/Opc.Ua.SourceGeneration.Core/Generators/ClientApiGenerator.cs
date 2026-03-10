@@ -414,8 +414,7 @@ namespace Opc.Ua.SourceGeneration
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.Nullable,
-                        useArrayTypeInsteadOfCollection: true);
+                        nullable: NullableAnnotation.Nullable);
 
                     // prefix out parameters.
                     if (output)

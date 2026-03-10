@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfChildInitializers => nameof(ListOfChildInitializers);
         public static string ListOfChildMethods => nameof(ListOfChildMethods);
         public static string ListOfClonedFields => nameof(ListOfClonedFields);
+        public static string ListOfAppendStringFields => nameof(ListOfAppendStringFields);
         public static string ListOfComparedFields => nameof(ListOfComparedFields);
         public static string ListOfDecodedFields => nameof(ListOfDecodedFields);
         public static string ListOfEncodedFields => nameof(ListOfEncodedFields);

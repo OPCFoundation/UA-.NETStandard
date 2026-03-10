@@ -1888,6 +1888,8 @@ namespace Opc.Ua.Sample
 
             // check for argument errors.
             bool argumentsValid = true;
+            var inputArgumentResults = new StatusCodeCollection();
+            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
 
             for (int jj = 0; jj < argumentErrors.Count; jj++)
             {
@@ -1895,7 +1897,7 @@ namespace Opc.Ua.Sample
 
                 if (argumentError != null)
                 {
-                    result.InputArgumentResults.Add(argumentError.StatusCode);
+                    inputArgumentResults.Add(argumentError.StatusCode);
 
                     if (ServiceResult.IsBad(argumentError))
                     {
@@ -1908,7 +1910,7 @@ namespace Opc.Ua.Sample
                     {
                         if (ServiceResult.IsBad(argumentError))
                         {
-                            result.InputArgumentDiagnosticInfos.Add(
+                            inputArgumentDiagnosticInfos.Add(
                                 new DiagnosticInfo(
                                     argumentError,
                                     systemContext.OperationContext.DiagnosticsMask,
@@ -1918,7 +1920,7 @@ namespace Opc.Ua.Sample
                         }
                         else
                         {
-                            result.InputArgumentDiagnosticInfos.Add(null);
+                            inputArgumentDiagnosticInfos.Add(null);
                         }
                     }
                 }
@@ -1927,14 +1929,14 @@ namespace Opc.Ua.Sample
             // check for validation errors.
             if (!argumentsValid)
             {
+                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must
+                // be empty when StatusCode is Good. Therefore add it only in
+                // the error path
+                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
+                result.InputArgumentResults = inputArgumentResults;
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return result.StatusCode;
             }
-
-            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
-            // Clear diagnostics and argument results if there are no errors.
-            result.InputArgumentDiagnosticInfos.Clear();
-            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;

@@ -121,8 +121,9 @@ namespace Opc.Ua.PubSub.Transport
         public void SendDiscoveryRequestDataSetWriterConfiguration()
         {
             ushort[] dataSetWriterIds = m_udpConnection
-                .PubSubConnectionConfiguration.ReaderGroups?
-                .SelectMany(group => group.DataSetReaders)?
+                .PubSubConnectionConfiguration.ReaderGroups
+                .ToList()
+                .SelectMany(group => group.DataSetReaders.ToList())?
                 .Select(group => group.DataSetWriterId)?
                 .ToArray();
 
@@ -163,14 +164,16 @@ namespace Opc.Ua.PubSub.Transport
         public void UpdateDataSetWriterConfiguration(WriterGroupDataType writerConfig)
         {
             WriterGroupDataType writerGroup = m_udpConnection.PubSubConnectionConfiguration
-                .WriterGroups?
-                .Find(x =>
-                    x.WriterGroupId == writerConfig.WriterGroupId);
+                .WriterGroups
+                .ToList()
+                .Find(x => x.WriterGroupId == writerConfig.WriterGroupId);
             if (writerGroup != null)
             {
                 int index = m_udpConnection.PubSubConnectionConfiguration.WriterGroups
+                    .ToList()
                     .IndexOf(writerGroup);
-                m_udpConnection.PubSubConnectionConfiguration.WriterGroups[index] = writerConfig;
+                m_udpConnection.PubSubConnectionConfiguration.WriterGroups =
+                    m_udpConnection.PubSubConnectionConfiguration.WriterGroups.AddItem(writerConfig, index);
             }
         }
 

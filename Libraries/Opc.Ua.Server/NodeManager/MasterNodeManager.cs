@@ -3572,10 +3572,6 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMethodInvalid;
             }
 
-            // Initialize input arguments to empty collection if null.
-            // Methods with only output parameters (no input parameters) are valid.
-            callMethodRequest.InputArguments ??= [];
-
             return StatusCodes.Good;
         }
 

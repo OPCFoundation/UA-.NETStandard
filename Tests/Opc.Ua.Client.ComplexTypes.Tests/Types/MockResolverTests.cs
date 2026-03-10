@@ -184,6 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
 
             ushort nameSpaceIndex = mockResolver.NamespaceUris
                 .GetIndexOrAppend(Namespaces.MockResolverUrl);
@@ -317,6 +318,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 car);
@@ -344,6 +346,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
@@ -556,6 +559,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 arrays);
@@ -586,6 +590,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
 
             var mockResolver = new MockResolver();
@@ -760,6 +765,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 testType);

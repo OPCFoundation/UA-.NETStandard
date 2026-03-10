@@ -40,7 +40,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public object GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             uint attributeId,
             Ua.NumericRange indexRange)
         {

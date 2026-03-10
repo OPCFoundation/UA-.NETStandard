@@ -5814,37 +5814,37 @@ namespace Opc.Ua.Schema.Model.Tests
         /// <summary>
         /// Tests GetDotNetTypeName returns proper collection type names for Array valueRank with all basic data types.
         /// </summary>
-        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.BooleanCollection")]
-        [TestCase(BasicDataType.SByte, "global::Opc.Ua.SByteCollection")]
-        [TestCase(BasicDataType.Byte, "global::Opc.Ua.ByteCollection")]
-        [TestCase(BasicDataType.Int16, "global::Opc.Ua.Int16Collection")]
-        [TestCase(BasicDataType.UInt16, "global::Opc.Ua.UInt16Collection")]
-        [TestCase(BasicDataType.Int32, "global::Opc.Ua.Int32Collection")]
-        [TestCase(BasicDataType.UInt32, "global::Opc.Ua.UInt32Collection")]
-        [TestCase(BasicDataType.Int64, "global::Opc.Ua.Int64Collection")]
-        [TestCase(BasicDataType.UInt64, "global::Opc.Ua.UInt64Collection")]
-        [TestCase(BasicDataType.Float, "global::Opc.Ua.FloatCollection")]
-        [TestCase(BasicDataType.Double, "global::Opc.Ua.DoubleCollection")]
-        [TestCase(BasicDataType.String, "global::Opc.Ua.StringCollection")]
-        [TestCase(BasicDataType.DateTime, "global::Opc.Ua.DateTimeCollection")]
-        [TestCase(BasicDataType.Guid, "global::Opc.Ua.UuidCollection")]
-        [TestCase(BasicDataType.ByteString, "global::Opc.Ua.ByteStringCollection")]
-        [TestCase(BasicDataType.XmlElement, "global::Opc.Ua.XmlElementCollection")]
-        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.NodeIdCollection")]
-        [TestCase(BasicDataType.ExpandedNodeId, "global::Opc.Ua.ExpandedNodeIdCollection")]
-        [TestCase(BasicDataType.StatusCode, "global::Opc.Ua.StatusCodeCollection")]
-        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.DiagnosticInfoCollection")]
-        [TestCase(BasicDataType.QualifiedName, "global::Opc.Ua.QualifiedNameCollection")]
-        [TestCase(BasicDataType.LocalizedText, "global::Opc.Ua.LocalizedTextCollection")]
-        [TestCase(BasicDataType.DataValue, "global::Opc.Ua.DataValueCollection")]
-        [TestCase(BasicDataType.Number, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.Integer, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.UInteger, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.Structure, "global::Opc.Ua.ExtensionObjectCollection")]
-        public void GetDotNetTypeName_ArrayValueRankWithBasicDataTypes_ReturnsCorrectCollectionType(
+        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.ArrayOf<bool>")]
+        [TestCase(BasicDataType.SByte, "global::Opc.Ua.ArrayOf<sbyte>")]
+        [TestCase(BasicDataType.Byte, "global::Opc.Ua.ArrayOf<byte>")]
+        [TestCase(BasicDataType.Int16, "global::Opc.Ua.ArrayOf<short>")]
+        [TestCase(BasicDataType.UInt16, "global::Opc.Ua.ArrayOf<ushort>")]
+        [TestCase(BasicDataType.Int32, "global::Opc.Ua.ArrayOf<int>")]
+        [TestCase(BasicDataType.UInt32, "global::Opc.Ua.ArrayOf<uint>")]
+        [TestCase(BasicDataType.Int64, "global::Opc.Ua.ArrayOf<long>")]
+        [TestCase(BasicDataType.UInt64, "global::Opc.Ua.ArrayOf<ulong>")]
+        [TestCase(BasicDataType.Float, "global::Opc.Ua.ArrayOf<float>")]
+        [TestCase(BasicDataType.Double, "global::Opc.Ua.ArrayOf<double>")]
+        [TestCase(BasicDataType.String, "global::Opc.Ua.ArrayOf<string>")]
+        [TestCase(BasicDataType.DateTime, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DateTimeUtc>")]
+        [TestCase(BasicDataType.Guid, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Uuid>")]
+        [TestCase(BasicDataType.ByteString, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ByteString>")]
+        [TestCase(BasicDataType.XmlElement, "global::Opc.Ua.ArrayOf<global::Opc.Ua.XmlElement>")]
+        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeId>")]
+        [TestCase(BasicDataType.ExpandedNodeId, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ExpandedNodeId>")]
+        [TestCase(BasicDataType.StatusCode, "global::Opc.Ua.ArrayOf<global::Opc.Ua.StatusCode>")]
+        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DiagnosticInfo>")]
+        [TestCase(BasicDataType.QualifiedName, "global::Opc.Ua.ArrayOf<global::Opc.Ua.QualifiedName>")]
+        [TestCase(BasicDataType.LocalizedText, "global::Opc.Ua.ArrayOf<global::Opc.Ua.LocalizedText>")]
+        [TestCase(BasicDataType.DataValue, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DataValue>")]
+        [TestCase(BasicDataType.Number, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Integer, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.UInteger, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Structure, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ExtensionObject>")]
+        public void GetDotNetTypeName_ArrayValueRankWithBasicDataTypes_ReturnsCorrectArrayType(
             BasicDataType basicDataType,
-            string expectedCollectionType)
+            string expectedArrayOfTType)
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5862,14 +5862,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo(expectedCollectionType));
+            Assert.That(result, Is.EqualTo(expectedArrayOfTType));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName returns Int32Collection for built-in Enumeration type with Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithBuiltInEnumeration_ReturnsInt32Collection()
+        public void GetDotNetTypeName_ArrayValueRankWithBuiltInEnumeration_ReturnsArrayOfInt32()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5888,14 +5885,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<int>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName returns custom enumeration collection name for non-built-in Enumeration type with Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithCustomEnumeration_ReturnsCustomEnumerationCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithCustomEnumeration_ReturnsArrayOfCustomEnumeration()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5917,14 +5911,14 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("MyCustomEnumCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<MyCustomEnum>"));
         }
 
         /// <summary>
         /// Tests GetDotNetTypeName for Array valueRank with OptionSet Enumeration calls recursively to base type.
         /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithOptionSetEnumeration_ReturnsBaseTypeCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithOptionSetEnumeration_ReturnsArrayOfBaseType()
         {
             // Arrange
             var mockBaseDataType = new DataTypeDesign
@@ -5950,14 +5944,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.UInt32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<uint>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName returns custom user-defined type collection for Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithUserDefinedType_ReturnsCustomCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithUserDefinedType_ReturnsArrayOfCustomType()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5976,7 +5967,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("MyCustomTypeCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<MyCustomType>"));
         }
 
         /// <summary>
@@ -6125,7 +6116,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.BooleanCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<bool>"));
         }
 
         /// <summary>
@@ -6149,7 +6140,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<int>"));
         }
 
         /// <summary>
@@ -6173,7 +6164,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.DoubleCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<double>"));
         }
 
         /// <summary>
@@ -6198,14 +6189,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.FloatCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<float>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName with NullableExceptDataTypes annotation for Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithNullableExceptDataTypes_ReturnsCollectionType()
+        public void GetDotNetTypeName_ArrayValueRankWithNullableExceptDataTypes_ReturnsArrayOfType()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -6223,7 +6211,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NullableExceptDataTypes);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.StringCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<string>"));
         }
 
         /// <summary>

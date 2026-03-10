@@ -571,7 +571,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                             is TargetVariablesDataType targetVariablesData &&
-                        targetVariablesData.TargetVariables != null &&
                         i < targetVariablesData.TargetVariables.Count)
                     {
                         // remember the target Attribute and target nodeId
@@ -628,7 +627,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                         if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                                 is TargetVariablesDataType targetVariablesData &&
-                            targetVariablesData.TargetVariables != null &&
                             i < targetVariablesData.TargetVariables.Count)
                         {
                             // remember the target Attribute and target nodeId

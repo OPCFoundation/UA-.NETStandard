@@ -233,7 +233,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(request.RequestHeader.AdditionalHeader!.TryGetEncodeable(
                     out AdditionalParametersType additionalParams), Is.True);
                 Assert.That(additionalParams, Is.Not.Null);
-                KeyValuePair spanContextParam = additionalParams.Parameters.FirstOrDefault(p => p.Key == "SpanContext")!;
+                Assert.That(additionalParams.Parameters.IsEmpty, Is.False);
+                KeyValuePair spanContextParam =
+                    additionalParams.Parameters.ToList().FirstOrDefault(p => p.Key == "SpanContext")!;
                 Assert.That(spanContextParam, Is.Not.Null);
             }
 

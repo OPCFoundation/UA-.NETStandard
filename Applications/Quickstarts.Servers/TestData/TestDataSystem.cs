@@ -726,12 +726,12 @@ namespace TestData
             };
 
             object[] values = m_generator.GetRandomArray<object>(false, 10, false);
-
+            var variantValue = new List<Variant>();
             for (int ii = 0; values != null && ii < values.Length; ii++)
             {
-                value.VariantValue.Add(new Variant(values[ii]));
+                variantValue.Add(new Variant(values[ii]));
             }
-
+            value.VariantValue = variantValue;
             return value;
         }
 

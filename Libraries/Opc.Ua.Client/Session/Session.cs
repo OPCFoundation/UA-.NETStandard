@@ -4780,12 +4780,14 @@ namespace Opc.Ua.Client
             if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
             {
                 var parameters = new AdditionalParametersType();
-                parameters.Parameters.Add(
+                parameters.Parameters =
+                [
                     new KeyValuePair
                     {
                         Key = QualifiedName.From("ECDHPolicyUri"),
                         Value = userTokenSecurityPolicyUri
-                    });
+                    }
+                ];
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 
@@ -5025,7 +5027,7 @@ namespace Opc.Ua.Client
         public NotificationEventArgs(
             Subscription subscription,
             NotificationMessage notificationMessage,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             Subscription = subscription;
             NotificationMessage = notificationMessage;
@@ -5045,7 +5047,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the string table returned with the notification message.
         /// </summary>
-        public IList<string> StringTable { get; }
+        public ArrayOf<string> StringTable { get; }
     }
 
     /// <summary>

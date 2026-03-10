@@ -87,12 +87,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_publisherConfiguration,
                 "m_publisherConfiguration should not be null");
 
-            //Get first connection
-            Assert.IsNotNull(
-                m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections,
+            // Get first connection
+            Assert.IsFalse(
+                m_publisherConfiguration.Connections.IsEmpty,
                 "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(
@@ -100,8 +97,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections[0].WriterGroups,
+            Assert.IsFalse(
+                m_publisherConfiguration.Connections[0].WriterGroups.IsEmpty,
                 "pubSubConfigConnection.WriterGroups should not be empty");
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
             Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
@@ -854,11 +851,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Read the first configured ReaderGroup
             Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
-            Assert.IsNotEmpty(
-                m_firstReaderGroup.DataSetReaders,
+            Assert.IsFalse(
+                m_firstReaderGroup.DataSetReaders.IsEmpty,
                 "m_firstReaderGroup.DataSetReaders should not be empty");
 
-            return m_firstReaderGroup.DataSetReaders;
+            return m_firstReaderGroup.DataSetReaders.ToList();
         }
 
         /// <summary>

@@ -382,13 +382,18 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
                     application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                result.ServerCapabilities.Sort();
+                var serverCapabilities = result.ServerCapabilities.ToList();
+                serverCapabilities.Sort();
+                result.ServerCapabilities = serverCapabilities;
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client &&
-                    application.ApplicationRecord.ServerCapabilities.Count == 0)
+                    application.ApplicationRecord.ServerCapabilities.IsEmpty)
                 {
-                    application.ApplicationRecord.ServerCapabilities.Add("NA");
+                    application.ApplicationRecord.ServerCapabilities =
+                        application.ApplicationRecord.ServerCapabilities.AddItem("NA");
                 }
-                application.ApplicationRecord.ServerCapabilities.Sort();
+                serverCapabilities = application.ApplicationRecord.ServerCapabilities.ToList();
+                serverCapabilities.Sort();
+                application.ApplicationRecord.ServerCapabilities = serverCapabilities;
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord, result));
             }
         }
@@ -507,8 +512,12 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
                     application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                result.ServerCapabilities.Sort();
-                application.ApplicationRecord.ServerCapabilities.Sort();
+                var serverCapabilities = result.ServerCapabilities.ToList();
+                serverCapabilities.Sort();
+                result.ServerCapabilities = serverCapabilities;
+                serverCapabilities = application.ApplicationRecord.ServerCapabilities.ToList();
+                serverCapabilities.Sort();
+                application.ApplicationRecord.ServerCapabilities = serverCapabilities;
                 Assert.AreEqual(
                     application.ApplicationRecord.ServerCapabilities,
                     result.ServerCapabilities);

@@ -4364,7 +4364,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public virtual BaseInstanceState FindChild(
             ISystemContext context,
-            IList<QualifiedName> browsePath,
+            ArrayOf<QualifiedName> browsePath,
             int index)
         {
             if (index is < 0 or >= int.MaxValue)
@@ -4725,7 +4725,7 @@ namespace Opc.Ua
         /// </returns>
         public virtual ServiceResult ReadChildAttribute(
             ISystemContext context,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             int index,
             uint attributeId,
             DataValue dataValue)
@@ -4775,7 +4775,7 @@ namespace Opc.Ua
         /// </returns>
         public ServiceResult WriteChildAttribute(
             ISystemContext context,
-            IList<QualifiedName> componentPath,
+            ArrayOf<QualifiedName> componentPath,
             int index,
             uint attributeId,
             DataValue value)

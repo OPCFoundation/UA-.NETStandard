@@ -361,8 +361,8 @@ namespace Opc.Ua.PubSub.Transport
                 if (writer != null)
                 {
                     WriterGroupDataType writerGroup = PubSubConnectionConfiguration.WriterGroups
-                        .FirstOrDefault(wg =>
-                            wg.DataSetWriters.Contains(writer));
+                        .ToList()
+                        .FirstOrDefault(wg => wg.DataSetWriters.ToList().Contains(writer));
                     if (writerGroup != null)
                     {
                         DataSetMetaDataType metaData = Application

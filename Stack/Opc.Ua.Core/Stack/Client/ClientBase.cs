@@ -425,7 +425,7 @@ namespace Opc.Ua
                 if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
                     var additionalHeader = new AdditionalParametersType();
-                    additionalHeader.Parameters.Add(spanContextParameter);
+                    additionalHeader.Parameters = [spanContextParameter];
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
@@ -433,7 +433,8 @@ namespace Opc.Ua
                     out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters.Add(spanContextParameter);
+                    existingParameters.Parameters =
+                        existingParameters.Parameters.AddItem(spanContextParameter);
                 }
             }
         }

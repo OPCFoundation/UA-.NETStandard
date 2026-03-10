@@ -234,16 +234,12 @@ namespace Opc.Ua.Gds.Client
 
                 foreach (ServerOnNetwork server in servers)
                 {
-                    if (server.ServerCapabilities != null)
+                    // ignore GDS and LDS servers
+                    var set = server.ServerCapabilities.ToList();
+                    if (set.Contains(ServerCapability.GlobalDiscoveryServer) ||
+                        set.Contains(ServerCapability.LocalDiscoveryServer))
                     {
-                        // ignore GDS and LDS servers
-                        if (server.ServerCapabilities
-                                .Contains(ServerCapability.GlobalDiscoveryServer) ||
-                            server.ServerCapabilities
-                                .Contains(ServerCapability.LocalDiscoveryServer))
-                        {
-                            continue;
-                        }
+                        continue;
                     }
                     serverUrls.Add(server.DiscoveryUrl);
                 }
@@ -294,8 +290,7 @@ namespace Opc.Ua.Gds.Client
 
                 foreach (ServerOnNetwork server in servers)
                 {
-                    if (server.ServerCapabilities != null &&
-                        server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer))
+                    if (server.ServerCapabilities.ToList().Contains(ServerCapability.GlobalDiscoveryServer))
                     {
                         gdsUrls.Add(server.DiscoveryUrl);
                     }

@@ -73,7 +73,6 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                     is PublishedDataItemsDataType publishedDataItems &&
-                publishedDataItems.PublishedData != null &&
                 publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
                     .Count)
             {
@@ -142,8 +141,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                     if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                             is PublishedDataItemsDataType publishedDataItems &&
-                        publishedDataItems.PublishedData != null &&
-                        publishedDataItems.PublishedData.Count > 0)
+                        !publishedDataItems.PublishedData.IsEmpty)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
                         for (int i = 0; i < publishedDataItems.PublishedData.Count; i++)

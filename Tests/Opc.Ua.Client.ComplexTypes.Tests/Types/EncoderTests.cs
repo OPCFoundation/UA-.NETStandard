@@ -93,6 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[structureType];
@@ -104,6 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 structureType,
                 nodeId,
                 emittedType);
@@ -124,6 +126,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId nodeId;
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
             object emittedType = Activator.CreateInstance(complexType);
@@ -137,6 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
                 emittedType);
@@ -148,6 +152,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
                 emittedType);
@@ -160,6 +165,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
                 emittedType);
@@ -171,6 +177,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
                 emittedType);
@@ -190,6 +197,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
@@ -204,6 +212,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Union,
                 nodeId,
                 emittedType);
@@ -215,6 +224,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Union,
                 nodeId,
                 emittedType);

@@ -432,10 +432,9 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            bool isServiceType = dataType.Service != null;
             context.Template.AddReplacement(
                 Tokens.ExtraInterfaces,
-                !isServiceType ?
+                dataType.Service == null ?
                     string.Empty :
                     dataType.IsServiceResponse ?
                         "global::Opc.Ua.IServiceResponse, " :
@@ -600,6 +599,18 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ListOfClonedFields);
 
             context.Template.AddReplacement(
+                Tokens.ListOfChildHashes,
+                DataTypeTemplates.HashProperty,
+                fields,
+                WriteTemplate_ListOfProperties);
+
+            context.Template.AddReplacement(
+                Tokens.ListOfAppendStringFields,
+                DataTypeTemplates.AddPropertyToStringBuilder,
+                fields,
+                WriteTemplate_ListOfProperties);
+
+            context.Template.AddReplacement(
                 Tokens.ListOfSwitchFieldNames,
                 fields,
                 LoadTemplate_ListOfSwitchFields);
@@ -674,7 +685,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            bool isServiceType = dataType.Service != null;
 
             context.Out.WriteLine(
                 "private {0} {1};",
@@ -682,8 +692,7 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes,
-                    useArrayTypeInsteadOfCollection: isServiceType),
+                    nullable: NullableAnnotation.NullableExceptDataTypes),
                 field.GetChildFieldName());
 
             return null;
@@ -755,7 +764,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            bool isServiceType = dataType.Service != null;
             bool isUnion = dataType.IsUnion;
 
             if (isUnion)
@@ -809,20 +817,10 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        if (isServiceType)
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteEnumeratedArray({0}, {1});",
-                                fieldName,
-                                field.Name);
-                        }
-                        else
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteEnumeratedArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
-                                fieldName,
-                                field.Name);
-                        }
+                        context.Out.WriteLine(
+                            "encoder.WriteEnumeratedArray({0}, {1});",
+                            fieldName,
+                            field.Name);
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -840,20 +838,10 @@ namespace Opc.Ua.SourceGeneration
                         functionName = "Encodeable";
                         if (field.ValueRank == ValueRank.Array)
                         {
-                            if (isServiceType)
-                            {
-                                context.Out.WriteLine(
-                                    "encoder.WriteEncodeableArray({0}, {1});",
-                                    fieldName,
-                                    field.Name);
-                            }
-                            else
-                            {
-                                context.Out.WriteLine(
-                                    "encoder.WriteEncodeableArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
-                                    fieldName,
-                                    field.Name);
-                            }
+                            context.Out.WriteLine(
+                                "encoder.WriteEncodeableArray({0}, {1});",
+                                fieldName,
+                                field.Name);
                             if (isUnion)
                             {
                                 context.Out.WriteLine("break;");
@@ -868,20 +856,10 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        if (isServiceType)
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteEncodeableArrayAsExtensionObjects({0}, {1});",
-                                fieldName,
-                                field.Name);
-                        }
-                        else
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteEncodeableArrayAsExtensionObjects({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
-                                fieldName,
-                                field.Name);
-                        }
+                        context.Out.WriteLine(
+                            "encoder.WriteEncodeableArrayAsExtensionObjects({0}, {1});",
+                            fieldName,
+                            field.Name);
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -953,8 +931,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            bool isServiceType = dataType.Service != null;
-
             bool isUnion = dataType.IsUnion;
             if (isUnion)
             {
@@ -1003,8 +979,7 @@ namespace Opc.Ua.SourceGeneration
                                     ValueRank.Scalar,
                                     m_context.ModelDesign.TargetNamespace.Value,
                                     m_context.ModelDesign.Namespaces,
-                                    nullable: NullableAnnotation.NonNullable,
-                                    useArrayTypeInsteadOfCollection: isServiceType));
+                                    nullable: NullableAnnotation.NonNullable));
                             break;
                         }
 
@@ -1020,8 +995,7 @@ namespace Opc.Ua.SourceGeneration
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable,
-                            useArrayTypeInsteadOfCollection: isServiceType));
+                            nullable: NullableAnnotation.NonNullable));
                     break;
                 case BasicDataType.UserDefined:
                     if (!field.AllowSubTypes)
@@ -1034,8 +1008,7 @@ namespace Opc.Ua.SourceGeneration
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable,
-                            useArrayTypeInsteadOfCollection: isServiceType));
+                            nullable: NullableAnnotation.NonNullable));
                         break;
                     }
 
@@ -1044,8 +1017,7 @@ namespace Opc.Ua.SourceGeneration
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable,
-                        useArrayTypeInsteadOfCollection: isServiceType);
+                        nullable: NullableAnnotation.NonNullable);
 
                     // Read array
 
@@ -1124,9 +1096,7 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            bool isServiceType = dataType.Service != null;
-            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank) ||
-                (!isServiceType && field.ValueRank != ValueRank.Scalar)) // Then we use collections
+            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
             {
                 context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
@@ -1159,8 +1129,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            bool isServiceType = dataType.Service != null;
-
             if (dataType.IsUnion)
             {
                 context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
@@ -1179,8 +1147,7 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes,
-                    useArrayTypeInsteadOfCollection: isServiceType));
+                    nullable: NullableAnnotation.NullableExceptDataTypes));
 
             if (dataType.IsUnion)
             {
@@ -1252,7 +1219,6 @@ namespace Opc.Ua.SourceGeneration
 
             const bool isRequired = false;
             var dataType = (DataTypeDesign)field.Parent;
-            bool isServiceType = dataType.Service != null;
             bool emitDefaultValue =
                 !field.DataTypeNode.IsDotNetReferenceType(field.ValueRank);
 
@@ -1271,8 +1237,7 @@ namespace Opc.Ua.SourceGeneration
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
-                nullable: NullableAnnotation.NullableExceptDataTypes,
-                useArrayTypeInsteadOfCollection: isServiceType));
+                nullable: NullableAnnotation.NullableExceptDataTypes));
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.GetChildFieldName());

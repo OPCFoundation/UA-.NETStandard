@@ -32,6 +32,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -495,6 +496,102 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Add an item to this array to produce a new array. The item
+        /// is added at the end of the array. The method is not named
+        /// Add because it produces a new array and does not change the
+        /// existing one.
+        /// </summary>
+        [Pure]
+        public ArrayOf<T> AddItem(T value)
+        {
+            T[] buffer = new T[Count + 1];
+            Span<T> dest = buffer.AsSpan();
+            Span.CopyTo(dest);
+            dest[Count] = value;
+            return buffer.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Filter out the value and return an array without it.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public ArrayOf<T> RemoveItem(T value)
+        {
+            return Filter(item => !EqualityComparer<T>.Default.Equals(item, value));
+        }
+
+        /// <summary>
+        /// Add an item to this array to produce a new array. The item
+        /// is added at the specific index moving the existing items at
+        /// and after the index one position. If index is equal to count,
+        /// the item is added at the end of the array.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Pure]
+        public ArrayOf<T> AddItem(T value, int index)
+        {
+            if (index < 0 || index > Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            if (index == Count)
+            {
+                return AddItem(value);
+            }
+            T[] buffer = new T[Count + 1];
+            Span<T> target = buffer.AsSpan();
+            if (index == 0)
+            {
+                buffer[0] = value;
+                Span.CopyTo(target[1..]);
+            }
+            else
+            {
+                Span[..index].CopyTo(target[..index]);
+                buffer[index] = value;
+                Span[index..].CopyTo(target[(index + 1)..]);
+            }
+            return buffer.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Add all items to this array to produce a new array
+        /// </summary>
+        [Pure]
+        public ArrayOf<T> AddItems(ArrayOf<T> values)
+        {
+            return ArrayOf.Combine(this, values);
+        }
+
+        /// <summary>
+        /// Add all items to this array to produce a new array
+        /// </summary>
+        [Pure]
+        public ArrayOf<T> AddItems(IEnumerable<T> values)
+        {
+            return ArrayOf.Combine(this, values.ToArrayOf());
+        }
+
+        /// <inheritdoc/>
+        public static ArrayOf<T> operator +(in ArrayOf<T> left, T right)
+        {
+            return left.AddItem(right);
+        }
+
+        /// <inheritdoc/>
+        public static ArrayOf<T> operator +(T left, in ArrayOf<T> right)
+        {
+            return right.AddItem(left, 0);
+        }
+
+        /// <inheritdoc/>
+        public static ArrayOf<T> operator +(in ArrayOf<T> left, ArrayOf<T> right)
+        {
+            return left.AddItems(right);
+        }
+
+        /// <summary>
         /// Transform
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
@@ -781,12 +878,16 @@ namespace Opc.Ua
         {
             if (arrays.Length == 0)
             {
-                return Empty<T>();
+                return [];
             }
             int length = 0;
             foreach (ArrayOf<T> item in arrays)
             {
                 length += item.Count;
+            }
+            if (length == 0)
+            {
+                return [];
             }
             T[] buffer = new T[length];
             Span<T> dest = buffer.AsSpan();

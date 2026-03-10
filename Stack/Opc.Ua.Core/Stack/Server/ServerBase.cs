@@ -1349,7 +1349,7 @@ namespace Opc.Ua
                 RequestHandle = requestHeader.RequestHandle
             };
 
-            responseHeader.StringTable.AddRange(stringTable.ToArray());
+            responseHeader.StringTable = stringTable.ToArrayOf();
 
             return responseHeader;
         }

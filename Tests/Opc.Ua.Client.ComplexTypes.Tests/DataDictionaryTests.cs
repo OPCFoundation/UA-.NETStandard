@@ -274,7 +274,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 throw new InvalidOperationException("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0]
-                .References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
+                .References.Find(a => a.BrowseName.Name == "TestData");
+            Assert.NotNull(referenceDescription, "cannot find the test dictionary node");
             return ExpandedNodeId.ToNodeId(referenceDescription.NodeId, Session.NamespaceUris);
         }
     }

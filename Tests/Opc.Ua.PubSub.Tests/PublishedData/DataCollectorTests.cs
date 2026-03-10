@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
-                publishedDataItems.PublishedData.Add(
+                publishedDataItems.PublishedData = publishedDataItems.PublishedData.AddItem(
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(field.Name, NamespaceIndex),
@@ -289,7 +289,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
-                publishedDataItems.PublishedData.Add(
+                publishedDataItems.PublishedData = publishedDataItems.PublishedData.AddItem(
                     new PublishedVariableDataType
                     {
                         SubstituteValue = QualifiedName.From(field.Name)

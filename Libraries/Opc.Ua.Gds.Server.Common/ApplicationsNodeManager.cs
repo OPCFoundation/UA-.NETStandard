@@ -1009,20 +1009,17 @@ namespace Opc.Ua.Gds.Server
 
             bool found = false;
 
-            if (application.DiscoveryUrls != null)
+            foreach (string discoveryUrl in application.DiscoveryUrls)
             {
-                foreach (string discoveryUrl in application.DiscoveryUrls)
+                if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                 {
-                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        var url = new Uri(discoveryUrl);
+                    var url = new Uri(discoveryUrl);
 
-                        if (url.Scheme == Utils.UriSchemeHttps &&
-                            Utils.AreDomainsEqual(commonName, url.IdnHost))
-                        {
-                            found = true;
-                            break;
-                        }
+                    if (url.Scheme == Utils.UriSchemeHttps &&
+                        Utils.AreDomainsEqual(commonName, url.IdnHost))
+                    {
+                        found = true;
+                        break;
                     }
                 }
             }
@@ -1039,18 +1036,15 @@ namespace Opc.Ua.Gds.Server
 
         private static string GetDefaultHttpsDomain(ApplicationRecordDataType application)
         {
-            if (application.DiscoveryUrls != null)
+            foreach (string discoveryUrl in application.DiscoveryUrls)
             {
-                foreach (string discoveryUrl in application.DiscoveryUrls)
+                if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                 {
-                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        var url = new Uri(discoveryUrl);
+                    var url = new Uri(discoveryUrl);
 
-                        if (url.Scheme == Utils.UriSchemeHttps)
-                        {
-                            return url.IdnHost;
-                        }
+                    if (url.Scheme == Utils.UriSchemeHttps)
+                    {
+                        return url.IdnHost;
                     }
                 }
             }
@@ -1115,33 +1109,32 @@ namespace Opc.Ua.Gds.Server
 
         private static string[] GetDefaultDomainNames(ApplicationRecordDataType application)
         {
-            var names = new List<string>();
-
-            if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
+            if (application.DiscoveryUrls.IsEmpty)
             {
-                foreach (string discoveryUrl in application.DiscoveryUrls)
+                return [];
+            }
+            var names = new List<string>();
+            foreach (string discoveryUrl in application.DiscoveryUrls)
+            {
+                if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                 {
-                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
+                    var url = new Uri(discoveryUrl);
+
+                    foreach (string name in names)
                     {
-                        var url = new Uri(discoveryUrl);
-
-                        foreach (string name in names)
+                        if (Utils.AreDomainsEqual(name, url.IdnHost))
                         {
-                            if (Utils.AreDomainsEqual(name, url.IdnHost))
-                            {
-                                url = null;
-                                break;
-                            }
+                            url = null;
+                            break;
                         }
+                    }
 
-                        if (url != null)
-                        {
-                            names.Add(url.IdnHost);
-                        }
+                    if (url != null)
+                    {
+                        names.Add(url.IdnHost);
                     }
                 }
             }
-
             return [.. names];
         }
 

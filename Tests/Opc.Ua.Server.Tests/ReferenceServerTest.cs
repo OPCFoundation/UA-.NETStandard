@@ -1294,14 +1294,14 @@ namespace Opc.Ua.Server.Tests
             if (result.HistoryData.TryGetEncodeable(out HistoryData historyData))
             {
                 logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
-                Assert.IsNotNull(historyData.DataValues, "DataValues should not be null");
+                Assert.IsFalse(historyData.DataValues.IsNull, "DataValues should not be null");
                 Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
 
                 // Verify the data values have proper timestamps
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
                     Assert.IsNotNull(dataValue, "DataValue should not be null");
-                    Assert.IsTrue(dataValue.ServerTimestamp != DateTime.MinValue,
+                    Assert.IsTrue(dataValue.ServerTimestamp != DateTimeUtc.MinValue,
                         "DataValue should have a valid ServerTimestamp");
                 }
             }
@@ -1343,8 +1343,8 @@ namespace Opc.Ua.Server.Tests
             bool hasEndpointWithoutAnonymous = false;
             foreach (EndpointDescription endpoint in endpoints)
             {
-                bool hasAnonymous = endpoint.UserIdentityTokens.Any(
-                    policy => policy.TokenType == UserTokenType.Anonymous);
+                bool hasAnonymous = endpoint.UserIdentityTokens.Find(
+                    policy => policy.TokenType == UserTokenType.Anonymous) != null;
                 if (!hasAnonymous)
                 {
                     hasEndpointWithoutAnonymous = true;
