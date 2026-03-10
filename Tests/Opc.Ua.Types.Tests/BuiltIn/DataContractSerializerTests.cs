@@ -29,6 +29,7 @@
 
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -74,7 +75,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        [Explicit] // TODO
         public void SerializerSupportsMatrixOfSurrogates()
         {
             SurrogateMatrixOfContract instance = SurrogateTestData.CreateMatrixOfContract(0);
@@ -92,6 +92,38 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SurrogateGraphContract clone = Roundtrip(instance);
 
             SurrogateTestData.AssertGraphContractEqual(instance, clone);
+        }
+
+        [Test]
+        public void SerializerCorrectlySerializesArrayOfArguments()
+        {
+            ArrayOf<Argument> instance = [new Argument(), new Argument()];
+            string serializedData = GetSerializedData(instance);
+            TestContext.Out.WriteLine(serializedData);
+            Assert.That(serializedData, Does.StartWith(
+                "<ListOfArgument xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><Argument xmlns"));
+        }
+
+        [Test]
+        public void SerializerCorrectlySerializesArrayOfUInt32()
+        {
+            ArrayOf<uint> instance = [0u, 1u, 2u];
+            string serializedData = GetSerializedData(instance);
+            TestContext.Out.WriteLine(serializedData);
+            Assert.That(serializedData, Does.StartWith(
+                "<ListOfUInt32 xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><UInt32>0</UInt32>"));
+        }
+
+        private static string GetSerializedData<T>(T instance)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+
+            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
+            using var stream = new MemoryStream();
+            serializer.WriteObject(stream, instance);
+
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         private static T Roundtrip<T>(T value)

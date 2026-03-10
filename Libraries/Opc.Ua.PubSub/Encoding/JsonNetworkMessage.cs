@@ -185,12 +185,12 @@ namespace Opc.Ua.PubSub.Encoding
                 !HasSingleDataSetMessage &&
                 !IsMetaDataMessage;
 
-            using var encoder = new JsonEncoderOld(messageContext, JsonEncodingType.Verbose, topLevelIsArray, stream);
+            using var encoder = new PubSubJsonEncoder(messageContext, true, topLevelIsArray, stream);
             if (IsMetaDataMessage)
             {
                 EncodeNetworkMessageHeader(encoder);
 
-                encoder.WriteEncodeable(kFieldMetaData, m_metadata);
+                encoder.WriteEncodeable(kFieldMetaData, m_metadata, null);
 
                 return;
             }
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using var jsonDecoder = new JsonDecoderOld(json, messageContext);
+            using var jsonDecoder = new PubSubJsonDecoder(json, messageContext);
             // 1. decode network message header (PublisherId & DataSetClassId)
             DecodeNetworkMessageHeader(jsonDecoder);
 
@@ -267,7 +267,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes the object in a binary stream.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="jsonEncoder"/></exception>
-        private void Encode(IJsonEncoder jsonEncoder)
+        private void Encode(PubSubJsonEncoder jsonEncoder)
         {
             if (jsonEncoder == null)
             {
@@ -285,7 +285,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        private void EncodeNetworkMessageHeader(IEncoder jsonEncoder)
+        private void EncodeNetworkMessageHeader(PubSubJsonEncoder jsonEncoder)
         {
             jsonEncoder.WriteString(nameof(MessageId), MessageId);
             jsonEncoder.WriteString(nameof(MessageType), MessageType);
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode DataSetMessages
         /// </summary>
-        private void EncodeMessages(IJsonEncoder encoder)
+        private void EncodeMessages(PubSubJsonEncoder encoder)
         {
             if (DataSetMessages != null && DataSetMessages.Count > 0)
             {
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode ReplyTo
         /// </summary>
-        private void EncodeReplyTo(IEncoder jsonEncoder)
+        private void EncodeReplyTo(PubSubJsonEncoder jsonEncoder)
         {
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
             {
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
-        private void DecodeNetworkMessageHeader(JsonDecoderOld jsonDecoder)
+        private void DecodeNetworkMessageHeader(PubSubJsonDecoder jsonDecoder)
         {
             if (jsonDecoder.ReadField(nameof(MessageId), out _))
             {
@@ -440,12 +440,14 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the jsonDecoder content as a MetaData message
         /// </summary>
-        private void DecodeMetaDataMessage(JsonDecoderOld jsonDecoder)
+        private void DecodeMetaDataMessage(PubSubJsonDecoder jsonDecoder)
         {
             try
             {
                 m_metadata =
-                    jsonDecoder.ReadEncodeable<DataSetMetaDataType>(kFieldMetaData);
+                    jsonDecoder.ReadEncodeable(
+                        kFieldMetaData,
+                        typeof(DataSetMetaDataType)) as DataSetMetaDataType;
             }
             catch (Exception ex)
             {
@@ -458,7 +460,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode the stream from decoder parameter and produce a Dataset
         /// </summary>
         private void DecodeSubscribedDataSets(
-            JsonDecoderOld jsonDecoder,
+            PubSubJsonDecoder jsonDecoder,
             IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
@@ -476,7 +478,9 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
                 {
                     m_metadata =
-                        jsonDecoder.ReadEncodeable<DataSetMetaDataType>(kFieldMetaData);
+                        jsonDecoder.ReadEncodeable(
+                            kFieldMetaData,
+                            typeof(DataSetMetaDataType)) as DataSetMetaDataType;
                     return;
                 }
 
@@ -528,10 +532,10 @@ namespace Opc.Ua.PubSub.Encoding
                         messagesListName = kFieldMessages;
                     }
                 }
-                else if (jsonDecoder.ReadField(JsonDecoderOld.RootArrayName, out messagesToken))
+                else if (jsonDecoder.ReadField(PubSubJsonDecoder.RootArrayName, out messagesToken))
                 {
                     messagesList = messagesToken as List<object>;
-                    messagesListName = JsonDecoderOld.RootArrayName;
+                    messagesListName = PubSubJsonDecoder.RootArrayName;
                 }
                 else
                 {

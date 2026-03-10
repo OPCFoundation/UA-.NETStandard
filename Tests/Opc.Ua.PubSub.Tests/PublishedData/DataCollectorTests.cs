@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new KeyValuePair { Key = QualifiedName.From("BoolToggle"), Value = true },
                 new KeyValuePair { Key = QualifiedName.From("Int32"), Value = 100 },
                 new KeyValuePair { Key = QualifiedName.From("Int32Fast"), Value = 50 },
-                new KeyValuePair { Key = QualifiedName.From("DateTime"), Value = (DateTimeUtc)DateTime.Today }
+                new KeyValuePair { Key = QualifiedName.From("DateTime"), Value = new DateTimeUtc(DateTime.Today) }
             ];
 
             var publishedDataItems = new PublishedDataItemsDataType { PublishedData = [] };

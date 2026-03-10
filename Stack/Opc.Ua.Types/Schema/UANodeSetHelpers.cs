@@ -448,7 +448,7 @@ namespace Opc.Ua.Export
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;
 
-            if (node.RolePermissions != null)
+            if (!node.RolePermissions.IsNull)
             {
                 var permissions = new List<RolePermission>();
 

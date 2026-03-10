@@ -27,57 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
-    /// Interface for extended methods for JSON encoders based on IEncoder.
+    /// The type of JSON encoding to use.
     /// </summary>
-    public interface IJsonEncoder : IEncoder
+    public enum JsonEncodingType
     {
         /// <summary>
-        /// The type of JSON encoding being used.
+        /// Compact encoding
         /// </summary>
-        JsonEncodingType EncodingToUse { get; }
+        Compact,
 
         /// <summary>
-        /// Force the Json encoder to encode namespace URI instead of
-        /// namespace Index in NodeIds.
+        /// Verbose encoding
         /// </summary>
-        bool ForceNamespaceUri { get; set; }
-
-        /// <summary>
-        /// Push the begin of an array on the encoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the array field.</param>
-        void PushArray(string fieldName);
-
-        /// <summary>
-        /// Push the begin of a structure on the encoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the structure field.</param>
-        void PushStructure(string fieldName);
-
-        /// <summary>
-        /// Pop the array from the encoder stack.
-        /// </summary>
-        void PopArray();
-
-        /// <summary>
-        /// Pop the structure from the encoder stack.
-        /// </summary>
-        void PopStructure();
-
-        /// <summary>
-        /// Call an IEncoder action where the alternate encoding type is applied
-        /// before the call to the Action and restored before return.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        void UsingAlternateEncoding<T>(
-            Action<string, T> action,
-            string fieldName,
-            T value,
-            JsonEncodingType useEncodingType);
+        Verbose
     }
 }

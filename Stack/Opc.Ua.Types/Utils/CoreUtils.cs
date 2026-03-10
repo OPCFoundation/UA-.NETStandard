@@ -1146,9 +1146,10 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DataContractSerializer CreateDataContractSerializer<T>(
             IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type> knownTypes = null,
+            XmlQualifiedName rootName = null)
         {
-            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes);
+            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes, rootName);
         }
 
         /// <summary>
@@ -1158,10 +1159,13 @@ namespace Opc.Ua
         public static DataContractSerializer CreateDataContractSerializer(
             Type systemType,
             IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type> knownTypes = null,
+            XmlQualifiedName rootName = null)
         {
-            var serializer = new DataContractSerializer(systemType,
-                DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []));
+            IEnumerable<Type> knownTypeList = DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []);
+            DataContractSerializer serializer = rootName != null ?
+                new DataContractSerializer(systemType, rootName.Name, rootName.Namespace, knownTypeList) :
+                new DataContractSerializer(systemType, knownTypeList);
             serializer.SetSerializationSurrogateProvider(
                 new DataContractSurrogates(messageContext ?? AmbientMessageContext.CurrentContext));
             return serializer;

@@ -173,11 +173,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualsNullArrayTest2()
+        public void EmptyEqualsNullArrayTest()
         {
             MatrixOf<int> matrix = MatrixOf<int>.Empty;
+            Assert.That(matrix.Equals((Array?)null), Is.False);
+            Assert.That(matrix.Equals((object?)null), Is.False);
+            Assert.That(matrix.Equals(MatrixOf<int>.Null), Is.False);
+        }
+
+        [Test]
+        public void NullEqualsNullArrayTest()
+        {
+            MatrixOf<int> matrix = MatrixOf<int>.Null;
             Assert.That(matrix.Equals((Array?)null), Is.True);
             Assert.That(matrix.Equals((object?)null), Is.True);
+            Assert.That(matrix.Equals(MatrixOf<int>.Null), Is.True);
         }
 
         [Test]

@@ -39,6 +39,7 @@ using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
@@ -2472,7 +2473,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort dataSetWriterIdValue = 0;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoderOld(jsonMessage, context);
+            using var jsonDecoder = new PubSubJsonDecoder(jsonMessage, context);
             if (jsonDecoder.ReadField(MetaDataMessageId, out object token))
             {
                 messageIdValue = jsonDecoder.ReadString(MetaDataMessageId);
@@ -2536,7 +2537,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType jsonDataSetMetaData = jsonNetworkMessage.DataSetMetaData;
 
             var dataSetMetaData =
-                jsonDecoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
+                jsonDecoder.ReadEncodeable(
+                    "MetaData",
+                    typeof(DataSetMetaDataType)) as DataSetMetaDataType;
             Assert.IsNotNull(
                 dataSetMetaData,
                 "DataSetMetaData read by json decoder should not be null.");
@@ -2670,7 +2673,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = m_messageContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoderOld(jsonMessage, context);
+            using var jsonDecoder = new PubSubJsonDecoder(jsonMessage, context);
             if (jsonNetworkMessage.HasNetworkMessageHeader)
             {
                 NetworkMessageFailOptions failOptions = VerifyNetworkMessageEncoding(
@@ -2702,7 +2705,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static NetworkMessageFailOptions VerifyNetworkMessageEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoderOld jsonDecoder)
+            PubSubJsonDecoder jsonDecoder)
         {
             string publisherIdValue = null;
 
@@ -2769,7 +2772,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static DataSetMessageFailOptions VerifyDataSetMessagesEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoderOld jsonDecoder)
+            PubSubJsonDecoder jsonDecoder)
         {
             ushort dataSetWriterIdValue = 0;
             uint sequenceNumberValue = 0;
@@ -2795,9 +2798,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messagesListName = NetworkMessageMessages;
                 }
             }
-            else if (jsonDecoder.ReadField(JsonDecoderOld.RootArrayName, out messagesToken))
+            else if (jsonDecoder.ReadField(PubSubJsonDecoder.RootArrayName, out messagesToken))
             {
-                messagesListName = JsonDecoderOld.RootArrayName;
+                messagesListName = PubSubJsonDecoder.RootArrayName;
             }
             // else this is a SingleDataSetMessage encoded as the content json
             if (!string.IsNullOrEmpty(messagesListName))
@@ -2831,7 +2834,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
                     }
 
-                    bool wasPushed = jsonDecoder.PushArray(JsonDecoderOld.RootArrayName, index++);
+                    bool wasPushed = jsonDecoder.PushArray(PubSubJsonDecoder.RootArrayName, index++);
                     if (wasPushed)
                     {
                         if (jsonDecoder.ReadField(DataSetMessageDataSetWriterId, out token))
@@ -2948,16 +2951,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         expandedNodeId.ServerIndex);
                                                     decodedFieldValue = ExpandedNodeId.Parse(
                                                         stringBuilder.ToString());
-                                                }
-                                                // by convention array decoders always return the Array type
-                                                if (decodedFieldValue is Array value &&
-                                                    field.FieldMetaData.ValueRank >= ValueRanks
-                                                        .TwoDimensions)
-                                                {
-                                                    decodedFieldValue = new Matrix(
-                                                        value,
-                                                        (BuiltInType)field.FieldMetaData
-                                                            .BuiltInType);
                                                 }
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
@@ -3132,7 +3125,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         if (jsonDecoder.ReadField(DataSetMessageMetaDataVersion, out token))
                         {
                             var configurationVersion =
-                                jsonDecoder.ReadEncodeable<ConfigurationVersionDataType>(DataSetMessageMetaDataVersion);
+                                jsonDecoder.ReadEncodeable(
+                                    DataSetMessageMetaDataVersion,
+                                    typeof(ConfigurationVersionDataType)
+                                ) as ConfigurationVersionDataType;
                             Assert.IsTrue(
                                 Utils.IsEqual(
                                     jsonDataSetMessage.MetaDataVersion,
@@ -3184,7 +3180,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field data
         /// </summary>
         private static object DecodeFieldData(
-            JsonDecoderOld jsonDecoder,
+            PubSubJsonDecoder jsonDecoder,
             FieldMetaData fieldMetaData,
             string fieldName)
         {
@@ -3198,9 +3194,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     }
                     if (fieldMetaData.ValueRank >= ValueRanks.OneDimension)
                     {
-                        return jsonDecoder.ReadVariantValue(
+                        return jsonDecoder.ReadArray(
                             fieldName,
-                            TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
+                            fieldMetaData.ValueRank,
+                            (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
                     NUnit.Framework.Assert.Warn(
@@ -3220,7 +3217,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field by type
         /// </summary>
         private static object DecodeFieldByType(
-            JsonDecoderOld jsonDecoder,
+            PubSubJsonDecoder jsonDecoder,
             byte builtInType,
             string fieldName)
         {

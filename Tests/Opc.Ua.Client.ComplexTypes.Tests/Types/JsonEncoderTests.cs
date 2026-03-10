@@ -111,12 +111,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 BuiltInType.Int64,
                 kInt64Value,
                 Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null
+            },
             {
                 BuiltInType.UInt64,
                 kUInt64Value,
                 Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null
+            },
             { BuiltInType.Float, (float)3.14, "3.14", "3.14" },
             { BuiltInType.Double, 7.77, "7.77", "7.77" }
         }.ToArray();

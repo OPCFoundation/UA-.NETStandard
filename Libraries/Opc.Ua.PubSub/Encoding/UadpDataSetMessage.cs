@@ -841,12 +841,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
-                    binaryEncoder.WriteVariantValue(
-                        null,
-                        variant);
-
-                        //field.FieldMetaData.ValueRank,
-                        // (BuiltInType)field.FieldMetaData.BuiltInType);
+                    binaryEncoder.WriteVariantValue(null, variant);
                 }
             }
             catch (Exception ex)

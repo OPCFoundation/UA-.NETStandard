@@ -699,45 +699,31 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             else
             {
                 int[] dimensions = new int[valueRank];
+                for (int ii = 0; ii < dimensions.Length; ii++)
+                {
+                    dimensions[ii] = randomValues ? (DataGenerator.GetRandomInt32() & 3) + 1 : 1;
+                }
                 if (builtInType > 0)
                 {
-                    Array array = null;
-                    if (randomValues)
+                    Array array = TypeInfo.CreateArray(builtInType, dimensions);
+                    int[] indices = new int[valueRank];
+                    for (int ii = 0; ii < array.Length; ii++)
                     {
-                        for (int ii = 0; ii < dimensions.Length; ii++)
-                        {
-                            dimensions[ii] = (DataGenerator.GetRandomInt32() & 3) + 1;
-                        }
-                        array = TypeInfo.CreateArray(builtInType, dimensions);
-                        int[] indices = new int[valueRank];
-                        for (int ii = 0; ii < array.Length; ii++)
-                        {
-                            object rndValue = DataGenerator.GetRandom(builtInType);
-                            array.SetValue(rndValue, indices);
-                            Iterate(dimensions, indices);
-                        }
+                        object rndValue = DataGenerator.GetRandom(builtInType);
+                        array.SetValue(rndValue, indices);
+                        Iterate(dimensions, indices);
                     }
-                    else
-                    {
-                        array = TypeInfo.CreateArray(builtInType, dimensions);
-                    }
-
                     value = CreateVariantForMatrixOf(array.GetType().GetElementType(), array);
                 }
                 else
                 {
                     var array = Array.CreateInstance(valueType, dimensions);
-
-                    if (randomValues)
+                    int[] indices = new int[valueRank];
+                    for (int ii = 0; ii < array.Length; ii++)
                     {
-                        int[] indices = new int[valueRank];
-                        for (int ii = 0; ii < array.Length; ii++)
-                        {
-                            array.SetValue(GetRandom(field.DataType), indices);
-                            Iterate(dimensions, indices);
-                        }
+                        array.SetValue(GetRandom(field.DataType), indices);
+                        Iterate(dimensions, indices);
                     }
-
                     // Create a matrix of valueType from array and initialize the variant using Variant.FromStructure
                     value = CreateVariantForStructureMatrix(valueType, array);
                 }

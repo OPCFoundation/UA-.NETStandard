@@ -42,9 +42,14 @@ namespace Opc.Ua
     /// <summary>
     /// A matrix is an <see cref="ArrayOf{T}"/> with dimensions.
     /// A matrix can also be re-interpreted as <see cref="ArrayOf{T}"/>
-    /// but not vice versa due to the missing dimension
+    /// which results in a flattened array of the same content. The
+    /// reverse is not possible due to the missing dimensions.
+    /// A matrix with a single dimension is effectively a an array and
+    /// comparison operations are allowed for this situation.
+    /// That said, in the OPC UA context, single dimension matrices
+    /// are treated as Arrays and not matrices.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">Type of the element in the matrix</typeparam>
     public readonly struct MatrixOf<T> :
         IConvertableToArray,
         IConvertableToMatrix,
@@ -54,37 +59,50 @@ namespace Opc.Ua
         INullable
     {
         /// <summary>
-        /// Empty matrix
+        /// Empty matrix. Note that we initilize with array empty not
+        /// ReadOnlyMemory.Empty which would result in IsNull => true
         /// </summary>
+#pragma warning disable IDE0301 // Simplify collection initialization
         public static readonly MatrixOf<T> Empty
-            = new(ReadOnlyMemory<T>.Empty, [0]);
+            = new(Array.Empty<T>(), [0]);
+#pragma warning restore IDE0301 // Simplify collection initialization
 
         /// <summary>
-        /// Get values
+        /// Null matrix.
+        /// </summary>
+        public static readonly MatrixOf<T> Null;
+
+        /// <summary>
+        /// Get as memory
         /// </summary>
 #pragma warning disable RCS1085 // Use auto-implemented property
         public ReadOnlyMemory<T> Memory => m_memory;
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
-        /// Dimensions
+        /// Get dimensions of the matrix. For default or null matrices
+        /// this returns an empty array which is otherwise an invalid
+        /// situation.
         /// </summary>
         public int[] Dimensions => m_dimensions ?? [];
 
         /// <summary>
-        /// Array as span
+        /// Return the content of the matrix as span
         /// </summary>
         [JsonIgnore]
         public ReadOnlySpan<T> Span => m_memory.Span;
 
         /// <summary>
-        /// Length
+        /// Length of the matrix when flattened. This is the product of
+        /// all dimensions.
         /// </summary>
         [JsonIgnore]
         public int Count => m_memory.Length;
 
         /// <summary>
-        /// Is empty array
+        /// Is empty matrix. This is different than null matrix, but
+        /// otherwise contains no elements and has a dimension of 1
+        /// with 0 entries.
         /// </summary>
         [JsonIgnore]
         public bool IsEmpty => m_memory.IsEmpty;
@@ -175,7 +193,7 @@ namespace Opc.Ua
         {
             return obj switch
             {
-                null => IsEmpty,
+                null => IsNull,
                 MatrixOf<T> matrixOf => Equals(matrixOf),
                 ArrayOf<T> arrayOf => Equals(arrayOf),
                 Array array => Equals(array),
@@ -224,7 +242,7 @@ namespace Opc.Ua
         {
             if (other == null)
             {
-                return m_memory.IsEmpty;
+                return IsNull;
             }
             var m = new MatrixOf<T>(other);
             return Equals(in m, comparer);
@@ -233,15 +251,19 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(in MatrixOf<T> other, IEqualityComparer<T> comparer)
         {
+            if (IsNull || other.IsNull)
+            {
+                return IsNull && other.IsNull;
+            }
             return Equals(other.m_memory.Span, other.Dimensions, comparer);
         }
 
         /// <inheritdoc/>
         public bool Equals(in ArrayOf<T> other, IEqualityComparer<T> comparer)
         {
-            if (IsNull && other.IsNull)
+            if (IsNull || other.IsNull)
             {
-                return true;
+                return IsNull && other.IsNull;
             }
             int[] dimensions = Dimensions;
             if (dimensions.Length != 1 || dimensions[0] != other.Count)

@@ -1683,46 +1683,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Helper to allow data contract serialization of NodeId
-    /// </summary>
-    [DataContract(
-        Name = "NodeId",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableNodeId : ISurrogateFor<NodeId>
-    {
-        /// <inheritdoc/>
-        public SerializableNodeId()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableNodeId(NodeId value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public NodeId Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <summary>
-        /// The node identifier formatted as a URI.
-        /// </summary>
-        [DataMember(Name = "Identifier", Order = 1)]
-        internal string IdentifierText
-        {
-            get => Value.Format(CultureInfo.InvariantCulture);
-            set => Value = NodeId.Parse(value);
-        }
-    }
-
-    /// <summary>
     /// Node id parse errors
     /// </summary>
     public enum NodeIdParseError

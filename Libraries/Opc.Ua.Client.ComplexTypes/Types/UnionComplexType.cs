@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             uint unionSelector = decoder.ReadSwitchField(null, out _);
 
-            // maybe the switch field is implicitly defined by the JSON keys
+            // In verbose encoding the switch field is implicitly defined by the JSON keys
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
@@ -145,18 +145,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        string fieldName = property.Name;
-
-                        if (isJsonDecoder &&
-                            decoder is IJsonDecoder jsonDecoder &&
-                            jsonDecoder.ReadField("Value", out _))
-                        {
-                            DecodeProperty(jsonDecoder, "Value", property);
-                        }
-                        else
-                        {
-                            DecodeProperty(decoder, fieldName, property);
-                        }
+                        DecodeProperty(decoder, property.Name, property);
                         break;
                     }
                 }

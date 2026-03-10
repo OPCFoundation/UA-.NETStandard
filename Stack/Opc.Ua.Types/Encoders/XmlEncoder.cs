@@ -2002,7 +2002,10 @@ namespace Opc.Ua
                         {
                             const string elements = "Elements";
                             void WriteDimensions<T>(MatrixOf<T> matrix)
-                                => WriteInt32Array("Dimensions", matrix.Dimensions);
+                            {
+                                WriteInt32Array("Dimensions", matrix.Dimensions);
+                            }
+
                             PushNamespace(Namespaces.OpcUaXsd);
                             if (!value.IsNull)
                             {

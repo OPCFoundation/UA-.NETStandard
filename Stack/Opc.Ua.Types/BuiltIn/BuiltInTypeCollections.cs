@@ -1036,49 +1036,6 @@ namespace Opc.Ua
     /// A collection of XmlElement values.
     /// </summary>
     [CollectionDataContract(
-       Name = "ListOfXmlElement",
-       Namespace = Namespaces.OpcUaXsd,
-       ItemName = "XmlElement")]
-    public class SerializableXmlElementCollection : List<System.Xml.XmlElement>,
-        ISurrogateFor<XmlElementCollection>
-    {
-        /// <inheritdoc/>
-        public SerializableXmlElementCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public SerializableXmlElementCollection(
-            IEnumerable<System.Xml.XmlElement> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public SerializableXmlElementCollection(int capacity)
-            : base(capacity)
-        {
-        }
-        /// <inheritdoc/>
-        public SerializableXmlElementCollection(XmlElementCollection collection)
-            : this(collection.Select(x => x.ToXmlElement()))
-        {
-        }
-
-        /// <inheritdoc/>
-        public XmlElementCollection Value => new(this);
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-    }
-
-    /// <summary>
-    /// A collection of XmlElement values.
-    /// </summary>
-    [CollectionDataContract(
         Name = "ListOfXmlElement",
         Namespace = Namespaces.OpcUaXsd,
         ItemName = "XmlElement")]

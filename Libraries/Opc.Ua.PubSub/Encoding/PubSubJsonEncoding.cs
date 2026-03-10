@@ -27,38 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+using System.Buffers;
+#endif
+#pragma warning disable CS0618 // Type or member is obsolete
+
+namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
-    /// A Json decoder extension to handle arrays and structures.
+    /// The type of JSON encoding to use.
     /// </summary>
-    public interface IJsonDecoder : IDecoder
+    internal enum PubSubJsonEncoding
     {
         /// <summary>
-        /// Push the specified structure on the Read Stack.
+        /// The compact encoding that may require a schema to interpret.
         /// </summary>
-        /// <param name="fieldName">The name of the object that shall be placed on the Read Stack</param>
-        /// <returns>true if successful</returns>
-        bool PushStructure(string fieldName);
+        Compact,
 
         /// <summary>
-        /// Push an Array item on the Read Stack
+        /// A verbose encoding that is more useable even without a schema.
         /// </summary>
-        /// <param name="fieldName">The array name</param>
-        /// <param name="index">The index of the item that shall be placed on the Read Stack</param>
-        /// <returns>true if successful</returns>
-        bool PushArray(string fieldName, int index);
+        Verbose,
 
         /// <summary>
-        /// Pop the current object (structure/array) from the Read Stack.
+        /// The reversible encoding supported for backward compatibitility.
         /// </summary>
-        void Pop();
+        Reversible,
 
         /// <summary>
-        /// Read a decoded JSON field.
+        /// The non reversible encoding supported for backward compatibitility.
         /// </summary>
-        /// <param name="fieldName">The name of the field.</param>
-        /// <param name="token">The returned object token of the field.</param>
-        bool ReadField(string fieldName, out object token);
+        NonReversible
     }
 }

@@ -3753,7 +3753,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get switch field from current element
         /// </summary>
-        public bool TryGetSwitchFieldFromElement(
+        private bool TryGetSwitchFieldFromElement(
             JsonElement element,
             out string? fieldName,
             out uint value,
@@ -3828,7 +3828,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get encoding mask from the current object
         /// </summary>
-        public bool TryGetEncodingMaskFromElement(
+        private bool TryGetEncodingMaskFromElement(
             JsonElement element,
             out uint value,
             IList<string>? masks = null)
@@ -3993,7 +3993,7 @@ namespace Opc.Ua
                 case JsonValueKind.Array:
                     if (element.GetArrayLength() == 0)
                     {
-                        values = default;
+                        values = [];
                         return true;
                     }
                     var result = new List<JsonElement>(element.GetArrayLength());

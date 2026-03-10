@@ -72,13 +72,13 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
-            var monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
             // Act – fire value-change notification three times
-            var context = new Mock<ISystemContext>().Object;
+            ISystemContext context = new Mock<ISystemContext>().Object;
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
@@ -119,12 +119,12 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
-            var monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
-            var context = new Mock<ISystemContext>().Object;
+            ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – first value change populates the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
@@ -171,12 +171,12 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
-            var monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
-            var context = new Mock<ISystemContext>().Object;
+            ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire value-change notification twice
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             // Act
-            node.RolePermissions = new RolePermissionTypeCollection();
+            node.RolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
             Assert.That((node.ChangeMasks & NodeStateChangeMasks.NonValue), Is.Not.EqualTo(NodeStateChangeMasks.None));
@@ -260,10 +260,10 @@ namespace Opc.Ua.Server.Tests
             NodeStateChangeMasks capturedMask = NodeStateChangeMasks.None;
             node.OnStateChanged = (_, _, masks) => capturedMask = masks;
 
-            var contextMock = new Mock<ISystemContext>().Object;
+            ISystemContext contextMock = new Mock<ISystemContext>().Object;
 
             // Act – change RolePermissions and then clear masks
-            node.RolePermissions = new RolePermissionTypeCollection();
+            node.RolePermissions = [];
             node.ClearChangeMasks(contextMock, false);
 
             // Assert – callback should have received the RolePermissions mask
@@ -306,11 +306,11 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
             serverMock.Setup(s => s.ConfigurationNodeManager).Returns(configNodeManagerMock.Object);
 
-            var monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
-            var context = new Mock<ISystemContext>().Object;
+            ISystemContext context = new Mock<ISystemContext>().Object;
 
             // First value change populates the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);

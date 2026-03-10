@@ -352,6 +352,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Create an ExtensionObject for a complex type.
         /// The complex type is the Body.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         protected ExtensionObject CreateExtensionObject(
             StructureType structureType,
             ExpandedNodeId nodeId,

@@ -943,44 +943,4 @@ namespace Opc.Ua
         /// </summary>
         MultipleValues = 0x10
     }
-
-    /// <summary>
-    /// Helper to allow data contract serialization of StatusCode
-    /// </summary>
-    [DataContract(
-        Name = "StatusCode",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableStatusCode : ISurrogateFor<StatusCode>
-    {
-        /// <inheritdoc/>
-        public SerializableStatusCode()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableStatusCode(StatusCode value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <summary>
-        /// The entire 32-bit status value.
-        /// </summary>
-        [DataMember(Name = "Code", Order = 1, IsRequired = false)]
-        public uint Code
-        {
-            get => Value.Code;
-            set => Value = new StatusCode(value);
-        }
-    }
 }

@@ -544,10 +544,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies  a list of permissions for the node assigned to roles.
+        /// Specifies a list of permissions for the node assigned to roles.
         /// </summary>
         /// <value>The Permissions that apply to the node.</value>
-        public RolePermissionTypeCollection RolePermissions
+        public ArrayOf<RolePermissionType> RolePermissions
         {
             get => m_rolePermissions;
             set
@@ -565,7 +565,7 @@ namespace Opc.Ua
         /// Specifies a list of permissions for the node assigned to roles for the current user.
         /// </summary>
         /// <value>The Permissions that apply to the node for the current user.</value>
-        public RolePermissionTypeCollection UserRolePermissions
+        public ArrayOf<RolePermissionType> UserRolePermissions
         {
             get => m_userRolePermissions;
             set

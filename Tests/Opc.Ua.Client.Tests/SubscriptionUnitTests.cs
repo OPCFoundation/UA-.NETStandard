@@ -130,34 +130,38 @@ namespace Opc.Ua.Client.Tests
                         ct
                       ) => new() { SubscriptionId = ++subscriptionIdSeed });
             session
-                .Setup(x => x.SetPublishingModeAsync(It.IsAny<RequestHeader>(), It.IsAny<bool>(), It.IsAny<UInt32Collection>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(x => x.SetPublishingModeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync<
                     RequestHeader,
                     bool,
-                    UInt32Collection,
+                    ArrayOf<uint>,
                     CancellationToken,
                     ISession,
                     SetPublishingModeResponse
                     >((requestHeader, publishingEnabled, subscriptionIds, ct) => new()
                     {
-                        Results = [.. subscriptionIds.Select(id => id > subscriptionIdSeed ? StatusCodes.BadSubscriptionIdInvalid : StatusCodes.Good)],
-                        DiagnosticInfos = [.. subscriptionIds.Select(_ => new DiagnosticInfo())]
+                        Results = [.. subscriptionIds.ConvertAll(id => id > subscriptionIdSeed ?
+                            StatusCodes.BadSubscriptionIdInvalid :
+                            StatusCodes.Good)],
+                        DiagnosticInfos = [.. subscriptionIds.ConvertAll(_ => new DiagnosticInfo())]
                     });
             return session.Object;
         }
 
         private static NotificationMessage[] BuildMessages(int count)
         {
-            return Enumerable
+            return [.. Enumerable
                 .Range(1, count)
                 .Select(sequenceNumber => new NotificationMessage
                 {
                     SequenceNumber = (uint)sequenceNumber,
                     NotificationData = [new(new DataChangeNotification { SequenceNumber = (uint)sequenceNumber })]
                 })
-                .Prepend(new())//stub to compensate sequenceNumbers start from 1. Should be ignored
-                .ToArray();
+                .Prepend(new())];
         }
 
         private static async Task<SubscriptionContainer> BuildSubscriptionAsync(
@@ -180,10 +184,7 @@ namespace Opc.Ua.Client.Tests
                     MaxMessageCount = messagesToProcess.Length,
                 })
             {
-                FastDataChangeCallback = (_, message, _) =>
-                {
-                    messageAwaiters[message.SequenceNumber].SetResult(true);
-                },
+                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true),
             };
             subscription.Session = BuildSessionMock((subscriptionId, sequenceNumber) =>
             {

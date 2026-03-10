@@ -2123,6 +2123,7 @@ namespace Opc.Ua
                     return BuiltInType.Double;
                 case "String":
                     return BuiltInType.String;
+                case "DateTimeUtc":
                 case "DateTime":
                     return BuiltInType.DateTime;
                 case "Guid":
@@ -2382,9 +2383,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return new int[length];
                     case BuiltInType.Number:
-
                     case BuiltInType.Integer:
-
                     case BuiltInType.UInteger:
                         return new Variant[length];
                     default:
@@ -2452,9 +2451,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return Array.CreateInstance(typeof(int), dimensions);
                     case BuiltInType.Number:
-
                     case BuiltInType.Integer:
-
                     case BuiltInType.UInteger:
                         return Array.CreateInstance(typeof(Variant), dimensions);
                     default:
@@ -2603,7 +2600,7 @@ namespace Opc.Ua
                     }
                 }
             }
-            return new XmlQualifiedName(systemType.FullName);
+            return new XmlQualifiedName(systemType.Name, Namespaces.OpcUaXsd);
         }
 
         /// <summary>

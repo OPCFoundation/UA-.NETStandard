@@ -40,10 +40,12 @@ using System.Text.Json.Serialization;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Adapts typed arrays to flattened variant representation.
-    /// The layout is like a <see cref="ReadOnlyMemory{T}"/>.
+    /// A read only sliceable array of T. The layout is the same as a
+    /// <see cref="ReadOnlyMemory{T}"/> but you should not take a
+    /// dependency on this fact. Replaces ReadOnlyList and all
+    /// XXXCollection classes in past releases.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">Type of the element in the array</typeparam>
     [CollectionBuilder(typeof(ArrayOf), nameof(ArrayOf.Create))]
     public readonly struct ArrayOf<T> :
         IConvertableToArray,
@@ -55,42 +57,53 @@ namespace Opc.Ua
         INullable
     {
         /// <summary>
-        /// Empty array
+        /// Empty array. Note that we initilize with array empty not
+        /// ReadOnlyMemory.Empty which would result in IsNull => true
         /// </summary>
 #pragma warning disable IDE0301 // Simplify collection initialization
         public static readonly ArrayOf<T> Empty = new(Array.Empty<T>());
 #pragma warning restore IDE0301 // Simplify collection initialization
 
         /// <summary>
-        /// Get values
+        /// Null array.
+        /// </summary>
+        public static readonly ArrayOf<T> Null;
+
+        /// <summary>
+        /// Get as memory
         /// </summary>
 #pragma warning disable RCS1085 // Use auto-implemented property
         public ReadOnlyMemory<T> Memory => m_memory;
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
-        /// Array as span
+        /// Returns the content of the array as a read only span
         /// </summary>
         [JsonIgnore]
         public ReadOnlySpan<T> Span => m_memory.Span;
 
         /// <summary>
-        /// Length
+        /// Returns the length of the array
         /// </summary>
         [JsonIgnore]
         public int Count => m_memory.Length;
 
         /// <summary>
-        /// Is empty array
+        /// Returns true if the array is empty. This is the case
+        /// for null and default arrays.
         /// </summary>
         [JsonIgnore]
         public bool IsEmpty => m_memory.IsEmpty;
 
         /// <summary>
-        /// Is null
+        /// Returns true if the array is equivalent to null.
+        /// Note that this is different from empty array state
+        /// and reflects the difference between default and null
+        /// for a nullable type in OPC UA.
         /// </summary>
         [JsonIgnore]
-        public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
+        public bool IsNull
+            => ReadOnlyMemoryHelper.IsNull(in m_memory);
 
         /// <inheritdoc/>
         public T this[int index] => m_memory.Span[index];
@@ -217,6 +230,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(in ArrayOf<T> other, IEqualityComparer<T> comparer)
         {
+            if (IsNull || other.IsNull)
+            {
+                return IsNull && other.IsNull;
+            }
             return IsEmpty ? other.IsEmpty : Equals(other.m_memory.Span, comparer);
         }
 
@@ -569,6 +586,15 @@ namespace Opc.Ua
         public static ArrayOf<T> Empty<T>()
         {
             return [];
+        }
+
+        /// <summary>
+        /// Null (default) array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Null<T>()
+        {
+            return default;
         }
 
         /// <summary>

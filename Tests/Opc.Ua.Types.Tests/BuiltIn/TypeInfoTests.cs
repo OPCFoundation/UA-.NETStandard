@@ -1728,7 +1728,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             XmlQualifiedName result = TypeInfo.GetXmlName(typeof(int));
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Name, Is.EqualTo(typeof(int).FullName));
+            Assert.That(result.Name, Is.EqualTo(typeof(int).Name));
+            Assert.That(result.Namespace, Is.EqualTo(Namespaces.OpcUaXsd));
         }
 
         [Test]
