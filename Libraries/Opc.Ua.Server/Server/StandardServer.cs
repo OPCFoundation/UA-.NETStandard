@@ -70,7 +70,6 @@ namespace Opc.Ua.Server
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
-                    m_configurationWatcher.Changed -= OnConfigurationChangedAsync;
                     Utils.SilentDispose(m_configurationWatcher);
                     m_configurationWatcher = null;
                 }
