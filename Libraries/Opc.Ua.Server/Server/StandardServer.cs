@@ -62,9 +62,17 @@ namespace Opc.Ua.Server
                     m_registrationTimer = null;
                 }
 
+                // unsubscribe certificate update event to prevent the shared
+                // CertificateValidator from retaining this disposed server instance.
+                if (CertificateValidator != null)
+                {
+                    CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                }
+
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
+                    m_configurationWatcher.Changed -= OnConfigurationChangedAsync;
                     Utils.SilentDispose(m_configurationWatcher);
                     m_configurationWatcher = null;
                 }
