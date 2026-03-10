@@ -62,8 +62,6 @@ namespace Opc.Ua.Server
                     m_registrationTimer = null;
                 }
 
-                // unsubscribe certificate update event to prevent the shared
-                // CertificateValidator from retaining this disposed server instance.
                 if (CertificateValidator != null)
                 {
                     CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
