@@ -692,8 +692,7 @@ namespace Opc.Ua.Server
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (session.ClientLastContactTime
-                            .AddMilliseconds(m_minSessionTimeout) < DateTime.UtcNow)
+                        else if (HiResClock.TickCount64 - session.LastContactTickCount > m_minSessionTimeout)
                         {
                             // signal the channel that the session is still active.
                             RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);

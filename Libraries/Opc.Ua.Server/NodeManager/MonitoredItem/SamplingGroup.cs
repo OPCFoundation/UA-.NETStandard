@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
 
                 while (m_server.IsRunning)
                 {
-                    DateTime start = DateTime.UtcNow;
+                    DateTime start = HiResClock.UtcNow;
 
                     // wait till next sample.
                     if (m_shutdownEvent.WaitOne(timeToWait))
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server
                     // sample the values.
                     DoSample(items);
 
-                    int delay = (int)(DateTime.UtcNow - start).TotalMilliseconds;
+                    int delay = (int)(HiResClock.UtcNow - start).TotalMilliseconds;
                     timeToWait = sleepCycle;
 
                     if (delay > sleepCycle)
