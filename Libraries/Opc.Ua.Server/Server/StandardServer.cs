@@ -62,11 +62,6 @@ namespace Opc.Ua.Server
                     m_registrationTimer = null;
                 }
 
-                if (CertificateValidator != null)
-                {
-                    CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
-                }
-
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
