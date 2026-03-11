@@ -81,6 +81,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
+                        TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
                         Utils.SilentDispose(TransportListeners[ii]);
                     }
 
