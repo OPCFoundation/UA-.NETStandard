@@ -29,6 +29,8 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -51,6 +53,12 @@ namespace Opc.Ua.Server
         /// The last time the session was contacted by the client.
         /// </summary>
         DateTime ClientLastContactTime { get; }
+
+        /// <summary>
+        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// Used for timeout calculations that are immune to system time changes.
+        /// </summary>
+        long LastContactTickCount { get; }
 
         /// <summary>
         /// The client Nonce associated with the session.
@@ -121,7 +129,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
-        void Close();
+        ValueTask CloseAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Create new ECC ephemeral key

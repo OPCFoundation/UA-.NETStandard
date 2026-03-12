@@ -63,7 +63,7 @@ jobs:
         TEST_DURATION_MINUTES: ${{ env.TEST_DURATION_MINUTES }}
 
     - name: Upload test results
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: stability-test-results
         path: ./TestResults

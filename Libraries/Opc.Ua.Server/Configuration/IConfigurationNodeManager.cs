@@ -28,13 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public interface IConfigurationNodeManager : INodeManager3
+    public interface IConfigurationNodeManager : IAsyncNodeManager
     {
         /// <summary>
         /// Raised when the <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
@@ -46,7 +48,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
-        NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri);
+        ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the configuration node for the server.

@@ -27,12 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
     /// A node manager the diagnostic information exposed by the server.
     /// </summary>
-    public interface IDiagnosticsNodeManager : INodeManager3, INodeIdFactory
+    public interface IDiagnosticsNodeManager : IAsyncNodeManager, INodeIdFactory
     {
         /// <summary>
         /// True if diagnostics are currently enabled.
@@ -42,48 +45,55 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an aggregate function to the server capabilities object.
         /// </summary>
-        void AddAggregateFunction(NodeId aggregateId, string aggregateName, bool isHistorical);
+        ValueTask AddAggregateFunctionAsync(
+            NodeId aggregateId,
+            string aggregateName,
+            bool isHistorical,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Adds a modelling rule to the server capabilities object.
         /// </summary>
-        void AddModellingRule(NodeId modellingRuleId, string modellingRuleName);
+        ValueTask AddModellingRuleAsync(NodeId modellingRuleId, string modellingRuleName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the diagnostics node for the server.
         /// </summary>
-        void CreateServerDiagnostics(
+        ValueTask CreateServerDiagnosticsAsync(
             ServerSystemContext systemContext,
             ServerDiagnosticsSummaryDataType diagnostics,
-            NodeValueSimpleEventHandler updateCallback);
+            NodeValueSimpleEventHandler updateCallback,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the diagnostics node for a session.
         /// </summary>
-        NodeId CreateSessionDiagnostics(
+        ValueTask<NodeId> CreateSessionDiagnosticsAsync(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,
             NodeValueSimpleEventHandler updateCallback,
             SessionSecurityDiagnosticsDataType securityDiagnostics,
-            NodeValueSimpleEventHandler updateSecurityCallback);
+            NodeValueSimpleEventHandler updateSecurityCallback,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the diagnostics node for a subscription.
         /// </summary>
-        NodeId CreateSubscriptionDiagnostics(
+        ValueTask<NodeId> CreateSubscriptionDiagnosticsAsync(
             ServerSystemContext systemContext,
             SubscriptionDiagnosticsDataType diagnostics,
-            NodeValueSimpleEventHandler updateCallback);
+            NodeValueSimpleEventHandler updateCallback,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete the diagnostics node for a session.
         /// </summary>
-        void DeleteSessionDiagnostics(ServerSystemContext systemContext, NodeId nodeId);
+        ValueTask DeleteSessionDiagnosticsAsync(ServerSystemContext systemContext, NodeId nodeId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete the diagnostics node for a subscription.
         /// </summary>
-        void DeleteSubscriptionDiagnostics(ServerSystemContext systemContext, NodeId nodeId);
+        ValueTask DeleteSubscriptionDiagnosticsAsync(ServerSystemContext systemContext, NodeId nodeId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Finds the specified and checks if it is of the expected type.
@@ -100,12 +110,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the default history capabilities object.
         /// </summary>
-        HistoryServerCapabilitiesState GetDefaultHistoryCapabilities();
+        ValueTask<HistoryServerCapabilitiesState> GetDefaultHistoryCapabilitiesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Sets the flag controlling whether diagnostics is enabled for the server.
         /// </summary>
-        void SetDiagnosticsEnabled(ServerSystemContext context, bool enabled);
+        ValueTask SetDiagnosticsEnabledAsync(ServerSystemContext context, bool enabled, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates the Server object EventNotifier based on history capabilities.
@@ -114,6 +124,6 @@ namespace Opc.Ua.Server
         /// This method can be overridden to customize the Server EventNotifier based on
         /// history capabilities settings.
         /// </remarks>
-        void UpdateServerEventNotifier();
+        ValueTask UpdateServerEventNotifierAsync(CancellationToken cancellationToken = default);
     }
 }

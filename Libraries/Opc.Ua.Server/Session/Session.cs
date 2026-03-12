@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -104,6 +105,7 @@ namespace Opc.Ua.Server
 
             // initialize diagnostics.
             DateTime now = DateTime.UtcNow;
+            m_lastContactTickCount = HiResClock.TickCount64;
             SessionDiagnostics = new SessionDiagnosticsDataType
             {
                 SessionId = default,
@@ -143,12 +145,12 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
             // create diagnostics object.
-            Id = server.DiagnosticsNodeManager.CreateSessionDiagnostics(
+            Id = server.DiagnosticsNodeManager.CreateSessionDiagnosticsAsync(
                 systemContext,
                 SessionDiagnostics,
                 OnUpdateDiagnostics,
                 m_securityDiagnostics,
-                OnUpdateSecurityDiagnostics);
+                OnUpdateSecurityDiagnostics).AsTask().GetAwaiter().GetResult();
 
             TraceState("CREATED");
         }
@@ -260,9 +262,8 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return SessionDiagnostics.ClientLastContactTime.AddMilliseconds(
-                            SessionDiagnostics.ActualSessionTimeout
-                        ) < DateTime.UtcNow;
+                    return HiResClock.TickCount64 - m_lastContactTickCount >
+                        (long)SessionDiagnostics.ActualSessionTimeout;
                 }
             }
         }
@@ -277,6 +278,21 @@ namespace Opc.Ua.Server
                 lock (DiagnosticsLock)
                 {
                     return SessionDiagnostics.ClientLastContactTime;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// Used for timeout calculations that are immune to system time changes.
+        /// </summary>
+        public long LastContactTickCount
+        {
+            get
+            {
+                lock (DiagnosticsLock)
+                {
+                    return m_lastContactTickCount;
                 }
             }
         }
@@ -594,6 +610,7 @@ namespace Opc.Ua.Server
                 lock (DiagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    m_lastContactTickCount = HiResClock.TickCount64;
                 }
 
                 // indicate whether the user context has changed.
@@ -604,12 +621,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
-        public void Close()
+        public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
             TraceState("CLOSED");
 
-            m_server.DiagnosticsNodeManager
-                .DeleteSessionDiagnostics(m_server.DefaultSystemContext, Id);
+            await m_server.DiagnosticsNodeManager
+                .DeleteSessionDiagnosticsAsync(m_server.DefaultSystemContext, Id, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1120,6 +1138,7 @@ namespace Opc.Ua.Server
                 if (!error)
                 {
                     SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    m_lastContactTickCount = HiResClock.TickCount64;
                 }
 
                 SessionDiagnostics.TotalRequestCount.TotalCount++;
@@ -1263,5 +1282,6 @@ namespace Opc.Ua.Server
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
+        private long m_lastContactTickCount;
     }
 }

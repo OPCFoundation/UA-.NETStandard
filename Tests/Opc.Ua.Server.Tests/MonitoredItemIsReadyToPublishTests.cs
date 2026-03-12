@@ -86,8 +86,9 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.AggregateManager).Returns(aggregateManager);
 
             var aggId = new NodeId(1234);
-            aggregateManager.RegisterFactory(aggId, "TestAgg",
-                (id, start, end, interval, stepped, config, tel) => mockCalculator.Object);
+            aggregateManager.RegisterFactoryAsync(aggId, "TestAgg",
+                (id, start, end, interval, stepped, config, tel) => mockCalculator.Object)
+                .AsTask().GetAwaiter().GetResult();
 
             var filter = new ServerAggregateFilter
             {

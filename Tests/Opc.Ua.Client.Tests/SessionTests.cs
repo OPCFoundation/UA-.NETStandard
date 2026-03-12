@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
 
             sut.Channel.Verify();
         }
@@ -1496,7 +1496,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             sut.Channel.Verify();
         }
 
