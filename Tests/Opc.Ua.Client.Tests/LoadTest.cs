@@ -582,14 +582,14 @@ namespace Opc.Ua.Client.Tests
                                 QueueSize = 10000
                             };
 
-                            subscription.FastEventCallback = (sub, notification, _) => 
+                            subscription.FastEventCallback = (sub, notification, _) =>
                             {
                                 Interlocked.Add(ref eventsReceived, notification.Events.Count);
-                                foreach (var fieldList in notification.Events)
+                                foreach (EventFieldList fieldList in notification.Events)
                                 {
                                     if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].Value is DateTime eventTime)
                                     {
-                                        var delay = DateTime.UtcNow - eventTime.ToUniversalTime();
+                                        TimeSpan delay = DateTime.UtcNow - eventTime.ToUniversalTime();
                                         Interlocked.Add(ref totalDelayTicks, delay.Ticks);
                                     }
                                 }
@@ -604,7 +604,7 @@ namespace Opc.Ua.Client.Tests
 
                 await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
 
-                int totalSubscriptions = sessionCount * subscriptionsPerSession;
+                const int totalSubscriptions = sessionCount * subscriptionsPerSession;
                 TestContext.Out.WriteLine(
                     $"Created {totalSubscriptions} event subscriptions across {sessionCount} sessions.");
                 TestContext.Out.WriteLine($"Generating events on the server for {testDurationSeconds} seconds...");
@@ -631,7 +631,7 @@ namespace Opc.Ua.Client.Tests
 
                 sw.Stop();
                 TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
-                    $"({(double)eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
+                    $"({eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
 
                 // Wait for subscriptions to deliver the events.
                 // Allow enough publishing intervals for all notifications to be sent and acknowledged.
@@ -650,7 +650,7 @@ namespace Opc.Ua.Client.Tests
                 if (received > 0)
                 {
                     long averageDelayTicks = Interlocked.Read(ref totalDelayTicks) / received;
-                    TimeSpan averageDelay = TimeSpan.FromTicks(averageDelayTicks);
+                    var averageDelay = TimeSpan.FromTicks(averageDelayTicks);
                     TestContext.Out.WriteLine($"Average event delivery delay: {averageDelay.TotalMilliseconds:F2} ms");
                 }
 
