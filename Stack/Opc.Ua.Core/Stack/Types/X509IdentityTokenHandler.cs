@@ -187,7 +187,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new X509IdentityTokenHandler(Utils.Clone(m_token))
+            return new X509IdentityTokenHandler(CoreUtils.Clone(m_token))
             {
                 // TODO: m_certificate = m_certificate
             };

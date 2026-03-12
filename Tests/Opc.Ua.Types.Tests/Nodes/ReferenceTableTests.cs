@@ -54,6 +54,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         private static ExpandedNodeId Target3 => new ExpandedNodeId(300u);
         private static ExpandedNodeId AbsoluteTarget1 => new ExpandedNodeId(100u, "http://example.com/ns");
         private static ExpandedNodeId AbsoluteTarget2 => new ExpandedNodeId(200u, "http://example.com/ns");
+
         [Test]
         public void ConstructorCreatesEmptyCollection()
         {

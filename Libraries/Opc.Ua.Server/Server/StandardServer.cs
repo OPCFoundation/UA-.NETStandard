@@ -925,7 +925,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
 
-                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (var results, var diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseAsync(
                         context,
                         view,

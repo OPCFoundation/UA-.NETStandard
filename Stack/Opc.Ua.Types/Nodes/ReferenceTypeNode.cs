@@ -145,17 +145,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
+            if (IsAbstract != value.IsAbstract)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Symmetric, value.Symmetric))
+            if (Symmetric != value.Symmetric)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(InverseName, value.InverseName))
+            if (InverseName != value.InverseName)
             {
                 return false;
             }

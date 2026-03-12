@@ -1646,7 +1646,7 @@ namespace Opc.Ua.Server
                     // create an initial value.
                     DataValue value = values[ii] = new DataValue();
 
-                    value.Value = null;
+                    value.WrappedValue = default;
                     value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.Good;
@@ -1941,9 +1941,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = Convert.ToDouble(
-                                    nodeToWrite.Value.Value,
-                                    CultureInfo.InvariantCulture);
+                                double newValue = (double)nodeToWrite.Value.WrappedValue.ConvertToDouble();
 
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)
@@ -3953,7 +3951,7 @@ namespace Opc.Ua.Server
         {
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData

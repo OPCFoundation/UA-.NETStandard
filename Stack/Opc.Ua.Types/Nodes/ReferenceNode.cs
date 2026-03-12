@@ -145,17 +145,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsInverse, value.IsInverse))
+            if (IsInverse != value.IsInverse)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(TargetId, value.TargetId))
+            if (TargetId != value.TargetId)
             {
                 return false;
             }

@@ -33,10 +33,6 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
-    /// <summary>
-    /// Coverage tests for <see cref="VariantHelper"/> methods including
-    /// TryCastTo, CastTo, TryCastFrom, CastFrom, and reflection fallback paths.
-    /// </summary>
     [TestFixture]
     [Category("BuiltInType")]
     [SetCulture("en-us")]

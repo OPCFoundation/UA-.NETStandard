@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available before OPC UA V1.04.
         /// </summary>
         public static EnumDefinition ToEnumDefinition(
-            this ExtensionObject[] enumValueTypes,
+            this ArrayOf<ExtensionObject> enumValueTypes,
             string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
@@ -313,12 +313,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available before OPC UA V1.04.
         /// </summary>
         public static EnumDefinition ToEnumDefinition(
-            this LocalizedText[] enumFieldNames,
+            this ArrayOf<LocalizedText> enumFieldNames,
             string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
-            for (int ii = 0; ii < enumFieldNames.Length; ii++)
+            for (int ii = 0; ii < enumFieldNames.Count; ii++)
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
                 string name = enumFieldName.Text;

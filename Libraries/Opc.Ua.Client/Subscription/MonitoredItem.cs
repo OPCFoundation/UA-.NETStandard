@@ -584,7 +584,7 @@ namespace Opc.Ua.Client
                                 "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
                                 "and value {Value} for MonitoredItemId {MonitoredItemId}",
                                 datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                datachange.Value.Value,
+                                datachange.Value.WrappedValue,
                                 ClientHandle);
                         }
                     }
@@ -639,7 +639,7 @@ namespace Opc.Ua.Client
         protected internal void SetResolvePathResult(
             BrowsePathResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;
@@ -675,7 +675,7 @@ namespace Opc.Ua.Client
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;
@@ -700,7 +700,7 @@ namespace Opc.Ua.Client
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;

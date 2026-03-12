@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = null)
             : base(
                 channel,
                 configuration,

@@ -206,10 +206,10 @@ namespace Opc.Ua.Client.Tests
 
             var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
             Assert.IsNotNull(maxLifetimeCountValue);
-            Assert.IsNotNull(maxLifetimeCountValue.Value);
+            Assert.IsFalse(maxLifetimeCountValue.WrappedValue.IsNull);
             Assert.AreEqual(
                 expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
+                maxLifetimeCountValue.WrappedValue.ConvertToUInt32());
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
@@ -606,10 +606,10 @@ namespace Opc.Ua.Client.Tests
 
             var dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
-            Assert.IsNotNull(dataValue.Value);
+            Assert.IsFalse(dataValue.WrappedValue.IsNull);
             Assert.AreEqual(
                 expectedValue,
-                Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
+                dataValue.WrappedValue.ConvertToUInt32());
 
             return modifiedValues;
         }

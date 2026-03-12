@@ -140,15 +140,15 @@ namespace Opc.Ua.Gds.Tests
             pureAppName = Regex1().Replace(pureAppName, string.Empty);
             string pureAppUri = Regex2().Replace(pureAppName, string.Empty);
             string appName = "UA " + pureAppName;
-            StringCollection domainNames = RandomDomainNames();
+            ArrayOf<string> domainNames = RandomDomainNames();
             string localhost = domainNames[0];
             string locale = RandomSource.NextInt32(10) == 0 ? null : "en-US";
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLowerInvariant())
                 .Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            var discoveryUrls = new StringCollection();
-            var serverCapabilities = new StringCollection();
+            var discoveryUrls = new List<string>();
+            var serverCapabilities = new List<string>();
             int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
@@ -186,9 +186,9 @@ namespace Opc.Ua.Gds.Tests
             };
         }
 
-        private StringCollection RandomServerCapabilities()
+        private ArrayOf<string> RandomServerCapabilities()
         {
-            var serverCapabilities = new StringCollection();
+            var serverCapabilities = new List<string>();
             int capabilities = RandomSource.NextInt32(8);
             foreach (ServerCapability cap in m_serverCapabilities)
             {
@@ -227,12 +227,12 @@ namespace Opc.Ua.Gds.Tests
             return result;
         }
 
-        private StringCollection RandomDiscoveryUrl(
-            StringCollection domainNames,
+        private ArrayOf<string> RandomDiscoveryUrl(
+            ArrayOf<string> domainNames,
             int port,
             string appUri)
         {
-            var result = new StringCollection();
+            var result = new List<string>();
             foreach (string name in domainNames)
             {
                 int random = RandomSource.NextInt32(7);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Gds.Tests
         public NodeId CertificateGroupId;
         public NodeId CertificateTypeId;
         public NodeId CertificateRequestId;
-        public StringCollection DomainNames;
+        public ArrayOf<string> DomainNames;
         public string Subject;
         public string PrivateKeyFormat;
         public char[] PrivateKeyPassword;
@@ -374,7 +374,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (basePort is >= kMinPort and <= ServerFixtureUtils.MaxTestPort)
             {
-                var newBaseAddresses = new StringCollection();
+                var newBaseAddresses = new List<string>();
                 foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
                 {
                     var baseAddressUri = new UriBuilder(baseAddress) { Port = basePort++ };

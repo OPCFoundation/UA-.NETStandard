@@ -81,17 +81,6 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void ArrayDimensionsSetNullResetsToEmpty()
-        {
-            var vn = new VariableNode
-            {
-                ArrayDimensions = null
-            };
-            Assert.That(vn.ArrayDimensions, Is.Not.Null);
-            Assert.That(vn.ArrayDimensions.Count, Is.EqualTo(0));
-        }
-
-        [Test]
         public void ArrayDimensionsSetValue()
         {
             var vn = new VariableNode

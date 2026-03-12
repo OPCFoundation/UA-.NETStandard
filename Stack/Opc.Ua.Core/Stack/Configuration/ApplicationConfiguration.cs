@@ -110,16 +110,16 @@ namespace Opc.Ua
         /// <returns>A list of domain names.</returns>
         public IList<string> GetServerDomainNames()
         {
-            var baseAddresses = new StringCollection();
+            var baseAddresses = new List<string>();
 
             if (ServerConfiguration != null)
             {
-                if (ServerConfiguration.BaseAddresses != null)
+                if (!ServerConfiguration.BaseAddresses.IsEmpty)
                 {
                     baseAddresses.AddRange(ServerConfiguration.BaseAddresses);
                 }
 
-                if (ServerConfiguration.AlternateBaseAddresses != null)
+                if (!ServerConfiguration.AlternateBaseAddresses.IsEmpty)
                 {
                     baseAddresses.AddRange(ServerConfiguration.AlternateBaseAddresses);
                 }
@@ -127,12 +127,12 @@ namespace Opc.Ua
 
             if (DiscoveryServerConfiguration != null)
             {
-                if (DiscoveryServerConfiguration.BaseAddresses != null)
+                if (!DiscoveryServerConfiguration.BaseAddresses.IsEmpty)
                 {
                     baseAddresses.AddRange(DiscoveryServerConfiguration.BaseAddresses);
                 }
 
-                if (DiscoveryServerConfiguration.AlternateBaseAddresses != null)
+                if (!DiscoveryServerConfiguration.AlternateBaseAddresses.IsEmpty)
                 {
                     baseAddresses.AddRange(DiscoveryServerConfiguration.AlternateBaseAddresses);
                 }
@@ -864,9 +864,9 @@ namespace Opc.Ua
         {
             base.Validate();
 
-            if (m_userTokenPolicies.Count == 0)
+            if (m_userTokenPolicies.IsEmpty)
             {
-                m_userTokenPolicies.Add(new UserTokenPolicy());
+                m_userTokenPolicies = [new UserTokenPolicy()];
             }
         }
     }
@@ -881,9 +881,9 @@ namespace Opc.Ua
         /// </summary>
         public void Validate()
         {
-            if (WellKnownDiscoveryUrls.Count == 0)
+            if (WellKnownDiscoveryUrls.IsEmpty)
             {
-                WellKnownDiscoveryUrls.AddRange(Utils.DiscoveryUrls);
+                WellKnownDiscoveryUrls = Utils.DiscoveryUrls;
             }
         }
     }

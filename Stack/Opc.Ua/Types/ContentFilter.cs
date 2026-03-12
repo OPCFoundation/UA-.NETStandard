@@ -814,7 +814,7 @@ namespace Opc.Ua
                 TargetName = browsePath
             };
 
-            m_browsePath.Elements.Add(element);
+            m_browsePath.Elements = m_browsePath.Elements.AddItem(element);
         }
 
         /// <summary>
@@ -838,7 +838,7 @@ namespace Opc.Ua
                     TargetName = browsePaths[ii]
                 };
 
-                m_browsePath.Elements.Add(element);
+                m_browsePath.Elements = m_browsePath.Elements.AddItem(element);
             }
         }
 

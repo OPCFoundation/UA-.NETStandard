@@ -35,9 +35,6 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Nodes
 {
-    /// <summary>
-    /// Coverage tests for <see cref="TypeTable"/>.
-    /// </summary>
     [TestFixture]
     [Category("TypeTable")]
     [SetCulture("en-us")]

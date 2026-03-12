@@ -290,7 +290,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new UserNameIdentityTokenHandler(Utils.Clone(m_token))
+            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token))
             {
                 DecryptedPassword = DecryptedPassword == null ? null : [.. DecryptedPassword]
             };

@@ -47,7 +47,7 @@ namespace TestData
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.TestData, Namespaces.TestData + "Instance"];
     }
 
@@ -511,8 +511,7 @@ namespace TestData
             HistoryReadResult result)
         {
             var serverContext = context as ServerSystemContext;
-
-            var data = new HistoryData();
+            DataValueCollection dataValues = [];
 
             HistoryDataReader reader;
             if (nodeToRead.ContinuationPoint.Length > 0)
@@ -562,7 +561,7 @@ namespace TestData
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
-                    data.DataValues);
+                    dataValues);
             }
 
             // continue reading data until done or max values reached.
@@ -571,7 +570,7 @@ namespace TestData
                 timestampsToReturn,
                 nodeToRead.ParsedIndexRange,
                 nodeToRead.DataEncoding,
-                data.DataValues);
+                dataValues);
 
             // save continuation point.
             if (!complete)
@@ -579,6 +578,11 @@ namespace TestData
                 SaveDataReader(serverContext, reader);
                 result.StatusCode = StatusCodes.GoodMoreData;
             }
+
+            var data = new HistoryData
+            {
+                DataValues = dataValues
+            };
 
             // return the dat.
             result.HistoryData = new ExtensionObject(data);

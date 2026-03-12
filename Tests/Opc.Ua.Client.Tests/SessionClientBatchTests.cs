@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var localeIds = new StringCollection();
+            var localeIds = new List<string>();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var localeIds = new StringCollection();
+            var localeIds = new List<string>();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var localeIds = new StringCollection();
+            var localeIds = new List<string>();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;

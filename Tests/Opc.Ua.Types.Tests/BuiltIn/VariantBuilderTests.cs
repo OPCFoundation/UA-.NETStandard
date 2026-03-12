@@ -39,7 +39,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantBuilderTests
     {
-
         /// <summary>
         /// Asserts that WithValue followed by GetValue returns the original value.
         /// </summary>

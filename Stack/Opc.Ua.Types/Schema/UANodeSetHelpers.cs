@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Export
                     definition.IsUnion = true;
                 }
 
-                if (sd.Fields != null)
+                if (!sd.Fields.IsNull)
                 {
                     var fields = new List<DataTypeField>();
 
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Export
 
                         output.ValueRank = field.ValueRank;
 
-                        if (field.ArrayDimensions != null && field.ArrayDimensions.Count != 0)
+                        if (!field.ArrayDimensions.IsEmpty)
                         {
                             if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
                             {
@@ -1189,7 +1189,7 @@ namespace Opc.Ua.Export
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 
-                if (ed.Fields != null)
+                if (!ed.Fields.IsNull)
                 {
                     var fields = new List<DataTypeField>();
 

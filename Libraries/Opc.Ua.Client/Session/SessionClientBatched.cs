@@ -106,7 +106,7 @@ namespace Opc.Ua
                 InitResponseCollections<BrowseResult, BrowseResultCollection>(
                     out BrowseResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToBrowse.Count,
                     operationLimit);
                 foreach (ArrayOf<BrowseDescription> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
@@ -179,7 +179,7 @@ namespace Opc.Ua
                 InitResponseCollections<BrowseResult, BrowseResultCollection>(
                     out BrowseResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     continuationPoints.Count,
                     operationLimit);
                 foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch(operationLimit))
@@ -242,7 +242,7 @@ namespace Opc.Ua
                 InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
                     out BrowsePathResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     browsePaths.Count,
                     operationLimit);
                 foreach (ArrayOf<BrowsePath> batchBrowsePaths in browsePaths.Batch((int)operationLimit))
@@ -399,7 +399,7 @@ namespace Opc.Ua
                 InitResponseCollections<DataValue, DataValueCollection>(
                     out DataValueCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToRead.Count,
                     operationLimit);
                 foreach (ArrayOf<ReadValueId> batchAttributesToRead in nodesToRead
@@ -486,7 +486,7 @@ namespace Opc.Ua
                 InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
                     out HistoryReadResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToRead.Count,
                     operationLimit);
                 foreach (ArrayOf<HistoryReadValueId> batchNodesToRead in nodesToRead
@@ -552,7 +552,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToWrite.Count,
                     operationLimit);
                 foreach (ArrayOf<WriteValue> batchNodesToWrite in nodesToWrite
@@ -621,7 +621,7 @@ namespace Opc.Ua
                 InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
                     out HistoryUpdateResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     historyUpdateDetails.Count,
                     operationLimit);
                 foreach (ArrayOf<ExtensionObject> batchHistoryUpdateDetails in historyUpdateDetails
@@ -684,7 +684,7 @@ namespace Opc.Ua
                 InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
                     out CallMethodResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     methodsToCall.Count,
                     operationLimit);
                 foreach (ArrayOf<CallMethodRequest> batchMethodsToCall in methodsToCall
@@ -760,7 +760,7 @@ namespace Opc.Ua
                 InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
                     out MonitoredItemCreateResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     itemsToCreate.Count,
                     operationLimit);
                 foreach (ArrayOf<MonitoredItemCreateRequest> batchItemsToCreate in itemsToCreate
@@ -836,7 +836,7 @@ namespace Opc.Ua
                 InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
                     out MonitoredItemModifyResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     itemsToModify.Count,
                     operationLimit);
                 foreach (ArrayOf<MonitoredItemModifyRequest> batchItemsToModify in itemsToModify
@@ -913,7 +913,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
@@ -995,7 +995,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? addResults,
                     out DiagnosticInfoCollection? addDiagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     linksToAdd.Count,
                     operationLimit);
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
@@ -1148,7 +1148,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
@@ -1212,7 +1212,7 @@ namespace Opc.Ua
                 InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
                     out AddNodesResultCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToAdd.Count,
                     operationLimit);
                 foreach (ArrayOf<AddNodesItem> batchNodesToAdd in nodesToAdd
@@ -1272,7 +1272,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     referencesToAdd.Count,
                     operationLimit);
                 foreach (ArrayOf<AddReferencesItem> batchReferencesToAdd in referencesToAdd
@@ -1335,7 +1335,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     nodesToDelete.Count,
                     operationLimit);
                 foreach (ArrayOf<DeleteNodesItem> batchNodesToDelete in nodesToDelete
@@ -1398,7 +1398,7 @@ namespace Opc.Ua
                 InitResponseCollections<StatusCode, StatusCodeCollection>(
                     out StatusCodeCollection? results,
                     out DiagnosticInfoCollection? diagnosticInfos,
-                    out StringCollection? stringTable,
+                    out ArrayOf<string> stringTable,
                     referencesToDelete.Count,
                     operationLimit);
                 foreach (ArrayOf<DeleteReferencesItem> batchReferencesToDelete in referencesToDelete
@@ -1463,7 +1463,7 @@ namespace Opc.Ua
         private static void InitResponseCollections<T, C>(
             out C results,
             out DiagnosticInfoCollection diagnosticInfos,
-            out StringCollection stringTable,
+            out ArrayOf<string> stringTable,
             int count,
             uint operationLimit)
             where C : List<T>, new()
@@ -1494,7 +1494,7 @@ namespace Opc.Ua
         private static void AddResponses<T, C>(
             ref C results,
             ref DiagnosticInfoCollection diagnosticInfos,
-            ref StringCollection stringTable,
+            ref ArrayOf<string> stringTable,
             ArrayOf<T> batchedResults,
             ArrayOf<DiagnosticInfo> batchedDiagnosticInfos,
             ArrayOf<string> batchedStringTable) where C : List<T>
@@ -1531,7 +1531,7 @@ namespace Opc.Ua
 
             results.AddRange(batchedResults);
             diagnosticInfos.AddRange(batchedDiagnosticInfos);
-            stringTable.AddRange(batchedStringTable);
+            stringTable = stringTable.AddItems(batchedStringTable);
 
             static void UpdateDiagnosticInfoIndexes(DiagnosticInfo diagnosticInfo,
                 int stringTableOffset)

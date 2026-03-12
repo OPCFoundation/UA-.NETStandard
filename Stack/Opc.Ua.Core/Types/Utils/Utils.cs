@@ -1270,17 +1270,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a deep copy of the value.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(T value)
-            where T : class
-        {
-            return CoreUtils.Clone(value);
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the value.
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
         public static object Clone(object value)
         {
             return CoreUtils.Clone(value);

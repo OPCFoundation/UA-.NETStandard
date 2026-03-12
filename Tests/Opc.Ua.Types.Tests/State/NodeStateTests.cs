@@ -36,9 +36,6 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.State
 {
-    /// <summary>
-    /// Coverage tests for the <see cref="NodeState"/> class and related infrastructure.
-    /// </summary>
     [TestFixture]
     [Category("NodeState")]
     [SetCulture("en-us")]
@@ -55,7 +52,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_messageContext = new ServiceMessageContext(m_telemetry);
-            m_context = new SystemContext(m_telemetry) {
+            m_context = new SystemContext(m_telemetry)
+            {
                 NamespaceUris = m_messageContext.NamespaceUris,
                 ServerUris = m_messageContext.ServerUris
             };
@@ -1720,7 +1718,8 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteValueAttributeRejectsServerTimestamp()
         {
             using BaseObjectState node = CreateObjectNode();
-            var dv = new DataValue {
+            var dv = new DataValue
+            {
                 WrappedValue = new Variant(42),
                 ServerTimestamp = DateTimeUtc.Now
             };
@@ -1734,7 +1733,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
-            var dv = new DataValue {
+            var dv = new DataValue
+            {
                 WrappedValue = new Variant(QualifiedName.From("Test")),
                 StatusCode = StatusCodes.BadUnexpectedError
             };

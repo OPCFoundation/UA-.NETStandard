@@ -39,7 +39,11 @@ namespace Opc.Ua
     /// Reference description
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ReferenceDescription : IEncodeable, IJsonEncodeable, IFormattable
+    public class ReferenceDescription :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<ReferenceDescription>,
+        IFormattable
     {
         /// <inheritdoc/>
         public ReferenceDescription()
@@ -163,42 +167,79 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsForward, value.IsForward))
+            if (IsForward != value.IsForward)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
+            if (NodeId != value.NodeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BrowseName, value.BrowseName))
+            if (BrowseName != value.BrowseName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DisplayName, value.DisplayName))
+            if (DisplayName != value.DisplayName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeClass, value.NodeClass))
+            if (NodeClass != value.NodeClass)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(TypeDefinition, value.TypeDefinition))
+            if (TypeDefinition != value.TypeDefinition)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                ReferenceTypeId,
+                IsForward,
+                NodeId,
+                BrowseName,
+                DisplayName,
+                NodeClass,
+                TypeDefinition);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ReferenceDescription other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ReferenceDescription left, ReferenceDescription right)
+        {
+            return EqualityComparer<ReferenceDescription>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ReferenceDescription left, ReferenceDescription right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

@@ -112,7 +112,7 @@ namespace Opc.Ua.Client.ComplexTypes
             // try again if the mask is implicitly defined by the JSON keys
             if (EncodingMask == 0 && decoder is JsonDecoder)
             {
-                var masks = new StringCollection();
+                var masks = new List<string>();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (property.IsOptional)

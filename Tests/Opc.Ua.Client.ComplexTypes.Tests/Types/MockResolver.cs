@@ -208,11 +208,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<object> GetEnumTypeArrayAsync(
+        public Task<Variant> GetEnumTypeArrayAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
-            return Task.FromResult<object>(null);
+            return Task.FromResult<Variant>(default);
         }
 
         /// <inheritdoc/>

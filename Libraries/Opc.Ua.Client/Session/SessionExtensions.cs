@@ -276,8 +276,8 @@ namespace Opc.Ua.Client
                 pathsToTranslate,
                 ct).ConfigureAwait(false);
 
-            BrowsePathResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            var results = response.Results;
+            var diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             // verify that the server returned the correct number of results.
@@ -368,7 +368,7 @@ namespace Opc.Ua.Client
         /// <param name="variableId">The variable node.</param>
         /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<ReferenceDescriptionCollection> ReadAvailableEncodingsAsync(
+        public static async Task<ArrayOf<ReferenceDescription>> ReadAvailableEncodingsAsync(
             this ISession session,
             NodeId variableId,
             CancellationToken ct = default)

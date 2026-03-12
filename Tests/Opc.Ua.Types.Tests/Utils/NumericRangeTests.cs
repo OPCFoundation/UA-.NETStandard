@@ -40,7 +40,6 @@ namespace Opc.Ua.Types.Tests.Utils
     [Parallelizable]
     public class NumericRangeTests
     {
-
         [Test]
         public void ConstructorWithBeginSetsBeginValue()
         {
@@ -1114,7 +1113,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void ApplyRangeWithListReturnsNoDataWhenBeginBeyondLength()
-            {
+        {
             object value = new List<int> { 10, 20, 30 };
             var range = new NumericRange(10);
             StatusCode result = range.ApplyRange(ref value);
@@ -1137,7 +1136,7 @@ namespace Opc.Ua.Types.Tests.Utils
             object value = new List<int> { 10, 20, 30 };
             var range = new NumericRange(1, 100);
             Assert.Throws<ArgumentOutOfRangeException>(() => range.ApplyRange(ref value));
-            }
+        }
 
         [Test]
         public void UpdateRangeWithSubRanges1DArray()
@@ -1167,7 +1166,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void UpdateRangeWithByteStringArrayDst()
-            {
+        {
             // dst is a ByteString (will be treated as byte[] in array path)
             object dst = ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
             object src = new byte[] { 0xAA, 0xBB };
@@ -1200,7 +1199,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [Test]
         public void UpdateRangeWithSubRangesReturnsNoDataWhenDimensionsMismatch()
-            {
+        {
             // SubRanges has more dimensions than value rank, and type is not String/ByteString
             object dst = new int[] { 1, 2, 3 };
             object src = new int[] { 9, 8, 7 };
@@ -1442,9 +1441,9 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
         }
 
-        /// <remarks>
+        /// <summary>
         /// NOTE: Could theoretically fail for hash collisions
-        /// </remarks>
+        /// </summary>
         [TestCaseSource(nameof(SubRangesCombinations))]
         public bool GetHashCode_ForSubRanges(NumericRange[] subRanges1, NumericRange[] subRanges2)
         {

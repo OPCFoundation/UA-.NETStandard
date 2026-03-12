@@ -105,7 +105,7 @@ namespace Opc.Ua.Client
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
             EndpointDescriptionCollection? availableEndpoints = null,
-            StringCollection? discoveryProfileUris = null)
+            ArrayOf<string>? discoveryProfileUris = null)
             : this(
                   channel,
                   configuration,
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Client
             ByteString serverNonce = response.ServerNonce;
             ByteString serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
-            EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
+            var serverEndpoints = response.ServerEndpoints;
 
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
@@ -1862,19 +1862,27 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
 
             // Helper extraction
-            static T Get<T>(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
-                where T : struct
+            static uint GetUInt32(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
             {
                 DataValue value = values[index];
                 ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
                 index++;
-                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
-                {
-                    return retVal;
-                }
-                return default;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetUInt32() : default;
             }
-
+            static ushort GetUInt16(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetUInt16() : default;
+            }
+            static double GetDouble(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetDouble() : default;
+            }
             // Apply operation limit logic: if client value is 0, use server value;
             // otherwise use min(client, server)
             static uint ApplyOperationLimit(uint clientLimit, uint serverLimit)
@@ -1900,7 +1908,7 @@ namespace Opc.Ua.Client
             int index = 0;
             OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
                 OperationLimits.MaxNodesPerRead,
-                Get<uint>(ref index, values, errors));
+                GetUInt32(ref index, values, errors));
 
             nodeIds =
             [
@@ -1936,45 +1944,45 @@ namespace Opc.Ua.Client
             (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
             OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryReadData, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryReadData, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryReadEvents = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryReadEvents, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryReadEvents, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerWrite = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerWrite, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerWrite, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerRead, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryUpdateData = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryUpdateData, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryUpdateData, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryUpdateEvents, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryUpdateEvents, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerMethodCall = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerMethodCall, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerMethodCall, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerBrowse = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerBrowse, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerBrowse, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerRegisterNodes = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerRegisterNodes, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerRegisterNodes, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerNodeManagement = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerNodeManagement, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerNodeManagement, GetUInt32(ref index, values, errors));
             OperationLimits.MaxMonitoredItemsPerCall = ApplyOperationLimit(
-                OperationLimits.MaxMonitoredItemsPerCall, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxMonitoredItemsPerCall, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
-                Get<uint>(ref index, values, errors));
-            ServerCapabilities.MaxBrowseContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxHistoryContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxQueryContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxStringLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxArrayLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxByteStringLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MinSupportedSampleRate = Get<double>(ref index, values, errors);
-            ServerCapabilities.MaxSessions = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSubscriptions = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItems = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItemsPerSubscription = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItemsQueueSize = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSubscriptionsPerSession = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxWhereClauseParameters = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSelectClauseParameters = Get<uint>(ref index, values, errors);
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, GetUInt32(ref index, values, errors));
+
+            ServerCapabilities.MaxBrowseContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxHistoryContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxQueryContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxStringLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxArrayLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxByteStringLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MinSupportedSampleRate = GetDouble(ref index, values, errors);
+            ServerCapabilities.MaxSessions = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSubscriptions = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItems = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItemsPerSubscription = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItemsQueueSize = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSubscriptionsPerSession = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxWhereClauseParameters = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSelectClauseParameters = GetUInt32(ref index, values, errors);
 
             uint maxByteStringLength = (uint?)m_configuration.TransportQuotas?.MaxByteStringLength ?? 0u;
             if (maxByteStringLength != 0 &&
@@ -3112,7 +3120,11 @@ namespace Opc.Ua.Client
                     }
 
                     // send notification that keep alive completed.
-                    OnKeepAlive((ServerState)(int)values[0].Value, (DateTime)responseHeader.Timestamp);
+                    if (!values[0].WrappedValue.TryGet(out ServerState serverState))
+                    {
+                        serverState = ServerState.Unknown;
+                    }
+                    OnKeepAlive(serverState, (DateTime)responseHeader.Timestamp);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -3308,8 +3320,8 @@ namespace Opc.Ua.Client
                     "Cannot read NamespaceArray node. Validation of returned value failed.");
             }
 
-            string[] namespaceArray = (string[])values[0].Value;
-            if (namespaceArray.Length == 0)
+            if (!values[0].WrappedValue.TryGet(out ArrayOf<string> namespaceArray) ||
+                namespaceArray.IsEmpty)
             {
                 throw ServiceResultException.Unexpected(
                     "Retrieved namespace list contain no entries.");
@@ -3320,7 +3332,7 @@ namespace Opc.Ua.Client
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
-            NamespaceUris.Update(namespaceArray);
+            NamespaceUris.Update(namespaceArray.ToArray());
 
             if (StatusCode.IsBad(values[1].StatusCode))
             {
@@ -3344,8 +3356,10 @@ namespace Opc.Ua.Client
                     "Cannot read ServerArray node. Validation of returned value failed.");
             }
 
-            string[] serverArray = (string[])values[1].Value;
-            ServerUris.Update(serverArray);
+            if (values[1].WrappedValue.TryGet(out ArrayOf<string> serverArray))
+            {
+                ServerUris.Update(serverArray.ToArray());
+            }
         }
 
         /// <summary>
@@ -4185,7 +4199,7 @@ namespace Opc.Ua.Client
         private void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
-            UInt32Collection? availableSequenceNumbers,
+            ArrayOf<uint>? availableSequenceNumbers,
             bool moreNotifications,
             NotificationMessage notificationMessage)
         {
@@ -4949,7 +4963,7 @@ namespace Opc.Ua.Client
         private Nonce? m_eccServerEphemeralKey;
         private Subscription? m_defaultSubscription;
         private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
-        private readonly StringCollection? m_discoveryProfileUris;
+        private readonly ArrayOf<string>? m_discoveryProfileUris;
         private new readonly ILogger m_logger;
 
         private sealed class AsyncRequestState : IDisposable

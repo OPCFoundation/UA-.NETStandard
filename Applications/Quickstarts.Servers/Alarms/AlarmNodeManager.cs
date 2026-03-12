@@ -49,7 +49,7 @@ namespace Alarms
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
         {
             get
             {

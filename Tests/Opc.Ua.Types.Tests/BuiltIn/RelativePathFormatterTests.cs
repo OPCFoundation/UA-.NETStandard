@@ -43,7 +43,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class RelativePathFormatterTests
     {
-
         [Test]
         public void DefaultConstructorCreatesEmptyElements()
         {
@@ -69,7 +68,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var typeTable = new Mock<ITypeTable>();
             var relativePath = new RelativePath();
-            relativePath.Elements.Add(new RelativePathElement {
+            relativePath.Elements = relativePath.Elements.AddItem(new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -87,13 +87,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var typeTable = new Mock<ITypeTable>();
             var relativePath = new RelativePath();
-            relativePath.Elements.Add(new RelativePathElement {
+            relativePath.Elements = relativePath.Elements.AddItem(new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IsInverse = false,
                 IncludeSubtypes = true,
                 TargetName = new QualifiedName("Node1")
             });
-            relativePath.Elements.Add(new RelativePathElement {
+            relativePath.Elements = relativePath.Elements.AddItem(new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.Aggregates,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -120,7 +122,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementConstructorWithNullTypeTreeThrowsArgumentNull()
         {
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -136,7 +139,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ElementConstructorWithHierarchicalReferencesSetsAnyHierarchical()
         {
             var typeTable = new Mock<ITypeTable>();
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -154,7 +158,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ElementConstructorWithAggregatesSetsAnyComponent()
         {
             var typeTable = new Mock<ITypeTable>();
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.Aggregates,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -174,7 +179,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             typeTable.Setup(t => t.FindReferenceTypeName(customRefId))
                 .Returns(new QualifiedName("CustomRef"));
 
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = customRefId,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -195,7 +201,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             typeTable.Setup(t => t.FindReferenceTypeName(customRefId))
                 .Returns(new QualifiedName("CustomRef"));
 
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = customRefId,
                 IsInverse = true,
                 IncludeSubtypes = true,
@@ -216,7 +223,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             typeTable.Setup(t => t.FindReferenceTypeName(customRefId))
                 .Returns(new QualifiedName("CustomRef"));
 
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = customRefId,
                 IsInverse = false,
                 IncludeSubtypes = false,
@@ -605,7 +613,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Build an element with special chars in the target name
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = new QualifiedName("Node/A")
             });
@@ -628,7 +637,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ToStringEncodesSpecialCharactersInTargetName(string targetName, string expected)
         {
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = new QualifiedName(targetName)
             });
@@ -640,7 +650,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ToStringEncodesSpecialCharactersInReferenceName()
         {
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = new QualifiedName("My/Ref"),
                 TargetName = new QualifiedName("NodeA")
@@ -653,7 +664,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ToStringForwardReferenceWithNullReferenceNameOmitsBrackets()
         {
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = default,
                 TargetName = new QualifiedName("NodeA")
@@ -676,7 +688,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementToStringDefaultsToParameterlessOverload()
         {
-            var element = new RelativePathFormatter.Element {
+            var element = new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = new QualifiedName("Test")
             };
@@ -688,7 +701,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementToStringWithNullTargetNameOmitsTarget()
         {
-            var element = new RelativePathFormatter.Element {
+            var element = new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = default
             };
@@ -699,7 +713,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementToStringReferenceWithNamespaceOnBothNames()
         {
-            var element = new RelativePathFormatter.Element {
+            var element = new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = new QualifiedName("MyRef", 5),
                 IncludeSubtypes = true,
@@ -778,7 +793,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Build a formatter with a reference type name in namespace 2
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = new QualifiedName("CustomRef", 2),
                 TargetName = new QualifiedName("NodeA")
@@ -799,7 +815,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var targetTable = new NamespaceTable();
 
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = new QualifiedName("NodeA", 2)
             });
@@ -819,7 +836,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             targetTable.Append("urn:other");   // index 1
 
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.AnyHierarchical,
                 TargetName = new QualifiedName("NodeA", 0)
             });
@@ -876,7 +894,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             targetTable.Append("urn:ref:ns");      // index 2
 
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = new QualifiedName("CustomRef", 1),
                 TargetName = new QualifiedName("NodeA")
@@ -914,7 +933,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // target table does NOT contain urn:ref:ns
 
             var formatter = new RelativePathFormatter();
-            formatter.Elements.Add(new RelativePathFormatter.Element {
+            formatter.Elements.Add(new RelativePathFormatter.Element
+            {
                 ElementType = RelativePathFormatter.ElementType.ForwardReference,
                 ReferenceTypeName = new QualifiedName("CustomRef", 1),
                 TargetName = new QualifiedName("NodeA")

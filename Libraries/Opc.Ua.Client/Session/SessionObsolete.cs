@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
         /// Returns the available encodings for a node
         /// </summary>
         [Obsolete("Use ReadAvailableEncodingsAsync instead.")]
-        public static ReferenceDescriptionCollection ReadAvailableEncodings(
+        public static ArrayOf<ReferenceDescription> ReadAvailableEncodings(
             this ISession session,
             NodeId variableId)
         {
@@ -252,7 +252,7 @@ namespace Opc.Ua.Client
         /// Fetches all references for the specified node.
         /// </summary>
         [Obsolete("Use FetchReferencesAsync instead.")]
-        public static ReferenceDescriptionCollection FetchReferences(
+        public static ArrayOf<ReferenceDescription> FetchReferences(
             this ISession session,
             NodeId nodeId)
         {
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static void ChangePreferredLocales(
             this ISession session,
-            StringCollection preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
             session.ChangePreferredLocalesAsync(preferredLocales)
                 .GetAwaiter()
@@ -363,7 +363,7 @@ namespace Opc.Ua.Client
         public static void UpdateSession(
             this ISession session,
             IUserIdentity identity,
-            StringCollection preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
             session.UpdateSessionAsync(identity, preferredLocales)
                 .GetAwaiter()
@@ -809,7 +809,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = default)
         {
             return Create(
                 null,
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
             var factory = new DefaultSessionFactory(context.Telemetry);
@@ -1224,7 +1224,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = default)
             : base(
                   channel,
                   configuration,
@@ -1279,7 +1279,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = default)
         {
             return factory.Create(
                 channel,

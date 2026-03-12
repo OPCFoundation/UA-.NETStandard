@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Xml.Linq;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -38,43 +39,13 @@ namespace Opc.Ua
     /// Enum definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class EnumDefinition : DataTypeDefinition
+    public class EnumDefinition : DataTypeDefinition, IEquatable<EnumDefinition>
     {
-        /// <inheritdoc/>
-        public EnumDefinition()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_fields = [];
-        }
-
         /// <summary>
         /// Fields
         /// </summary>
         [DataMember(Name = "Fields", IsRequired = false, Order = 1)]
-        public EnumFieldCollection Fields
-        {
-            get => m_fields;
-
-            set
-            {
-                m_fields = value;
-
-                if (value == null)
-                {
-                    m_fields = [];
-                }
-            }
-        }
+        public ArrayOf<EnumField> Fields { get; set; }
 
         /// <summary>
         /// If TRUE the values are bit positions rather than values.
@@ -126,12 +97,42 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
+            if (Fields != value.Fields)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), Fields);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(EnumDefinition other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(EnumDefinition left, EnumDefinition right)
+        {
+            return EqualityComparer<EnumDefinition>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(EnumDefinition left, EnumDefinition right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -145,11 +146,9 @@ namespace Opc.Ua
         {
             var clone = (EnumDefinition)base.MemberwiseClone();
 
-            clone.m_fields = CoreUtils.Clone(m_fields);
+            clone.Fields = CoreUtils.Clone(Fields);
 
             return clone;
         }
-
-        private EnumFieldCollection m_fields;
     }
 }

@@ -670,7 +670,6 @@ namespace Opc.Ua
 
                     variableNode.DataType = DataType;
                     variableNode.ValueRank = ValueRank;
-                    variableNode.ArrayDimensions = null;
                     variableNode.ArrayDimensions = ArrayDimensions;
                     variableNode.AccessLevel = AccessLevel;
                     variableNode.UserAccessLevel = UserAccessLevel;

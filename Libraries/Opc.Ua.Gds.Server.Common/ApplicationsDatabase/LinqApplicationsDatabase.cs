@@ -290,7 +290,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     names.Add(new LocalizedText(applicationName.Locale, applicationName.Text));
                 }
 
-                StringCollection discoveryUrls = null;
+                ArrayOf<string> discoveryUrls = null;
 
                 IEnumerable<ServerEndpoint> endpoints =
                     from ii in ServerEndpoints
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
                 }
 
-                var capabilities = new StringCollection();
+                var capabilities = new List<string>();
                 if (!string.IsNullOrWhiteSpace(result.ServerCapabilities))
                 {
                     capabilities.AddRange(result.ServerCapabilities.Split(','));
@@ -356,7 +356,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         names = [LocalizedText.From(result.ApplicationName)];
                     }
 
-                    StringCollection discoveryUrls = null;
+                    ArrayOf<string> discoveryUrls = null;
 
                     IEnumerable<ServerEndpoint> endpoints =
                         from ii in ServerEndpoints
@@ -488,7 +488,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         where ii.ApplicationId == result.ApplicationId
                         select ii;
 
-                    var discoveryUrls = new StringCollection();
+                    var discoveryUrls = new List<string>();
                     if (endpoints != null)
                     {
                         foreach (ServerEndpoint endpoint in endpoints)

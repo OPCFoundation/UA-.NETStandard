@@ -125,7 +125,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
+            if (IsAbstract != value.IsAbstract)
             {
                 return false;
             }

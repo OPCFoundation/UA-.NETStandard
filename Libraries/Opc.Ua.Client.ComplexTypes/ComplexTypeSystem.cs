@@ -1216,15 +1216,15 @@ namespace Opc.Ua.Client.ComplexTypes
                         out EnumDefinition enumDefinition))
                 {
                     // browse for EnumFields or EnumStrings property
-                    object enumTypeArray = await m_complexTypeResolver
+                    Variant enumTypeArray = await m_complexTypeResolver
                         .GetEnumTypeArrayAsync(enumTypeNode.NodeId, ct)
                         .ConfigureAwait(false);
-                    if (enumTypeArray is ExtensionObject[] extensionObject)
+                    if (enumTypeArray.TryGet(out ArrayOf<ExtensionObject> extensionObject))
                     {
                         // 2. use EnumValues
                         enumDefinition = extensionObject.ToEnumDefinition(name.Name);
                     }
-                    else if (enumTypeArray is LocalizedText[] localizedText)
+                    else if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
                     {
                         // 3. use EnumStrings
                         enumDefinition = localizedText.ToEnumDefinition(name.Name);

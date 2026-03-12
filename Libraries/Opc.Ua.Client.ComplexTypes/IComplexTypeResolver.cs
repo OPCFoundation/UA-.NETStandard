@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <see cref="ExtensionObject"/> or of <see cref="LocalizedText"/>.
         /// <c>null</c> if the enum type array does not exist.
         /// </returns>
-        Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+        Task<Variant> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Returns the immediate supertype for the type.

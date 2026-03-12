@@ -154,20 +154,19 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            StringCollection namespaceUris = ReadStringArray("NamespaceUris");
-            StringCollection serverUris = ReadStringArray("ServerUris");
+            var namespaceUris = ReadStringArray("NamespaceUris");
+            var serverUris = ReadStringArray("ServerUris");
 
-            if ((namespaceUris != null && namespaceUris.Count > 0) ||
-                (serverUris != null && serverUris.Count > 0))
+            if (!namespaceUris.IsEmpty || !serverUris.IsEmpty)
             {
                 NamespaceTable namespaces =
-                    namespaceUris == null || namespaceUris.Count == 0
+                    namespaceUris.IsEmpty
                         ? Context.NamespaceUris
-                        : new NamespaceTable(namespaceUris);
+                        : new NamespaceTable(namespaceUris.ToArray());
                 StringTable servers =
-                    serverUris == null || serverUris.Count == 0
+                    serverUris.IsEmpty
                         ? Context.ServerUris
-                        : new StringTable(serverUris);
+                        : new StringTable(serverUris.ToArray());
 
                 SetMappingTables(namespaces, servers);
             }
@@ -1274,18 +1273,16 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (value.ContainsKey("Dimensions"))
                     {
-                        Int32Collection dimensions = ReadInt32Array("Dimensions");
+                        int[] dimensions = ReadInt32Array("Dimensions").ToArray();
 
                         try
                         {
                             return new Variant(
-                                new Matrix(array.Value as Array, builtInType, [.. dimensions]));
+                                new Matrix(array.Value as Array, builtInType, dimensions));
                         }
                         catch (ArgumentException e)
                         {
-                            throw new ServiceResultException(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                e);
+                            throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded, e);
                         }
                         catch (Exception e)
                         {
@@ -1895,7 +1892,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<string> ReadStringArray(string fieldName)
         {
-            var values = new StringCollection();
+            var values = new List<string>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2497,14 +2494,14 @@ namespace Opc.Ua.PubSub.Encoding
                 if (token is Dictionary<string, object> value)
                 {
                     m_stack.Push(value);
-                    Int32Collection dimensions2;
+                    int[] dimensions2;
                     if (value.ContainsKey("Dimensions"))
                     {
-                        dimensions2 = ReadInt32Array("Dimensions");
+                        dimensions2 = ReadInt32Array("Dimensions").ToArray();
                     }
                     else
                     {
-                        dimensions2 = new Int32Collection(valueRank);
+                        dimensions2 = [];
                     }
 
                     Array array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
@@ -2512,7 +2509,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                     try
                     {
-                        var matrix2 = new Matrix(array2, builtInType, [.. dimensions2]);
+                        var matrix2 = new Matrix(array2, builtInType, dimensions2);
                         return matrix2.ToArray();
                     }
                     catch (ArgumentException e)

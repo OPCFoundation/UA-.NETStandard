@@ -1428,7 +1428,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new StringCollection();
+                var values = new List<string>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("String"))

@@ -49,7 +49,8 @@ namespace Opc.Ua.Types.Tests.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
-            m_context = new SystemContext(telemetry) {
+            m_context = new SystemContext(telemetry)
+            {
                 NamespaceUris = messageContext.NamespaceUris,
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory
@@ -169,7 +170,6 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             // DeepEquals requires matching internal state including Initialized flag
-
 
             // Test exercises the method and verifies it runs without error
             var obj2 = (BaseObjectState)obj1.Clone();

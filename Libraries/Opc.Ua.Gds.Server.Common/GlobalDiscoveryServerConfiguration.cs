@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Server
         public CertificateGroupConfigurationCollection CertificateGroups { get; set; }
 
         [DataMember(Order = 6)]
-        public StringCollection KnownHostNames { get; set; }
+        public ArrayOf<string> KnownHostNames { get; set; }
 
         [DataMember(Order = 7)]
         public string DatabaseStorePath { get; set; }
@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         [DataMember(IsRequired = false, Order = 21)]
-        public StringCollection CertificateTypes { get; set; }
+        public ArrayOf<string> CertificateTypes { get; set; }
 
         [DataMember(IsRequired = true, Order = 25)]
         public string SubjectName { get; set; }

@@ -51,7 +51,8 @@ namespace Opc.Ua.Types.Tests.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
-            m_context = new SystemContext(telemetry) {
+            m_context = new SystemContext(telemetry)
+            {
                 NamespaceUris = messageContext.NamespaceUris,
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory
@@ -84,7 +85,8 @@ namespace Opc.Ua.Types.Tests.State
             };
             var collection = new NodeStateCollection(items);
             Assert.That(collection.Count, Is.EqualTo(2));
-            foreach (NodeState item in items) { item.Dispose(); }
+            foreach (NodeState item in items)
+            { item.Dispose(); }
         }
 
         [Test]
@@ -133,7 +135,8 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(v2);
 
             int count = 0;
-            foreach (NodeState item in collection) { count++; }
+            foreach (NodeState item in collection)
+            { count++; }
             Assert.That(count, Is.EqualTo(2));
             v1.Dispose();
             v2.Dispose();

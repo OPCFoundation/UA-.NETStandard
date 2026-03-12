@@ -38,28 +38,10 @@ namespace Opc.Ua
     /// Structure definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class StructureDefinition : DataTypeDefinition
+    public class StructureDefinition :
+        DataTypeDefinition,
+        IEquatable<StructureDefinition>
     {
-        /// <inheritdoc/>
-        public StructureDefinition()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            DefaultEncodingId = default;
-            BaseDataType = default;
-            StructureType = StructureType.Structure;
-            m_fields = [];
-        }
-
         /// <summary>
         /// Default encoding
         /// </summary>
@@ -82,20 +64,7 @@ namespace Opc.Ua
         /// Fields
         /// </summary>
         [DataMember(Name = "Fields", IsRequired = false, Order = 4)]
-        public StructureFieldCollection Fields
-        {
-            get => m_fields;
-
-            set
-            {
-                m_fields = value;
-
-                if (value == null)
-                {
-                    m_fields = [];
-                }
-            }
-        }
+        public ArrayOf<StructureField> Fields { get; set; }
 
         /// <summary>
         /// The first non-inherited field in the structure definition.
@@ -153,27 +122,62 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DefaultEncodingId, value.DefaultEncodingId))
+            if (DefaultEncodingId != value.DefaultEncodingId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BaseDataType, value.BaseDataType))
+            if (BaseDataType != value.BaseDataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(StructureType, value.StructureType))
+            if (StructureType != value.StructureType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
+            if (Fields != value.Fields)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                base.GetHashCode(),
+                BaseDataType,
+                StructureType,
+                Fields,
+                FirstExplicitFieldIndex);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(StructureDefinition other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(StructureDefinition left, StructureDefinition right)
+        {
+            return EqualityComparer<StructureDefinition>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(StructureDefinition left, StructureDefinition right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -190,7 +194,7 @@ namespace Opc.Ua
             clone.DefaultEncodingId = DefaultEncodingId;
             clone.BaseDataType = BaseDataType;
             clone.StructureType = CoreUtils.Clone(StructureType);
-            clone.m_fields = CoreUtils.Clone(m_fields);
+            clone.Fields = CoreUtils.Clone(Fields);
 
             return clone;
         }
@@ -237,7 +241,5 @@ namespace Opc.Ua
                 }
             }
         }
-
-        private StructureFieldCollection m_fields;
     }
 }

@@ -501,7 +501,8 @@ namespace Opc.Ua.Types.Tests.Utils
             // Covers: ServiceResult(StatusCode, DiagnosticInfo, ArrayOf<string>) - lines 421-447
             var stringTable = new ArrayOf<string>(
                 ["http://ns.org", "MySymbolicId", "en-US", "A localized message"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
@@ -535,13 +536,15 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: lines 439-445 - inner status code is bad, creates InnerResult
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
-            var innerDiag = new DiagnosticInfo {
+            var innerDiag = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
                 LocalizedText = 3
             };
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
@@ -561,7 +564,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: line 439 - inner status code is good, no InnerResult
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
@@ -580,7 +584,8 @@ namespace Opc.Ua.Types.Tests.Utils
             // Covers: ServiceResult(StatusCode, int, ArrayOf<DiagnosticInfo>, ArrayOf<string>) - lines 452-484
             var stringTable = new ArrayOf<string>(
                 ["http://ns.org", "SymId", "en", "indexed message"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
@@ -642,7 +647,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: lines 475-481 - inner status code is bad for indexed constructor
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,
@@ -662,7 +668,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: LookupString with out-of-bounds index returns null - lines 800-808
             var stringTable = new ArrayOf<string>(["only one"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 99, // out of bounds
                 SymbolicId = -1,   // negative
                 Locale = 0,
@@ -1113,7 +1120,8 @@ namespace Opc.Ua.Types.Tests.Utils
             // Covers: SymbolicId setter - line 724
             // The setter is invoked via the DiagnosticInfo constructor path
             var stringTable = new ArrayOf<string>(["ns", "MyId", "en", "text"]);
-            var diagInfo = new DiagnosticInfo {
+            var diagInfo = new DiagnosticInfo
+            {
                 NamespaceUri = 0,
                 SymbolicId = 1,
                 Locale = 2,

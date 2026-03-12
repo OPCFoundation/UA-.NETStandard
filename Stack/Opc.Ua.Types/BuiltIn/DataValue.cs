@@ -81,7 +81,10 @@ namespace Opc.Ua
         /// </summary>
         public DataValue()
         {
-            Initialize();
+            m_value = Variant.Null;
+            StatusCode = StatusCodes.Good;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -117,9 +120,10 @@ namespace Opc.Ua
         /// <param name="value">The value to set</param>
         public DataValue(Variant value)
         {
-            Initialize();
-
             m_value = value;
+            StatusCode = StatusCodes.Good;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -128,8 +132,10 @@ namespace Opc.Ua
         /// <param name="statusCode">The StatusCode to set</param>
         public DataValue(StatusCode statusCode)
         {
-            Initialize();
+            m_value = Variant.Null;
             StatusCode = statusCode;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -139,9 +145,10 @@ namespace Opc.Ua
         /// <param name="serverTimestamp">The timestamp associated with the status code.</param>
         public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
-            Initialize();
+            m_value = Variant.Null;
             StatusCode = statusCode;
             ServerTimestamp = serverTimestamp;
+            SourceTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -151,10 +158,10 @@ namespace Opc.Ua
         /// <param name="statusCode">The status code to set</param>
         public DataValue(Variant value, StatusCode statusCode)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -165,15 +172,15 @@ namespace Opc.Ua
         /// <param name="sourceTimestamp">The timestamp to set</param>
         public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
             SourceTimestamp = sourceTimestamp;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
-        /// Initializes the object with a value, a status code, a source timestamp and a server timestamp
+        /// Initializes the object with a value, a status code, a source timestamp
+        /// and a server timestamp
         /// </summary>
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
@@ -185,23 +192,10 @@ namespace Opc.Ua
             DateTimeUtc sourceTimestamp,
             DateTimeUtc serverTimestamp)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = serverTimestamp;
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_value = Variant.Null;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <inheritdoc/>
@@ -273,9 +267,7 @@ namespace Opc.Ua
             return !(a == b);
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the object.
-        /// </summary>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (!m_value.IsNull)
@@ -286,20 +278,13 @@ namespace Opc.Ua
             return StatusCode.GetHashCode();
         }
 
-        /// <summary>
-        /// Converts the value to a human readable string.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <param name="format">Not used, ALWAYS specify a null/nothing value</param>
-        /// <param name="formatProvider">The format string, ALWAYS specify a null/nothing value</param>
-        /// <exception cref="FormatException">Thrown when the format is NOT null/nothing</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -464,9 +449,10 @@ namespace Opc.Ua
         /// Ensures the data value contains a value with the specified type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use WrappedValue and Variant API")]
         public object GetValue(Type expectedType)
         {
-            object value = Value;
+            object value = WrappedValue.AsBoxedObject();
 
             if (expectedType != null && value != null)
             {
@@ -549,12 +535,13 @@ namespace Opc.Ua
         /// Gets the value from the data value.
         /// </summary>
         /// <typeparam name="T">The type of object.</typeparam>
-        /// <param name="defaultValue">The default value to return if any error occurs.</param>
+        /// <param name="defaultValue">The default value to return if any error
+        /// occurs.</param>
         /// <returns>The value.</returns>
         /// <remarks>
         /// Does not throw exceptions; returns the caller provided value instead.
-        /// Extracts the body from an ExtensionObject value if it has the correct type.
-        /// Checks the StatusCode and returns an error if not Good.
+        /// Extracts the body from an ExtensionObject value if it has the correct
+        /// type. Checks the StatusCode and returns an error if not Good.
         /// </remarks>
         public T GetValue<T>(T defaultValue)
         {
@@ -563,12 +550,13 @@ namespace Opc.Ua
                 return defaultValue;
             }
 
-            if (Value is ExtensionObject extension &&
+            if (WrappedValue.TryGet(out ExtensionObject extension) &&
                 extension.TryGetEncodeable(out IEncodeable encodeable) &&
                 encodeable is T typedBody)
             {
                 return typedBody;
             }
+
             if (WrappedValue.TryCastTo<T>(out typedBody))
             {
                 return typedBody;

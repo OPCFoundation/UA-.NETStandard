@@ -100,18 +100,13 @@ namespace Opc.Ua
         /// Array dimensions
         /// </summary>
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
-        public UInt32Collection ArrayDimensions
+        public ArrayOf<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
 
             set
             {
                 m_arrayDimensions = value;
-
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
             }
         }
 
@@ -178,27 +173,27 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Value, value.Value))
+            if (Value != value.Value)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DataType, value.DataType))
+            if (DataType != value.DataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
+            if (ValueRank != value.ValueRank)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (m_arrayDimensions != value.m_arrayDimensions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsAbstract, value.IsAbstract))
+            if (IsAbstract != value.IsAbstract)
             {
                 return false;
             }

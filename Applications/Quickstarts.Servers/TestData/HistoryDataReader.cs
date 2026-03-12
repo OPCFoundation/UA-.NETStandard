@@ -207,7 +207,7 @@ namespace TestData
 
                     if (StatusCode.IsBad(error))
                     {
-                        value.Value = null;
+                        value.WrappedValue = default;
                         value.StatusCode = error;
                     }
                     else
@@ -219,7 +219,7 @@ namespace TestData
                 // apply the data encoding.
                 if (!dataEncoding.IsNull)
                 {
-                    value.Value = null;
+                    value.WrappedValue = default;
                     value.StatusCode = StatusCodes.BadDataEncodingUnsupported;
                 }
             }

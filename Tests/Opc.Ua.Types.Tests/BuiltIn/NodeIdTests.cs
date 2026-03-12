@@ -440,10 +440,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(NodeId.TryParse(context, string.Empty, out result), Is.True);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
+
         [Test]
         public void ParseWithContextValidNumeric()
         {
-            // Covers lines 279-298 (Parse with context)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             NodeId result = NodeId.Parse(context, "i=42");
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
@@ -491,7 +491,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextInvalidThrows()
         {
-            // Covers lines 283-295 (failure branch with throw)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "x=invalid"));
@@ -500,7 +499,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriValid()
         {
-            // Covers lines 327-349 (nsu= parsing in InternalTryParseWithContext)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             string nsUri = "http://test.org/UA/";
             context.NamespaceUris.GetIndexOrAppend(nsUri);
@@ -512,7 +510,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriMissingSemicolon()
         {
-            // Covers lines 332-334 (nsu= without semicolon)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://test.org"));
@@ -521,7 +518,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriNotInTable()
         {
-            // Covers lines 343-346 (namespace not in table)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://unknown.org/;i=1"));
@@ -530,7 +526,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNsIndexMissingSemicolon()
         {
-            // Covers lines 356-359 (ns= without semicolon in context parser)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "ns=2"));
@@ -539,7 +534,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextInvalidIdentifierTypeReturnsError()
         {
-            // Covers lines 419-421 (default case in switch for idType)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "ns=0;x=invalid", out NodeId value);
             Assert.That(result, Is.False);
@@ -549,7 +543,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextStringWhitespaceIdentifier()
         {
-            // Covers lines 392-398 (s= with whitespace-only text)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "s=   ", out NodeId _);
             Assert.That(result, Is.False);
@@ -558,7 +551,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextOpaqueInvalidBase64()
         {
-            // Covers lines 400-408 (b= with invalid base64 in context parser)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "b=!!!invalid!!!", out NodeId _);
             Assert.That(result, Is.False);
@@ -567,7 +559,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextGuidInvalid()
         {
-            // Covers lines 412-418 (g= with invalid guid in context parser)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "g=not-a-guid", out NodeId _);
             Assert.That(result, Is.False);
@@ -576,7 +567,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNumericInvalid()
         {
-            // Covers line 390 (i= with non-numeric value in context parser)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=abc", out NodeId _);
             Assert.That(result, Is.False);
@@ -585,7 +575,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextShortIdentifier()
         {
-            // Covers lines 425-426 (text.Length < 2 in context parser)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "a", out NodeId _);
             Assert.That(result, Is.False);
@@ -594,7 +583,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextUpdateTablesOption()
         {
-            // Covers lines 339-340 (UpdateTables = true)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             NodeId result = NodeId.Parse(context, "nsu=http://newuri.com/;i=5", options);
@@ -605,7 +593,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceMappingsOption()
         {
-            // Covers lines 366-370 (NamespaceMappings)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions
             {
@@ -615,10 +602,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool result = NodeId.TryParse(context, "ns=1;i=42", options, out NodeId value);
             Assert.That(result, Is.True);
         }
+
         [Test]
         public void TryParseWithErrorOutput()
         {
-            // Covers lines 675-678 (TryParse with error out)
             bool result = NodeId.TryParse("i=42", out NodeId value, out NodeIdParseError error);
             Assert.That(result, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
@@ -636,7 +623,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptions()
         {
-            // Covers lines 703-710 (TryParse with context + options, no error out)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=99", null, out NodeId value);
             Assert.That(result, Is.True);
@@ -646,7 +632,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptionsAndError()
         {
-            // Covers lines 721-729 (TryParse with context + options + error)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=77", null, out NodeId value, out NodeIdParseError error);
             Assert.That(result, Is.True);
@@ -657,7 +642,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseInvalidNamespaceIndex()
         {
-            // Covers lines 770-777 (ns= with non-numeric namespace index)
             bool result = NodeId.TryParse("ns=abc;i=1", out NodeId _, out NodeIdParseError error);
             Assert.That(result, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceIndex));
@@ -666,7 +650,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseInvalidNumericIdentifier()
         {
-            // Covers lines 853-856 (numeric parse failure returning false)
             bool result = NodeId.TryParse("i=notanumber", out NodeId _, out NodeIdParseError error);
             Assert.That(result, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidIdentifier));
@@ -675,7 +658,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseNamespaceUriFormatReturnsFalse()
         {
-            // Covers line 837-838 (nsu= in simple TryParse returns InvalidNamespaceUri)
             bool result = NodeId.TryParse("nsu=http://test.org/;i=1", out NodeId _, out NodeIdParseError error);
             Assert.That(result, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceUri));
@@ -684,7 +666,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseIdentifierMissingThrowsArgumentException()
         {
-            // Covers lines 627-629 (IdentifierMissing triggers ArgumentException)
             Assert.Throws<ArgumentException>(() =>
                 NodeId.Parse("SomeRandomText"));
         }
@@ -692,14 +673,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseInvalidNamespaceUriThrowsArgumentException()
         {
-            // Covers lines 627-629 (InvalidNamespaceUri triggers ArgumentException)
             Assert.Throws<ArgumentException>(() =>
                 NodeId.Parse("nsu=http://opcfoundation.org/UA/;i=1234"));
         }
+
         [Test]
         public void FormatWithContextNullReturnsEmpty()
         {
-            // Covers lines 438-440 (Format context, IsNull)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             NodeId nullId = NodeId.Null;
             string result = nullId.Format(context);
@@ -709,7 +689,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUri()
         {
-            // Covers lines 447-456 (useNamespaceUri = true with valid uri)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             string nsUri = "http://format.test.org/";
             ushort nsIndex = context.NamespaceUris.GetIndexOrAppend(nsUri);
@@ -722,7 +701,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUriNotFound()
         {
-            // Covers lines 458-462 (useNamespaceUri = true but uri not found)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             // namespace index 999 won't be in the table, falls back to ns= format
             var nodeId = new NodeId(42u, 999);
@@ -733,7 +711,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextNoNamespaceUri()
         {
-            // Covers lines 464-469 (useNamespaceUri = false, ns > 0)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(42u, 3);
             string result = nodeId.Format(context, useNamespaceUri: false);
@@ -754,7 +731,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextOpaque()
         {
-            // Covers lines 482-484 (Opaque case in Format context)
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(new ByteString(new byte[] { 0xAA, 0xBB }));
             string result = nodeId.Format(context);
@@ -764,16 +740,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextString()
         {
-            // Covers lines 486-488
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
             var nodeId = new NodeId("TestString", 0);
             string result = nodeId.Format(context);
             Assert.That(result, Is.EqualTo("s=TestString"));
         }
+
         [Test]
         public void FormatStaticWithNodeIdToBuffer()
         {
-            // Covers lines 892-898 (Format(StringBuilder, NodeId))
             var buffer = new StringBuilder();
             var nodeId = new NodeId(42u, 2);
 #pragma warning disable CA1305 // Specify IFormatProvider
@@ -785,7 +760,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatStaticWithProviderAndNodeId()
         {
-            // Covers lines 903-914 (Format with IFormatProvider and NodeId)
             var buffer = new StringBuilder();
             var nodeId = new NodeId("Hello", 0);
             NodeId.Format(CultureInfo.InvariantCulture, buffer, nodeId);
@@ -795,7 +769,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatStaticWithComponents()
         {
-            // Covers lines 919-931 (Format with components, no provider)
             var buffer = new StringBuilder();
 #pragma warning disable CA1305 // Specify IFormatProvider
             NodeId.Format(buffer, "1234", IdType.Numeric, 0);
@@ -806,7 +779,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatStaticWithProviderAndComponents()
         {
-            // Covers lines 937-971 (Format with provider and components)
             var buffer = new StringBuilder();
             NodeId.Format(CultureInfo.InvariantCulture, buffer, "TestValue", IdType.String, 5);
             Assert.That(buffer.ToString(), Is.EqualTo("ns=5;s=TestValue"));
@@ -815,7 +787,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatStaticAllIdTypes()
         {
-            // Covers all branches in lines 950-967 (switch on identifierType)
             var guid = Guid.NewGuid();
             var bytes = Convert.ToBase64String([1, 2, 3]);
 
@@ -839,15 +810,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatStaticWithNamespaceIndex()
         {
-            // Covers line 944-946 (namespaceIndex != 0 branch)
             var buffer = new StringBuilder();
             NodeId.Format(CultureInfo.InvariantCulture, buffer, "test", IdType.String, 7);
             Assert.That(buffer.ToString(), Does.Contain("ns=7;"));
         }
+
         [Test]
         public void CreateStringWithNamespaceUri()
         {
-            // Covers lines 524-531 (Create string)
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -859,7 +829,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateNumericWithNamespaceUri()
         {
-            // Covers lines 541-548 (Create uint)
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -870,7 +839,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateByteStringWithNamespaceUri()
         {
-            // Covers lines 558-565 (Create ByteString)
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -881,7 +849,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateGuidWithNamespaceUri()
         {
-            // Covers lines 575-582 (Create Guid)
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -893,7 +860,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateWithUnknownNamespaceThrows()
         {
-            // Covers GetNamespaceIndex failure branch
             var namespaceTable = new NamespaceTable();
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Create(42u, "http://unknown.org/", namespaceTable));
@@ -910,7 +876,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CreateObsoleteObjectOverload()
         {
-            // Covers lines 507-514 (obsolete Create with object)
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -921,7 +886,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithIdentifierUint()
         {
-            // Covers lines 1057-1060
             var nodeId = new NodeId(10u, 5);
             NodeId result = nodeId.WithIdentifier(99u);
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
@@ -932,7 +896,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithIdentifierString()
         {
-            // Covers lines 1066-1069
             var nodeId = new NodeId(10u, 5);
             NodeId result = nodeId.WithIdentifier("NewName");
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
@@ -942,7 +905,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithIdentifierByteString()
         {
-            // Covers lines 1075-1078
             var nodeId = new NodeId(10u, 5);
             NodeId result = nodeId.WithIdentifier(new ByteString(new byte[] { 0xFF }));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
@@ -952,7 +914,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithIdentifierGuid()
         {
-            // Covers lines 1084-1087
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(10u, 5);
             NodeId result = nodeId.WithIdentifier(guid);
@@ -963,7 +924,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithNamespaceIndexOnNullNodeId()
         {
-            // Covers lines 1028-1031 (null node returns this)
             NodeId nullId = NodeId.Null;
             NodeId result = nullId.WithNamespaceIndex(5);
             Assert.That(result.IsNull, Is.True);
@@ -972,7 +932,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithNamespaceIndexOnStringNodeId()
         {
-            // Covers line 1036 (String branch)
             var nodeId = new NodeId("Test", 1);
             NodeId result = nodeId.WithNamespaceIndex(5);
             Assert.That(result.NamespaceIndex, Is.EqualTo(5));
@@ -982,7 +941,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithNamespaceIndexOnGuidNodeId()
         {
-            // Covers line 1037 (Guid branch)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid, 1);
             NodeId result = nodeId.WithNamespaceIndex(5);
@@ -993,7 +951,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void WithNamespaceIndexOnOpaqueNodeId()
         {
-            // Covers line 1038 (Opaque branch)
             var nodeId = new NodeId(new ByteString(new byte[] { 1, 2 }), 1);
             NodeId result = nodeId.WithNamespaceIndex(5);
             Assert.That(result.NamespaceIndex, Is.EqualTo(5));
@@ -1004,7 +961,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void SetNamespaceIndexObsolete()
         {
-            // Covers lines 1048-1051
             var nodeId = new NodeId(42u, 1);
             NodeId result = nodeId.SetNamespaceIndex(9);
             Assert.That(result.NamespaceIndex, Is.EqualTo(9));
@@ -1013,7 +969,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdBothNull()
         {
-            // Covers lines 1112-1114 (both null)
             NodeId a = NodeId.Null;
             NodeId b = NodeId.Null;
             Assert.That(a.CompareTo(b), Is.EqualTo(0));
@@ -1022,7 +977,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdThisNull()
         {
-            // Covers line 1114 (this is null, other is not)
             NodeId a = NodeId.Null;
             NodeId b = new NodeId(42u);
             Assert.That(a.CompareTo(b), Is.EqualTo(1));
@@ -1031,7 +985,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdDifferentNamespace()
         {
-            // Covers lines 1118-1120
             var a = new NodeId(1u, 5);
             var b = new NodeId(1u, 3);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
@@ -1041,7 +994,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdDifferentIdType()
         {
-            // Covers lines 1124-1126 (different IdType)
             var a = new NodeId("Test", 0);
             var b = new NodeId(Guid.NewGuid(), 0);
             int result = a.CompareTo(b);
@@ -1051,7 +1003,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdSameTypeString()
         {
-            // Covers line 1131-1132 (String comparison)
             var a = new NodeId("Alpha", 0);
             var b = new NodeId("Beta", 0);
             Assert.That(a.CompareTo(b), Is.LessThan(0));
@@ -1060,7 +1011,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdSameTypeGuid()
         {
-            // Covers lines 1135-1136 (Guid comparison)
             var guid1 = new Guid("00000000-0000-0000-0000-000000000001");
             var guid2 = new Guid("00000000-0000-0000-0000-000000000002");
             var a = new NodeId(guid1, 0);
@@ -1071,7 +1021,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToNodeIdSameTypeOpaque()
         {
-            // Covers lines 1137-1138 (Opaque comparison)
             var a = new NodeId(new ByteString(new byte[] { 1 }), 0);
             var b = new NodeId(new ByteString(new byte[] { 2 }), 0);
             Assert.That(a.CompareTo(b), Is.Not.EqualTo(0));
@@ -1080,7 +1029,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToExpandedNodeIdAbsolute()
         {
-            // Covers lines 1146-1148 (absolute ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(42u, "http://test.org/");
             Assert.That(nodeId.CompareTo(expanded), Is.EqualTo(-1));
@@ -1089,7 +1037,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToExpandedNodeIdRelative()
         {
-            // Covers lines 1144-1151 (non-absolute ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             Assert.That(nodeId.CompareTo(expanded), Is.EqualTo(0));
@@ -1098,7 +1045,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToStringNull()
         {
-            // Covers lines 1154-1158 (this is null, string is null/empty)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo((string)null), Is.EqualTo(0));
             Assert.That(nullId.CompareTo(string.Empty), Is.EqualTo(0));
@@ -1107,7 +1053,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToStringNullWithValue()
         {
-            // Covers line 1158 (this is null, string has value)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo("something"), Is.EqualTo(1));
         }
@@ -1115,7 +1060,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToStringMismatchedType()
         {
-            // Covers lines 1160-1162 (wrong ns or type)
             var numericId = new NodeId(42u);
             Assert.That(numericId.CompareTo("test"), Is.EqualTo(-1));
 
@@ -1126,7 +1070,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToStringMatch()
         {
-            // Covers line 1164 (actual ordinal comparison)
             var nodeId = new NodeId("Alpha", 0);
             Assert.That(nodeId.CompareTo("Alpha"), Is.EqualTo(0));
             Assert.That(nodeId.CompareTo("Beta"), Is.LessThan(0));
@@ -1135,7 +1078,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToUintNull()
         {
-            // Covers lines 1169-1172 (null nodeId vs uint)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(0u), Is.EqualTo(0));
             Assert.That(nullId.CompareTo(5u), Is.EqualTo(1));
@@ -1144,7 +1086,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToUintMismatchedType()
         {
-            // Covers lines 1174-1176 (wrong ns or type)
             var stringId = new NodeId("test", 0);
             Assert.That(stringId.CompareTo(42u), Is.EqualTo(-1));
 
@@ -1155,7 +1096,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToUintMatch()
         {
-            // Covers line 1178 (actual comparison)
             var nodeId = new NodeId(10u);
             Assert.That(nodeId.CompareTo(10u), Is.EqualTo(0));
             Assert.That(nodeId.CompareTo(20u), Is.LessThan(0));
@@ -1164,7 +1104,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToGuidNull()
         {
-            // Covers lines 1183-1186 (null nodeId vs Guid)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(Guid.Empty), Is.EqualTo(0));
             Assert.That(nullId.CompareTo(Guid.NewGuid()), Is.EqualTo(1));
@@ -1173,7 +1112,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToGuidMismatchedType()
         {
-            // Covers lines 1188-1190 (wrong ns or type)
             var numericId = new NodeId(42u);
             Assert.That(numericId.CompareTo(Guid.NewGuid()), Is.EqualTo(-1));
 
@@ -1184,7 +1122,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToGuidMatch()
         {
-            // Covers line 1192 (actual comparison)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.CompareTo(guid), Is.EqualTo(0));
@@ -1193,7 +1130,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToByteStringNull()
         {
-            // Covers lines 1197-1200 (null nodeId vs ByteString)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(ByteString.Empty), Is.EqualTo(0));
             Assert.That(nullId.CompareTo(new ByteString(new byte[] { 1 })), Is.EqualTo(1));
@@ -1202,7 +1138,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToByteStringMismatchedType()
         {
-            // Covers lines 1202-1204 (wrong ns or type)
             var numericId = new NodeId(42u);
             Assert.That(numericId.CompareTo(new ByteString(new byte[] { 1 })), Is.EqualTo(-1));
 
@@ -1213,7 +1148,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToByteStringMatch()
         {
-            // Covers line 1206 (actual comparison)
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId.CompareTo(bytes), Is.EqualTo(0));
@@ -1222,7 +1156,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectNull()
         {
-            // Covers line 1215 (null object, null nodeId)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo((object)null), Is.EqualTo(0));
 
@@ -1234,7 +1167,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectInt()
         {
-            // Covers line 1216 (int, positive and negative)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)42), Is.EqualTo(0));
             Assert.That(nodeId.CompareTo((object)(-1)), Is.EqualTo(-1));
@@ -1243,7 +1175,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectUint()
         {
-            // Covers line 1217
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)42u), Is.EqualTo(0));
         }
@@ -1251,7 +1182,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectGuid()
         {
-            // Covers line 1218
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.CompareTo((object)guid), Is.EqualTo(0));
@@ -1260,7 +1190,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectUuid()
         {
-            // Covers line 1219
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.CompareTo((object)new Uuid(guid)), Is.EqualTo(0));
@@ -1269,7 +1198,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectString()
         {
-            // Covers line 1220
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId.CompareTo((object)"test"), Is.EqualTo(0));
         }
@@ -1277,7 +1205,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectByteString()
         {
-            // Covers line 1221
             var bytes = new ByteString(new byte[] { 1, 2 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId.CompareTo((object)bytes), Is.EqualTo(0));
@@ -1286,7 +1213,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectExpandedNodeId()
         {
-            // Covers line 1222
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             Assert.That(nodeId.CompareTo((object)expanded), Is.EqualTo(0));
@@ -1295,7 +1221,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectNodeId()
         {
-            // Covers line 1223
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)new NodeId(42u)), Is.EqualTo(0));
         }
@@ -1303,7 +1228,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectSerializableNodeId()
         {
-            // Covers line 1224
             var nodeId = new NodeId(42u);
             var serializable = new SerializableNodeId(nodeId);
             Assert.That(nodeId.CompareTo((object)serializable), Is.EqualTo(0));
@@ -1312,7 +1236,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectSerializableExpandedNodeId()
         {
-            // Covers line 1225
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             var serializable = new SerializableExpandedNodeId(expanded);
@@ -1322,14 +1245,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CompareToObjectUnknownType()
         {
-            // Covers line 1226 (default => -1)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)3.14), Is.EqualTo(-1));
         }
         [Test]
         public void OperatorGreaterThanOrEqual()
         {
-            // Covers lines 1243-1246
             var a = new NodeId(10u);
             var b = new NodeId(10u);
             var c = new NodeId(20u);
@@ -1340,7 +1261,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorLessThanOrEqual()
         {
-            // Covers lines 1249-1252
             var a = new NodeId(10u);
             var b = new NodeId(10u);
             var c = new NodeId(20u);
@@ -1350,7 +1270,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringIFormattableNullFormat()
         {
-            // Covers lines 1255-1259 (format == null)
             var nodeId = new NodeId(42u, 3);
             string result = nodeId.ToString(null, CultureInfo.InvariantCulture);
             Assert.That(result, Is.EqualTo("ns=3;i=42"));
@@ -1359,7 +1278,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringIFormattableNonNullFormatThrows()
         {
-            // Covers lines 1262 (non-null format throws)
             var nodeId = new NodeId(42u);
             Assert.Throws<FormatException>(() =>
                 nodeId.ToString("G", CultureInfo.InvariantCulture));
@@ -1367,7 +1285,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectNull()
         {
-            // Covers line 1270 (obj is null)
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.Equals((object)null), Is.True);
 
@@ -1378,7 +1295,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectInt()
         {
-            // Covers line 1271 (obj is int)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.Equals((object)42), Is.True);
             Assert.That(nodeId.Equals((object)(-1)), Is.False);
@@ -1387,7 +1303,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectUint()
         {
-            // Covers line 1272 (obj is uint)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.Equals((object)42u), Is.True);
         }
@@ -1395,7 +1310,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectGuid()
         {
-            // Covers line 1273 (obj is Guid)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.Equals((object)guid), Is.True);
@@ -1404,7 +1318,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectByteString()
         {
-            // Covers line 1274 (obj is ByteString)
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId.Equals((object)bytes), Is.True);
@@ -1413,7 +1326,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectString()
         {
-            // Covers line 1275 (obj is string)
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId.Equals((object)"test"), Is.True);
         }
@@ -1421,7 +1333,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectExpandedNodeId()
         {
-            // Covers line 1276 (obj is ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             Assert.That(nodeId.Equals((object)expanded), Is.True);
@@ -1430,7 +1341,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectSerializableNodeId()
         {
-            // Covers line 1278 (obj is SerializableNodeId)
             var nodeId = new NodeId(42u);
             var serializable = new SerializableNodeId(nodeId);
             Assert.That(nodeId.Equals((object)serializable), Is.True);
@@ -1439,7 +1349,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectSerializableExpandedNodeId()
         {
-            // Covers line 1279 (obj is SerializableExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             var serializable = new SerializableExpandedNodeId(expanded);
@@ -1449,7 +1358,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsObjectUnknownType()
         {
-            // Covers line 1280 (base.Equals fallback)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.Equals((object)3.14), Is.False);
         }
@@ -1457,7 +1365,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsNodeIdFallsThrough()
         {
-            // Covers line 1315 (fallthrough return false for mismatched id types
             // after type check)
             var a = new NodeId("test", 0);
             var b = new NodeId(42u, 0);
@@ -1467,7 +1374,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsExpandedNodeIdAbsolute()
         {
-            // Covers lines 1321-1323 (absolute ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var absolute = new ExpandedNodeId(42u, "http://test.org/");
             Assert.That(nodeId.Equals(absolute), Is.False);
@@ -1476,7 +1382,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsExpandedNodeIdRelative()
         {
-            // Covers line 1325 (non-absolute)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             Assert.That(nodeId.Equals(expanded), Is.True);
@@ -1485,7 +1390,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsUintMatch()
         {
-            // Covers lines 1329-1336
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.Equals(42u), Is.True);
             Assert.That(nodeId.Equals(99u), Is.False);
@@ -1494,7 +1398,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsUintMismatchedType()
         {
-            // Covers lines 1331-1333 (non-numeric or wrong namespace)
             var stringId = new NodeId("test", 0);
             Assert.That(stringId.Equals(42u), Is.False);
 
@@ -1505,7 +1408,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsGuidMatch()
         {
-            // Covers lines 1339-1346
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.Equals(guid), Is.True);
@@ -1515,7 +1417,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsGuidMismatchedType()
         {
-            // Covers lines 1341-1343
             var numericId = new NodeId(42u);
             Assert.That(numericId.Equals(Guid.NewGuid()), Is.False);
         }
@@ -1523,7 +1424,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsByteStringMatch()
         {
-            // Covers lines 1349-1356
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId.Equals(bytes), Is.True);
@@ -1532,7 +1432,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsByteStringMismatchedType()
         {
-            // Covers lines 1351-1353
             var numericId = new NodeId(42u);
             Assert.That(numericId.Equals(new ByteString(new byte[] { 1 })), Is.False);
         }
@@ -1540,7 +1439,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsStringMatch()
         {
-            // Covers lines 1359-1373
             var nodeId = new NodeId("hello", 0);
             Assert.That(nodeId.Equals("hello"), Is.True);
             Assert.That(nodeId.Equals("world"), Is.False);
@@ -1549,7 +1447,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsStringMismatchedType()
         {
-            // Covers lines 1361-1363
             var numericId = new NodeId(42u);
             Assert.That(numericId.Equals("test"), Is.False);
 
@@ -1560,7 +1457,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsStringNullOrEmpty()
         {
-            // Covers lines 1365-1367 (null/empty string vs null NodeId)
             NodeId nullId = new NodeId(string.Empty, 0);
             Assert.That(nullId.Equals((string)null), Is.True);
             Assert.That(nullId.Equals(string.Empty), Is.True);
@@ -1568,7 +1464,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsObject()
         {
-            // Covers lines 1416-1419 (== object)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId == (object)42u, Is.True);
             Assert.That(nodeId == (object)99u, Is.False);
@@ -1577,7 +1472,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsObject()
         {
-            // Covers lines 1422-1425 (!= object)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId != (object)99u, Is.True);
             Assert.That(nodeId != (object)42u, Is.False);
@@ -1586,7 +1480,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsExpandedNodeId()
         {
-            // Covers lines 1440-1443 (== ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(nodeId);
             Assert.That(nodeId == expanded, Is.True);
@@ -1595,7 +1488,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsExpandedNodeId()
         {
-            // Covers lines 1446-1449 (!= ExpandedNodeId)
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(99u);
             Assert.That(nodeId != expanded, Is.True);
@@ -1604,7 +1496,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsUint()
         {
-            // Covers lines 1452-1455 (== uint)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId == 42u, Is.True);
         }
@@ -1612,7 +1503,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsUint()
         {
-            // Covers lines 1458-1461 (!= uint)
             var nodeId = new NodeId(42u);
             Assert.That(nodeId != 99u, Is.True);
         }
@@ -1620,7 +1510,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsByteString()
         {
-            // Covers lines 1464-1467 (== ByteString)
             var bytes = new ByteString(new byte[] { 1, 2 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId == bytes, Is.True);
@@ -1629,7 +1518,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsByteString()
         {
-            // Covers lines 1470-1473 (!= ByteString)
             var nodeId = new NodeId(new ByteString(new byte[] { 1 }));
             Assert.That(nodeId != new ByteString(new byte[] { 2 }), Is.True);
         }
@@ -1637,7 +1525,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsGuid()
         {
-            // Covers lines 1476-1479 (== Guid)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId == guid, Is.True);
@@ -1646,7 +1533,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsGuid()
         {
-            // Covers lines 1482-1485 (!= Guid)
             var nodeId = new NodeId(Guid.NewGuid());
             Assert.That(nodeId != Guid.Empty, Is.True);
         }
@@ -1654,7 +1540,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualsString()
         {
-            // Covers lines 1488-1491 (== string)
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId == "test", Is.True);
         }
@@ -1662,14 +1547,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorNotEqualsString()
         {
-            // Covers lines 1494-1497 (!= string)
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId != "other", Is.True);
         }
         [Test]
         public void TryGetIdentifierUintFalseForNonNumeric()
         {
-            // Covers lines 1566-1567
             var nodeId = new NodeId("test", 0);
             Assert.That(nodeId.TryGetIdentifier(out uint _), Is.False);
         }
@@ -1677,7 +1560,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierByteStringFalseForNonOpaque()
         {
-            // Covers lines 1580-1581
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.TryGetIdentifier(out ByteString _), Is.False);
         }
@@ -1685,7 +1567,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierByteStringTrue()
         {
-            // Covers lines 1575-1578
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
             Assert.That(nodeId.TryGetIdentifier(out ByteString result), Is.True);
@@ -1695,7 +1576,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierStringFalseForNonString()
         {
-            // Covers lines 1594-1595
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.TryGetIdentifier(out string _), Is.False);
         }
@@ -1703,7 +1583,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierStringTrue()
         {
-            // Covers lines 1589-1592
             var nodeId = new NodeId("hello", 0);
             Assert.That(nodeId.TryGetIdentifier(out string result), Is.True);
             Assert.That(result, Is.EqualTo("hello"));
@@ -1712,7 +1591,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierGuidFalseForNonGuid()
         {
-            // Covers lines 1608-1609
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.TryGetIdentifier(out Guid _), Is.False);
         }
@@ -1720,7 +1598,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetIdentifierGuidTrue()
         {
-            // Covers lines 1603-1606
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId.TryGetIdentifier(out Guid result), Is.True);
@@ -1730,7 +1607,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierPropertyString()
         {
-            // Covers line 1535 (String branch of Identifier)
             var nodeId = new NodeId("test", 0);
             object id = nodeId.Identifier;
             Assert.That(id, Is.TypeOf<string>());
@@ -1740,7 +1616,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierPropertyGuid()
         {
-            // Covers line 1536 (Guid branch)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             object id = nodeId.Identifier;
@@ -1751,7 +1626,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierPropertyOpaque()
         {
-            // Covers line 1537 (Opaque branch)
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
             object id = nodeId.Identifier;
@@ -1762,7 +1636,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierPropertyNumeric()
         {
-            // Covers line 1534 (Numeric branch)
             var nodeId = new NodeId(42u);
             object id = nodeId.Identifier;
             Assert.That(id, Is.TypeOf<uint>());
@@ -1773,7 +1646,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierAsStringOpaque()
         {
-            // Covers line 1551 (Opaque branch of IdentifierAsString)
             var bytes = new ByteString(new byte[] { 0xAA, 0xBB });
             var nodeId = new NodeId(bytes);
             string str = nodeId.IdentifierAsString;
@@ -1783,7 +1655,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IdentifierAsStringGuid()
         {
-            // Covers line 1550 (Guid branch)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             string str = nodeId.IdentifierAsString;
@@ -1792,7 +1663,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNullWithNonZeroNamespace()
         {
-            // Covers line 1619 (NamespaceIndex != 0 => false)
             var nodeId = new NodeId(0u, 5);
             Assert.That(nodeId.IsNull, Is.False);
         }
@@ -1800,7 +1670,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNullEmptyGuid()
         {
-            // Covers line 1622 (Guid == Guid.Empty)
             var nodeId = new NodeId(Guid.Empty);
             Assert.That(nodeId.IsNull, Is.True);
         }
@@ -1815,7 +1684,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNullEmptyOpaque()
         {
-            // Covers line 1623 (OpaqueIdentifer.Length == 0)
             var nodeId = new NodeId(ByteString.Empty);
             Assert.That(nodeId.IsNull, Is.True);
         }
@@ -1829,7 +1697,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToExpandedNodeIdNull()
         {
-            // Covers lines 1002-1004
             var namespaceTable = new NamespaceTable();
             ExpandedNodeId result = NodeId.ToExpandedNodeId(NodeId.Null, namespaceTable);
             Assert.That(result.IsNull, Is.True);
@@ -1838,7 +1705,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToExpandedNodeIdWithNamespace()
         {
-            // Covers lines 1009-1016
             var namespaceTable = new NamespaceTable();
             string nsUri = "http://test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
@@ -1851,7 +1717,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToExpandedNodeIdNamespaceZero()
         {
-            // Covers lines 1007, 1019 (ns=0, skip uri lookup)
             var namespaceTable = new NamespaceTable();
             var nodeId = new NodeId(42u, 0);
             ExpandedNodeId result = NodeId.ToExpandedNodeId(nodeId, namespaceTable);
@@ -1862,7 +1727,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteStringConstructor()
         {
-            // Covers lines 232-235 (NodeId(string text))
             var nodeId = new NodeId("i=42");
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(nodeId, Is.EqualTo(new NodeId(42u)));
@@ -1871,7 +1735,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorUint()
         {
-            // Covers lines 246-268 (NodeId(object, ushort))
             var nodeId = new NodeId((object)42u, 3);
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(nodeId.NamespaceIndex, Is.EqualTo(3));
@@ -1880,7 +1743,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorNullString()
         {
-            // Covers case null or string (line 253-254)
             var nodeId = new NodeId((object)null, 0);
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.String));
         }
@@ -1896,7 +1758,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorGuid()
         {
-            // Covers case Guid (line 256-257)
             var guid = Guid.NewGuid();
             var nodeId = new NodeId((object)guid, 1);
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Guid));
@@ -1906,7 +1767,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorByteString()
         {
-            // Covers case ByteString (line 259-260)
             var bytes = new ByteString(new byte[] { 5, 6 });
             var nodeId = new NodeId((object)bytes, 4);
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Opaque));
@@ -1916,15 +1776,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorUnsupportedTypeThrows()
         {
-            // Covers lines 262-265 (default case throws)
             Assert.Throws<ArgumentException>(() =>
-                new NodeId((object)3.14, 0));
+    new NodeId((object)3.14, 0));
         }
 #pragma warning restore CS0618
         [Test]
         public void SerializableNodeIdDefaultConstructor()
         {
-            // Covers lines 1694-1697
             var serializable = new SerializableNodeId();
             Assert.That(serializable.Value.IsNull, Is.True);
         }
@@ -1949,7 +1807,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void NodeIdParsingOptionsProperties()
         {
-            // Covers lines 1672, 1677, 1682
             var options = new NodeIdParsingOptions
             {
                 UpdateTables = true,

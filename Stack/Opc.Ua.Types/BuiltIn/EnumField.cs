@@ -38,25 +38,8 @@ namespace Opc.Ua
     /// Enum field
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class EnumField : EnumValueType
+    public class EnumField : EnumValueType, IEquatable<EnumField>
     {
-        /// <inheritdoc/>
-        public EnumField()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            Name = null;
-        }
-
         /// <summary>
         /// Name
         /// </summary>
@@ -112,12 +95,42 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Name, value.Name))
+            if (Name != value.Name)
             {
                 return false;
             }
 
             return base.IsEqual(encodeable);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), Name);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(EnumField other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(EnumField left, EnumField right)
+        {
+            return EqualityComparer<EnumField>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(EnumField left, EnumField right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

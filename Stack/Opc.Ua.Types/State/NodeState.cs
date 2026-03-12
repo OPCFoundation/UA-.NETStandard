@@ -92,10 +92,8 @@ namespace Opc.Ua
                 Description == node.Description &&
                 WriteMask == node.WriteMask &&
                 UserWriteMask == node.UserWriteMask &&
-                EqualityComparer<RolePermissionTypeCollection>.Default.Equals(
-                    RolePermissions, node.RolePermissions) &&
-                EqualityComparer<RolePermissionTypeCollection>.Default.Equals(
-                    UserRolePermissions, node.UserRolePermissions) &&
+                RolePermissions == node.RolePermissions &&
+                UserRolePermissions == node.UserRolePermissions &&
                 AccessRestrictions == node.AccessRestrictions &&
                 AreEventsMonitored == node.AreEventsMonitored &&
                 Initialized == node.Initialized &&

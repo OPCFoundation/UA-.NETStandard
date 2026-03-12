@@ -79,39 +79,6 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void RolePermissionsSetNullResetsToEmpty()
-        {
-            var node = new Node
-            {
-                RolePermissions = null
-            };
-            Assert.That(node.RolePermissions, Is.Not.Null);
-            Assert.That(node.RolePermissions.Count, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void UserRolePermissionsSetNullResetsToEmpty()
-        {
-            var node = new Node
-            {
-                UserRolePermissions = null
-            };
-            Assert.That(node.UserRolePermissions, Is.Not.Null);
-            Assert.That(node.UserRolePermissions.Count, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void ReferencesSetNullResetsToEmpty()
-        {
-            var node = new Node
-            {
-                References = null
-            };
-            Assert.That(node.References, Is.Not.Null);
-            Assert.That(node.References.Count, Is.EqualTo(0));
-        }
-
-        [Test]
         public void CloneCreatesDeepCopy()
         {
             var node = new Node

@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 }
                                 else
                                 {
-                                    dataValue = Utils.Clone(dataValue);
+                                    dataValue = CoreUtils.Clone(dataValue);
 
                                     //check StatusCode and return SubstituteValue if possible
                                     if (dataValue.StatusCode == StatusCodes.Bad &&
@@ -219,13 +219,11 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 ShouldBringToConstraints(
                                                     (uint)strFieldValue.Length))
                                             {
-                                                dataValue.Value = new Variant(strFieldValue[
-                                                    ..(int)field.FieldMetaData.MaxStringLength
-                                                ]);
+                                                dataValue.WrappedValue = Variant.From(
+                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]);
                                             }
                                         }
-                                        else if (field.FieldMetaData.ValueRank == ValueRanks
-                                            .OneDimension)
+                                        else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
                                         {
                                             if (variant.TryGet(out ArrayOf<string> valueArray))
                                             {
@@ -244,7 +242,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 }
                                                 valueArray = buffer.ToArrayOf();
                                             }
-                                            dataValue.Value = valueArray;
+                                            dataValue.WrappedValue = Variant.From(valueArray);
                                         }
                                         break;
                                     case BuiltInType.ByteString:
@@ -257,7 +255,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 Array.Resize(
                                                     ref byteArray,
                                                     (int)field.FieldMetaData.MaxStringLength);
-                                                dataValue.Value = new Variant(ByteString.From(byteArray));
+                                                dataValue.WrappedValue = Variant.From(ByteString.From(byteArray));
                                             }
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
@@ -279,7 +277,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 }
                                                 valueArray = buffer.ToArrayOf();
                                             }
-                                            dataValue.Value = valueArray;
+                                            dataValue.WrappedValue = Variant.From(valueArray);
                                         }
                                         break;
                                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:

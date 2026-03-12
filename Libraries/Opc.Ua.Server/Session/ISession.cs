@@ -123,7 +123,7 @@ namespace Opc.Ua.Server
             IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             Nonce serverNonce);
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
         /// Updates the requested locale ids.
         /// </summary>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
-        bool UpdateLocaleIds(StringCollection localeIds);
+        bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
         /// <summary>
         /// Activates the session and binds it to the current secure channel.

@@ -35,7 +35,7 @@ using NUnit.Framework;
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
-    /// Coverage tests for <see cref="DiagnosticInfo"/>.
+    /// Tests for <see cref="DiagnosticInfo"/>.
     /// </summary>
     [TestFixture]
     [Category("BuiltInType")]
@@ -46,9 +46,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     {
         private static readonly ILogger s_logger = new Mock<ILogger>().Object;
 
-        /// <summary>
-        /// Ensure defaults are correct.
-        /// </summary>
         [Test]
         public void DiagnosticInfoDefault()
         {
@@ -68,10 +65,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(diagnosticInfo.IsNullDiagnosticInfo, Is.True);
         }
 
-        /// <summary>
-        /// Copy constructor with null throws ArgumentNullException.
-        /// Covers lines 87-88.
-        /// </summary>
         [Test]
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
@@ -79,10 +72,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        /// <summary>
-        /// Copy constructor deep copies all fields including InnerDiagnosticInfo.
-        /// Covers lines 91-101.
-        /// </summary>
         [Test]
         public void CopyConstructorDeepCopiesAllFieldsAndInner()
         {
@@ -110,11 +99,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(copy.InnerDiagnosticInfo.AdditionalInfo, Is.EqualTo("inner info"));
         }
 
-        /// <summary>
-        /// ServiceResult constructor with all diagnostic masks and service level true
-        /// populates all fields from the ServiceResult.
-        /// Covers lines 177-179, 199-209, 280-373.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorWithAllMasksSetsAllFields()
         {
@@ -145,11 +129,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerDiagnosticInfo, Is.Not.Null);
         }
 
-        /// <summary>
-        /// ServiceResult constructor with service level false shifts the mask right by 5 bits,
-        /// converting operation-level masks to service-level masks.
-        /// Covers lines 201-204.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorWithServiceLevelFalseShiftsMask()
         {
@@ -171,10 +150,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.Locale, Is.GreaterThanOrEqualTo(0));
         }
 
-        /// <summary>
-        /// ServiceResult constructor with null string table throws ArgumentNullException.
-        /// Covers lines 281-283.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorWithNullStringTableThrows()
         {
@@ -185,11 +160,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        /// <summary>
-        /// When strings already exist in the table, their indices are reused
-        /// instead of appending duplicates.
-        /// Covers lines 295, 305 (GetIndex returning existing index).
-        /// </summary>
         [Test]
         public void ServiceResultConstructorReusesExistingStringsInTable()
         {
@@ -215,10 +185,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.NamespaceUri, Is.GreaterThanOrEqualTo(0));
         }
 
-        /// <summary>
-        /// ServiceResult with localized text and locale sets both fields.
-        /// Covers lines 316-337.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorSetsLocalizedTextAndLocale()
         {
@@ -238,10 +204,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.LocalizedText, Is.GreaterThanOrEqualTo(0));
         }
 
-        /// <summary>
-        /// Localized text with existing locale/text in table reuses indices.
-        /// Covers lines 321, 330 (GetIndex returning existing index for locale/text).
-        /// </summary>
         [Test]
         public void ServiceResultConstructorReusesExistingLocalizedTextStrings()
         {
@@ -266,11 +228,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.LocalizedText, Is.GreaterThanOrEqualTo(0));
         }
 
-        /// <summary>
-        /// AdditionalInfo is set only when both ServiceAdditionalInfo and
-        /// UserPermissionAdditionalInfo masks are present.
-        /// Covers lines 339-343.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorSetsAdditionalInfoWithBothMasks()
         {
@@ -289,10 +246,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.AdditionalInfo, Is.EqualTo("additional debug"));
         }
 
-        /// <summary>
-        /// AdditionalInfo is NOT set when UserPermissionAdditionalInfo is missing.
-        /// Covers lines 339-340 (condition evaluates false).
-        /// </summary>
         [Test]
         public void ServiceResultConstructorSkipsAdditionalInfoWithoutUserPermission()
         {
@@ -311,10 +264,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.AdditionalInfo, Is.Null);
         }
 
-        /// <summary>
-        /// InnerStatusCode is set from the inner result when ServiceInnerStatusCode mask is present.
-        /// Covers lines 345-350.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorSetsInnerStatusCode()
         {
@@ -329,10 +278,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerStatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
-        /// <summary>
-        /// InnerDiagnosticInfo is recursively created from inner result.
-        /// Covers lines 353-364.
-        /// </summary>
         [Test]
         public void ServiceResultConstructorCreatesInnerDiagnosticInfo()
         {
@@ -357,10 +302,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerDiagnosticInfo, Is.Not.Null);
         }
 
-        /// <summary>
-        /// Inner diagnostics are truncated when the nesting depth exceeds MaxInnerDepth.
-        /// Covers lines 366-370 (log warning and skip inner creation).
-        /// </summary>
         [Test]
         public void ServiceResultConstructorTruncatesAtMaxDepth()
         {
@@ -389,10 +330,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(depth, Is.LessThanOrEqualTo(DiagnosticInfo.MaxInnerDepth));
         }
 
-        /// <summary>
-        /// Exception constructor with service level true creates DiagnosticInfo.
-        /// Covers lines 219-236.
-        /// </summary>
         [Test]
         public void ExceptionConstructorWithServiceLevelTrueCreatesDiagnosticInfo()
         {
@@ -405,10 +342,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di, Is.Not.Null);
         }
 
-        /// <summary>
-        /// Exception constructor with service level false shifts the mask.
-        /// Covers lines 228-231.
-        /// </summary>
         [Test]
         public void ExceptionConstructorWithServiceLevelFalseShiftsMask()
         {
@@ -421,10 +354,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di, Is.Not.Null);
         }
 
-        /// <summary>
-        /// ServiceResult constructor without inner result does not set InnerStatusCode or InnerDiagnosticInfo.
-        /// Covers lines 345 (condition false branch).
-        /// </summary>
         [Test]
         public void ServiceResultConstructorWithoutInnerResultLeavesInnerDefaults()
         {
@@ -439,10 +368,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerDiagnosticInfo, Is.Null);
         }
 
-        /// <summary>
-        /// Equals returns true when comparing to same reference.
-        /// Covers lines 526-528.
-        /// </summary>
         [Test]
         public void EqualsSameReferenceReturnsTrue()
         {
@@ -451,10 +376,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.Equals((object)di), Is.True);
         }
 
-        /// <summary>
-        /// Equals returns false when comparing to a non-DiagnosticInfo object.
-        /// Covers line 581.
-        /// </summary>
         [Test]
         public void EqualsNonDiagnosticInfoReturnsFalse()
         {
@@ -463,10 +384,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.Equals("not a diagnostic info"), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when SymbolicId differs.
-        /// Covers lines 538-540.
-        /// </summary>
         [Test]
         public void EqualsDifferentSymbolicIdReturnsFalse()
         {
@@ -476,10 +393,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when NamespaceUri differs.
-        /// Covers lines 543-545.
-        /// </summary>
         [Test]
         public void EqualsDifferentNamespaceUriReturnsFalse()
         {
@@ -489,10 +402,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when Locale differs.
-        /// Covers lines 548-550.
-        /// </summary>
         [Test]
         public void EqualsDifferentLocaleReturnsFalse()
         {
@@ -502,10 +411,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when LocalizedText differs.
-        /// Covers lines 553-555.
-        /// </summary>
         [Test]
         public void EqualsDifferentLocalizedTextReturnsFalse()
         {
@@ -515,10 +420,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when AdditionalInfo differs.
-        /// Covers lines 558-560.
-        /// </summary>
         [Test]
         public void EqualsDifferentAdditionalInfoReturnsFalse()
         {
@@ -528,10 +429,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when InnerStatusCode differs.
-        /// Covers lines 563-565.
-        /// </summary>
         [Test]
         public void EqualsDifferentInnerStatusCodeReturnsFalse()
         {
@@ -541,10 +438,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals recurses into matching InnerDiagnosticInfo and returns true.
-        /// Covers lines 568-572.
-        /// </summary>
         [Test]
         public void EqualsWithMatchingInnerDiagnosticInfoReturnsTrue()
         {
@@ -556,10 +449,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.True);
         }
 
-        /// <summary>
-        /// Equals recurses into InnerDiagnosticInfo and returns false when they differ.
-        /// Covers line 572.
-        /// </summary>
         [Test]
         public void EqualsWithDifferentInnerDiagnosticInfoReturnsFalse()
         {
@@ -571,10 +460,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns false when one has InnerDiagnosticInfo and the other does not.
-        /// Covers line 578 (value.InnerDiagnosticInfo == null returns false).
-        /// </summary>
         [Test]
         public void EqualsOneHasInnerDiagnosticInfoOtherDoesNotReturnsFalse()
         {
@@ -588,10 +473,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.False);
         }
 
-        /// <summary>
-        /// Equals returns true for identical DiagnosticInfo objects without inner.
-        /// Covers all comparison branches passing through to return true at line 578.
-        /// </summary>
         [Test]
         public void EqualsIdenticalDiagnosticInfoWithoutInnerReturnsTrue()
         {
@@ -601,10 +482,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.True);
         }
 
-        /// <summary>
-        /// Equals at max recursion depth returns true regardless of deeper inner differences.
-        /// Covers line 575 (depth >= MaxInnerDepth returns true).
-        /// </summary>
         [Test]
         public void EqualsAtMaxDepthReturnsTrueRegardlessOfDeeperDifferences()
         {
@@ -630,10 +507,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.Equals(di2), Is.True);
         }
 
-        /// <summary>
-        /// GetHashCode returns a consistent value for the same object.
-        /// Covers lines 441-445, 501-510.
-        /// </summary>
         [Test]
         public void GetHashCodeReturnsConsistentValue()
         {
@@ -645,10 +518,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(hash1, Is.EqualTo(hash2));
         }
 
-        /// <summary>
-        /// GetHashCode produces different values when AdditionalInfo differs.
-        /// Covers lines 507-510.
-        /// </summary>
         [Test]
         public void GetHashCodeDiffersWithDifferentAdditionalInfo()
         {
@@ -658,10 +527,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.GetHashCode(), Is.Not.EqualTo(di2.GetHashCode()));
         }
 
-        /// <summary>
-        /// GetHashCode includes InnerDiagnosticInfo in the hash computation.
-        /// Covers lines 514-517.
-        /// </summary>
         [Test]
         public void GetHashCodeIncludesInnerDiagnosticInfo()
         {
@@ -677,10 +542,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di1.GetHashCode(), Is.Not.EqualTo(di2.GetHashCode()));
         }
 
-        /// <summary>
-        /// GetHashCode with null AdditionalInfo and no InnerDiagnosticInfo.
-        /// Covers lines 507 (false branch), 514 (false branch).
-        /// </summary>
         [Test]
         public void GetHashCodeWithNullAdditionalInfoAndNoInner()
         {
@@ -691,10 +552,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(hash, Is.TypeOf<int>());
         }
 
-        /// <summary>
-        /// Parameterless ToString returns formatted string with field values.
-        /// Covers lines 454-456.
-        /// </summary>
         [Test]
         public void ToStringReturnsFormattedString()
         {
@@ -705,10 +562,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo("1:2:3:4"));
         }
 
-        /// <summary>
-        /// ToString with non-null format string throws FormatException.
-        /// Covers line 479.
-        /// </summary>
         [Test]
         public void ToStringWithNonNullFormatThrowsFormatException()
         {
@@ -718,10 +571,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.TypeOf<FormatException>());
         }
 
-        /// <summary>
-        /// ToString with null format and null formatProvider returns formatted string.
-        /// Covers lines 468-476.
-        /// </summary>
         [Test]
         public void ToStringWithNullFormatReturnsFormattedString()
         {
@@ -732,9 +581,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo("5:10:15:20"));
         }
 
-        /// <summary>
-        /// ToString with default values shows -1 for all indices.
-        /// </summary>
         [Test]
         public void ToStringDefaultValuesShowsNegativeOnes()
         {
@@ -745,10 +591,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo("-1:-1:-1:-1"));
         }
 
-        /// <summary>
-        /// Clone returns a deep copy that is equal but not same reference.
-        /// Covers lines 484-486, 492-494.
-        /// </summary>
         [Test]
         public void CloneReturnsDeepCopy()
         {
@@ -772,10 +614,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone.InnerDiagnosticInfo.SymbolicId, Is.EqualTo(10));
         }
 
-        /// <summary>
-        /// MemberwiseClone returns a deep copy (overridden to use copy constructor).
-        /// Covers lines 492-494.
-        /// </summary>
         [Test]
         public void MemberwiseCloneReturnsDeepCopy()
         {
@@ -787,9 +625,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(clone.SymbolicId, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// IsNullDiagnosticInfo returns false when SymbolicId is not default.
-        /// </summary>
         [Test]
         public void IsNullDiagnosticInfoReturnsFalseForNonDefaultSymbolicId()
         {
@@ -798,9 +633,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.IsNullDiagnosticInfo, Is.False);
         }
 
-        /// <summary>
-        /// IsNullDiagnosticInfo returns false when InnerDiagnosticInfo is set.
-        /// </summary>
         [Test]
         public void IsNullDiagnosticInfoReturnsFalseWithInnerDiagnosticInfo()
         {
@@ -812,9 +644,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.IsNullDiagnosticInfo, Is.False);
         }
 
-        /// <summary>
-        /// IsNullDiagnosticInfo returns false when InnerStatusCode is not Good.
-        /// </summary>
         [Test]
         public void IsNullDiagnosticInfoReturnsFalseWithNonGoodStatusCode()
         {
@@ -823,9 +652,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.IsNullDiagnosticInfo, Is.False);
         }
 
-        /// <summary>
-        /// IsNullDiagnosticInfo returns false when AdditionalInfo is set.
-        /// </summary>
         [Test]
         public void IsNullDiagnosticInfoReturnsFalseWithAdditionalInfo()
         {

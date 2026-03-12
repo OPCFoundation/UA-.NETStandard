@@ -239,7 +239,7 @@ namespace Opc.Ua.Client
         /// Browses the specified node.
         /// </summary>
         [Obsolete("Use BrowseAsync(NodeId) instead.")]
-        public ReferenceDescriptionCollection Browse(NodeId nodeId)
+        public ArrayOf<ReferenceDescription> Browse(NodeId nodeId)
         {
             return BrowseAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
@@ -299,14 +299,14 @@ namespace Opc.Ua.Client
 
             // fetch initial set of references.
             ByteString continuationPoint = results[0].ContinuationPoint;
-            ReferenceDescriptionCollection references = results[0].References;
+            var references = results[0].References;
 
             try
             {
                 // process any continuation point.
                 while (!continuationPoint.IsEmpty)
                 {
-                    ReferenceDescriptionCollection additionalReferences;
+                    ArrayOf<ReferenceDescription> additionalReferences;
 
                     if (!ContinueUntilDone && m_MoreReferences != null)
                     {
@@ -341,9 +341,9 @@ namespace Opc.Ua.Client
                         continuationPoint,
                         false,
                         ct).ConfigureAwait(false);
-                    if (additionalReferences != null && additionalReferences.Count > 0)
+                    if (!additionalReferences.IsEmpty)
                     {
-                        references.AddRange(additionalReferences);
+                        references = references.AddItems(additionalReferences);
                     }
                     else
                     {
@@ -765,7 +765,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal BrowserEventArgs(ReferenceDescriptionCollection references)
+        internal BrowserEventArgs(ArrayOf<ReferenceDescription> references)
         {
             References = references;
         }
@@ -783,7 +783,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The references that have been fetched so far.
         /// </summary>
-        public ReferenceDescriptionCollection References { get; }
+        public ArrayOf<ReferenceDescription> References { get; }
     }
 
     /// <summary>

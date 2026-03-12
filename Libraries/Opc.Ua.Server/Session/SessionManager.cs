@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default)
         {
             ByteString serverNonce = default;

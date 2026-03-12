@@ -365,7 +365,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodesToRead[1].Processed, Is.False);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
-            Assert.That(values[0].Value, Is.EqualTo(42));
+            Assert.That((int)values[0].WrappedValue, Is.EqualTo(42));
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
             Assert.That(values[0].ServerTimestamp, Is.EqualTo(values[0].SourceTimestamp));
@@ -677,8 +677,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notifications.Count, Is.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That(notification.Value.Value, Is.EqualTo(0));
-                Assert.That(notificationAfterWrite.Value.Value, Is.EqualTo(123));
+                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
+                Assert.That((int)notificationAfterWrite.Value.WrappedValue, Is.EqualTo(123));
                 Assert.That(diagnostics.Count, Is.EqualTo(2));
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
@@ -782,7 +782,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notifications.Count, Is.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That(notification.Value.Value, Is.EqualTo(0));
+                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
                 Assert.That(diagnostics.Count, Is.EqualTo(2));
             }

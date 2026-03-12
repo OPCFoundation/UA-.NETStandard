@@ -132,7 +132,7 @@ namespace Opc.Ua.Client
         /// Creates all items that have not already been created.
         /// </summary>
         [Obsolete("Use CreateItemsAsync() instead.")]
-        public static IList<MonitoredItem> CreateItems(this Subscription subscription)
+        public static ArrayOf<MonitoredItem> CreateItems(this Subscription subscription)
         {
             return subscription.CreateItemsAsync().GetAwaiter().GetResult();
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client
         /// Modifies all items that have been changed.
         /// </summary>
         [Obsolete("Use ModifyItemsAsync() instead.")]
-        public static IList<MonitoredItem> ModifyItems(this Subscription subscription)
+        public static ArrayOf<MonitoredItem> ModifyItems(this Subscription subscription)
         {
             return subscription.ModifyItemsAsync().GetAwaiter().GetResult();
         }
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client
         /// Deletes all items that have been marked for deletion.
         /// </summary>
         [Obsolete("Use DeleteItemsAsync() instead.")]
-        public static IList<MonitoredItem> DeleteItems(this Subscription subscription)
+        public static ArrayOf<MonitoredItem> DeleteItems(this Subscription subscription)
         {
             return subscription.DeleteItemsAsync().GetAwaiter().GetResult();
         }
@@ -212,8 +212,8 @@ namespace Opc.Ua.Client
         [Obsolete("Use GetMonitoredItemsAsync() instead.")]
         public static bool GetMonitoredItems(
             this Subscription subscription,
-            out UInt32Collection serverHandles,
-            out UInt32Collection clientHandles)
+            out ArrayOf<uint> serverHandles,
+            out ArrayOf<uint> clientHandles)
         {
             (bool result, serverHandles, clientHandles) =
                 subscription.GetMonitoredItemsAsync()

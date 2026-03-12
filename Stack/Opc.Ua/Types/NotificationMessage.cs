@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public StringCollection StringTable { get; set; }
+        public ArrayOf<string> StringTable { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether there are more

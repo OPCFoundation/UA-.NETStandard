@@ -38,28 +38,11 @@ namespace Opc.Ua
     /// Role permission type
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class RolePermissionType : IEncodeable, IJsonEncodeable
+    public class RolePermissionType :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<RolePermissionType>
     {
-        /// <summary>
-        /// Create role permission
-        /// </summary>
-        public RolePermissionType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            RoleId = default;
-            Permissions = 0;
-        }
-
         /// <summary>
         /// Role id
         /// </summary>
@@ -119,17 +102,47 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(RoleId, value.RoleId))
+            if (RoleId != value.RoleId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Permissions, value.Permissions))
+            if (Permissions != value.Permissions)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(RoleId, Permissions);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(RolePermissionType other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(RolePermissionType left, RolePermissionType right)
+        {
+            return EqualityComparer<RolePermissionType>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(RolePermissionType left, RolePermissionType right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

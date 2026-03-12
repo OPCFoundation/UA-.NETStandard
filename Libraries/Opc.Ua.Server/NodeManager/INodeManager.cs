@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace table of the NodeManager.
         /// </summary>
-        StringCollection NamespacesUris { get; }
+        ArrayOf<string> NamespacesUris { get; }
     }
 
     /// <summary>
@@ -689,7 +689,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace table of the NodeManager.
         /// </summary>
-        StringCollection NamespacesUris { get; }
+        ArrayOf<string> NamespacesUris { get; }
     }
 
     /// <summary>

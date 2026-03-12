@@ -2298,9 +2298,9 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Imports the array dimensions.
         /// </summary>
-        private static string ImportArrayDimensions(IList<uint> arrayDimensions)
+        private static string ImportArrayDimensions(ArrayOf<uint> arrayDimensions)
         {
-            if (arrayDimensions == null)
+            if (arrayDimensions.IsEmpty)
             {
                 return null;
             }

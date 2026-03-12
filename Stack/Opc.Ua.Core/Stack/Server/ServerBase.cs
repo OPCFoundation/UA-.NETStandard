@@ -365,8 +365,8 @@ namespace Opc.Ua
         {
             BaseAddresses = [];
 
-            StringCollection sourceBaseAddresses = null;
-            StringCollection sourceAlternateAddresses = null;
+            ArrayOf<string> sourceBaseAddresses = default;
+            ArrayOf<string> sourceAlternateAddresses = default;
 
             if (configuration.ServerConfiguration != null)
             {
@@ -377,11 +377,10 @@ namespace Opc.Ua
             if (configuration.DiscoveryServerConfiguration != null)
             {
                 sourceBaseAddresses = configuration.DiscoveryServerConfiguration.BaseAddresses;
-                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration
-                    .AlternateBaseAddresses;
+                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration.AlternateBaseAddresses;
             }
 
-            if (sourceBaseAddresses == null)
+            if (sourceBaseAddresses.IsNull)
             {
                 return;
             }
@@ -390,16 +389,13 @@ namespace Opc.Ua
             {
                 var address = new BaseAddress { Url = new Uri(baseAddress) };
 
-                if (sourceAlternateAddresses != null)
+                foreach (string alternateAddress in sourceAlternateAddresses)
                 {
-                    foreach (string alternateAddress in sourceAlternateAddresses)
-                    {
-                        var alternateUrl = new Uri(alternateAddress);
+                    var alternateUrl = new Uri(alternateAddress);
 
-                        if (alternateUrl.Scheme == address.Url.Scheme)
-                        {
-                            (address.AlternateUrls ??= []).Add(alternateUrl);
-                        }
+                    if (alternateUrl.Scheme == address.Url.Scheme)
+                    {
+                        (address.AlternateUrls ??= []).Add(alternateUrl);
                     }
                 }
 
@@ -430,10 +426,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the discovery URLs for the server.
         /// </summary>
-        protected StringCollection GetDiscoveryUrls()
+        protected ArrayOf<string> GetDiscoveryUrls()
         {
             // build list of discovery uris.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
             string computerName = Utils.GetHostName();
 
             foreach (BaseAddress baseAddress in BaseAddresses)
@@ -740,7 +736,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or set the capabilities for the server.
         /// </summary>
-        protected StringCollection ServerCapabilities { get; set; }
+        protected ArrayOf<string> ServerCapabilities { get; set; }
 
         /// <summary>
         /// Gets the list of transport listeners used by the server instance.
@@ -883,7 +879,7 @@ namespace Opc.Ua
             var policies = new UserTokenPolicyCollection();
 
             if (configuration.ServerConfiguration == null ||
-                configuration.ServerConfiguration.UserTokenPolicies == null)
+                configuration.ServerConfiguration.UserTokenPolicies.IsNull)
             {
                 return policies;
             }
@@ -1016,10 +1012,10 @@ namespace Opc.Ua
         /// Filters the list of addresses by profile.
         /// </summary>
         protected IList<BaseAddress> FilterByProfile(
-            StringCollection profileUris,
+            ArrayOf<string> profileUris,
             IList<BaseAddress> baseAddresses)
         {
-            if (profileUris == null || profileUris.Count == 0)
+            if (profileUris.IsEmpty)
             {
                 return baseAddresses;
             }
@@ -1142,7 +1138,7 @@ namespace Opc.Ua
             LocalizedText applicationName)
         {
             // get the discovery urls.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
@@ -1410,7 +1406,7 @@ namespace Opc.Ua
                 }
 
                 // ensure at least one user token policy exists.
-                if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
+                if (configuration.ServerConfiguration.UserTokenPolicies.IsEmpty)
                 {
                     var userTokenPolicy = new UserTokenPolicy
                     {
@@ -1418,7 +1414,8 @@ namespace Opc.Ua
                     };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
-                    configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+                    configuration.ServerConfiguration.UserTokenPolicies =
+                        configuration.ServerConfiguration.UserTokenPolicies.AddItem(userTokenPolicy);
                 }
             }
 

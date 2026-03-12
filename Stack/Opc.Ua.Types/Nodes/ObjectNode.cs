@@ -125,7 +125,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(EventNotifier, value.EventNotifier))
+            if (EventNotifier != value.EventNotifier)
             {
                 return false;
             }

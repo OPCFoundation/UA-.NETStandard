@@ -351,20 +351,58 @@ namespace Opc.Ua
         /// Returns a struct as is because structs are never deep copied
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(in T value)
-            where T : struct
+        public static T Clone<T>(in T value) where T : struct
         {
             return value;
         }
 
         /// <summary>
-        /// Returns a deep copy of the reference type value.
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Clone<T>(ArrayOf<T> values)
+        {
+            return values.ConvertAll(v => (T)Clone(v));
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> Clone<T>(MatrixOf<T> values)
+        {
+            return values.ConvertAll(v => (T)Clone(v));
+        }
+
+        /// <summary>
+        /// Calls clone if the type supports it
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static T Clone<T>(T value)
-            where T : class
+            where T : ICloneable
         {
-            return (T)Clone((object)value);
+            return EqualityComparer<T>.Default.Equals(value, default) ?
+                default : (T)value.Clone();
+        }
+
+        /// <summary>
+        /// Strings are immutable, do not clone
+        /// </summary>
+        public static string Clone(string value)
+        {
+            return value;
+        }
+
+        /// <summary>
+        /// Clone extension object
+        /// </summary>
+        public static ExtensionObject Clone(ExtensionObject value)
+        {
+            if (value.TryGetEncodeable(out IEncodeable e))
+            {
+                return new ExtensionObject(e, true);
+            }
+            return value;
         }
 
         /// <summary>

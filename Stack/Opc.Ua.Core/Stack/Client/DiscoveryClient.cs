@@ -377,7 +377,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
         [Obsolete("Use GetEndpointsAsync instead.")]
-        public virtual EndpointDescriptionCollection GetEndpoints(ArrayOf<String> profileUris)
+        public virtual ArrayOf<EndpointDescription> GetEndpoints(ArrayOf<String> profileUris)
         {
             GetEndpoints(
                 null,
@@ -394,7 +394,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
         /// <param name="ct">The cancellation token.</param>
-        public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(
+        public virtual async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             ArrayOf<String> profileUris,
             CancellationToken ct = default)
         {
@@ -413,7 +413,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
         [Obsolete("Use FindServersAsync instead.")]
-        public virtual ApplicationDescriptionCollection FindServers(ArrayOf<string> serverUris)
+        public virtual ArrayOf<ApplicationDescription> FindServers(ArrayOf<string> serverUris)
         {
             FindServers(
                 null,
@@ -430,7 +430,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
         /// <param name="ct">The cancellation token.</param>
-        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(
+        public virtual async Task<ArrayOf<ApplicationDescription>> FindServersAsync(
             ArrayOf<String> serverUris,
             CancellationToken ct = default)
         {
@@ -448,7 +448,7 @@ namespace Opc.Ua
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
         [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public virtual ServerOnNetworkCollection FindServersOnNetwork(
+        public virtual ArrayOf<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
             ArrayOf<String> serverCapabilityFilter,
@@ -469,7 +469,7 @@ namespace Opc.Ua
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
         public virtual async Task<(
-            ServerOnNetworkCollection servers,
+            ArrayOf<ServerOnNetwork> servers,
             DateTimeUtc lastCounterResetTime
             )> FindServersOnNetworkAsync(
                 uint startingRecordId,
@@ -592,8 +592,8 @@ namespace Opc.Ua
         /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>
-        private EndpointDescriptionCollection PatchEndpointUrls(
-            EndpointDescriptionCollection endpoints)
+        private ArrayOf<EndpointDescription> PatchEndpointUrls(
+            ArrayOf<EndpointDescription> endpoints)
         {
             // if a server is behind a firewall, can only be accessed with a FQDN or IP address
             // it may return URLs that are not accessible to the client. This problem can be avoided

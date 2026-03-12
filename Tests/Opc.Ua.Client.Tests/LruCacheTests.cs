@@ -985,7 +985,7 @@ namespace Opc.Ua.Client.Tests
             // Assert
             Assert.AreEqual(expected[0], result[0]);
             Assert.AreEqual(StatusCodes.Bad, (uint)result[1].StatusCode);
-            Assert.AreEqual(expected[1].Value, result[1].Value);
+            Assert.AreEqual(expected[1].WrappedValue, result[1].WrappedValue);
 
             context
                 .Setup(c => c.FetchValuesAsync(

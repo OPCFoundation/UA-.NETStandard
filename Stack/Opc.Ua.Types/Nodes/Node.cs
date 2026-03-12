@@ -99,9 +99,9 @@ namespace Opc.Ua
             WriteMask = 0;
             UserWriteMask = 0;
             m_rolePermissions = [];
-            m_userRolePermissions = [];
+            UserRolePermissions = [];
             AccessRestrictions = 0;
-            m_references = [];
+            References = [];
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// Role permissions
         /// </summary>
         [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
-        public RolePermissionTypeCollection RolePermissions
+        public ArrayOf<RolePermissionType> RolePermissions
         {
             get => m_rolePermissions;
 
@@ -158,7 +158,7 @@ namespace Opc.Ua
             {
                 m_rolePermissions = value;
 
-                if (value == null)
+                if (value.IsNull)
                 {
                     m_rolePermissions = [];
                 }
@@ -168,48 +168,20 @@ namespace Opc.Ua
         /// <summary>
         /// User role permissions
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "UserRolePermissions", IsRequired = false, Order = 9)]
-        public RolePermissionTypeCollection UserRolePermissions
-        {
-            get => m_userRolePermissions;
-
-            set
-            {
-                m_userRolePermissions = value;
-
-                if (value == null)
-                {
-                    m_userRolePermissions = [];
-                }
-            }
-        }
+        public ArrayOf<RolePermissionType> UserRolePermissions { get; set; }
 
         /// <summary>
         /// Access restrictions
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "AccessRestrictions", IsRequired = false, Order = 10)]
         public ushort AccessRestrictions { get; set; }
 
         /// <summary>
         /// References
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "References", IsRequired = false, Order = 11)]
-        public ReferenceNodeCollection References
-        {
-            get => m_references;
-            set
-            {
-                m_references = value;
-
-                if (value == null)
-                {
-                    m_references = [];
-                }
-            }
-        }
+        public ArrayOf<ReferenceNode> References { get; set; }
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Node;
@@ -276,57 +248,57 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
+            if (NodeId != value.NodeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeClass, value.NodeClass))
+            if (NodeClass != value.NodeClass)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BrowseName, value.BrowseName))
+            if (BrowseName != value.BrowseName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DisplayName, value.DisplayName))
+            if (DisplayName != value.DisplayName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Description, value.Description))
+            if (Description != value.Description)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(WriteMask, value.WriteMask))
+            if (WriteMask != value.WriteMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(UserWriteMask, value.UserWriteMask))
+            if (UserWriteMask != value.UserWriteMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_rolePermissions, value.m_rolePermissions))
+            if (m_rolePermissions != value.m_rolePermissions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_userRolePermissions, value.m_userRolePermissions))
+            if (UserRolePermissions != value.UserRolePermissions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(AccessRestrictions, value.AccessRestrictions))
+            if (AccessRestrictions != value.AccessRestrictions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_references, value.m_references))
+            if (References != value.References)
             {
                 return false;
             }
@@ -353,9 +325,9 @@ namespace Opc.Ua
             clone.WriteMask = CoreUtils.Clone(WriteMask);
             clone.UserWriteMask = CoreUtils.Clone(UserWriteMask);
             clone.m_rolePermissions = CoreUtils.Clone(m_rolePermissions);
-            clone.m_userRolePermissions = CoreUtils.Clone(m_userRolePermissions);
+            clone.UserRolePermissions = CoreUtils.Clone(UserRolePermissions);
             clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
-            clone.m_references = CoreUtils.Clone(m_references);
+            clone.References = CoreUtils.Clone(References);
 
             return clone;
         }
@@ -751,7 +723,7 @@ namespace Opc.Ua
                 case Attributes.RolePermissions:
                     return Variant.FromStructure(m_rolePermissions);
                 case Attributes.UserRolePermissions:
-                    return Variant.FromStructure(m_userRolePermissions);
+                    return Variant.FromStructure(UserRolePermissions);
                 case Attributes.AccessRestrictions:
                     return AccessRestrictions;
                 default:
@@ -789,7 +761,7 @@ namespace Opc.Ua
                     m_rolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.UserRolePermissions:
-                    m_userRolePermissions = value.GetStructureArray<RolePermissionType>();
+                    UserRolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.AccessRestrictions:
                     AccessRestrictions = (ushort)value;
@@ -804,7 +776,5 @@ namespace Opc.Ua
 
         private ReferenceCollection m_referenceTable;
         private ArrayOf<RolePermissionType> m_rolePermissions;
-        private ArrayOf<RolePermissionType> m_userRolePermissions;
-        private ReferenceNodeCollection m_references;
     }
 }

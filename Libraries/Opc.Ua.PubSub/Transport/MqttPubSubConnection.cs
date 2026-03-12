@@ -452,7 +452,7 @@ namespace Opc.Ua.PubSub.Transport
             if (nrOfSubscribers > 0)
             {
                 // collect all topics from all ReaderGroups
-                var topics = new StringCollection();
+                var topics = new List<string>();
                 foreach (ReaderGroupDataType readerGroup in PubSubConnectionConfiguration
                     .ReaderGroups)
                 {

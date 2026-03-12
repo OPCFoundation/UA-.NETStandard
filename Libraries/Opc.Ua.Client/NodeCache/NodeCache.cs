@@ -379,7 +379,7 @@ namespace Opc.Ua.Client
             try
             {
                 // fetch references from server.
-                ReferenceDescriptionCollection references = await m_context
+                var references = await m_context
                     .FetchReferencesAsync(null, localId, ct)
                     .ConfigureAwait(false);
 

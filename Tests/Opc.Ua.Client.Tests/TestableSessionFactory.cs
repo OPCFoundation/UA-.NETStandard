@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<string> discoveryProfileUris = null)
         {
             return new TestableSession(
                 channel,

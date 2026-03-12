@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub
 
                 if (lastDataSet == null)
                 {
-                    state.LastDataSet = Utils.Clone(dataset);
+                    state.LastDataSet = CoreUtils.Clone(dataset);
                     return dataset;
                 }
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.PubSub
 
                     if (state.LastDataSet == null)
                     {
-                        state.LastDataSet = Utils.Clone(dataset);
+                        state.LastDataSet = CoreUtils.Clone(dataset);
                         return;
                     }
 
@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = Utils.Clone(field);
+                            state.LastDataSet.Fields[ii] = CoreUtils.Clone(field);
                         }
                     }
                 }

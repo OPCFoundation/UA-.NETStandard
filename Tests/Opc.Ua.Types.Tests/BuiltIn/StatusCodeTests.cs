@@ -44,7 +44,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class StatusCodeTests
     {
-
         [Test]
         public void ConstructorWithCodeSetsCode()
         {

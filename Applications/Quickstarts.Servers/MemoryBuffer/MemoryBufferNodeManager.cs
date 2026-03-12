@@ -48,7 +48,7 @@ namespace MemoryBuffer
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.MemoryBuffer, Namespaces.MemoryBuffer + "/Instance"];
     }
 
@@ -304,7 +304,7 @@ namespace MemoryBuffer
             // read initial value.
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.Good
@@ -516,7 +516,7 @@ namespace MemoryBuffer
             {
                 var initialValue = new DataValue
                 {
-                    Value = null,
+                    WrappedValue = default,
                     ServerTimestamp = DateTime.UtcNow,
                     SourceTimestamp = DateTime.MinValue,
                     StatusCode = StatusCodes.Good

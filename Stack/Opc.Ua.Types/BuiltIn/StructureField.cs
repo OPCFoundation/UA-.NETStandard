@@ -38,31 +38,11 @@ namespace Opc.Ua
     /// Structure field
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class StructureField : IEncodeable, IJsonEncodeable
+    public class StructureField :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<StructureField>
     {
-        /// <inheritdoc/>
-        public StructureField()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            Name = null;
-            Description = default;
-            DataType = default;
-            ValueRank = 0;
-            m_arrayDimensions = [];
-            MaxStringLength = 0;
-            IsOptional = false;
-        }
-
         /// <summary>
         /// Name
         /// </summary>
@@ -91,20 +71,7 @@ namespace Opc.Ua
         /// Array dimensions
         /// </summary>
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 5)]
-        public UInt32Collection ArrayDimensions
-        {
-            get => m_arrayDimensions;
-
-            set
-            {
-                m_arrayDimensions = value;
-
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-            }
-        }
+        public ArrayOf<uint> ArrayDimensions { get; set; }
 
         /// <summary>
         /// Max string length
@@ -175,42 +142,79 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Name, value.Name))
+            if (Name != value.Name)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Description, value.Description))
+            if (Description != value.Description)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DataType, value.DataType))
+            if (DataType != value.DataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
+            if (ValueRank != value.ValueRank)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (ArrayDimensions != value.ArrayDimensions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(MaxStringLength, value.MaxStringLength))
+            if (MaxStringLength != value.MaxStringLength)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsOptional, value.IsOptional))
+            if (IsOptional != value.IsOptional)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                Name,
+                Description,
+                DataType,
+                ValueRank,
+                ArrayDimensions,
+                MaxStringLength,
+                IsOptional);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(StructureField other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(StructureField left, StructureField right)
+        {
+            return EqualityComparer<StructureField>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(StructureField left, StructureField right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -228,13 +232,11 @@ namespace Opc.Ua
             clone.Description = CoreUtils.Clone(Description);
             clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);
-            clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
+            clone.ArrayDimensions = CoreUtils.Clone(ArrayDimensions);
             clone.MaxStringLength = CoreUtils.Clone(MaxStringLength);
             clone.IsOptional = CoreUtils.Clone(IsOptional);
 
             return clone;
         }
-
-        private UInt32Collection m_arrayDimensions;
     }
 }

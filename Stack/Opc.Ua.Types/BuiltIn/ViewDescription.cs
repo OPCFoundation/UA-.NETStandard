@@ -28,7 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
+using System.Xml.Linq;
+using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -37,21 +41,13 @@ namespace Opc.Ua
     /// View description
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ViewDescription : IEncodeable, IJsonEncodeable
+    public class ViewDescription :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<ViewDescription>
     {
         /// <inheritdoc/>
         public ViewDescription()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
         {
             ViewId = default;
             Timestamp = DateTimeUtc.MinValue;
@@ -131,22 +127,55 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ViewId, value.ViewId))
+            if (ViewId != value.ViewId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Timestamp, value.Timestamp))
+            if (Timestamp != value.Timestamp)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ViewVersion, value.ViewVersion))
+            if (ViewVersion != value.ViewVersion)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                ViewId,
+                Timestamp,
+                ViewVersion);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ViewDescription other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ViewDescription left, ViewDescription right)
+        {
+            return EqualityComparer<ViewDescription>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ViewDescription left, ViewDescription right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

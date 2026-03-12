@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
                     telemetry,
                     ct: ct).ConfigureAwait(false))
             {
-                ApplicationDescriptionCollection servers =
+                var servers =
                     await client.FindServersAsync(default, ct).ConfigureAwait(false);
 
                 // populate the drop down list with the discovery URLs for the available servers.
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client
                 ct: ct).ConfigureAwait(false);
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            EndpointDescriptionCollection endpoints =
+            var endpoints =
                 await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             return SelectEndpoint(
                 application,
@@ -237,7 +237,7 @@ namespace Opc.Ua.Client
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            EndpointDescriptionCollection endpoints =
+            var endpoints =
                 await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
-            EndpointDescriptionCollection endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             bool useSecurity,
             ITelemetryContext telemetry)
         {
@@ -295,9 +295,8 @@ namespace Opc.Ua.Client
                         if (configuration != null)
                         {
                             // skip unsupported security policies
-                            if (!configuration.SecurityConfiguration.SupportedSecurityPolicies
-                                    .Contains(
-                                        endpoint.SecurityPolicyUri))
+                            if (configuration.SecurityConfiguration.SupportedSecurityPolicies
+                                    .Find(p => p ==endpoint.SecurityPolicyUri) == null)
                             {
                                 continue;
                             }
@@ -340,7 +339,7 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints.FirstOrDefault(e =>
+                selectedEndpoint = endpoints.Find(e =>
                     e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
             }
 

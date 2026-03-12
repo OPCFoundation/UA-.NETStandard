@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
-                var fields = new StringCollection();
+                var fields = new List<string>();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (property.IsOptional)

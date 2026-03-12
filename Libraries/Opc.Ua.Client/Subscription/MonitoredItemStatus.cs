@@ -162,7 +162,7 @@ namespace Opc.Ua.Client
 
             if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
             {
-                Filter = Utils.Clone(filter);
+                Filter = CoreUtils.Clone(filter);
             }
 
             if (ServiceResult.IsGood(error))
@@ -173,7 +173,7 @@ namespace Opc.Ua.Client
 
                 if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
                 {
-                    FilterResult = Utils.Clone(filterResult);
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client
 
             if (monitoredItem.Filter != null)
             {
-                Filter = Utils.Clone(monitoredItem.Filter);
+                Filter = CoreUtils.Clone(monitoredItem.Filter);
             }
         }
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Client
 
                 if (!request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
                 {
-                    Filter = Utils.Clone(filter);
+                    Filter = CoreUtils.Clone(filter);
                 }
 
                 SamplingInterval = result.RevisedSamplingInterval;
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client
 
                 if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
                 {
-                    FilterResult = Utils.Clone(filterResult);
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
         }

@@ -229,11 +229,13 @@ namespace Opc.Ua.Configuration
             configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
             if (configuration.ServerConfiguration != null)
             {
+                var baseAddresses = new string[configuration.ServerConfiguration.BaseAddresses.Count];
                 for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
                 {
-                    configuration.ServerConfiguration.BaseAddresses[i] = Utils.ReplaceLocalhost(
-                        configuration.ServerConfiguration.BaseAddresses[i]);
+                    baseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
                 }
+                configuration.ServerConfiguration.BaseAddresses = baseAddresses;
             }
             return configuration;
         }

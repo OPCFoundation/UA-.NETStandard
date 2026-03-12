@@ -5918,7 +5918,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 3
             ];
             // Act & Assert
-Assert.Throws<
+            Assert.Throws<
 #if NET8_0_OR_GREATER
                 ArgumentOutOfRangeException
 #else

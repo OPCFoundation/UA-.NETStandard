@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         continue;
                     }
 
-                    if (value.Value is ExtensionObject extensionObject &&
+                    if (value.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
                         extensionObject.TryGetEncodeable(out IEncodeable encodeable))
                     {
                         Type valueType = encodeable.GetType();
@@ -337,17 +337,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             TestContext.Out.WriteLine(
                                 "Variable: {0} type is decoded as ExtensionObject --> {1}",
                                 variableNode,
-                                value.Value);
+                                value.WrappedValue);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
                         continue;
                     }
 
-                    if (value.Value is Array array &&
-                        array.GetType().GetElementType() == typeof(ExtensionObject))
+                    if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> array))
                     {
-                        foreach (ExtensionObject valueItem in array)
+                        foreach (ExtensionObject valueItem in array.ToList())
                         {
                             if (valueItem.TryGetEncodeable(out encodeable))
                             {
@@ -406,8 +405,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.NotNull(dataValue);
 
             // test the accessor to the complex types
-            Assert.True(dataValue.Value is ExtensionObject);
-            var extensionObject = (ExtensionObject)dataValue.Value;
+            Assert.True(dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject));
             Assert.True(extensionObject.TryGetEncodeable(out IEncodeable encodeable));
             Assert.NotNull(encodeable);
             var complexType = encodeable as IComplexTypeProperties;
@@ -461,8 +459,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
-            Assert.True(dataValue.Value is ExtensionObject);
-            extensionObject = (ExtensionObject)dataValue.Value;
+            Assert.True(dataValue.WrappedValue.TryGet(out extensionObject));
             Assert.True(extensionObject.TryGetEncodeable(out encodeable));
             Assert.NotNull(encodeable);
             complexType = encodeable as IComplexTypeProperties;

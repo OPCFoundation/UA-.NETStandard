@@ -47,7 +47,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class TypeInfoTests
     {
-
         [Test]
         public void ConstructorWithValueRankOutOfRangeThrows()
         {
@@ -381,16 +380,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetBuiltInTypeForUnknownHighIdReturnsNull()
         {
-            // Covers lines 888-890: id > DiagnosticInfo and not Enumeration
             Assert.That(
-                TypeInfo.GetBuiltInType(new NodeId(9999u)),
-                Is.EqualTo(BuiltInType.Null));
+    TypeInfo.GetBuiltInType(new NodeId(9999u)),
+    Is.EqualTo(BuiltInType.Null));
         }
 
         [Test]
         public void GetBuiltInTypeWithTypeTreeResolvesViaSuperType()
         {
-            // Covers lines 972-996: type tree loop
             var mockTypeTree = new Mock<ITypeTable>();
             // Custom type 1000 -> supertype Int32 (id=6)
             mockTypeTree
@@ -404,7 +401,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetBuiltInTypeWithNullTypeTreeReturnsNull()
         {
-            // Covers lines 987-989: typeTree == null break
             BuiltInType result = TypeInfo.GetBuiltInType(new NodeId(1000u), null);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
@@ -425,16 +421,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public async Task GetBuiltInTypeAsyncWithKnownTypeReturnsDirectly()
         {
-            // Covers lines 1012-1022
             BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
-                new NodeId(6u), null, CancellationToken.None).ConfigureAwait(false);
+    new NodeId(6u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
         public async Task GetBuiltInTypeAsyncWithTypeTreeResolvesViaSuperType()
         {
-            // Covers lines 1026-1032
             var mockTypeTree = new Mock<ITypeTable>();
             mockTypeTree
                 .Setup(t => t.FindSuperTypeAsync(new NodeId(1000u), It.IsAny<CancellationToken>()))
@@ -448,9 +442,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public async Task GetBuiltInTypeAsyncWithNullTypeTreeReturnsNull()
         {
-            // Covers lines 1026-1028: typeTree == null break
             BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
-                new NodeId(1000u), null, CancellationToken.None).ConfigureAwait(false);
+    new NodeId(1000u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
 
@@ -493,7 +486,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(BuiltInType.Enumeration)]
         public void GetDataTypeIdForAllBuiltInTypesReturnsValidNodeId(BuiltInType type)
         {
-            // Covers lines 765-831: switch statement for GetDataTypeId(TypeInfo)
             var typeInfo = new TypeInfo(type, ValueRanks.Scalar);
             NodeId result = TypeInfo.GetDataTypeId(typeInfo);
             Assert.That(result, Is.Not.Null);
@@ -511,7 +503,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetDataTypeIdForNullVariantReturnsNullNodeId()
         {
-            // Covers lines 734-737
             NodeId result = TypeInfo.GetDataTypeId(Variant.Null);
             Assert.That(result.IsNull, Is.True);
         }
@@ -519,7 +510,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetDataTypeIdForIntVariantReturnsInt32DataType()
         {
-            // Covers line 748
             var variant = new Variant(42);
             NodeId result = TypeInfo.GetDataTypeId(variant);
             Assert.That(result, Is.EqualTo(new NodeId(6u))); // DataTypes.Int32
@@ -528,7 +518,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeWithNullExpandedNodeIdReturnsNull()
         {
-            // Covers lines 1044-1047
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Type result = TypeInfo.GetSystemType(ExpandedNodeId.Null, mockFactory.Object);
             Assert.That(result, Is.Null);
@@ -548,7 +537,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(12u, typeof(string))]     // String
         public void GetSystemTypeForBuiltInExpandedNodeIdReturnsExpected(uint id, Type expected)
         {
-            // Covers lines 1057-1152: switch cases
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             var expandedNodeId = new ExpandedNodeId(id);
             Type result = TypeInfo.GetSystemType(expandedNodeId, mockFactory.Object);
@@ -685,7 +673,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeForUtcTimeSubtypeReturnsDateTimeUtc()
         {
-            // Covers UtcTime goto case
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Type result = TypeInfo.GetSystemType(new ExpandedNodeId(294u), mockFactory.Object);
             Assert.That(result, Is.EqualTo(typeof(DateTimeUtc)));
@@ -797,7 +784,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeForNonNs0FallsBackToFactory()
         {
-            // Covers lines 1050-1054: non-ns0 path -> factory.GetSystemType
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             mockFactory
                 .Setup(f => f.TryGetEncodeableType(
@@ -813,7 +799,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeForUnknownIdFallsBackToFactory()
         {
-            // Covers default case
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             mockFactory
                 .Setup(f => f.TryGetEncodeableType(
@@ -1026,7 +1011,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeTwoDimensionsReturnsMdArray()
         {
-            // Covers lines 1647-1712: TwoDimensions switch
             Type result = TypeInfo.GetSystemType(BuiltInType.Int32, ValueRanks.TwoDimensions);
             Assert.That(result, Is.EqualTo(typeof(int).MakeArrayType(2)));
         }

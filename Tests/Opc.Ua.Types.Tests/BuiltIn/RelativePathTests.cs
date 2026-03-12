@@ -46,11 +46,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class RelativePathTests
     {
-
         [Test]
         public void DefaultConstructorCreatesEmptyElements()
         {
-            // Covers: RelativePath() - lines 81-84, Initialize - lines 92-95
             var path = new RelativePath();
 
             Assert.That(path.Elements, Is.Not.Null);
@@ -60,7 +58,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithBrowseNameCreatesOneElement()
         {
-            // Covers: RelativePath(QualifiedName) - lines 45-48 -> chain to 4-param ctor
             var browseName = new QualifiedName("TestNode", 0);
             var path = new RelativePath(browseName);
 
@@ -75,7 +72,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithRefTypeAndBrowseNameCreatesOneElement()
         {
-            // Covers: RelativePath(NodeId, QualifiedName) - lines 53-56
             NodeId refTypeId = ReferenceTypeIds.HasComponent;
             var browseName = new QualifiedName("MyComponent", 0);
             var path = new RelativePath(refTypeId, browseName);
@@ -90,7 +86,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithAllParametersCreatesElement()
         {
-            // Covers: RelativePath(NodeId, bool, bool, QualifiedName) - lines 61-78
             NodeId refTypeId = ReferenceTypeIds.HasProperty;
             var browseName = new QualifiedName("Property1", 2);
             var path = new RelativePath(refTypeId, true, false, browseName);
@@ -105,7 +100,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementsSetterAcceptsCollection()
         {
-            // Covers: set_Elements - lines 105-113 (non-null path)
             var path = new RelativePath();
             var collection = new RelativePathElementCollection
             {
@@ -123,22 +117,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ElementsSetterWithNullInitializesEmptyCollection()
-        {
-            // Covers: set_Elements null branch - lines 109-112
-            var path = new RelativePath();
-            path.Elements.Add(new RelativePathElement { TargetName = new QualifiedName("A") });
-
-            path.Elements = null!;
-
-            Assert.That(path.Elements, Is.Not.Null);
-            Assert.That(path.Elements.Count, Is.EqualTo(0));
-        }
-
-        [Test]
         public void TypeIdReturnsExpectedValue()
         {
-            // Covers: TypeId property - line 117
             var path = new RelativePath();
             Assert.That(path.TypeId, Is.EqualTo(DataTypeIds.RelativePath));
         }
@@ -146,7 +126,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void BinaryEncodingIdReturnsExpectedValue()
         {
-            // Covers: BinaryEncodingId property - line 120
             var path = new RelativePath();
             Assert.That(path.BinaryEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultBinary));
         }
@@ -154,7 +133,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlEncodingIdReturnsExpectedValue()
         {
-            // Covers: XmlEncodingId property - line 123
             var path = new RelativePath();
             Assert.That(path.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultXml));
         }
@@ -162,7 +140,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void JsonEncodingIdReturnsExpectedValue()
         {
-            // Covers: JsonEncodingId property - line 126
             var path = new RelativePath();
             Assert.That(path.JsonEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultJson));
         }
@@ -170,7 +147,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EncodeWritesElementsArray()
         {
-            // Covers: Encode - lines 129-136
             var path = new RelativePath(new QualifiedName("Node1"));
             var mockEncoder = new Mock<IEncoder>();
 
@@ -186,7 +162,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void DecodeReadsElementsArray()
         {
-            // Covers: Decode - lines 139-146
             var mockDecoder = new Mock<IDecoder>();
             var elements = new RelativePathElementCollection
             {
@@ -211,7 +186,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithSameReferenceReturnsTrue()
         {
-            // Covers: IsEqual ReferenceEquals branch - lines 151-154
             var path = new RelativePath(new QualifiedName("Test"));
             Assert.That(path.IsEqual(path), Is.True);
         }
@@ -219,7 +193,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithNullReturnsFalse()
         {
-            // Covers: IsEqual null check - lines 156-159
             var path = new RelativePath(new QualifiedName("Test"));
             Assert.That(path.IsEqual(null!), Is.False);
         }
@@ -227,7 +200,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithDifferentTypeReturnsFalse()
         {
-            // Covers: IsEqual type mismatch (is not RelativePath) - lines 156-159
             var path = new RelativePath(new QualifiedName("Test"));
             var element = new RelativePathElement();
             Assert.That(path.IsEqual(element), Is.False);
@@ -236,7 +208,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithEqualElementsReturnsTrue()
         {
-            // Covers: IsEqual with matching elements - lines 161-167
             var path1 = new RelativePath(new QualifiedName("Test"));
             var path2 = new RelativePath(new QualifiedName("Test"));
             Assert.That(path1.IsEqual(path2), Is.True);
@@ -245,7 +216,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithDifferentElementsReturnsFalse()
         {
-            // Covers: IsEqual elements not equal branch - lines 161-163
             var path1 = new RelativePath(new QualifiedName("Node1"));
             var path2 = new RelativePath(new QualifiedName("Node2"));
             Assert.That(path1.IsEqual(path2), Is.False);
@@ -254,7 +224,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEqualWithEmptyPathsReturnsTrue()
         {
-            // Covers: IsEqual with two empty paths - lines 161-167
             var path1 = new RelativePath();
             var path2 = new RelativePath();
             Assert.That(path1.IsEqual(path2), Is.True);
@@ -263,7 +232,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CloneReturnsDeepCopy()
         {
-            // Covers: Clone - lines 170-173, MemberwiseClone - lines 176-183
             var path = new RelativePath(ReferenceTypeIds.HasComponent, true, false, new QualifiedName("Target", 1));
 
             var clone = (RelativePath)path.Clone();
@@ -280,7 +248,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void MemberwiseCloneClonesElementsCollection()
         {
-            // Covers: MemberwiseClone - lines 176-183
             var path = new RelativePath(new QualifiedName("Original"));
 
             var clone = (RelativePath)path.MemberwiseClone();
@@ -293,7 +260,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithEmptyPathReturnsEmptyString()
         {
-            // Covers: Format - lines 188-192
             var path = new RelativePath();
             var mockTypeTree = new Mock<ITypeTable>();
 
@@ -305,7 +271,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithHierarchicalElementReturnsPath()
         {
-            // Covers: Format - lines 188-192
             var path = new RelativePath(new QualifiedName("ServerStatus"));
             var mockTypeTree = new Mock<ITypeTable>();
             mockTypeTree.Setup(t => t.FindReferenceTypeName(ReferenceTypeIds.HierarchicalReferences))
@@ -320,14 +285,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEmptyWithNullReturnsTrue()
         {
-            // Covers: IsEmpty null branch - lines 199-204
             Assert.That(RelativePath.IsEmpty(null!), Is.True);
         }
 
         [Test]
         public void IsEmptyWithEmptyPathReturnsTrue()
         {
-            // Covers: IsEmpty empty elements branch - lines 199-201
             var path = new RelativePath();
             Assert.That(RelativePath.IsEmpty(path), Is.True);
         }
@@ -335,7 +298,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEmptyWithElementsReturnsFalse()
         {
-            // Covers: IsEmpty non-empty branch - lines 199-201
             var path = new RelativePath(new QualifiedName("Node"));
             Assert.That(RelativePath.IsEmpty(path), Is.False);
         }
@@ -343,7 +305,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNullTypeTreeThrowsArgumentNullException()
         {
-            // Covers: Parse null check - lines 214-217
             Assert.That(
                 () => RelativePath.Parse("/TestNode", null!),
                 Throws.TypeOf<ArgumentNullException>());
@@ -352,7 +313,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseHierarchicalPathCreatesCorrectElements()
         {
-            // Covers: Parse AnyHierarchical case - lines 220-268, switch case lines 237-239
             var mockTypeTree = new Mock<ITypeTable>();
 
             var result = RelativePath.Parse("/TestNode", mockTypeTree.Object);
@@ -368,7 +328,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseComponentPathCreatesCorrectElements()
         {
-            // Covers: Parse AnyComponent case - lines 240-242
             var mockTypeTree = new Mock<ITypeTable>();
 
             var result = RelativePath.Parse(".ComponentNode", mockTypeTree.Object);
@@ -382,7 +341,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseForwardReferenceUsesTypeTree()
         {
-            // Covers: Parse ForwardReference case - lines 243-246
             var mockTypeTree = new Mock<ITypeTable>();
             var refNodeId = new NodeId(999);
             mockTypeTree.Setup(t => t.FindReferenceType(new QualifiedName("HasComponent")))
@@ -398,7 +356,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseInverseReferenceUsesTypeTree()
         {
-            // Covers: Parse InverseReference case - lines 248-251
             var mockTypeTree = new Mock<ITypeTable>();
             var refNodeId = new NodeId(888);
             mockTypeTree.Setup(t => t.FindReferenceType(new QualifiedName("Organizes")))
@@ -414,7 +371,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNullReferenceTypeIdThrowsServiceResultException()
         {
-            // Covers: Parse IsNull check - lines 257-263
             var mockTypeTree = new Mock<ITypeTable>();
             mockTypeTree.Setup(t => t.FindReferenceType(It.IsAny<QualifiedName>()))
                 .Returns(NodeId.Null);
@@ -427,7 +383,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseMultipleElementsReturnsAllElements()
         {
-            // Covers: Parse foreach loop - lines 225-266
             var mockTypeTree = new Mock<ITypeTable>();
 
             var result = RelativePath.Parse("/Node1/Node2/Node3", mockTypeTree.Object);
@@ -441,7 +396,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseMixedPathElements()
         {
-            // Covers: Parse mixed hierarchical and component paths
             var mockTypeTree = new Mock<ITypeTable>();
 
             var result = RelativePath.Parse("/Node1.Property1", mockTypeTree.Object);
@@ -454,7 +408,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesHierarchicalPath()
         {
-            // Covers: Parse 4-param overload AnyHierarchical - lines 281-338, case lines 300-302
             var mockTypeTree = new Mock<ITypeTable>();
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
@@ -470,7 +423,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesComponentPath()
         {
-            // Covers: Parse 4-param overload AnyComponent - lines 304-305
             var mockTypeTree = new Mock<ITypeTable>();
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
@@ -484,7 +436,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesForwardReference()
         {
-            // Covers: Parse 4-param overload ForwardReference - lines 306-320
             var mockTypeTree = new Mock<ITypeTable>();
             var refNodeId = new NodeId(777);
             mockTypeTree.Setup(t => t.FindReferenceType(new QualifiedName("HasComponent")))
@@ -502,7 +453,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesInverseReference()
         {
-            // Covers: Parse 4-param overload InverseReference - lines 306-320
             var mockTypeTree = new Mock<ITypeTable>();
             var refNodeId = new NodeId(666);
             mockTypeTree.Setup(t => t.FindReferenceType(new QualifiedName("Organizes")))
@@ -520,7 +470,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesNullTypeTreeForRefPathThrows()
         {
-            // Covers: Parse 4-param overload null typeTree check - lines 308-312
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
 
@@ -532,7 +481,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesNullRefTypeIdThrows()
         {
-            // Covers: Parse 4-param overload IsNull check - lines 326-332
             var mockTypeTree = new Mock<ITypeTable>();
             mockTypeTree.Setup(t => t.FindReferenceType(It.IsAny<QualifiedName>()))
                 .Returns(NodeId.Null);
@@ -547,7 +495,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesMultipleElements()
         {
-            // Covers: Parse 4-param foreach loop - lines 288-335
             var mockTypeTree = new Mock<ITypeTable>();
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
@@ -563,7 +510,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithNamespaceTablesNullTypeTreeForHierarchicalSucceeds()
         {
-            // Covers: Parse 4-param with null typeTree but hierarchical path (no lookup needed)
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
 
@@ -576,7 +522,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementDefaultConstructorInitializesDefaults()
         {
-            // Covers: RelativePathElement() constructor and Initialize - lines 55-61
             // Defaults: IsInverse=true, IncludeSubtypes=true, ReferenceTypeId=default, TargetName=default
             var element = new RelativePathElement();
 
@@ -589,7 +534,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementPropertiesCanBeSet()
         {
-            // Covers: Property setters for ReferenceTypeId, IsInverse, IncludeSubtypes, TargetName
             var element = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
@@ -635,7 +579,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementEncodeWritesAllFields()
         {
-            // Covers: RelativePathElement.Encode - lines 100-110
             var element = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -658,7 +601,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementDecodeReadsAllFields()
         {
-            // Covers: RelativePathElement.Decode - lines 113-123
             var mockDecoder = new Mock<IDecoder>();
             mockDecoder.Setup(d => d.ReadNodeId("ReferenceTypeId")).Returns(ReferenceTypeIds.Organizes);
             mockDecoder.Setup(d => d.ReadBoolean("IsInverse")).Returns(true);
@@ -679,7 +621,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithSameReferenceReturnsTrue()
         {
-            // Covers: RelativePathElement.IsEqual ReferenceEquals - lines 127-130
             var element = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
@@ -691,7 +632,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithNullReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual null/type check - lines 133-135
             var element = new RelativePathElement();
             Assert.That(element.IsEqual(null!), Is.False);
         }
@@ -699,7 +639,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithDifferentTypeReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual type mismatch - lines 133-135
             var element = new RelativePathElement();
             var path = new RelativePath();
             Assert.That(element.IsEqual(path), Is.False);
@@ -708,7 +647,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithMatchingPropertiesReturnsTrue()
         {
-            // Covers: RelativePathElement.IsEqual all property comparisons - lines 138-159
             var element1 = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -730,7 +668,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithDifferentReferenceTypeIdReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual ReferenceTypeId mismatch - lines 138-140
             var element1 = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -748,7 +685,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithDifferentIsInverseReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual IsInverse mismatch - lines 143-145
             var element1 = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -768,7 +704,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithDifferentIncludeSubtypesReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual IncludeSubtypes mismatch - lines 148-150
             var element1 = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -788,7 +723,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementIsEqualWithDifferentTargetNameReturnsFalse()
         {
-            // Covers: RelativePathElement.IsEqual TargetName mismatch - lines 153-155
             var element1 = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -806,7 +740,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementCloneReturnsDeepCopy()
         {
-            // Covers: RelativePathElement.Clone - lines 162-165, MemberwiseClone - lines 168-178
             var element = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
@@ -827,7 +760,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RelativePathElementMemberwiseCloneReturnsCopy()
         {
-            // Covers: RelativePathElement.MemberwiseClone - lines 168-178
             var element = new RelativePathElement
             {
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -848,7 +780,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseAndFormatHierarchicalPathRoundTrips()
         {
-            // Covers: Parse + Format integration for hierarchical paths
             var mockTypeTree = new Mock<ITypeTable>();
 
             var parsed = RelativePath.Parse("/ServerStatus", mockTypeTree.Object);
@@ -860,7 +791,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseAndFormatMultiSegmentPath()
         {
-            // Covers: Parse + Format with multiple segments
             var mockTypeTree = new Mock<ITypeTable>();
 
             var parsed = RelativePath.Parse("/Server/Status", mockTypeTree.Object);

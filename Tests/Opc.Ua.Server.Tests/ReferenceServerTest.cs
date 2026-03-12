@@ -264,18 +264,18 @@ namespace Opc.Ua.Server.Tests
 
             m_operationLimits = new OperationLimits
             {
-                MaxNodesPerRead = (uint)results[0].Value,
-                MaxNodesPerHistoryReadData = (uint)results[1].Value,
-                MaxNodesPerHistoryReadEvents = (uint)results[2].Value,
-                MaxNodesPerWrite = (uint)results[3].Value,
-                MaxNodesPerHistoryUpdateData = (uint)results[4].Value,
-                MaxNodesPerHistoryUpdateEvents = (uint)results[5].Value,
-                MaxNodesPerBrowse = (uint)results[6].Value,
-                MaxMonitoredItemsPerCall = (uint)results[7].Value,
-                MaxNodesPerNodeManagement = (uint)results[8].Value,
-                MaxNodesPerRegisterNodes = (uint)results[9].Value,
-                MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)results[10].Value,
-                MaxNodesPerMethodCall = (uint)results[11].Value
+                MaxNodesPerRead = (uint)results[0].WrappedValue,
+                MaxNodesPerHistoryReadData = (uint)results[1].WrappedValue,
+                MaxNodesPerHistoryReadEvents = (uint)results[2].WrappedValue,
+                MaxNodesPerWrite = (uint)results[3].WrappedValue,
+                MaxNodesPerHistoryUpdateData = (uint)results[4].WrappedValue,
+                MaxNodesPerHistoryUpdateEvents = (uint)results[5].WrappedValue,
+                MaxNodesPerBrowse = (uint)results[6].WrappedValue,
+                MaxMonitoredItemsPerCall = (uint)results[7].WrappedValue,
+                MaxNodesPerNodeManagement = (uint)results[8].WrappedValue,
+                MaxNodesPerRegisterNodes = (uint)results[9].WrappedValue,
+                MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)results[10].WrappedValue,
+                MaxNodesPerMethodCall = (uint)results[11].WrappedValue
             };
         }
 
@@ -1102,9 +1102,9 @@ namespace Opc.Ua.Server.Tests
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             Assert.AreEqual(1, readResponse.Results.Count);
-            Assert.NotNull(readResponse.Results[0].Value);
+            Assert.IsFalse(readResponse.Results[0].WrappedValue.IsNull);
 
-            byte eventNotifier = (byte)readResponse.Results[0].Value;
+            byte eventNotifier = (byte)readResponse.Results[0].WrappedValue;
 
             // Read history capabilities
             ArrayOf<ReadValueId> historyCapabilitiesReadIds =
@@ -1131,11 +1131,11 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(2, readResponse.Results.Count);
 
             bool accessHistoryEventsCapability =
-                readResponse.Results[0].Value != null &&
-                (bool)readResponse.Results[0].Value;
+                !readResponse.Results[0].WrappedValue.IsNull &&
+                (bool)readResponse.Results[0].WrappedValue;
             bool accessHistoryDataCapability =
-                readResponse.Results[1].Value != null &&
-                (bool)readResponse.Results[1].Value;
+                !readResponse.Results[1].WrappedValue.IsNull &&
+                (bool)readResponse.Results[1].WrappedValue;
 
             logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
             logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
@@ -1241,8 +1241,8 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             Assert.AreEqual(2, readResponse.Results.Count);
 
-            bool historizing = (bool)readResponse.Results[0].Value;
-            byte accessLevel = (byte)readResponse.Results[1].Value;
+            bool historizing = (bool)readResponse.Results[0].WrappedValue;
+            byte accessLevel = (byte)readResponse.Results[1].WrappedValue;
 
             logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
 

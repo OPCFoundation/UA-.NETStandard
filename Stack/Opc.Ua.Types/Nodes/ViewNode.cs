@@ -135,12 +135,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ContainsNoLoops, value.ContainsNoLoops))
+            if (ContainsNoLoops != value.ContainsNoLoops)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(EventNotifier, value.EventNotifier))
+            if (EventNotifier != value.EventNotifier)
             {
                 return false;
             }

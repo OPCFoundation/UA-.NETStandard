@@ -47,7 +47,7 @@ namespace Boiler
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.Boiler, Namespaces.Boiler + "Instance"];
     }
 

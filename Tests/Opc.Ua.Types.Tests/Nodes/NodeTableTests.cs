@@ -34,9 +34,6 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Nodes
 {
-    /// <summary>
-    /// Coverage tests for the <see cref="NodeTable"/> class.
-    /// </summary>
     [TestFixture]
     [Category("NodeTable")]
     [SetCulture("en-us")]
@@ -90,21 +87,18 @@ namespace Opc.Ua.Types.Tests.Nodes
             return new ExpandedNodeId(id, "http://remote.server/", 1u);
         }
 
-        // Covers line 133: ServerUris getter
         [Test]
         public void ServerUrisReturnsTableFromConstructor()
         {
             Assert.That(_nodeTable.ServerUris, Is.SameAs(_serverTable));
         }
 
-        // Covers line 136: TypeTree getter
         [Test]
         public void TypeTreeReturnsTableFromConstructor()
         {
             Assert.That(_nodeTable.TypeTree, Is.SameAs(_typeTable));
         }
 
-        // Covers lines 633-636
         [Test]
         public void ClearRemovesAllNodes()
         {
@@ -119,7 +113,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(LocalExpanded(2)), Is.False);
         }
 
-        // Covers lines 633-636 on an empty table
         [Test]
         public void ClearOnEmptyTableDoesNotThrow()
         {
@@ -127,7 +120,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.DoesNotThrow(() => _nodeTable.Clear());
         }
 
-        // Covers lines 273-276: non-generic GetEnumerator
         [Test]
         public void NonGenericGetEnumeratorReturnsAllNodes()
         {
@@ -144,7 +136,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(list, Has.Count.EqualTo(2));
         }
 
-        // Covers lines 256-264: generic GetEnumerator includes remote nodes
         [Test]
         public void GetEnumeratorIncludesRemoteNodes()
         {
@@ -163,7 +154,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(allNodes, Has.Count.EqualTo(2));
         }
 
-        // Covers lines 700-702: InternalFind with null ExpandedNodeId
         [Test]
         public void FindWithNullExpandedNodeIdReturnsNull()
         {
@@ -171,14 +161,12 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 700-702
         [Test]
         public void ExistsWithNullExpandedNodeIdReturnsFalse()
         {
             Assert.That(_nodeTable.Exists(ExpandedNodeId.Null), Is.False);
         }
 
-        // Covers lines 706-710: InternalFind with remote node lookup
         [Test]
         public void FindWithRemoteNodeIdFindsRemoteNode()
         {
@@ -196,7 +184,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Remote")));
         }
 
-        // Covers line 713: InternalFind with remote node not found
         [Test]
         public void FindWithUnknownRemoteNodeIdReturnsNull()
         {
@@ -204,7 +191,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 719-721: InternalFind with namespace URI not in table
         [Test]
         public void FindWithUnknownNamespaceUriReturnsNull()
         {
@@ -213,7 +199,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers line 730: InternalFind with local node not found
         [Test]
         public void FindWithNonExistentLocalNodeIdReturnsNull()
         {
@@ -221,7 +206,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 157-163: source not found
         [Test]
         public void FindWithBrowseNameReturnsNullWhenSourceNotFound()
         {
@@ -234,7 +218,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 167-169: source is a remote node (not ILocalNode)
         [Test]
         public void FindWithBrowseNameReturnsNullWhenSourceIsRemoteNode()
         {
@@ -255,7 +238,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 173-191: browseName is null, returns first target
         [Test]
         public void FindWithBrowseNameReturnsFirstTargetWhenBrowseNameIsNull()
         {
@@ -276,7 +258,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Not.Null);
         }
 
-        // Covers lines 194-196: matching browseName
         [Test]
         public void FindWithBrowseNameReturnsMatchingTarget()
         {
@@ -298,7 +279,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Target", 1)));
         }
 
-        // Covers lines 180-186, 201-202: target not in table, returns null
         [Test]
         public void FindWithBrowseNameReturnsNullWhenTargetNotInTable()
         {
@@ -318,7 +298,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 194, 198, 201-202: no matching browse name
         [Test]
         public void FindWithBrowseNameReturnsNullWhenNoMatchingBrowseName()
         {
@@ -339,7 +318,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Null);
         }
 
-        // Covers lines 210-219: source not found
         [Test]
         public void FindListReturnsEmptyWhenSourceNotFound()
         {
@@ -352,7 +330,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Empty);
         }
 
-        // Covers lines 223-225: source is remote node
         [Test]
         public void FindListReturnsEmptyWhenSourceIsRemoteNode()
         {
@@ -373,7 +350,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Empty);
         }
 
-        // Covers lines 229-248: returns matching targets
         [Test]
         public void FindListReturnsMatchingTargets()
         {
@@ -393,7 +369,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Has.Count.EqualTo(2));
         }
 
-        // Covers lines 236-243: skips targets not in table
         [Test]
         public void FindListSkipsTargetsNotInTable()
         {
@@ -412,7 +387,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Has.Count.EqualTo(1));
         }
 
-        // Covers lines 439-461: creates new local node
         [Test]
         public void ImportReferenceDescriptionCreatesLocalNode()
         {
@@ -434,7 +408,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(1));
         }
 
-        // Covers lines 446-451, 483-490: creates new remote node
         [Test]
         public void ImportReferenceDescriptionCreatesRemoteNode()
         {
@@ -455,7 +428,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(remoteId), Is.True);
         }
 
-        // Covers lines 441, 466-478: updates existing local node
         [Test]
         public void ImportReferenceDescriptionUpdatesExistingLocalNode()
         {
@@ -481,7 +453,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
         }
 
-        // Covers lines 472-476: adds HasTypeDefinition reference when present
         [Test]
         public void ImportReferenceDescriptionAddsTypeDefinitionReference()
         {
@@ -499,7 +470,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.InstanceOf<Node>());
         }
 
-        // Covers line 472 (false branch): skips type definition when null
         [Test]
         public void ImportReferenceDescriptionSkipsNullTypeDefinition()
         {
@@ -516,7 +486,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Not.Null);
         }
 
-        // Covers lines 483-490: updates existing remote node attributes
         [Test]
         public void ImportReferenceDescriptionUpdatesExistingRemoteNode()
         {
@@ -545,7 +514,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
         }
 
-        // Covers lines 292-297: null nodeSet
         [Test]
         public void ImportNullNodeSetReturnsEmptyList()
         {
@@ -554,7 +522,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.Empty);
         }
 
-        // Covers lines 292-364, 367-428: imports valid nodes
         [Test]
         public void ImportNodeSetImportsValidNodes()
         {
@@ -574,7 +541,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.GreaterThan(0));
         }
 
-        // Covers lines 312-314: auto-assigns BrowseName when null
         [Test]
         public void ImportNodeSetAssignsBrowseNameWhenNull()
         {
@@ -594,7 +560,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result[0].BrowseName.IsNull, Is.False);
         }
 
-        // Covers lines 318-320: auto-assigns DisplayName when null
         [Test]
         public void ImportNodeSetAssignsDisplayNameWhenNull()
         {
@@ -614,7 +579,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result[0].DisplayName, Is.Not.EqualTo(LocalizedText.Null));
         }
 
-        // Covers lines 324-343: node with valid references
         [Test]
         public void ImportNodeSetImportsNodeReferences()
         {
@@ -637,7 +601,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Add a reference from node1 to node2
-            node1.References.Add(new ReferenceNode(
+            node1.References = node1.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(1001, 0))));
@@ -650,7 +614,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Has.Count.EqualTo(2));
         }
 
-        // Covers lines 324-330: skips references with null reference type or target
         [Test]
         public void ImportNodeSetSkipsInvalidReferences()
         {
@@ -665,7 +628,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Add a reference with null reference type
-            node.References.Add(new ReferenceNode(
+            node.References = node.References.AddItem(new ReferenceNode(
                 NodeId.Null,
                 false,
                 new ExpandedNodeId(new NodeId(1001, 0))));
@@ -676,7 +639,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Has.Count.EqualTo(1));
         }
 
-        // Covers lines 386-414: external references handling
         [Test]
         public void ImportNodeSetPopulatesExternalReferences()
         {
@@ -691,7 +653,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Add a reference to an external node that is not in the NodeSet
-            node.References.Add(new ReferenceNode(
+            node.References = node.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(9999, 0))));
@@ -706,7 +668,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(externalRefs.Count, Is.GreaterThanOrEqualTo(0));
         }
 
-        // Covers lines 418-423: reverse references between imported nodes
         [Test]
         public void ImportNodeSetCreatesReverseReferencesBetweenNodes()
         {
@@ -728,7 +689,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Child")
             };
 
-            parent.References.Add(new ReferenceNode(
+            parent.References = parent.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(1001, 0))));
@@ -747,7 +708,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefs, Has.Count.EqualTo(1));
         }
 
-        // Covers lines 507-510: removes duplicate node
         [Test]
         public void AttachRemovesDuplicateNode()
         {
@@ -763,7 +723,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("Duplicate", 1)));
         }
 
-        // Covers lines 548-549: adds node to table
         [Test]
         public void AttachAddsNodeToTable()
         {
@@ -777,7 +736,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("TestNode", 1)));
         }
 
-        // Covers lines 552-564: adds reverse references to targets
         [Test]
         public void AttachAddsReverseReferencesToTargets()
         {
@@ -798,7 +756,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefs, Has.Count.EqualTo(1));
         }
 
-        // Covers lines 552-557: skips reverse references when target not in table
         [Test]
         public void AttachSkipsReverseReferencesForMissingTargets()
         {
@@ -813,7 +770,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(LocalExpanded(1)), Is.True);
         }
 
-        // Covers lines 560-564: skips reverse references for HasTypeDefinition
         [Test]
         public void AttachSkipsReverseReferencesForTypeDefinitions()
         {
@@ -835,7 +791,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefs, Is.Empty);
         }
 
-        // Covers lines 560-564: skips reverse references for HasModellingRule
         [Test]
         public void AttachSkipsReverseReferencesForModellingRule()
         {
@@ -857,7 +812,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefs, Is.Empty);
         }
 
-        // Covers line 569: typeTree?.Add(node)
         [Test]
         public void AttachAddsNodeToTypeTree()
         {
@@ -874,7 +828,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(LocalExpanded(5000)), Is.True);
         }
 
-        // Covers lines 578-584: node not found
         [Test]
         public void RemoveReturnsFalseWhenNodeNotFound()
         {
@@ -882,7 +835,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Is.False);
         }
 
-        // Covers lines 588-590: cannot remove remote node directly
         [Test]
         public void RemoveReturnsFalseForRemoteNode()
         {
@@ -900,7 +852,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(RemoteExpanded(100)), Is.True);
         }
 
-        // Covers lines 594, 624, 626: remove local node with no references
         [Test]
         public void RemoveLocalNodeWithNoReferencesReturnsTrue()
         {
@@ -912,7 +863,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
         }
 
-        // Covers lines 594-621: remove local node removes inverse references
         [Test]
         public void RemoveLocalNodeRemovesInverseReferences()
         {
@@ -946,7 +896,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(reverseRefsAfter, Is.Empty);
         }
 
-        // Covers lines 598-600: reference target not in table during remove
         [Test]
         public void RemoveLocalNodeWithReferenceToMissingTargetSucceeds()
         {
@@ -962,7 +911,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Exists(LocalExpanded(1)), Is.False);
         }
 
-        // Covers lines 624, 656-664: InternalRemove(ILocalNode)
         [Test]
         public void RemoveNodeDecreasesCount()
         {
@@ -977,7 +925,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
         }
 
-        // Covers line 282: Count with both local and remote nodes
         [Test]
         public void CountIncludesBothLocalAndRemoteNodes()
         {
@@ -994,7 +941,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(2));
         }
 
-        // Covers lines 256-264: enumerator with empty table
         [Test]
         public void EnumeratorOnEmptyTableReturnsNoNodes()
         {
@@ -1002,8 +948,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(allNodes, Is.Empty);
         }
 
-        // Covers lines 346-355: remote node creation during Import(NodeSet)
-        // Covers lines 670-678: InternalAdd(RemoteNode)
         [Test]
         public void ImportNodeSetCreatesRemoteNodesForRemoteReferences()
         {
@@ -1014,7 +958,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var nodeSet = new NodeSet
             {
                 // Set internal server URIs to match (requires InternalsVisibleTo)
-                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+                ServerUris = new ArrayOf<string> { "urn:local-server", "http://remote.server/" }
             };
 
             var node = new Node
@@ -1026,7 +970,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Add reference to a remote target (ServerIndex=1 → "http://remote.server/")
-            node.References.Add(new ReferenceNode(
+            node.References = node.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(999, 0), null, 1u)));
@@ -1040,7 +984,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(2));
         }
 
-        // Covers lines 380-382: remote target skip in second pass
         [Test]
         public void ImportNodeSetSkipsRemoteTargetsInSecondPass()
         {
@@ -1049,7 +992,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var nodeSet = new NodeSet
             {
-                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+                ServerUris = ["urn:local-server", "http://remote.server/"]
             };
 
             var node = new Node
@@ -1060,7 +1003,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Local Node")
             };
 
-            node.References.Add(new ReferenceNode(
+            node.References = node.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(888, 0), null, 1u)));
@@ -1072,8 +1015,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result, Has.Count.EqualTo(1));
         }
 
-        // Covers lines 605-612: RemoteNode cleanup during Remove
-        // Covers lines 684-692: InternalRemove(RemoteNode)
         [Test]
         public void RemoveLocalNodeCleansUpRemoteNodes()
         {
@@ -1082,7 +1023,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var nodeSet = new NodeSet
             {
-                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+                ServerUris = ["urn:local-server", "http://remote.server/"]
             };
 
             var node = new Node
@@ -1093,7 +1034,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Local Node")
             };
 
-            node.References.Add(new ReferenceNode(
+            node.References = node.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(999, 0), null, 1u)));
@@ -1111,7 +1052,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(_nodeTable.Count, Is.EqualTo(0));
         }
 
-        // Covers lines 605-612: RemoteNode NOT removed when still referenced
         [Test]
         public void RemoveLocalNodeKeepsRemoteNodeWhenStillReferenced()
         {
@@ -1120,7 +1060,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var nodeSet = new NodeSet
             {
-                ServerUris = new StringCollection { "urn:local-server", "http://remote.server/" }
+                ServerUris = ["urn:local-server", "http://remote.server/"]
             };
 
             var remoteTargetId = new ExpandedNodeId(new NodeId(999, 0), null, 1u);
@@ -1142,9 +1082,9 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Both nodes reference the same remote target
-            node1.References.Add(new ReferenceNode(
+            node1.References = node1.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes, false, remoteTargetId));
-            node2.References.Add(new ReferenceNode(
+            node2.References = node2.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes, false, remoteTargetId));
 
             nodeSet.Add(node1);
@@ -1258,7 +1198,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             // Parent organizes Child
-            parentNode.References.Add(new ReferenceNode(
+            parentNode.References = parentNode.References.AddItem(new ReferenceNode(
                 ReferenceTypeIds.Organizes,
                 false,
                 new ExpandedNodeId(new NodeId(2001, 0))));

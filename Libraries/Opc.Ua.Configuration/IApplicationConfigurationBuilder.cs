@@ -271,7 +271,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.SupportedPrivateKeyFormats"/>
         IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
-            StringCollection supportedPrivateKeyFormats);
+            ArrayOf<string> supportedPrivateKeyFormats);
 
         /// <inheritdoc cref="ServerConfiguration.MaxTrustListSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxTrustListSize(int maxTrustListSize);

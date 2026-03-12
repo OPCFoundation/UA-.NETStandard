@@ -42,7 +42,6 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class VariableTypeNodeTests
     {
-
         /// <summary>
         /// Test subclass that exposes protected Read/Write methods for direct testing.
         /// </summary>
@@ -71,28 +70,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
         }
 
-        /// <summary>
-        /// Creates a fully populated TestableVariableTypeNode for Read/Write testing.
-        /// </summary>
-        private static TestableVariableTypeNode CreatePopulatedTestableNode()
-        {
-            return new TestableVariableTypeNode
-            {
-                NodeId = new NodeId(42u),
-                BrowseName = new QualifiedName("TestVarType"),
-                DisplayName = new LocalizedText("Test Variable Type"),
-                Description = new LocalizedText("A test variable type node"),
-                Value = new Variant(100),
-                DataType = new NodeId(6u),
-                ValueRank = -1,
-                ArrayDimensions = new UInt32Collection(),
-                IsAbstract = false
-            };
-        }
-
-        /// <summary>
-        /// Covers lines 46-57: copy constructor with IVariableType source.
-        /// </summary>
         [Test]
         public void CopyConstructorFromVariableTypeCopiesAllProperties()
         {
@@ -118,10 +95,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(copy.ArrayDimensions.Count, Is.EqualTo(source.ArrayDimensions.Count));
         }
 
-        /// <summary>
-        /// Covers line 48-50: copy constructor from non-IVariableType ILocalNode
-        /// (the if-branch at line 50 is false, so lines 51-57 are skipped).
-        /// </summary>
         [Test]
         public void CopyConstructorFromNonVariableTypeNodeSetsNodeClass()
         {
@@ -141,24 +114,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.ValueRank, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Covers lines 105, 109-114: ArrayDimensions getter and null-coercion in setter.
-        /// </summary>
-        [Test]
-        public void ArrayDimensionsSetToNullCoercesToEmpty()
-        {
-            var node = new VariableTypeNode
-            {
-                ArrayDimensions = null
-            };
-
-            Assert.That(node.ArrayDimensions, Is.Not.Null);
-            Assert.That(node.ArrayDimensions.Count, Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Covers lines 105, 109: ArrayDimensions getter/setter with non-null value.
-        /// </summary>
         [Test]
         public void ArrayDimensionsSetNonNullValue()
         {
@@ -172,9 +127,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.ArrayDimensions[2], Is.EqualTo(7));
         }
 
-        /// <summary>
-        /// Covers lines 235-236: explicit IVariableBase.ArrayDimensions getter and setter.
-        /// </summary>
         [Test]
         public void ExplicitInterfaceArrayDimensionsAccessors()
         {
@@ -193,9 +145,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Covers line 125: TypeId property.
-        /// </summary>
         [Test]
         public void TypeIdReturnsExpectedValue()
         {
@@ -203,9 +152,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.TypeId, Is.EqualTo(DataTypeIds.VariableTypeNode));
         }
 
-        /// <summary>
-        /// Covers line 128: BinaryEncodingId property.
-        /// </summary>
         [Test]
         public void BinaryEncodingIdReturnsExpectedValue()
         {
@@ -213,9 +159,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.BinaryEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultBinary));
         }
 
-        /// <summary>
-        /// Covers line 131: XmlEncodingId property.
-        /// </summary>
         [Test]
         public void XmlEncodingIdReturnsExpectedValue()
         {
@@ -223,9 +166,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.XmlEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultXml));
         }
 
-        /// <summary>
-        /// Covers line 134: JsonEncodingId property.
-        /// </summary>
         [Test]
         public void JsonEncodingIdReturnsExpectedValue()
         {
@@ -233,9 +173,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.JsonEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultJson));
         }
 
-        /// <summary>
-        /// Covers lines 138-150 (Encode) and 154-166 (Decode) via binary round-trip.
-        /// </summary>
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()
         {
@@ -261,9 +198,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(original.IsEqual(decoded), Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 170-173: IsEqual with same reference returns true.
-        /// </summary>
         [Test]
         public void IsEqualWithSameReferenceReturnsTrue()
         {
@@ -271,9 +205,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.IsEqual(node), Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 170, 176-178: IsEqual with non-VariableTypeNode returns false.
-        /// </summary>
         [Test]
         public void IsEqualWithNonVariableTypeNodeReturnsFalse()
         {
@@ -282,9 +213,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.IsEqual(other), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 170-207: IsEqual with identical node returns true (all checks pass).
-        /// </summary>
         [Test]
         public void IsEqualWithIdenticalNodeReturnsTrue()
         {
@@ -294,9 +222,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 181-183: IsEqual returns false when Value differs.
-        /// </summary>
         [Test]
         public void IsEqualWithDifferentValueReturnsFalse()
         {
@@ -306,9 +231,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 186-188: IsEqual returns false when DataType differs.
-        /// </summary>
         [Test]
         public void IsEqualWithDifferentDataTypeReturnsFalse()
         {
@@ -318,9 +240,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 191-193: IsEqual returns false when ValueRank differs.
-        /// </summary>
         [Test]
         public void IsEqualWithDifferentValueRankReturnsFalse()
         {
@@ -330,9 +249,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 196-198: IsEqual returns false when ArrayDimensions differ.
-        /// </summary>
         [Test]
         public void IsEqualWithDifferentArrayDimensionsReturnsFalse()
         {
@@ -342,9 +258,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 201-203: IsEqual returns false when IsAbstract differs.
-        /// </summary>
         [Test]
         public void IsEqualWithDifferentIsAbstractReturnsFalse()
         {
@@ -354,9 +267,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node1.IsEqual(node2), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 176-178: IsEqual with null returns false.
-        /// </summary>
         [Test]
         public void IsEqualWithNullReturnsFalse()
         {
@@ -364,9 +274,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.IsEqual(null), Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 211-213 (Clone) and 217-227 (MemberwiseClone).
-        /// </summary>
         [Test]
         public void CloneCreatesEqualCopy()
         {
@@ -384,9 +291,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(clone.ArrayDimensions.Count, Is.EqualTo(original.ArrayDimensions.Count));
         }
 
-        /// <summary>
-        /// Covers lines 217-227: MemberwiseClone creates independent copy.
-        /// </summary>
         [Test]
         public void CloneIsIndependentOfOriginal()
         {
@@ -414,9 +318,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(clone.IsAbstract, Is.False);
         }
 
-        /// <summary>
-        /// Covers line 249: SupportsAttribute for Value when Value is not null.
-        /// </summary>
         [Test]
         public void SupportsAttributeValueWhenNotNullReturnsTrue()
         {
@@ -424,9 +325,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.Value), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 249: SupportsAttribute for Value when Value is null.
-        /// </summary>
         [Test]
         public void SupportsAttributeValueWhenNullReturnsFalse()
         {
@@ -434,9 +332,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.Value), Is.False);
         }
 
-        /// <summary>
-        /// Covers line 253: SupportsAttribute returns true for DataType.
-        /// </summary>
         [Test]
         public void SupportsAttributeDataTypeReturnsTrue()
         {
@@ -444,9 +339,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.DataType), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 253: SupportsAttribute returns true for ValueRank.
-        /// </summary>
         [Test]
         public void SupportsAttributeValueRankReturnsTrue()
         {
@@ -454,9 +346,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.ValueRank), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 253: SupportsAttribute returns true for IsAbstract.
-        /// </summary>
         [Test]
         public void SupportsAttributeIsAbstractReturnsTrue()
         {
@@ -464,9 +353,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.IsAbstract), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 255: SupportsAttribute for ArrayDimensions when populated.
-        /// </summary>
         [Test]
         public void SupportsAttributeArrayDimensionsWhenPopulatedReturnsTrue()
         {
@@ -474,9 +360,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.ArrayDimensions), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 255: SupportsAttribute for ArrayDimensions when empty.
-        /// </summary>
         [Test]
         public void SupportsAttributeArrayDimensionsWhenEmptyReturnsFalse()
         {
@@ -484,9 +367,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.ArrayDimensions), Is.False);
         }
 
-        /// <summary>
-        /// Covers line 257: SupportsAttribute delegates to base for non-variable-type attributes.
-        /// </summary>
         [Test]
         public void SupportsAttributeBaseAttributeDelegatesToBase()
         {
@@ -497,9 +377,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.SupportsAttribute(Attributes.DisplayName), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 271: Read returns DataType as Variant.
-        /// </summary>
         [Test]
         public void ReadDataTypeAttribute()
         {
@@ -509,9 +386,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That((NodeId)result, Is.EqualTo(new NodeId(11u)));
         }
 
-        /// <summary>
-        /// Covers line 273: Read returns ValueRank as Variant.
-        /// </summary>
         [Test]
         public void ReadValueRankAttribute()
         {
@@ -521,9 +395,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That((int)result, Is.EqualTo(2));
         }
 
-        /// <summary>
-        /// Covers line 276: Read returns Value as Variant.
-        /// </summary>
         [Test]
         public void ReadValueAttribute()
         {
@@ -533,9 +404,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That((string)result, Is.EqualTo("hello"));
         }
 
-        /// <summary>
-        /// Covers line 282: Read returns ArrayDimensions when populated.
-        /// </summary>
         [Test]
         public void ReadArrayDimensionsWhenPopulated()
         {
@@ -548,9 +416,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(result.IsNull, Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 278-280: Read returns BadAttributeIdInvalid when ArrayDimensions empty.
-        /// </summary>
         [Test]
         public void ReadArrayDimensionsWhenEmptyReturnsBadStatus()
         {
@@ -565,9 +430,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(StatusCode.IsBad(statusCode), Is.True);
         }
 
-        /// <summary>
-        /// Covers line 284: Read delegates to base for attributes not handled by VariableTypeNode.
-        /// </summary>
         [Test]
         public void ReadBaseAttribute()
         {
@@ -580,9 +442,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That((QualifiedName)result, Is.EqualTo(new QualifiedName("TestBrowseName")));
         }
 
-        /// <summary>
-        /// Covers lines 300-301: Write Value clones and stores the value.
-        /// </summary>
         [Test]
         public void WriteValueAttribute()
         {
@@ -593,9 +452,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That((int)node.Value, Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Covers lines 303-312: Write DataType when different from current resets Value to Null.
-        /// </summary>
         [Test]
         public void WriteDataTypeWithDifferentTypeResetsValue()
         {
@@ -612,9 +468,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 303-312: Write DataType with same type preserves Value.
-        /// </summary>
         [Test]
         public void WriteDataTypeWithSameTypePreservesValue()
         {
@@ -631,9 +484,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 314-323: Write ValueRank with different rank resets Value to Null.
-        /// </summary>
         [Test]
         public void WriteValueRankWithDifferentRankResetsValue()
         {
@@ -650,9 +500,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 314-323: Write ValueRank with same rank preserves Value.
-        /// </summary>
         [Test]
         public void WriteValueRankWithSameRankPreservesValue()
         {
@@ -669,9 +516,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 325-334: Write ArrayDimensions adjusts ValueRank when mismatched.
-        /// </summary>
         [Test]
         public void WriteArrayDimensionsWithMismatchedRankAdjustsValueRank()
         {
@@ -690,9 +534,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.True);
         }
 
-        /// <summary>
-        /// Covers lines 325-334: Write ArrayDimensions with matching ValueRank.
-        /// </summary>
         [Test]
         public void WriteArrayDimensionsWithMatchingRank()
         {
@@ -711,9 +552,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.Value.IsNull, Is.False);
         }
 
-        /// <summary>
-        /// Covers lines 325-334: Write empty ArrayDimensions does not adjust ValueRank.
-        /// </summary>
         [Test]
         public void WriteArrayDimensionsWithEmptyArray()
         {
@@ -730,9 +568,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.ValueRank, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Covers lines 336, 338: Write delegates to base for non-variable-type attributes.
-        /// </summary>
         [Test]
         public void WriteBaseAttributeDelegatesToBase()
         {
@@ -747,10 +582,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.DisplayName, Is.EqualTo(new LocalizedText("Updated")));
         }
 
-        /// <summary>
-        /// Covers lines 68-70: OnDeserializing callback invoked during DataContract deserialization.
-        /// The Initialize method sets defaults before properties are deserialized.
-        /// </summary>
         [Test]
         public void DataContractDeserializationTriggersInitialize()
         {
@@ -773,9 +604,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(deserialized.ValueRank, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests reading Value attribute through the public ILocalNode.Read API.
-        /// </summary>
         [Test]
         public void PublicReadApiReturnsValueAttribute()
         {

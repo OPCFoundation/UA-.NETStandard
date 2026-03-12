@@ -437,7 +437,7 @@ namespace Opc.Ua.PubSub.Transport
             CleanSession = true;
             ProtocolVersion = EnumMqttProtocolVersion.V310;
             MqttTlsOptions = null;
-            ConnectionProperties = null;
+            ConnectionProperties = default;
         }
 
         /// <summary>
@@ -472,35 +472,35 @@ namespace Opc.Ua.PubSub.Transport
                 Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.UserName)),
                 Value = new System.Net.NetworkCredential(string.Empty, UserName).Password
             };
-            ConnectionProperties.Add(kvpUserName);
+            ConnectionProperties = ConnectionProperties.AddItem(kvpUserName);
             var kvpPassword = new KeyValuePair
             {
                 Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.Password)),
                 Value = new System.Net.NetworkCredential(string.Empty, Password).Password
             };
-            ConnectionProperties.Add(kvpPassword);
+            ConnectionProperties = ConnectionProperties.AddItem(kvpPassword);
             var kvpAzureClientId = new KeyValuePair
             {
                 Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.AzureClientId)),
                 Value = AzureClientId
             };
-            ConnectionProperties.Add(kvpAzureClientId);
+            ConnectionProperties = ConnectionProperties.AddItem(kvpAzureClientId);
             var kvpCleanSession = new KeyValuePair
             {
                 Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.CleanSession)),
                 Value = CleanSession
             };
-            ConnectionProperties.Add(kvpCleanSession);
+            ConnectionProperties = ConnectionProperties.AddItem(kvpCleanSession);
             var kvpProtocolVersion = new KeyValuePair
             {
                 Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.ProtocolVersion)),
                 Value = (int)ProtocolVersion
             };
-            ConnectionProperties.Add(kvpProtocolVersion);
+            ConnectionProperties = ConnectionProperties.AddItem(kvpProtocolVersion);
 
             if (MqttTlsOptions != null)
             {
-                ConnectionProperties.AddRange(MqttTlsOptions.KeyValuePairs);
+                ConnectionProperties = ConnectionProperties.AddItems(MqttTlsOptions.KeyValuePairs);
             }
         }
 
@@ -508,7 +508,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Constructs a MqttClientProtocolConfiguration from given keyValuePairs
         /// </summary>
         public MqttClientProtocolConfiguration(
-            KeyValuePairCollection connectionProperties,
+            ArrayOf<Opc.Ua.KeyValuePair> connectionProperties,
             ILogger logger)
         {
             UserName = new SecureString();
@@ -596,6 +596,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// The key value pairs representing the parameters of a MqttClientProtocolConfiguration
         /// </summary>
-        public KeyValuePairCollection ConnectionProperties { get; set; }
+        public ArrayOf<Opc.Ua.KeyValuePair> ConnectionProperties { get; set; }
     }
 }

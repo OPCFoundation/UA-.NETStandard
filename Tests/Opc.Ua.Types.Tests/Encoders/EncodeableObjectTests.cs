@@ -44,7 +44,6 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public class EncodeableObjectTests
     {
-
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();

@@ -135,12 +135,12 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Executable, value.Executable))
+            if (Executable != value.Executable)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(UserExecutable, value.UserExecutable))
+            if (UserExecutable != value.UserExecutable)
             {
                 return false;
             }

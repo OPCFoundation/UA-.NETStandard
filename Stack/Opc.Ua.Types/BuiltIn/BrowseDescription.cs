@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Browse description
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BrowseDescription : IEncodeable, IJsonEncodeable
+    public class BrowseDescription : IEncodeable, IJsonEncodeable, IEquatable<BrowseDescription>
     {
         /// <inheritdoc/>
         public BrowseDescription()
@@ -159,37 +159,73 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
+            if (NodeId != value.NodeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BrowseDirection, value.BrowseDirection))
+            if (BrowseDirection != value.BrowseDirection)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
+            if (IncludeSubtypes != value.IncludeSubtypes)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeClassMask, value.NodeClassMask))
+            if (NodeClassMask != value.NodeClassMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ResultMask, value.ResultMask))
+            if (ResultMask != value.ResultMask)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                NodeId,
+                BrowseDirection,
+                ReferenceTypeId,
+                IncludeSubtypes,
+                NodeClassMask,
+                ResultMask);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(BrowseDescription other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(BrowseDescription left, BrowseDescription right)
+        {
+            return EqualityComparer<BrowseDescription>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(BrowseDescription left, BrowseDescription right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

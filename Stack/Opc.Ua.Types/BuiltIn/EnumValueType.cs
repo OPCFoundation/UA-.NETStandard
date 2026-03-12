@@ -38,29 +38,8 @@ namespace Opc.Ua
     /// Enum value
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class EnumValueType : IEncodeable, IJsonEncodeable
+    public class EnumValueType : IEncodeable, IJsonEncodeable, IEquatable<EnumValueType>
     {
-        /// <summary>
-        /// Create enum value
-        /// </summary>
-        public EnumValueType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            Value = 0;
-            DisplayName = default;
-            Description = default;
-        }
-
         /// <summary>
         /// Enum value
         /// </summary>
@@ -128,22 +107,55 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Value, value.Value))
+            if (Value != value.Value)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DisplayName, value.DisplayName))
+            if (DisplayName != value.DisplayName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Description, value.Description))
+            if (Description != value.Description)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                Value,
+                DisplayName,
+                Description);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(EnumValueType other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(EnumValueType left, EnumValueType right)
+        {
+            return EqualityComparer<EnumValueType>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(EnumValueType left, EnumValueType right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml;
 
 namespace Opc.Ua
@@ -382,6 +383,29 @@ namespace Opc.Ua
         public int GetHashCode(XmlQualifiedName obj)
         {
             return HashCode.Combine(obj?.Name, obj?.Namespace);
+        }
+    }
+
+    /// <summary>
+    /// Compare anything by reference
+    /// </summary>
+    public sealed class RefEqualityComparer : IEqualityComparer<object>
+    {
+        /// <summary>
+        /// Get an instance of the reference equality comparer.
+        /// </summary>
+        public static RefEqualityComparer Default { get; } = new();
+
+        /// <inheritdoc/>
+        public new bool Equals(object x, object y)
+        {
+            return ReferenceEquals(x, y);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(object obj)
+        {
+            return RuntimeHelpers.GetHashCode(obj);
         }
     }
 

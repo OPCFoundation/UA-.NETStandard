@@ -68,13 +68,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator BooleanCollection(ArrayOf<bool> values)
+        public static explicit operator BooleanCollection(ArrayOf<bool> values)
         {
             return ToBooleanCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator BooleanCollection(bool[] values)
+        public static explicit operator BooleanCollection(bool[] values)
         {
             return ToBooleanCollection(values);
         }
@@ -128,13 +128,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator SByteCollection(ArrayOf<sbyte> values)
+        public static explicit operator SByteCollection(ArrayOf<sbyte> values)
         {
             return ToSByteCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator SByteCollection(sbyte[] values)
+        public static explicit operator SByteCollection(sbyte[] values)
         {
             return ToSByteCollection(values);
         }
@@ -185,13 +185,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteCollection(ArrayOf<byte> values)
+        public static explicit operator ByteCollection(ArrayOf<byte> values)
         {
             return ToByteCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteCollection(byte[] values)
+        public static explicit operator ByteCollection(byte[] values)
         {
             return ToByteCollection(values);
         }
@@ -242,13 +242,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int16Collection(ArrayOf<short> values)
+        public static explicit operator Int16Collection(ArrayOf<short> values)
         {
             return ToInt16Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int16Collection(short[] values)
+        public static explicit operator Int16Collection(short[] values)
         {
             return ToInt16Collection(values);
         }
@@ -299,13 +299,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt16Collection(ArrayOf<ushort> values)
+        public static explicit operator UInt16Collection(ArrayOf<ushort> values)
         {
             return ToUInt16Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt16Collection(ushort[] values)
+        public static explicit operator UInt16Collection(ushort[] values)
         {
             return ToUInt16Collection(values);
         }
@@ -356,13 +356,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int32Collection(ArrayOf<int> values)
+        public static explicit operator Int32Collection(ArrayOf<int> values)
         {
             return ToInt32Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int32Collection(int[] values)
+        public static explicit operator Int32Collection(int[] values)
         {
             return ToInt32Collection(values);
         }
@@ -413,13 +413,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt32Collection(ArrayOf<uint> values)
+        public static explicit operator UInt32Collection(ArrayOf<uint> values)
         {
             return ToUInt32Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt32Collection(uint[] values)
+        public static explicit operator UInt32Collection(uint[] values)
         {
             return ToUInt32Collection(values);
         }
@@ -470,13 +470,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int64Collection(ArrayOf<long> values)
+        public static explicit operator Int64Collection(ArrayOf<long> values)
         {
             return ToInt64Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator Int64Collection(long[] values)
+        public static explicit operator Int64Collection(long[] values)
         {
             return ToInt64Collection(values);
         }
@@ -527,13 +527,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt64Collection(ArrayOf<ulong> values)
+        public static explicit operator UInt64Collection(ArrayOf<ulong> values)
         {
             return ToUInt64Collection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator UInt64Collection(ulong[] values)
+        public static explicit operator UInt64Collection(ulong[] values)
         {
             return ToUInt64Collection(values);
         }
@@ -584,13 +584,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator FloatCollection(ArrayOf<float> values)
+        public static explicit operator FloatCollection(ArrayOf<float> values)
         {
             return ToFloatCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator FloatCollection(float[] values)
+        public static explicit operator FloatCollection(float[] values)
         {
             return ToFloatCollection(values);
         }
@@ -641,13 +641,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DoubleCollection(ArrayOf<double> values)
+        public static explicit operator DoubleCollection(ArrayOf<double> values)
         {
             return ToDoubleCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator DoubleCollection(double[] values)
+        public static explicit operator DoubleCollection(double[] values)
         {
             return ToDoubleCollection(values);
         }
@@ -698,13 +698,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator StringCollection(ArrayOf<string> values)
+        public static explicit operator StringCollection(ArrayOf<string> values)
         {
             return ToStringCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator StringCollection(string[] values)
+        public static explicit operator StringCollection(string[] values)
         {
             return ToStringCollection(values);
         }
@@ -755,7 +755,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DiagnosticInfoCollection(ArrayOf<DiagnosticInfo> values)
+        public static explicit operator DiagnosticInfoCollection(ArrayOf<DiagnosticInfo> values)
         {
             return ToDiagnosticInfoCollection(values);
         }
@@ -813,13 +813,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator StatusCodeCollection(ArrayOf<StatusCode> values)
+        public static explicit operator StatusCodeCollection(ArrayOf<StatusCode> values)
         {
             return ToStatusCodeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator StatusCodeCollection(StatusCode[] values)
+        public static explicit operator StatusCodeCollection(StatusCode[] values)
         {
             return ToStatusCodeCollection(values);
         }
@@ -876,31 +876,31 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator UuidCollection(ArrayOf<Guid> values)
+        public static explicit operator UuidCollection(ArrayOf<Guid> values)
         {
             return ToUuidCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<Guid>(UuidCollection values)
+        public static explicit operator ArrayOf<Guid>(UuidCollection values)
         {
             return values != null ? [.. values.Select(g => g.Guid)] : [];
         }
 
         /// <inheritdoc/>
-        public static implicit operator UuidCollection(Guid[] values)
+        public static explicit operator UuidCollection(Guid[] values)
         {
             return ToUuidCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator UuidCollection(ArrayOf<Uuid> values)
+        public static explicit operator UuidCollection(ArrayOf<Uuid> values)
         {
             return ToUuidCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator UuidCollection(Uuid[] values)
+        public static explicit operator UuidCollection(Uuid[] values)
         {
             return ToUuidCollection(values);
         }
@@ -951,13 +951,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DateTimeCollection(ArrayOf<DateTimeUtc> values)
+        public static explicit operator DateTimeCollection(ArrayOf<DateTimeUtc> values)
         {
             return ToDateTimeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator DateTimeCollection(DateTimeUtc[] values)
+        public static explicit operator DateTimeCollection(DateTimeUtc[] values)
         {
             return ToDateTimeCollection(values);
         }
@@ -1008,13 +1008,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator VariantCollection(ArrayOf<Variant> values)
+        public static explicit operator VariantCollection(ArrayOf<Variant> values)
         {
             return ToVariantCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator VariantCollection(Variant[] values)
+        public static explicit operator VariantCollection(Variant[] values)
         {
             return ToVariantCollection(values);
         }
@@ -1071,13 +1071,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator XmlElementCollection(ArrayOf<XmlElement> values)
+        public static explicit operator XmlElementCollection(ArrayOf<XmlElement> values)
         {
             return ToXmlElementCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator XmlElementCollection(XmlElement[] values)
+        public static explicit operator XmlElementCollection(XmlElement[] values)
         {
             return ToXmlElementCollection(values);
         }
@@ -1128,13 +1128,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ExpandedNodeIdCollection(ArrayOf<ExpandedNodeId> values)
+        public static explicit operator ExpandedNodeIdCollection(ArrayOf<ExpandedNodeId> values)
         {
             return ToExpandedNodeIdCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ExpandedNodeIdCollection(ExpandedNodeId[] values)
+        public static explicit operator ExpandedNodeIdCollection(ExpandedNodeId[] values)
         {
             return ToExpandedNodeIdCollection(values);
         }
@@ -1185,13 +1185,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator NodeIdCollection(ArrayOf<NodeId> values)
+        public static explicit operator NodeIdCollection(ArrayOf<NodeId> values)
         {
             return ToNodeIdCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator NodeIdCollection(NodeId[] values)
+        public static explicit operator NodeIdCollection(NodeId[] values)
         {
             return ToNodeIdCollection(values);
         }
@@ -1242,13 +1242,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DataValueCollection(ArrayOf<DataValue> values)
+        public static explicit operator DataValueCollection(ArrayOf<DataValue> values)
         {
             return ToDataValueCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator DataValueCollection(DataValue[] values)
+        public static explicit operator DataValueCollection(DataValue[] values)
         {
             return ToDataValueCollection(values);
         }
@@ -1306,13 +1306,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator QualifiedNameCollection(ArrayOf<QualifiedName> values)
+        public static explicit operator QualifiedNameCollection(ArrayOf<QualifiedName> values)
         {
             return ToQualifiedNameCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator QualifiedNameCollection(QualifiedName[] values)
+        public static explicit operator QualifiedNameCollection(QualifiedName[] values)
         {
             return ToQualifiedNameCollection(values);
         }
@@ -1363,13 +1363,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator LocalizedTextCollection(ArrayOf<LocalizedText> values)
+        public static explicit operator LocalizedTextCollection(ArrayOf<LocalizedText> values)
         {
             return ToLocalizedTextCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator LocalizedTextCollection(LocalizedText[] values)
+        public static explicit operator LocalizedTextCollection(LocalizedText[] values)
         {
             return ToLocalizedTextCollection(values);
         }
@@ -1420,13 +1420,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteStringCollection(ArrayOf<ByteString> values)
+        public static explicit operator ByteStringCollection(ArrayOf<ByteString> values)
         {
             return ToByteStringCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteStringCollection(ByteString[] values)
+        public static explicit operator ByteStringCollection(ByteString[] values)
         {
             return ToByteStringCollection(values);
         }
@@ -1478,13 +1478,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ExtensionObjectCollection(ArrayOf<ExtensionObject> values)
+        public static explicit operator ExtensionObjectCollection(ArrayOf<ExtensionObject> values)
         {
             return ToExtensionObjectCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ExtensionObjectCollection(ExtensionObject[] values)
+        public static explicit operator ExtensionObjectCollection(ExtensionObject[] values)
         {
             return ToExtensionObjectCollection(values);
         }
@@ -1559,13 +1559,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator BrowseDescriptionCollection(ArrayOf<BrowseDescription> values)
+        public static explicit operator BrowseDescriptionCollection(ArrayOf<BrowseDescription> values)
         {
             return ToBrowseDescriptionCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator BrowseDescriptionCollection(BrowseDescription[] values)
+        public static explicit operator BrowseDescriptionCollection(BrowseDescription[] values)
         {
             return ToBrowseDescriptionCollection(values);
         }
@@ -1623,13 +1623,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArgumentCollection(ArrayOf<Argument> values)
+        public static explicit operator ArgumentCollection(ArrayOf<Argument> values)
         {
             return ToArgumentCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArgumentCollection(Argument[] values)
+        public static explicit operator ArgumentCollection(Argument[] values)
         {
             return ToArgumentCollection(values);
         }
@@ -1687,13 +1687,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator StructureDefinitionCollection(ArrayOf<StructureDefinition> values)
+        public static explicit operator StructureDefinitionCollection(ArrayOf<StructureDefinition> values)
         {
             return ToStructureDefinitionCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator StructureDefinitionCollection(StructureDefinition[] values)
+        public static explicit operator StructureDefinitionCollection(StructureDefinition[] values)
         {
             return ToStructureDefinitionCollection(values);
         }
@@ -1751,13 +1751,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumFieldCollection(ArrayOf<EnumField> values)
+        public static explicit operator EnumFieldCollection(ArrayOf<EnumField> values)
         {
             return ToEnumFieldCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumFieldCollection(EnumField[] values)
+        public static explicit operator EnumFieldCollection(EnumField[] values)
         {
             return ToEnumFieldCollection(values);
         }
@@ -1815,13 +1815,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator StructureFieldCollection(ArrayOf<StructureField> values)
+        public static explicit operator StructureFieldCollection(ArrayOf<StructureField> values)
         {
             return ToStructureFieldCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator StructureFieldCollection(StructureField[] values)
+        public static explicit operator StructureFieldCollection(StructureField[] values)
         {
             return ToStructureFieldCollection(values);
         }
@@ -1879,13 +1879,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumValueTypeCollection(ArrayOf<EnumValueType> values)
+        public static explicit operator EnumValueTypeCollection(ArrayOf<EnumValueType> values)
         {
             return ToEnumValueTypeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumValueTypeCollection(EnumValueType[] values)
+        public static explicit operator EnumValueTypeCollection(EnumValueType[] values)
         {
             return ToEnumValueTypeCollection(values);
         }
@@ -1943,13 +1943,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator IdTypeCollection(ArrayOf<IdType> values)
+        public static explicit operator IdTypeCollection(ArrayOf<IdType> values)
         {
             return ToIdTypeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator IdTypeCollection(IdType[] values)
+        public static explicit operator IdTypeCollection(IdType[] values)
         {
             return ToIdTypeCollection(values);
         }
@@ -2000,13 +2000,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator DataTypeDefinitionCollection(ArrayOf<DataTypeDefinition> values)
+        public static explicit operator DataTypeDefinitionCollection(ArrayOf<DataTypeDefinition> values)
         {
             return ToDataTypeDefinitionCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator DataTypeDefinitionCollection(DataTypeDefinition[] values)
+        public static explicit operator DataTypeDefinitionCollection(DataTypeDefinition[] values)
         {
             return ToDataTypeDefinitionCollection(values);
         }
@@ -2064,13 +2064,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator RolePermissionTypeCollection(ArrayOf<RolePermissionType> values)
+        public static explicit operator RolePermissionTypeCollection(ArrayOf<RolePermissionType> values)
         {
             return ToRolePermissionTypeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator RolePermissionTypeCollection(RolePermissionType[] values)
+        public static explicit operator RolePermissionTypeCollection(RolePermissionType[] values)
         {
             return ToRolePermissionTypeCollection(values);
         }
@@ -2128,13 +2128,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ReferenceDescriptionCollection(ArrayOf<ReferenceDescription> values)
+        public static explicit operator ReferenceDescriptionCollection(ArrayOf<ReferenceDescription> values)
         {
             return ToReferenceDescriptionCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ReferenceDescriptionCollection(ReferenceDescription[] values)
+        public static explicit operator ReferenceDescriptionCollection(ReferenceDescription[] values)
         {
             return ToReferenceDescriptionCollection(values);
         }
@@ -2192,13 +2192,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator RelativePathElementCollection(ArrayOf<RelativePathElement> values)
+        public static explicit operator RelativePathElementCollection(ArrayOf<RelativePathElement> values)
         {
             return ToRelativePathElementCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator RelativePathElementCollection(RelativePathElement[] values)
+        public static explicit operator RelativePathElementCollection(RelativePathElement[] values)
         {
             return ToRelativePathElementCollection(values);
         }
@@ -2256,13 +2256,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumDefinitionCollection(ArrayOf<EnumDefinition> values)
+        public static explicit operator EnumDefinitionCollection(ArrayOf<EnumDefinition> values)
         {
             return ToEnumDefinitionCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator EnumDefinitionCollection(EnumDefinition[] values)
+        public static explicit operator EnumDefinitionCollection(EnumDefinition[] values)
         {
             return ToEnumDefinitionCollection(values);
         }
@@ -2320,13 +2320,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator NodeCollection(ArrayOf<Node> values)
+        public static explicit operator NodeCollection(ArrayOf<Node> values)
         {
             return ToNodeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator NodeCollection(Node[] values)
+        public static explicit operator NodeCollection(Node[] values)
         {
             return ToNodeCollection(values);
         }
@@ -2384,13 +2384,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ReferenceNodeCollection(ArrayOf<ReferenceNode> values)
+        public static explicit operator ReferenceNodeCollection(ArrayOf<ReferenceNode> values)
         {
             return ToReferenceNodeCollection(values);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ReferenceNodeCollection(ReferenceNode[] values)
+        public static explicit operator ReferenceNodeCollection(ReferenceNode[] values)
         {
             return ToReferenceNodeCollection(values);
         }

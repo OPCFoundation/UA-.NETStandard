@@ -356,7 +356,7 @@ namespace Opc.Ua
                 }
 
                 // clear imported references.
-                node.References.Clear();
+                node.References = [];
 
                 // add the node.
                 InternalAdd(node);

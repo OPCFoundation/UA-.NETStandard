@@ -1222,20 +1222,6 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public static implicit operator {{Tokens.ClassName}}Collection(
-                    {{Tokens.ClassName}}[]? values)
-                {
-                    return To{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static implicit operator {{Tokens.ClassName}}Collection(
-                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
-                {
-                    return To{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
                 public static {{Tokens.ClassName}}Collection To{{Tokens.ClassName}}Collection(
                     global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
                 {
@@ -1243,7 +1229,21 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public static implicit operator {{Tokens.ClassName}}[](
+                public static explicit operator {{Tokens.ClassName}}Collection(
+                    {{Tokens.ClassName}}[]? values)
+                {
+                    return To{{Tokens.ClassName}}Collection(values);
+                }
+
+                /// <inheritdoc/>
+                public static explicit operator {{Tokens.ClassName}}Collection(
+                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
+                {
+                    return To{{Tokens.ClassName}}Collection(values);
+                }
+
+                /// <inheritdoc/>
+                public static explicit operator {{Tokens.ClassName}}[](
                     {{Tokens.ClassName}}Collection? values)
                 {
                     return values == null ? global::System.Array.Empty<{{Tokens.ClassName}}>() : values.ToArray();

@@ -1199,6 +1199,7 @@ namespace Opc.Ua
             : base(capacity)
         {
         }
+
         /// <inheritdoc/>
         public SerializableXmlElementCollection(XmlElementCollection collection)
             : this(collection.Select(x => x.ToXmlElement()))

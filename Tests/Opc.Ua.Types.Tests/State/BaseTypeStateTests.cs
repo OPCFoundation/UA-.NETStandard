@@ -50,7 +50,8 @@ namespace Opc.Ua.Types.Tests.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
-            m_context = new SystemContext(telemetry) {
+            m_context = new SystemContext(telemetry)
+            {
                 NamespaceUris = messageContext.NamespaceUris,
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory

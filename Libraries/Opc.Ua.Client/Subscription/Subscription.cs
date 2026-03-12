@@ -711,9 +711,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return m_availableSequenceNumbers != null
-                        ? m_availableSequenceNumbers.ToArray()
-                        : [];
+                    return m_availableSequenceNumbers;
                 }
             }
         }
@@ -966,10 +964,7 @@ namespace Opc.Ua.Client
             VerifySessionAndSubscriptionState(true);
 
             // collect list of browse paths.
-            var browsePaths = new BrowsePathCollection();
-            var itemsToBrowse = new List<MonitoredItem>();
-
-            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
+            var (browsePaths, itemsToBrowse) = PrepareResolveItemNodeIds();
 
             // nothing to do.
             if (browsePaths.Count == 0)
@@ -982,7 +977,7 @@ namespace Opc.Ua.Client
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
                 .ConfigureAwait(false);
 
-            BrowsePathResultCollection results = response.Results;
+            var results = response.Results;
             ClientBase.ValidateResponse(results, browsePaths);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
 
@@ -1003,13 +998,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates all items on the server that have not already been created.
         /// </summary>
-        public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
+        public async Task<ArrayOf<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
         {
-            MonitoredItemCreateRequestCollection requestItems;
-            List<MonitoredItem> itemsToCreate;
             VerifySession();
 
-            (requestItems, itemsToCreate) = await PrepareItemsToCreateAsync(ct)
+            (var requestItems, var itemsToCreate) = await PrepareItemsToCreateAsync(ct)
                 .ConfigureAwait(false);
 
             if (requestItems.Count == 0)
@@ -1025,7 +1018,7 @@ namespace Opc.Ua.Client
                     .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
                     .ConfigureAwait(false);
 
-                MonitoredItemCreateResultCollection results = response.Results;
+                var results = response.Results;
                 ClientBase.ValidateResponse(results, itemsToCreate);
                 ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
 
@@ -1064,15 +1057,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Modifies all items that have been changed.
         /// </summary>
-        public async Task<IList<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
+        public async Task<ArrayOf<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
         {
             VerifySessionAndSubscriptionState(true);
 
-            var requestItems = new MonitoredItemModifyRequestCollection();
-            var itemsToModify = new List<MonitoredItem>();
-
-            PrepareItemsToModify(requestItems, itemsToModify);
-
+            var (requestItems, itemsToModify) = PrepareItemsToModify();
             if (requestItems.Count == 0)
             {
                 return itemsToModify;
@@ -1084,7 +1073,7 @@ namespace Opc.Ua.Client
                 .ModifyMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
                 .ConfigureAwait(false);
 
-            MonitoredItemModifyResultCollection results = response.Results;
+            var results = response.Results;
             ClientBase.ValidateResponse(results, itemsToModify);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToModify);
 
@@ -1110,7 +1099,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Deletes all items that have been marked for deletion.
         /// </summary>
-        public async Task<IList<MonitoredItem>> DeleteItemsAsync(
+        public async Task<ArrayOf<MonitoredItem>> DeleteItemsAsync(
             CancellationToken ct = default)
         {
             VerifySessionAndSubscriptionState(true);
@@ -1121,21 +1110,17 @@ namespace Opc.Ua.Client
             }
 
             using Activity? activity = m_telemetry.StartActivity();
-            List<MonitoredItem> itemsToDelete = m_deletedItems;
+            var itemsToDelete = m_deletedItems.ToArrayOf();
             m_deletedItems = [];
 
-            var monitoredItemIds = new UInt32Collection();
-
-            foreach (MonitoredItem monitoredItem in itemsToDelete)
-            {
-                monitoredItemIds.Add(monitoredItem.Status.Id);
-            }
+            var monitoredItemIds = itemsToDelete.ConvertAll(
+                monitoredItem => monitoredItem.Status.Id);
 
             DeleteMonitoredItemsResponse response = await Session
                 .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
                 .ConfigureAwait(false);
 
-            StatusCodeCollection results = response.Results;
+            var results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
 
@@ -1239,7 +1224,7 @@ namespace Opc.Ua.Client
         /// is <c>null</c>.</exception>
         public async Task<List<ServiceResult?>?> SetMonitoringModeAsync(
             MonitoringMode monitoringMode,
-            IList<MonitoredItem> monitoredItems,
+            ArrayOf<MonitoredItem> monitoredItems,
             CancellationToken ct = default)
         {
             if (monitoredItems == null)
@@ -1256,17 +1241,13 @@ namespace Opc.Ua.Client
             }
 
             // get list of items to update.
-            var monitoredItemIds = new UInt32Collection();
-            foreach (MonitoredItem monitoredItem in monitoredItems)
-            {
-                monitoredItemIds.Add(monitoredItem.Status.Id);
-            }
+            var monitoredItemIds = monitoredItems.ConvertAll(monitoredItem => monitoredItem.Status.Id);
 
             SetMonitoringModeResponse response = await Session
                 .SetMonitoringModeAsync(null, Id, monitoringMode, monitoredItemIds, ct)
                 .ConfigureAwait(false);
 
-            StatusCodeCollection results = response.Results;
+            var results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
 
@@ -1575,7 +1556,7 @@ namespace Opc.Ua.Client
         /// Adds the notification message to internal cache.
         /// </summary>
         public void SaveMessageInCache(
-            IList<uint>? availableSequenceNumbers,
+            ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
             PublishStateChangedEventHandler? callback = null;
@@ -1971,8 +1952,7 @@ namespace Opc.Ua.Client
                 m_resyncLastSequenceNumberProcessed = true;
 
                 // save available sequence numbers
-                m_availableSequenceNumbers = (UInt32Collection)availableSequenceNumbers
-                    .MemberwiseClone();
+                m_availableSequenceNumbers = availableSequenceNumbers;
 
                 if (availableSequenceNumbers.Count != 0 && RepublishAfterTransfer)
                 {
@@ -2534,8 +2514,8 @@ namespace Opc.Ua.Client
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
 
                                 // only call republish if the sequence number is available
-                                if (m_availableSequenceNumbers?.Contains(
-                                    ii.Value.SequenceNumber) == true)
+                                if (!m_availableSequenceNumbers.IsEmpty &&
+                                    m_availableSequenceNumbers.Find(i => i == ii.Value.SequenceNumber) != 0)
                                 {
                                     (messagesToRepublish ??= []).Add(ii.Value);
                                 }
@@ -2782,8 +2762,8 @@ namespace Opc.Ua.Client
         private static bool UpdateMonitoringMode(
             IList<MonitoredItem> monitoredItems,
             List<ServiceResult?> errors,
-            StatusCodeCollection results,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<StatusCode> results,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader,
             MonitoringMode monitoringMode)
         {
@@ -2815,15 +2795,15 @@ namespace Opc.Ua.Client
         /// Prepare the creation requests for all monitored items that have not yet been created.
         /// </summary>
         private async Task<(
-            MonitoredItemCreateRequestCollection,
-            List<MonitoredItem>
+            ArrayOf<MonitoredItemCreateRequest>,
+            ArrayOf<MonitoredItem>
             )> PrepareItemsToCreateAsync(CancellationToken ct = default)
         {
             VerifySessionAndSubscriptionState(true);
 
             await ResolveItemNodeIdsAsync(ct).ConfigureAwait(false);
 
-            var requestItems = new MonitoredItemCreateRequestCollection();
+            var requestItems = new List<MonitoredItemCreateRequest>();
             var itemsToCreate = new List<MonitoredItem>();
             lock (m_cache)
             {
@@ -2874,10 +2854,10 @@ namespace Opc.Ua.Client
         /// Prepare the modify requests for all monitored items
         /// that need modification.
         /// </summary>
-        private void PrepareItemsToModify(
-            MonitoredItemModifyRequestCollection requestItems,
-            List<MonitoredItem> itemsToModify)
+        private (ArrayOf<MonitoredItemModifyRequest>, ArrayOf<MonitoredItem>) PrepareItemsToModify()
         {
+            List<MonitoredItemModifyRequest> requestItems = [];
+            List<MonitoredItem> itemsToModify = [];
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -2908,6 +2888,7 @@ namespace Opc.Ua.Client
                     itemsToModify.Add(monitoredItem);
                 }
             }
+            return (requestItems, itemsToModify);
         }
 
         /// <summary>
@@ -2915,8 +2896,8 @@ namespace Opc.Ua.Client
         /// requests if transfer of client handles is not possible.
         /// </summary>
         private void TransferItems(
-            UInt32Collection serverHandles,
-            UInt32Collection clientHandles,
+            ArrayOf<uint> serverHandles,
+            ArrayOf<uint> clientHandles,
             out IList<MonitoredItem> itemsToModify)
         {
             lock (m_cache)
@@ -2949,10 +2930,10 @@ namespace Opc.Ua.Client
         /// Prepare the ResolveItem to NodeId service call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void PrepareResolveItemNodeIds(
-            BrowsePathCollection browsePaths,
-            List<MonitoredItem> itemsToBrowse)
+        private (ArrayOf<BrowsePath>, ArrayOf<MonitoredItem>) PrepareResolveItemNodeIds()
         {
+            List<BrowsePath> browsePaths = [];
+            List<MonitoredItem> itemsToBrowse = [];
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -2991,6 +2972,7 @@ namespace Opc.Ua.Client
                     }
                 }
             }
+            return (browsePaths, itemsToBrowse);
         }
 
         /// <summary>
@@ -3164,7 +3146,7 @@ namespace Opc.Ua.Client
         private bool m_disposed;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
-        private IList<uint>? m_availableSequenceNumbers;
+        private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
         private CancellationTokenSource? m_messageWorkerCts;

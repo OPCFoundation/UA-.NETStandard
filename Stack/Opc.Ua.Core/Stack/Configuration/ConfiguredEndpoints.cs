@@ -760,10 +760,10 @@ namespace Opc.Ua
         /// <summary>
         /// A list of well known urls that can be used for discovery.
         /// </summary>
-        public StringCollection DiscoveryUrls
+        public ArrayOf<string> DiscoveryUrls
         {
             get => m_discoveryUrls;
-            set => m_discoveryUrls = value ?? [.. Utils.DiscoveryUrls];
+            set => m_discoveryUrls = value.IsNull ? Utils.DiscoveryUrls : value;
         }
 
         /// <summary>
@@ -1216,12 +1216,12 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client
+                ArrayOf<EndpointDescription> collection = await client
                     .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
 
                 // find list of matching endpoints.
-                EndpointDescriptionCollection matches = MatchEndpoints(
+                ArrayOf<EndpointDescription> matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1255,15 +1255,10 @@ namespace Opc.Ua
             }
 
             // get the know discovery URLs.
-            StringCollection discoveryUrls = null;
-
-            if (m_description.Server != null)
-            {
-                discoveryUrls = m_description.Server.DiscoveryUrls;
-            }
+            var discoveryUrls =  m_description.Server?.DiscoveryUrls ?? default;
 
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
-            if (discoveryUrls == null || discoveryUrls.Count == 0)
+            if (discoveryUrls.IsEmpty)
             {
                 if (Utils.IsUriHttpRelatedScheme(endpointUrl.Scheme))
                 {
@@ -1354,7 +1349,7 @@ namespace Opc.Ua
             {
                 if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
+                    var policies = m_description.UserIdentityTokens;
 
                     if (SelectedUserTokenPolicyIndex >= 0 &&
                         policies.Count > SelectedUserTokenPolicyIndex)
@@ -1369,7 +1364,7 @@ namespace Opc.Ua
             {
                 if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
+                    var policies = m_description.UserIdentityTokens;
 
                     for (int ii = 0; ii < policies.Count; ii++)
                     {
@@ -1385,13 +1380,13 @@ namespace Opc.Ua
             }
         }
 
-        private static EndpointDescriptionCollection MatchEndpoints(
-            EndpointDescriptionCollection collection,
+        private static ArrayOf<EndpointDescription> MatchEndpoints(
+            ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (collection == null || collection.Count == 0)
+            if (collection.IsEmpty)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
@@ -1399,7 +1394,7 @@ namespace Opc.Ua
             }
 
             // find list of matching endpoints.
-            var matches = new EndpointDescriptionCollection();
+            var matches = new List<EndpointDescription>();
 
             // first pass - match on the requested security parameters.
             foreach (EndpointDescription description in collection)
@@ -1454,7 +1449,7 @@ namespace Opc.Ua
                 else
                 {
                     // no specific security parameters were requested, fall back to any endpoint
-                    matches = collection;
+                    matches = collection.ToList();
                 }
             }
 
@@ -1503,7 +1498,7 @@ namespace Opc.Ua
             // no matches (protocol may not be supported).
             if (matches.Count == 0)
             {
-                matches = collection;
+                matches = collection.ToList();
             }
 
             return matches;
@@ -1513,7 +1508,7 @@ namespace Opc.Ua
         /// Select the best match from a security description.
         /// </summary>
         private static EndpointDescription SelectBestMatch(
-            EndpointDescriptionCollection matches,
+            ArrayOf<EndpointDescription> matches,
             Uri discoveryUrl)
         {
             // choose first in list by default.

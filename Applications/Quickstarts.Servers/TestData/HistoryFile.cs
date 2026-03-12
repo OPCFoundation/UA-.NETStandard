@@ -98,7 +98,7 @@ namespace TestData
 
                 return new DataValue
                 {
-                    Value = entry.Value.Value,
+                    WrappedValue = entry.Value.WrappedValue,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
                     StatusCode = entry.Value.StatusCode
@@ -133,7 +133,7 @@ namespace TestData
 
                 return new DataValue
                 {
-                    Value = entry.Value.Value,
+                    WrappedValue = entry.Value.WrappedValue,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
                     StatusCode = entry.Value.StatusCode

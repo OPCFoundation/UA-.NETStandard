@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<uint, object> m_idsToObjects = [];
-        private readonly Dictionary<object, uint> m_objectsToIds = [];
+        private readonly Dictionary<object, uint> m_objectsToIds = new(RefEqualityComparer.Default);
         private readonly Dictionary<uint, PubSubState> m_idsToPubSubState = [];
         private readonly Dictionary<uint, uint> m_idsToParentId = [];
         private uint m_nextId = 1;
@@ -158,7 +158,8 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Get reference to <see cref="PubSubConfigurationDataType"/> instance that maintains the configuration for this <see cref="UaPubSubConfigurator"/>.
+        /// Get reference to <see cref="PubSubConfigurationDataType"/> instance that
+        /// maintains the configuration for this <see cref="UaPubSubConfigurator"/>.
         /// </summary>
         public PubSubConfigurationDataType PubSubConfiguration { get; }
 
@@ -594,8 +595,7 @@ namespace Opc.Ua.PubSub.Configuration
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 // locate the extension field
-                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields
-                    .ToArray())
+                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
                 {
                     if (extensionField.Equals(extensionFieldToRemove))
                     {
@@ -1523,7 +1523,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Enable(object configurationObject)
         {
-            if (configurationObject == null)
+            if (configurationObject is null)
             {
                 throw new ArgumentException(
                     "The parameter cannot be null.",
@@ -1576,7 +1576,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Disable(object configurationObject)
         {
-            if (configurationObject == null)
+            if (configurationObject is null)
             {
                 throw new ArgumentException(
                     "The parameter cannot be null.",

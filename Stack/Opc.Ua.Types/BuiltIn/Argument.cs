@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Argument
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class Argument : IEncodeable, IJsonEncodeable
+    public class Argument : IEncodeable, IJsonEncodeable, IEquatable<Argument>
     {
         /// <summary>
         /// Initializes an instance of the argument.
@@ -54,22 +54,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Argument()
         {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            Name = null;
-            DataType = default;
-            ValueRank = 0;
-            m_arrayDimensions = [];
-            Description = default;
         }
 
         /// <summary>
@@ -94,20 +78,7 @@ namespace Opc.Ua
         /// Array Dimensions
         /// </summary>
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
-        public UInt32Collection ArrayDimensions
-        {
-            get => m_arrayDimensions;
-
-            set
-            {
-                m_arrayDimensions = value;
-
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-            }
-        }
+        public ArrayOf<uint> ArrayDimensions { get; set; }
 
         /// <summary>
         /// Description
@@ -174,32 +145,67 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Name, value.Name))
+            if (Name != value.Name)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DataType, value.DataType))
+            if (DataType != value.DataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
+            if (ValueRank != value.ValueRank)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (ArrayDimensions != value.ArrayDimensions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Description, value.Description))
+            if (Description != value.Description)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                Name,
+                DataType,
+                ValueRank,
+                ArrayDimensions,
+                Description);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(Argument other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(Argument left, Argument right)
+        {
+            return EqualityComparer<Argument>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(Argument left, Argument right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -216,12 +222,10 @@ namespace Opc.Ua
             clone.Name = CoreUtils.Clone(Name);
             clone.DataType = DataType;
             clone.ValueRank = ValueRank;
-            clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
+            clone.ArrayDimensions = CoreUtils.Clone(ArrayDimensions);
             clone.Description = CoreUtils.Clone(Description);
 
             return clone;
         }
-
-        private UInt32Collection m_arrayDimensions;
     }
 }

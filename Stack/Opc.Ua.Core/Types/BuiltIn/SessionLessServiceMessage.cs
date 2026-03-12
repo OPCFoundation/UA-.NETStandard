@@ -134,35 +134,26 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            StringCollection uris = decoder.ReadStringArray("NamespaceUris");
+            var uris = decoder.ReadStringArray("NamespaceUris");
 
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    NamespaceUris.Append(uri);
-                }
+                NamespaceUris.Append(uri);
             }
 
             ServerUris = new StringTable();
             uris = decoder.ReadStringArray("ServerUris");
 
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    ServerUris.Append(uri);
-                }
+                ServerUris.Append(uri);
             }
 
             LocaleIds = new StringTable();
             uris = decoder.ReadStringArray("LocaleIds");
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    LocaleIds.Append(uri);
-                }
+                LocaleIds.Append(uri);
             }
 
             decoder.SetMappingTables(NamespaceUris, ServerUris);

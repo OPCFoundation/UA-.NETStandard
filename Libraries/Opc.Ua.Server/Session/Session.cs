@@ -423,7 +423,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="localeIds"/> is <c>null</c>.</exception>
-        public bool UpdateLocaleIds(StringCollection localeIds)
+        public bool UpdateLocaleIds(ArrayOf<string> localeIds)
         {
             if (localeIds == null)
             {
@@ -569,7 +569,7 @@ namespace Opc.Ua.Server
             IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
             lock (m_lock)

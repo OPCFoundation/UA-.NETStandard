@@ -198,12 +198,10 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (StatusCode.IsNotBad(nameSpaceValues[ii].StatusCode))
                 {
-                    object dataValue = nameSpaceValues[ii].Value;
-
                     // servers may optimize space by not returning a dictionary
-                    if (dataValue != null)
+                    if (!nameSpaceValues[ii].WrappedValue.IsNull)
                     {
-                        if (dataValue is string ns)
+                        if (nameSpaceValues[ii].WrappedValue.TryGet(out string ns))
                         {
                             namespaces[(NodeId)referenceNodeIds[ii]] = ns;
                             continue;
@@ -453,7 +451,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public async Task<object> GetEnumTypeArrayAsync(
+        public async Task<Variant> GetEnumTypeArrayAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
@@ -471,9 +469,9 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // read the enum type array
                 DataValue value = await GetValueAsync(property.NodeId, ct).ConfigureAwait(false);
-                return value?.Value;
+                return value?.WrappedValue ?? default;
             }
-            return null;
+            return default;
         }
 
         /// <inheritdoc/>
@@ -745,7 +743,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
                 if (!datatypeId.IsNull &&
                     StatusCode.IsGood(value.StatusCode) &&
-                    value.Value is string dictName)
+                    value.WrappedValue.TryGet(out string dictName))
                 {
                     dictionaryToLoad.DataTypes[datatypeId] = new QualifiedName(
                         dictName,

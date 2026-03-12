@@ -350,7 +350,7 @@ namespace Opc.Ua.Client
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
             EndpointDescriptionCollection? availableEndpoints = null,
-            StringCollection? discoveryProfileUris = null)
+            ArrayOf<string>? discoveryProfileUris = null)
         {
             return new Session(
                 channel,

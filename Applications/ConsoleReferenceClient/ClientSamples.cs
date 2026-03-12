@@ -151,7 +151,7 @@ namespace Quickstarts
                 // Display the results.
                 foreach (DataValue result in resultsValues)
                 {
-                    Console.WriteLine($"Read Value = {result.Value} , StatusCode = {result.StatusCode}");
+                    Console.WriteLine($"Read Value = {result.WrappedValue} , StatusCode = {result.StatusCode}");
                 }
 
                 // Read Server NamespaceArray
@@ -189,7 +189,7 @@ namespace Quickstarts
                     {
                         NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Int32"),
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { Value = 100 }
+                        Value = new DataValue(Variant.From(100))
                     },
 
                     // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
@@ -197,7 +197,7 @@ namespace Quickstarts
                     {
                         NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Float"),
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { Value = (float)100.5 }
+                        Value = new DataValue(Variant.From(100.5f))
                     },
 
                     // String Node - Objects\CTT\Scalar\Scalar_Static\String
@@ -205,7 +205,7 @@ namespace Quickstarts
                     {
                         NodeId = NodeId.Parse("ns=2;s=Scalar_Static_String"),
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { Value = "String Test" }
+                        Value = new DataValue(Variant.From("String Test"))
                     }
                 ];
 

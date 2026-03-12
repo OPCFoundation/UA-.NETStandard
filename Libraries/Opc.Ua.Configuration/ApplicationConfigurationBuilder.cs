@@ -319,14 +319,14 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> CreateAsync(CancellationToken ct = default)
         {
             // sanity checks
-            if (ApplicationInstance
-                    .ApplicationType is ApplicationType.Server or ApplicationType.ClientAndServer &&
+            if (ApplicationInstance.ApplicationType is
+                ApplicationType.Server or ApplicationType.ClientAndServer &&
                 ApplicationConfiguration.ServerConfiguration == null)
             {
                 throw new ArgumentException("ApplicationType Server is not configured.");
             }
-            if (ApplicationInstance
-                    .ApplicationType is ApplicationType.Client or ApplicationType.ClientAndServer &&
+            if (ApplicationInstance.ApplicationType is
+                ApplicationType.Client or ApplicationType.ClientAndServer &&
                 ApplicationConfiguration.ClientConfiguration == null)
             {
                 throw new ArgumentException("ApplicationType Client is not configured.");
@@ -335,8 +335,9 @@ namespace Opc.Ua.Configuration
             // ensure for a user token policy
             if (ApplicationConfiguration.ServerConfiguration?.UserTokenPolicies.Count == 0)
             {
-                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(
-                    new UserTokenPolicy(UserTokenType.Anonymous));
+                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies =
+                    ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.AddItem(
+                        new UserTokenPolicy(UserTokenType.Anonymous));
             }
 
             // ensure for secure transport profiles
@@ -395,7 +396,9 @@ namespace Opc.Ua.Configuration
             // base addresses
             foreach (string baseAddress in baseAddresses)
             {
-                serverConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost(baseAddress));
+                serverConfiguration.BaseAddresses =
+                    serverConfiguration.BaseAddresses.AddItem(
+                        Utils.ReplaceLocalhost(baseAddress));
             }
 
             // alternate base addresses
@@ -403,8 +406,9 @@ namespace Opc.Ua.Configuration
             {
                 foreach (string alternateBaseAddress in alternateBaseAddresses)
                 {
-                    serverConfiguration.AlternateBaseAddresses
-                        .Add(Utils.ReplaceLocalhost(alternateBaseAddress));
+                    serverConfiguration.AlternateBaseAddresses =
+                        serverConfiguration.AlternateBaseAddresses.AddItem(
+                            Utils.ReplaceLocalhost(alternateBaseAddress));
                 }
             }
 
@@ -496,8 +500,9 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
             UserTokenType userTokenType)
         {
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(userTokenType));
+            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies =
+                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.AddItem(
+                    new UserTokenPolicy(userTokenType));
             return this;
         }
 
@@ -510,7 +515,8 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentNullException(nameof(userTokenPolicy));
             }
 
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies =
+                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.AddItem(userTokenPolicy);
             return this;
         }
 
@@ -940,7 +946,8 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions AddServerProfile(string serverProfile)
         {
-            ApplicationConfiguration.ServerConfiguration.ServerProfileArray.Add(serverProfile);
+            ApplicationConfiguration.ServerConfiguration.ServerProfileArray =
+                 ApplicationConfiguration.ServerConfiguration.ServerProfileArray.AddItem(serverProfile);
             return this;
         }
 
@@ -955,13 +962,14 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions AddServerCapabilities(
             string serverCapability)
         {
-            ApplicationConfiguration.ServerConfiguration.ServerCapabilities.Add(serverCapability);
+            ApplicationConfiguration.ServerConfiguration.ServerCapabilities =
+                ApplicationConfiguration.ServerConfiguration.ServerCapabilities.AddItem(serverCapability);
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
-            StringCollection supportedPrivateKeyFormats)
+            ArrayOf<string> supportedPrivateKeyFormats)
         {
             ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats
                 = supportedPrivateKeyFormats;
@@ -1030,8 +1038,8 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions AddWellKnownDiscoveryUrls(
             string wellKnownDiscoveryUrl)
         {
-            ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls
-                .Add(wellKnownDiscoveryUrl);
+            ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls =
+                ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls.AddItem(wellKnownDiscoveryUrl);
             return this;
         }
 
@@ -1039,7 +1047,8 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions AddDiscoveryServer(
             EndpointDescription discoveryServer)
         {
-            ApplicationConfiguration.ClientConfiguration.DiscoveryServers.Add(discoveryServer);
+            ApplicationConfiguration.ClientConfiguration.DiscoveryServers =
+                ApplicationConfiguration.ClientConfiguration.DiscoveryServers.AddItem(discoveryServer);
             return this;
         }
 

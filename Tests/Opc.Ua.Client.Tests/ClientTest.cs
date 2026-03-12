@@ -336,7 +336,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            var profileUris = new StringCollection();
+            var profileUris = new List<string>();
             for (int i = 0; i < 10000; i++)
             {
                 // dummy uri to create a bigger message
@@ -964,7 +964,6 @@ namespace Opc.Ua.Client.Tests
         public async Task ReconnectSession_ReuseUsertokenPolicyAsync(
             string securityPolicy, string userTokenPolicy)
         {
-
             UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
@@ -980,7 +979,6 @@ namespace Opc.Ua.Client.Tests
                 null,
                 (EndpointDescription)endpoint.Description.MemberwiseClone(),
                 endpoint.Configuration);
-            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
             ConfiguredEndpoint tokenPolicyEndpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, userTokenPolicy, Endpoints)
                 .ConfigureAwait(false);
@@ -1171,7 +1169,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ChangePreferredLocalesAsync()
         {
             // change locale
-            var localeCollection = new StringCollection { "de-de", "en-us" };
+            var localeCollection = new ArrayOf<string> { "de-de", "en-us" };
             await Session.ChangePreferredLocalesAsync(localeCollection).ConfigureAwait(false);
         }
 
@@ -1211,7 +1209,7 @@ namespace Opc.Ua.Client.Tests
             {
                 DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
                 Assert.NotNull(dataValue);
-                Assert.NotNull(dataValue.Value);
+                Assert.IsFalse(dataValue.WrappedValue.IsNull);
                 Assert.AreNotEqual(DateTime.MinValue, dataValue.SourceTimestamp);
                 Assert.AreNotEqual(DateTime.MinValue, dataValue.ServerTimestamp);
             }
@@ -1859,15 +1857,15 @@ namespace Opc.Ua.Client.Tests
             Assert.False(variableNodes.IsNull);
 
             // test build info contains the equal values as the properties
-            (values[0].Value is ExtensionObject eo ? eo : default)
+            (values[0].WrappedValue.TryGet(out ExtensionObject eo) ? eo : default)
                 .TryGetEncodeable(out BuildInfo buildInfo);
             Assert.NotNull(buildInfo);
-            Assert.AreEqual(buildInfo.ProductName, values[1].Value);
-            Assert.AreEqual(buildInfo.ProductUri, values[2].Value);
-            Assert.AreEqual(buildInfo.ManufacturerName, values[3].Value);
-            Assert.AreEqual(buildInfo.SoftwareVersion, values[4].Value);
-            Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
-            Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
+            Assert.AreEqual(buildInfo.ProductName, (string)values[1].WrappedValue);
+            Assert.AreEqual(buildInfo.ProductUri, (string)values[2].WrappedValue);
+            Assert.AreEqual(buildInfo.ManufacturerName, (string)values[3].WrappedValue);
+            Assert.AreEqual(buildInfo.SoftwareVersion, (string)values[4].WrappedValue);
+            Assert.AreEqual(buildInfo.BuildNumber, (string)values[5].WrappedValue);
+            Assert.AreEqual(buildInfo.BuildDate, (DateTimeUtc)values[6].WrappedValue);
         }
 
         /// <summary>

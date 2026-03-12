@@ -178,11 +178,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void Clone()
         {
             var testClone = new TestClone(1);
-            Assert.NotNull(Utils.Clone(testClone));
+            Assert.NotNull(CoreUtils.Clone(testClone));
             var testMemberwiseClone = new TestMemberwiseClone(2);
-            Assert.NotNull(Utils.Clone(testMemberwiseClone));
+            Assert.NotNull(CoreUtils.Clone(testMemberwiseClone));
             var testNoClone = new TestNoClone(3);
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
         }
 
         [Test]

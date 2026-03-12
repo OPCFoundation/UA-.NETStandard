@@ -33,11 +33,6 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.State
 {
-    using AttributesToSave = NodeState.AttributesToSave;
-
-    /// <summary>
-    /// Coverage tests for BaseVariableTypeState.
-    /// </summary>
     [TestFixture]
     [Category("NodeState")]
     [SetCulture("en-us")]
@@ -471,9 +466,9 @@ namespace Opc.Ua.Types.Tests.State
             };
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.Value), Is.True);
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.Value), Is.True);
         }
 
         [Test]
@@ -482,9 +477,9 @@ namespace Opc.Ua.Types.Tests.State
             var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.Value), Is.False);
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.Value), Is.False);
         }
 
         [Test]
@@ -496,9 +491,9 @@ namespace Opc.Ua.Types.Tests.State
             };
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.DataType), Is.True);
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.DataType), Is.True);
         }
 
         [Test]
@@ -510,9 +505,9 @@ namespace Opc.Ua.Types.Tests.State
             };
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.ValueRank), Is.True);
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.ValueRank), Is.True);
         }
 
         [Test]
@@ -521,9 +516,9 @@ namespace Opc.Ua.Types.Tests.State
             var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.ValueRank), Is.False);
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.ValueRank), Is.False);
         }
 
         [Test]
@@ -535,9 +530,9 @@ namespace Opc.Ua.Types.Tests.State
             };
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.ArrayDimensions),
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.ArrayDimensions),
                 Is.True);
         }
 
@@ -547,9 +542,9 @@ namespace Opc.Ua.Types.Tests.State
             var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
-            AttributesToSave attrs = variableType.GetAttributesToSave(context);
+            NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
 
-            Assert.That(attrs.HasFlag(AttributesToSave.ArrayDimensions),
+            Assert.That(attrs.HasFlag(NodeState.AttributesToSave.ArrayDimensions),
                 Is.False);
         }
 
@@ -565,7 +560,7 @@ namespace Opc.Ua.Types.Tests.State
                 ArrayDimensions = new uint[] { 1 }.ToArrayOf()
             };
 
-            AttributesToSave attributesToSave = original.GetAttributesToSave(context);
+            NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
             using var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
@@ -591,7 +586,7 @@ namespace Opc.Ua.Types.Tests.State
             ISystemContext context = CreateSystemContext();
             var original = new BaseDataVariableTypeState();
 
-            AttributesToSave attributesToSave = original.GetAttributesToSave(context);
+            NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
             using var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {

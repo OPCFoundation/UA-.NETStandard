@@ -41,11 +41,6 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
-    /// <summary>
-    /// Coverage tests for Variant: explicit/implicit operators, equality operators,
-    /// ConvertTo methods, GetHashCode, ValueIsDefaultOrNull, ToString, FromEnumeration,
-    /// CreateDefault, and SerializableVariant.
-    /// </summary>
     [TestFixture]
     [Category("BuiltInType")]
     [SetCulture("en-us")]
@@ -3393,7 +3388,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetHashCodeForArrays()
         {
-            // Covers array hash code paths
             Assert.That(new Variant((ArrayOf<bool>)[true, false]).GetHashCode(), Is.TypeOf<int>());
             Assert.That(new Variant((ArrayOf<sbyte>)[-1, 1]).GetHashCode(), Is.TypeOf<int>());
             Assert.That(new Variant((ArrayOf<byte>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
@@ -3990,7 +3984,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsTypedOverloadForAllScalarTypes()
         {
-            // Covers the Equals(T) overloads that delegate to TryGet
             Assert.That(new Variant(true).Equals(true), Is.True);
             Assert.That(new Variant((sbyte)-1).Equals((sbyte)-1), Is.True);
             Assert.That(new Variant((byte)1).Equals((byte)1), Is.True);
