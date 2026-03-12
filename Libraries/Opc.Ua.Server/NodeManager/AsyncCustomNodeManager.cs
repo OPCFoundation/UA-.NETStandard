@@ -3270,7 +3270,7 @@ namespace Opc.Ua.Server
             // check for argument errors.
             bool argumentsValid = true;
 
-            var inputArgumentResults = new StatusCodeCollection();
+            var inputArgumentResults = new List<StatusCode>();
             var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
 
             for (int jj = 0; jj < argumentErrors.Count; jj++)

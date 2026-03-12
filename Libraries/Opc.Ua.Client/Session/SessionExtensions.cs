@@ -256,8 +256,7 @@ namespace Opc.Ua.Client
             var errors = new List<ServiceResult>();
 
             // build list of paths to translate.
-            var pathsToTranslate = new BrowsePathCollection();
-
+            var pathsToTranslateList = new List<BrowsePath>();
             for (int ii = 0; ii < componentPaths.Count; ii++)
             {
                 var pathToTranslate = new BrowsePath
@@ -266,8 +265,9 @@ namespace Opc.Ua.Client
                     RelativePath = RelativePath.Parse(componentPaths[ii], session.TypeTree)
                 };
 
-                pathsToTranslate.Add(pathToTranslate);
+                pathsToTranslateList.Add(pathToTranslate);
             }
+            var pathsToTranslate = pathsToTranslateList.ToArrayOf();
 
             // translate the paths.
 

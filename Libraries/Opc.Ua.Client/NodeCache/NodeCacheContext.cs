@@ -914,7 +914,7 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> rolePermissions))
                 {
-                    var rolePermissionList = new List<RolePermissionType>();
+                    var rolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
                         rolePermissionList.Add(rolePermission.TryGetEncodeable(
@@ -929,7 +929,7 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
-                    var userRolePermissionList = new List<RolePermissionType>();
+                    var userRolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
                         userRolePermissionList.Add(rolePermission.TryGetEncodeable(

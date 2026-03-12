@@ -295,8 +295,8 @@ namespace Opc.Ua.Client
                         if (configuration != null)
                         {
                             // skip unsupported security policies
-                            if (configuration.SecurityConfiguration.SupportedSecurityPolicies
-                                    .Find(p => p ==endpoint.SecurityPolicyUri) == null)
+                            if (!configuration.SecurityConfiguration.SupportedSecurityPolicies
+                                    .Contains(p => p == endpoint.SecurityPolicyUri))
                             {
                                 continue;
                             }

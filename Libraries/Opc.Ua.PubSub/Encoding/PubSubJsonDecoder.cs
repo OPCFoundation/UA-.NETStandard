@@ -1600,7 +1600,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<bool> ReadBooleanArray(string fieldName)
         {
-            var values = new BooleanCollection();
+            var values = new List<bool>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1626,7 +1626,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<sbyte> ReadSByteArray(string fieldName)
         {
-            var values = new SByteCollection();
+            var values = new List<sbyte>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1652,7 +1652,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<byte> ReadByteArray(string fieldName)
         {
-            var values = new ByteCollection();
+            var values = new List<byte>();
 
             string value = ReadString(fieldName);
             if (value != null)
@@ -1684,7 +1684,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<short> ReadInt16Array(string fieldName)
         {
-            var values = new Int16Collection();
+            var values = new List<short>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1710,7 +1710,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ushort> ReadUInt16Array(string fieldName)
         {
-            var values = new UInt16Collection();
+            var values = new List<UInt16>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1736,7 +1736,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<int> ReadInt32Array(string fieldName)
         {
-            var values = new Int32Collection();
+            var values = new List<Int32>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1762,7 +1762,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<uint> ReadUInt32Array(string fieldName)
         {
-            var values = new UInt32Collection();
+            var values = new List<UInt32>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1788,7 +1788,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<long> ReadInt64Array(string fieldName)
         {
-            var values = new Int64Collection();
+            var values = new List<long>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ulong> ReadUInt64Array(string fieldName)
         {
-            var values = new UInt64Collection();
+            var values = new List<UInt64>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<float> ReadFloatArray(string fieldName)
         {
-            var values = new FloatCollection();
+            var values = new List<float>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1866,7 +1866,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<double> ReadDoubleArray(string fieldName)
         {
-            var values = new DoubleCollection();
+            var values = new List<double>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1918,7 +1918,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
         {
-            var values = new DateTimeCollection();
+            var values = new List<DateTimeUtc>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1944,7 +1944,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<Uuid> ReadGuidArray(string fieldName)
         {
-            var values = new UuidCollection();
+            var values = new List<Uuid>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1971,7 +1971,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
         {
-            var values = new ByteStringCollection();
+            var values = new List<ByteString>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1998,7 +1998,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
         {
-            var values = new XmlElementCollection();
+            var values = new List<XmlElement>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2025,7 +2025,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
         {
-            var values = new NodeIdCollection();
+            var values = new List<NodeId>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2052,7 +2052,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
         {
-            var values = new ExpandedNodeIdCollection();
+            var values = new List<ExpandedNodeId>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2079,7 +2079,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
         {
-            var values = new StatusCodeCollection();
+            var values = new List<StatusCode>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2106,7 +2106,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName)
         {
-            var values = new DiagnosticInfoCollection();
+            var values = new List<DiagnosticInfo>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2133,7 +2133,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
         {
-            var values = new QualifiedNameCollection();
+            var values = new List<QualifiedName>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2160,7 +2160,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
         {
-            var values = new LocalizedTextCollection();
+            var values = new List<LocalizedText>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2187,7 +2187,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<Variant> ReadVariantArray(string fieldName)
         {
-            var values = new VariantCollection();
+            var values = new List<Variant>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2214,7 +2214,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<DataValue> ReadDataValueArray(string fieldName)
         {
-            var values = new DataValueCollection();
+            var values = new List<DataValue>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2241,7 +2241,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
         {
-            var values = new ExtensionObjectCollection();
+            var values = new List<ExtensionObject>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {

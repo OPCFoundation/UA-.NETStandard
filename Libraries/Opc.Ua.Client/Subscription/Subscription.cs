@@ -705,7 +705,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The sequence numbers that are available for republish requests.
         /// </summary>
-        public IEnumerable<uint> AvailableSequenceNumbers
+        public ArrayOf<uint> AvailableSequenceNumbers
         {
             get
             {
@@ -1227,11 +1227,6 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItem> monitoredItems,
             CancellationToken ct = default)
         {
-            if (monitoredItems == null)
-            {
-                throw new ArgumentNullException(nameof(monitoredItems));
-            }
-
             using Activity? activity = m_telemetry.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
@@ -1464,7 +1459,7 @@ namespace Opc.Ua.Client
         public async Task<bool> TransferAsync(
             ISession session,
             uint id,
-            UInt32Collection availableSequenceNumbers,
+            ArrayOf<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
@@ -1563,10 +1558,7 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                if (availableSequenceNumbers != null)
-                {
-                    m_availableSequenceNumbers = availableSequenceNumbers;
-                }
+                m_availableSequenceNumbers = availableSequenceNumbers;
 
                 if (message == null)
                 {
@@ -1943,7 +1935,7 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="availableSequenceNumbers">The list of available sequence
         /// numbers on the server.</param>
-        private void ProcessTransferredSequenceNumbers(UInt32Collection availableSequenceNumbers)
+        private void ProcessTransferredSequenceNumbers(ArrayOf<uint> availableSequenceNumbers)
         {
             lock (m_cache)
             {
@@ -1951,17 +1943,15 @@ namespace Opc.Ua.Client
                 m_lastSequenceNumberProcessed = 0;
                 m_resyncLastSequenceNumberProcessed = true;
 
-                // save available sequence numbers
-                m_availableSequenceNumbers = availableSequenceNumbers;
-
-                if (availableSequenceNumbers.Count != 0 && RepublishAfterTransfer)
+                if (!availableSequenceNumbers.IsEmpty && RepublishAfterTransfer)
                 {
                     // create queue for the first time.
                     m_incomingMessages ??= new LinkedList<IncomingMessage>();
+                    var availableSequenceNumberList = availableSequenceNumbers.ToList();
 
                     // update last sequence number processed
                     // available seq numbers may not be in order
-                    foreach (uint sequenceNumber in availableSequenceNumbers)
+                    foreach (uint sequenceNumber in availableSequenceNumberList)
                     {
                         if (sequenceNumber >= m_lastSequenceNumberProcessed)
                         {
@@ -1975,12 +1965,12 @@ namespace Opc.Ua.Client
                     DateTime now = DateTime.UtcNow.AddMilliseconds(-RepublishMessageTimeout * 2);
                     int tickCount = HiResClock.TickCount - (RepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
-                    int availableNumbers = availableSequenceNumbers.Count;
+                    int availableNumbers = availableSequenceNumberList.Count;
                     int republishMessages = 0;
                     for (int i = 0; i < availableNumbers; i++)
                     {
                         bool found = false;
-                        foreach (uint sequenceNumber in availableSequenceNumbers)
+                        foreach (uint sequenceNumber in availableSequenceNumberList)
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
@@ -1993,7 +1983,7 @@ namespace Opc.Ua.Client
                         if (found)
                         {
                             // remove sequence number handled for republish
-                            availableSequenceNumbers.Remove(lastSequenceNumberToRepublish);
+                            availableSequenceNumberList.Remove(lastSequenceNumberToRepublish);
                             lastSequenceNumberToRepublish--;
                             republishMessages++;
                         }
@@ -2009,8 +1999,11 @@ namespace Opc.Ua.Client
                         republishMessages,
                         m_lastSequenceNumberProcessed);
 
-                    availableSequenceNumbers.Clear();
+                    availableSequenceNumbers = [];
                 }
+
+                // save available sequence numbers
+                m_availableSequenceNumbers = availableSequenceNumbers;
             }
         }
 
@@ -2514,8 +2507,7 @@ namespace Opc.Ua.Client
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
 
                                 // only call republish if the sequence number is available
-                                if (!m_availableSequenceNumbers.IsEmpty &&
-                                    m_availableSequenceNumbers.Find(i => i == ii.Value.SequenceNumber) != 0)
+                                if (m_availableSequenceNumbers.Contains(i => i == ii.Value.SequenceNumber))
                                 {
                                     (messagesToRepublish ??= []).Add(ii.Value);
                                 }
@@ -2760,7 +2752,7 @@ namespace Opc.Ua.Client
         /// after updating the monitoring mode.
         /// </summary>
         private static bool UpdateMonitoringMode(
-            IList<MonitoredItem> monitoredItems,
+            ArrayOf<MonitoredItem> monitoredItems,
             List<ServiceResult?> errors,
             ArrayOf<StatusCode> results,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
@@ -2981,7 +2973,7 @@ namespace Opc.Ua.Client
         private void SaveDataChange(
             NotificationMessage message,
             DataChangeNotification notifications,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             // check for empty monitored items list.
             if (notifications.MonitoredItems.IsEmpty)
@@ -3026,7 +3018,7 @@ namespace Opc.Ua.Client
         private void SaveEvents(
             NotificationMessage message,
             EventNotificationList notifications,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             for (int ii = 0; ii < notifications.Events.Count; ii++)
             {
@@ -3283,7 +3275,7 @@ namespace Opc.Ua.Client
     public delegate void FastDataChangeNotificationEventHandler(
         Subscription subscription,
         DataChangeNotification notification,
-        IList<string> stringTable);
+        ArrayOf<string> stringTable);
 
     /// <summary>
     /// The delegate used to receive event notifications via a direct function call instead of a .NET Event.
@@ -3291,7 +3283,7 @@ namespace Opc.Ua.Client
     public delegate void FastEventNotificationEventHandler(
         Subscription subscription,
         EventNotificationList notification,
-        IList<string> stringTable);
+        ArrayOf<string> stringTable);
 
     /// <summary>
     /// The delegate used to receive keep alive notifications via a direct function call instead of a .NET Event.

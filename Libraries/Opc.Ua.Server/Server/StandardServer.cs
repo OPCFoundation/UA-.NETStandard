@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
 
                     // check client is filtering by server uri.
                     if (serverUris.Count > 0 &&
-                        serverUris.Find(f => f == server.ApplicationUri) == null)
+                        !serverUris.Contains(f => f == server.ApplicationUri))
                     {
                         continue;
                     }
@@ -2742,7 +2742,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Find(a => a.StartsWith(scheme, StringComparison.Ordinal)) != null))
+                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)

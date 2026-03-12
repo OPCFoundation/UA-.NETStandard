@@ -744,21 +744,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual void RegisterNodes(
             OperationContext context,
-            NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds)
+            ArrayOf<NodeId> nodesToRegister,
+            out ArrayOf<NodeId> registeredNodeIds)
         {
-            if (nodesToRegister == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToRegister));
-            }
-
             // return the node id provided.
-            registeredNodeIds = new NodeIdCollection(nodesToRegister.Count);
-
-            for (int ii = 0; ii < nodesToRegister.Count; ii++)
-            {
-                registeredNodeIds.Add(nodesToRegister[ii]);
-            }
+            registeredNodeIds = nodesToRegister;
 
             m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
@@ -783,7 +773,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual void UnregisterNodes(
             OperationContext context,
-            NodeIdCollection nodesToUnregister)
+            ArrayOf<NodeId> nodesToUnregister)
         {
             if (nodesToUnregister == null)
             {
@@ -817,9 +807,9 @@ namespace Opc.Ua.Server
         [Obsolete("Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
-            BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            ArrayOf<BrowsePath> browsePaths,
+            out ArrayOf<BrowsePathResult> results,
+            out ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             (results, diagnosticInfos) = TranslateBrowsePathsToNodeIdsAsync(
                 context,
@@ -827,20 +817,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+        public virtual async ValueTask<(BrowsePathResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default)
         {
-            if (browsePaths == null)
-            {
-                throw new ArgumentNullException(nameof(browsePaths));
-            }
-
             bool diagnosticsExist = false;
-            var results = new BrowsePathResultCollection(browsePaths.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
+            var results = new List<BrowsePathResult>(browsePaths.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -915,7 +900,7 @@ namespace Opc.Ua.Server
         protected void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
-            ref DiagnosticInfoCollection diagnosticInfos)
+            ref ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             if (diagnosticInfos == null)
             {
@@ -1033,7 +1018,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             object sourceHandle,
             RelativePath relativePath,
-            BrowsePathTargetCollection targets,
+            List<BrowsePathTarget> targets,
             int index,
             CancellationToken cancellationToken)
         {
@@ -1205,7 +1190,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+        public virtual async ValueTask<(BrowseResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
@@ -1264,7 +1249,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new BrowseResultCollection(nodesToBrowse.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -1387,7 +1372,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+        public virtual async ValueTask<(BrowseResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
                 bool releaseContinuationPoints,
@@ -1406,7 +1391,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new BrowseResultCollection(continuationPoints.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -1812,7 +1797,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
+        public virtual async ValueTask<(DataValueCollection values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
@@ -1836,7 +1821,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var values = new DataValueCollection(nodesToRead.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // create empty list of errors.
             var errors = new List<ServiceResult>(values.Count);
@@ -1952,7 +1937,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
+        public virtual async ValueTask<(HistoryReadResultCollection values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
@@ -1974,7 +1959,7 @@ namespace Opc.Ua.Server
             // create result lists.
             bool diagnosticsExist = false;
             var results = new HistoryReadResultCollection(nodesToRead.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -2080,7 +2065,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
+        public virtual async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
             WriteValueCollection nodesToWrite,
             CancellationToken cancellationToken = default)
@@ -2098,8 +2083,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            var results = new StatusCodeCollection(count);
-            var diagnosticInfos = new DiagnosticInfoCollection(count);
+            var results = new List<StatusCode>(count);
+            var diagnosticInfos = new List<DiagnosticInfo>(count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -2189,7 +2174,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+        public virtual async ValueTask<(HistoryUpdateResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             HistoryUpdateAsync(
                 OperationContext context,
                 ExtensionObjectCollection historyUpdateDetails,
@@ -2213,7 +2198,7 @@ namespace Opc.Ua.Server
             // create result lists.
             bool diagnosticsExist = false;
             var results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(nodesToUpdate.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -2322,7 +2307,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+        public virtual async ValueTask<(CallMethodResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
                 OperationContext context,
                 CallMethodRequestCollection methodsToCall,
@@ -2340,7 +2325,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new CallMethodResultCollection(methodsToCall.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(methodsToCall.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(methodsToCall.Count);
             var errors = new List<ServiceResult>(methodsToCall.Count);
 
             // add placeholder for each result.
@@ -3987,7 +3972,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NodeIdCollection currentRoleIds = context?.UserIdentity?.GrantedRoleIds;
+            var currentRoleIds = context?.UserIdentity?.GrantedRoleIds;
             if (currentRoleIds == null || currentRoleIds.Count == 0)
             {
                 return ServiceResult.Create(

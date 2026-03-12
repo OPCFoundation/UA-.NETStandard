@@ -162,7 +162,7 @@ namespace Opc.Ua.Client
         public static List<ServiceResult> SetMonitoringMode(
             this Subscription subscription,
             MonitoringMode monitoringMode,
-            IList<MonitoredItem> monitoredItems)
+            ArrayOf<MonitoredItem> monitoredItems)
         {
             return subscription.SetMonitoringModeAsync(monitoringMode, monitoredItems)
                 .GetAwaiter()

@@ -1120,7 +1120,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new BooleanCollection();
+                var values = new List<bool>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Boolean"))
@@ -1148,7 +1148,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new SByteCollection();
+                var values = new List<sbyte>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("SByte"))
@@ -1176,7 +1176,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new ByteCollection();
+                var values = new List<byte>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Byte"))
@@ -1204,7 +1204,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new Int16Collection();
+                var values = new List<short>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Int16"))
@@ -1232,7 +1232,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new UInt16Collection();
+                var values = new List<ushort>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("UInt16"))
@@ -1260,7 +1260,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new Int32Collection();
+                var values = new List<int>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Int32"))
@@ -1288,7 +1288,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new UInt32Collection();
+                var values = new List<uint>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("UInt32"))
@@ -1316,7 +1316,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new Int64Collection();
+                var values = new List<long>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Int64"))
@@ -1344,7 +1344,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new UInt64Collection();
+                var values = new List<ulong>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("UInt64"))
@@ -1372,7 +1372,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new FloatCollection();
+                var values = new List<float>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Float"))
@@ -1400,7 +1400,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new DoubleCollection();
+                var values = new List<double>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Double"))
@@ -1456,7 +1456,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new DateTimeCollection();
+                var values = new List<DateTimeUtc>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("DateTime"))
@@ -1484,7 +1484,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new UuidCollection();
+                var values = new List<Uuid>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Guid"))
@@ -1512,7 +1512,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new ByteStringCollection();
+                var values = new List<ByteString>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("ByteString"))
@@ -1540,7 +1540,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new XmlElementCollection();
+                var values = new List<XmlElement>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("XmlElement"))
@@ -1568,7 +1568,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new NodeIdCollection();
+                var values = new List<NodeId>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("NodeId"))
@@ -1596,7 +1596,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new ExpandedNodeIdCollection();
+                var values = new List<ExpandedNodeId>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("ExpandedNodeId"))
@@ -1624,7 +1624,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new StatusCodeCollection();
+                var values = new List<StatusCode>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("StatusCode"))
@@ -1652,7 +1652,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new DiagnosticInfoCollection();
+                var values = new List<DiagnosticInfo>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("DiagnosticInfo"))
@@ -1680,7 +1680,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new QualifiedNameCollection();
+                var values = new List<QualifiedName>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("QualifiedName"))
@@ -1708,7 +1708,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new LocalizedTextCollection();
+                var values = new List<LocalizedText>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("LocalizedText"))
@@ -1736,7 +1736,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new VariantCollection();
+                var values = new List<Variant>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("Variant"))
@@ -1764,7 +1764,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new DataValueCollection();
+                var values = new List<DataValue>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("DataValue"))
@@ -1792,7 +1792,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new ExtensionObjectCollection();
+                var values = new List<ExtensionObject>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("ExtensionObject"))

@@ -1731,14 +1731,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void GetXmlNameForCollectionDataContractTypeReturnsXmlQualifiedName()
-        {
-            XmlQualifiedName result = TypeInfo.GetXmlName(typeof(BooleanCollection));
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Name, Is.EqualTo("ListOfBoolean"));
-        }
-
-        [Test]
         public void GetXmlNameForDynamicComplexTypeInstanceReturnsXmlName()
         {
             var mockDynamic = new Mock<IDynamicComplexTypeInstance>();

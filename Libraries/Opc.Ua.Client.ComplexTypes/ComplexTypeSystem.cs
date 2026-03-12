@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
-                if (structureDefinition.Fields == null ||
+                if (structureDefinition.Fields.IsNull ||
                     structureDefinition.BaseDataType.IsNull ||
                     structureDefinition.BinaryEncodingId.IsNull)
                 {

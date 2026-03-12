@@ -67,8 +67,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
-            EndpointDescriptionCollection? availableEndpoints = null,
-            ArrayOf<string>? discoveryProfileUris = null);
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default);
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service

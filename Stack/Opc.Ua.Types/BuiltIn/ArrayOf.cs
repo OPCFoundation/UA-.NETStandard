@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -111,7 +112,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         [JsonConstructor]
-        internal ArrayOf(ReadOnlyMemory<T> values)
+        public ArrayOf(ReadOnlyMemory<T> values)
         {
             m_memory = values;
         }
@@ -628,18 +629,74 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Find item
+        /// Find index of item
         /// </summary>
-        public T Find(Func<T, bool> predicate)
+        public int FindIndex(Predicate<T> predicate)
         {
-            foreach (T? item in m_memory.Span)
+            if (MemoryMarshal.TryGetArray(m_memory, out ArraySegment<T> segment))
             {
-                if (predicate(item))
+                return Array.FindIndex(
+                    segment.Array!,
+                    segment.Offset,
+                    segment.Count,
+                    predicate);
+            }
+            for (int i = 0 ; i < m_memory.Length; i++)
+            {
+                if (predicate(m_memory.Span[i]))
                 {
-                    return item;
+                    return i;
                 }
             }
-            return default!;
+            return -1;
+        }
+
+        /// <summary>
+        /// Find index of item
+        /// </summary>
+        public int IndexOf(T value)
+        {
+#if NET10_0_OR_GREATER
+            return m_memory.Span.IndexOf(value);
+#else
+            if (MemoryMarshal.TryGetArray(m_memory, out ArraySegment<T> segment))
+            {
+                return Array.IndexOf(segment.Array!, value, segment.Offset, segment.Count);
+            }
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (EqualityComparer<T>.Default.Equals(value, m_memory.Span[i]))
+                {
+                    return i;
+                }
+            }
+            return -1;
+#endif
+        }
+
+        /// <summary>
+        /// Find item
+        /// </summary>
+        public T Find(Predicate<T> predicate, T defaultValue = default!)
+        {
+            int idx = FindIndex(predicate);
+            return idx >= 0 ? m_memory.Span[idx] : defaultValue;
+        }
+
+        /// <summary>
+        /// Returns true if array contains the value
+        /// </summary>
+        public bool Contains(T value)
+        {
+            return IndexOf(value) != -1;
+        }
+
+        /// <summary>
+        /// Returns true if array contains the value
+        /// </summary>
+        public bool Contains(Predicate<T> predicate)
+        {
+            return FindIndex(predicate) != -1;
         }
 
         /// <summary>

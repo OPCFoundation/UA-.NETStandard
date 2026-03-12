@@ -104,8 +104,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
-            EndpointDescriptionCollection? availableEndpoints = null,
-            ArrayOf<string>? discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
             : this(
                   channel,
                   configuration,
@@ -2561,7 +2561,7 @@ namespace Opc.Ua.Client
                 ProcessPublishResponse(
                     responseHeader,
                     subscriptionId,
-                    null,
+                    default,
                     false,
                     notificationMessage);
 
@@ -3958,35 +3958,32 @@ namespace Opc.Ua.Client
         /// Validates the server endpoints returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerEndpoints(EndpointDescriptionCollection serverEndpoints)
+        private void ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
         {
-            if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
+            if (!m_discoveryServerEndpoints.IsEmpty)
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
-                EndpointDescriptionCollection? expectedServerEndpoints;
-                if (serverEndpoints != null &&
-                    m_discoveryProfileUris != null &&
-                    m_discoveryProfileUris.Count > 0)
+                ArrayOf<EndpointDescription> expectedServerEndpoints = default;
+                if (!serverEndpoints.IsNull && !m_discoveryProfileUris.IsEmpty)
                 {
                     // Select EndpointDescriptions with a transportProfileUri that matches the
                     // profileUris specified in the original GetEndpoints() request.
-                    expectedServerEndpoints = [];
-
+                    var expectedServerEndpointsList = new List<EndpointDescription>();
                     foreach (EndpointDescription serverEndpoint in serverEndpoints)
                     {
-                        if (m_discoveryProfileUris.Contains(serverEndpoint.TransportProfileUri))
+                        if (m_discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
                         {
-                            expectedServerEndpoints.Add(serverEndpoint);
+                            expectedServerEndpointsList.Add(serverEndpoint);
                         }
                     }
+                    expectedServerEndpoints = expectedServerEndpointsList;
                 }
                 else
                 {
                     expectedServerEndpoints = serverEndpoints;
                 }
 
-                if (expectedServerEndpoints == null ||
-                    m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -4077,14 +4074,10 @@ namespace Opc.Ua.Client
         /// <param name="matchPort">Match criteria includes port</param>
         /// <returns>Matching description or null if no description is matching</returns>
         private EndpointDescription? FindMatchingDescription(
-            EndpointDescriptionCollection? endpointDescriptions,
+            ArrayOf<EndpointDescription> endpointDescriptions,
             EndpointDescription match,
             bool matchPort)
         {
-            if (endpointDescriptions == null)
-            {
-                return null;
-            }
             Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
             for (int ii = 0; ii < endpointDescriptions.Count; ii++)
             {
@@ -4199,11 +4192,12 @@ namespace Opc.Ua.Client
         private void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
-            ArrayOf<uint>? availableSequenceNumbers,
+            ArrayOf<uint> availableSequenceNumbers,
             bool moreNotifications,
             NotificationMessage notificationMessage)
         {
             Subscription? subscription = null;
+            var availableSequenceNumberList = availableSequenceNumbers.ToList();
 
             // send notification that the server is alive.
             OnKeepAlive(m_serverState, (DateTime)responseHeader.Timestamp);
@@ -4226,7 +4220,8 @@ namespace Opc.Ua.Client
                     UpdateLatestSequenceNumberToSend(
                         ref latestSequenceNumberToSend,
                         notificationMessage.SequenceNumber);
-                    _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
+
+                    availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
                 }
 
                 // match an acknowledgement to be sent back to the server.
@@ -4238,8 +4233,7 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumbers == null ||
-                        availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(
@@ -4265,9 +4259,9 @@ namespace Opc.Ua.Client
                 }
 
                 // Check for outdated sequence numbers. May have been not acked due to a network glitch.
-                if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
+                if (latestSequenceNumberToSend != 0 && availableSequenceNumberList.Count > 0)
                 {
-                    foreach (uint sequenceNumber in availableSequenceNumbers)
+                    foreach (uint sequenceNumber in availableSequenceNumberList)
                     {
                         if ((int)(latestSequenceNumberToSend - sequenceNumber) >
                             kPublishRequestSequenceNumberOutdatedThreshold)
@@ -4291,9 +4285,9 @@ namespace Opc.Ua.Client
                 // because a publish response may not include the latest ack information yet.
 
                 uint lastSentSequenceNumber = 0;
-                if (availableSequenceNumbers != null)
+                if (availableSequenceNumberList != null)
                 {
-                    foreach (uint availableSequenceNumber in availableSequenceNumbers)
+                    foreach (uint availableSequenceNumber in availableSequenceNumberList)
                     {
                         if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
                         {
@@ -4401,7 +4395,7 @@ namespace Opc.Ua.Client
                 notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
 
                 // raise the notification.
                 NotificationEventHandler? publishEventHandler = m_Publish;
@@ -4962,8 +4956,8 @@ namespace Opc.Ua.Client
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_eccServerEphemeralKey;
         private Subscription? m_defaultSubscription;
-        private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
-        private readonly ArrayOf<string>? m_discoveryProfileUris;
+        private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
+        private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
 
         private sealed class AsyncRequestState : IDisposable

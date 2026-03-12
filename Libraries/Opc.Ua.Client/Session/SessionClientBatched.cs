@@ -103,10 +103,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseResponse? response = null;
-                InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                    out BrowseResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<BrowseResult>(
+                    out List<BrowseResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToBrowse.Count,
                     operationLimit);
                 foreach (ArrayOf<BrowseDescription> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
@@ -176,10 +176,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseNextResponse? response = null;
-                InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                    out BrowseResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<BrowseResult>(
+                    out List<BrowseResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     continuationPoints.Count,
                     operationLimit);
                 foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch(operationLimit))
@@ -239,10 +239,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 TranslateBrowsePathsToNodeIdsResponse? response = null;
-                InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                    out BrowsePathResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<BrowsePathResult>(
+                    out List<BrowsePathResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     browsePaths.Count,
                     operationLimit);
                 foreach (ArrayOf<BrowsePath> batchBrowsePaths in browsePaths.Batch((int)operationLimit))
@@ -396,10 +396,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ReadResponse? response = null;
-                InitResponseCollections<DataValue, DataValueCollection>(
-                    out DataValueCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<DataValue>(
+                    out List<DataValue>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToRead.Count,
                     operationLimit);
                 foreach (ArrayOf<ReadValueId> batchAttributesToRead in nodesToRead
@@ -483,10 +483,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryReadResponse? response = null;
-                InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                    out HistoryReadResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<HistoryReadResult>(
+                    out List<HistoryReadResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToRead.Count,
                     operationLimit);
                 foreach (ArrayOf<HistoryReadValueId> batchNodesToRead in nodesToRead
@@ -549,10 +549,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 WriteResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToWrite.Count,
                     operationLimit);
                 foreach (ArrayOf<WriteValue> batchNodesToWrite in nodesToWrite
@@ -618,10 +618,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryUpdateResponse? response = null;
-                InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                    out HistoryUpdateResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<HistoryUpdateResult>(
+                    out List<HistoryUpdateResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     historyUpdateDetails.Count,
                     operationLimit);
                 foreach (ArrayOf<ExtensionObject> batchHistoryUpdateDetails in historyUpdateDetails
@@ -681,10 +681,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CallResponse? response = null;
-                InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                    out CallMethodResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<CallMethodResult>(
+                    out List<CallMethodResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     methodsToCall.Count,
                     operationLimit);
                 foreach (ArrayOf<CallMethodRequest> batchMethodsToCall in methodsToCall
@@ -757,10 +757,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CreateMonitoredItemsResponse? response = null;
-                InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                    out MonitoredItemCreateResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<MonitoredItemCreateResult>(
+                    out List<MonitoredItemCreateResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     itemsToCreate.Count,
                     operationLimit);
                 foreach (ArrayOf<MonitoredItemCreateRequest> batchItemsToCreate in itemsToCreate
@@ -833,10 +833,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ModifyMonitoredItemsResponse? response = null;
-                InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                    out MonitoredItemModifyResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<MonitoredItemModifyResult>(
+                    out List<MonitoredItemModifyResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     itemsToModify.Count,
                     operationLimit);
                 foreach (ArrayOf<MonitoredItemModifyRequest> batchItemsToModify in itemsToModify
@@ -910,10 +910,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetMonitoringModeResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
@@ -992,15 +992,15 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetTriggeringResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? addResults,
-                    out DiagnosticInfoCollection? addDiagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? addResults,
+                    out List<DiagnosticInfo>? addDiagnosticInfos,
+                    out List<string> stringTable,
                     linksToAdd.Count,
                     operationLimit);
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? removeResults,
-                    out DiagnosticInfoCollection? removeDiagnosticInfos,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? removeResults,
+                    out List<DiagnosticInfo>? removeDiagnosticInfos,
                     out _,
                     linksToRemove.Count,
                     operationLimit);
@@ -1145,10 +1145,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteMonitoredItemsResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
@@ -1209,10 +1209,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddNodesResponse? response = null;
-                InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                    out AddNodesResultCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<AddNodesResult>(
+                    out List<AddNodesResult>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToAdd.Count,
                     operationLimit);
                 foreach (ArrayOf<AddNodesItem> batchNodesToAdd in nodesToAdd
@@ -1269,10 +1269,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddReferencesResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     referencesToAdd.Count,
                     operationLimit);
                 foreach (ArrayOf<AddReferencesItem> batchReferencesToAdd in referencesToAdd
@@ -1332,10 +1332,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteNodesResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     nodesToDelete.Count,
                     operationLimit);
                 foreach (ArrayOf<DeleteNodesItem> batchNodesToDelete in nodesToDelete
@@ -1395,10 +1395,10 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteReferencesResponse? response = null;
-                InitResponseCollections<StatusCode, StatusCodeCollection>(
-                    out StatusCodeCollection? results,
-                    out DiagnosticInfoCollection? diagnosticInfos,
-                    out ArrayOf<string> stringTable,
+                InitResponseCollections<StatusCode>(
+                    out List<StatusCode>? results,
+                    out List<DiagnosticInfo>? diagnosticInfos,
+                    out List<string> stringTable,
                     referencesToDelete.Count,
                     operationLimit);
                 foreach (ArrayOf<DeleteReferencesItem> batchReferencesToDelete in referencesToDelete
@@ -1450,7 +1450,6 @@ namespace Opc.Ua
         /// Initialize the collections for a service call.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
         /// <param name="results"></param>
         /// <param name="diagnosticInfos"></param>
         /// <param name="stringTable"></param>
@@ -1460,17 +1459,16 @@ namespace Opc.Ua
         /// Preset the result collections with null if the operation limit
         /// is sufficient or with the final size if batching is necessary.
         /// </remarks>
-        private static void InitResponseCollections<T, C>(
-            out C results,
-            out DiagnosticInfoCollection diagnosticInfos,
-            out ArrayOf<string> stringTable,
+        private static void InitResponseCollections<T>(
+            out List<T> results,
+            out List<DiagnosticInfo> diagnosticInfos,
+            out List<string> stringTable,
             int count,
             uint operationLimit)
-            where C : List<T>, new()
         {
             Debug.Assert(count > operationLimit);
-            results = new C { Capacity = count };
-            diagnosticInfos = new DiagnosticInfoCollection(count);
+            results = new List<T>(count);
+            diagnosticInfos = new List<DiagnosticInfo>(count);
             stringTable = [];
         }
 
@@ -1478,7 +1476,6 @@ namespace Opc.Ua
         /// Add the result of a batched service call to the results.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
         /// <param name="results"></param>
         /// <param name="diagnosticInfos"></param>
         /// <param name="stringTable"></param>
@@ -1491,13 +1488,13 @@ namespace Opc.Ua
         /// collections otherwise.
         /// The string table indexes are updated in the diagnostic infos if necessary.
         /// </remarks>
-        private static void AddResponses<T, C>(
-            ref C results,
-            ref DiagnosticInfoCollection diagnosticInfos,
-            ref ArrayOf<string> stringTable,
+        private static void AddResponses<T>(
+            ref List<T> results,
+            ref List<DiagnosticInfo?> diagnosticInfos,
+            ref List<string> stringTable,
             ArrayOf<T> batchedResults,
             ArrayOf<DiagnosticInfo> batchedDiagnosticInfos,
-            ArrayOf<string> batchedStringTable) where C : List<T>
+            ArrayOf<string> batchedStringTable)
         {
             bool hasDiagnosticInfos = diagnosticInfos.Count > 0;
             bool hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
@@ -1531,7 +1528,7 @@ namespace Opc.Ua
 
             results.AddRange(batchedResults);
             diagnosticInfos.AddRange(batchedDiagnosticInfos);
-            stringTable = stringTable.AddItems(batchedStringTable);
+            stringTable.AddRange(batchedStringTable);
 
             static void UpdateDiagnosticInfoIndexes(DiagnosticInfo diagnosticInfo,
                 int stringTableOffset)

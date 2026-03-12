@@ -1343,8 +1343,8 @@ namespace Opc.Ua.Server.Tests
             bool hasEndpointWithoutAnonymous = false;
             foreach (EndpointDescription endpoint in endpoints)
             {
-                bool hasAnonymous = endpoint.UserIdentityTokens.Find(
-                    policy => policy.TokenType == UserTokenType.Anonymous) != null;
+                bool hasAnonymous = endpoint.UserIdentityTokens.Contains(
+                    policy => policy.TokenType == UserTokenType.Anonymous);
                 if (!hasAnonymous)
                 {
                     hasEndpointWithoutAnonymous = true;
