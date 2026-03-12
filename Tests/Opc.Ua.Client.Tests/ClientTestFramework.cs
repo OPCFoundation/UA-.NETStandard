@@ -239,7 +239,12 @@ namespace Opc.Ua.Client.Tests
                 {
                     IssuedTokenType = Profiles.JwtUserToken
                 });
-
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri
+                        = SecurityPolicies.Basic128Rsa15
+                });
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.UserName)
                 {

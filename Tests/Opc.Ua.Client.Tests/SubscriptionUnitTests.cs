@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Tests
     [Parallelizable]
     public class SubscriptionUnitTests
     {
-        private class SubscriptionContainer : IDisposable
+        private sealed class SubscriptionContainer : IDisposable
         {
             private readonly CancellationTokenRegistration m_tokedCancellation;
             public Subscription Subscription { get; }
@@ -149,15 +149,14 @@ namespace Opc.Ua.Client.Tests
 
         private static NotificationMessage[] BuildMessages(int count)
         {
-            return Enumerable
+            return [.. Enumerable
                 .Range(1, count)
                 .Select(sequenceNumber => new NotificationMessage
                 {
                     SequenceNumber = (uint)sequenceNumber,
                     NotificationData = [new(new DataChangeNotification { SequenceNumber = (uint)sequenceNumber })]
                 })
-                .Prepend(new())//stub to compensate sequenceNumbers start from 1. Should be ignored
-                .ToArray();
+                .Prepend(new())];
         }
 
         private static async Task<SubscriptionContainer> BuildSubscriptionAsync(
@@ -165,9 +164,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             CancellationToken cancellationToken)
         {
-            TaskCompletionSource<bool>[] messageAwaiters = messagesToProcess
-                .Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))
-                .ToArray();
+            TaskCompletionSource<bool>[] messageAwaiters =
+                [.. messagesToProcess.Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))];
             messageAwaiters[0].SetResult(true);
             List<uint> availableSequenceNumbers = [.. messagesToProcess.Skip(1).Select(x => x.SequenceNumber)];
 
@@ -177,13 +175,10 @@ namespace Opc.Ua.Client.Tests
                 {
                     PublishingEnabled = true,
                     SequentialPublishing = sequentialPublishing,
-                    MaxMessageCount = messagesToProcess.Length,
+                    MaxMessageCount = messagesToProcess.Length
                 })
             {
-                FastDataChangeCallback = (_, message, _) =>
-                {
-                    messageAwaiters[message.SequenceNumber].SetResult(true);
-                },
+                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true)
             };
             subscription.Session = BuildSessionMock((subscriptionId, sequenceNumber) =>
             {

@@ -617,6 +617,130 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Create a single session + subscription and raise a single event on the server node.
+        /// Validates all the event fields are properly received.
+        /// </summary>
+        [Test]
+        public async Task ServerEventSubscribeTestAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            CreateSubscriptionResponse createSubscriptionResponse = await services.CreateSubscriptionAsync(
+                requestHeader,
+                100,
+                100,
+                10,
+                0,
+                true,
+                0).ConfigureAwait(false);
+
+            uint subscriptionId = createSubscriptionResponse.SubscriptionId;
+
+            // Build an event filter for the base event type.
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.EventId));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.EventType));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.SourceNode));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.SourceName));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.Time));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.Message));
+            eventFilter.AddSelectClause(
+                ObjectTypes.BaseEventType,
+                QualifiedName.From(BrowseNames.Severity));
+
+            var monitoredItems = new MonitoredItemCreateRequestCollection
+            {
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.EventNotifier },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 0,
+                        QueueSize = 100,
+                        DiscardOldest = true,
+                        Filter = new ExtensionObject(eventFilter)
+                    }
+                }
+            };
+
+            CreateMonitoredItemsResponse createItemsResponse = await services.CreateMonitoredItemsAsync(
+                requestHeader,
+                subscriptionId,
+                TimestampsToReturn.Both,
+                monitoredItems).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(createItemsResponse.ResponseHeader, createItemsResponse.Results, monitoredItems);
+            Assert.AreEqual(1, createItemsResponse.Results.Count);
+            Assert.IsTrue(StatusCode.IsGood(createItemsResponse.Results[0].StatusCode));
+
+            // Generate event directly on the server
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            ISystemContext serverContext = serverInternal.DefaultSystemContext;
+            var e = new BaseEventState(null);
+            const string eventMessage = "Integration Test Event";
+            e.Initialize(
+                serverContext,
+                serverInternal.ServerObject,
+                EventSeverity.Medium,
+                new LocalizedText(eventMessage));
+            serverInternal.ReportEvent(serverContext, e);
+
+            // Wait for subscription to deliver the event
+            await Task.Delay(200).ConfigureAwait(false);
+
+            // Publish request to get the event notification
+            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            PublishResponse publishResponse = await services.PublishAsync(
+                requestHeader,
+                acknowledgements).ConfigureAwait(false);
+
+            Assert.IsNotNull(publishResponse.NotificationMessage);
+            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
+            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
+
+            var eventNotification = publishResponse.NotificationMessage.NotificationData[0].Body as EventNotificationList;
+            Assert.IsNotNull(eventNotification);
+            Assert.IsTrue(eventNotification.Events.Count > 0);
+
+            EventFieldList targetEvent = eventNotification.Events.FirstOrDefault(x => x.EventFields[5].Value is LocalizedText lt && lt.Text == eventMessage);
+            Assert.IsNotNull(targetEvent, "Did not receive the target event.");
+
+            VariantCollection eventFields = targetEvent.EventFields;
+            Assert.AreEqual(7, eventFields.Count); // we requested 7 fields in select clauses
+
+            Assert.IsNotNull(eventFields[0].Value); // EventId
+            Assert.IsNotNull(eventFields[1].Value); // EventType
+            Assert.IsNotNull(eventFields[2].Value); // SourceNode
+            Assert.IsNotNull(eventFields[3].Value); // SourceName
+            Assert.IsNotNull(eventFields[4].Value); // Time
+            var receivedMessage = (LocalizedText)eventFields[5].Value; // Message
+            Assert.IsNotNull(receivedMessage);
+            Assert.AreEqual(eventMessage, receivedMessage.Text);
+            Assert.AreEqual((ushort)EventSeverity.Medium, eventFields[6].Value); // Severity
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Create a secondary Session.
         /// Create a subscription with a monitored item.
         /// Close session, but do not delete subscriptions.

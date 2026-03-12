@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState serverNode = Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).AsTask().GetAwaiter().GetResult();
+                                NodeState serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).ConfigureAwait(false);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
