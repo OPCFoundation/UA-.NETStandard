@@ -520,13 +520,11 @@ namespace Opc.Ua.Client.Tests
             const int sessionCount = 10;
             const int subscriptionsPerSession = 5;
             const int publishingInterval = 100;
-            const int eventCount = 500;
             const int testDurationSeconds = 30;
 
             var sessions = new ConcurrentBag<ISession>();
             long eventsReceived = 0;
-
-            using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+            long totalDelayTicks = 0;
 
             try
             {
@@ -581,19 +579,27 @@ namespace Opc.Ua.Client.Tests
                                 AttributeId = Attributes.EventNotifier,
                                 MonitoringMode = MonitoringMode.Reporting,
                                 Filter = eventFilter,
-                                QueueSize = (uint)eventCount
+                                QueueSize = 10000
                             };
 
-                            subscription.FastEventCallback = (sub, notification, _) =>
+                            subscription.FastEventCallback = (sub, notification, _) => 
                             {
                                 Interlocked.Add(ref eventsReceived, notification.Events.Count);
+                                foreach (var fieldList in notification.Events)
+                                {
+                                    if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].Value is DateTime eventTime)
+                                    {
+                                        var delay = DateTime.UtcNow - eventTime.ToUniversalTime();
+                                        Interlocked.Add(ref totalDelayTicks, delay.Ticks);
+                                    }
+                                }
                             };
 
                             subscription.AddItem(monitoredItem);
                             session.AddSubscription(subscription);
                             await subscription.CreateAsync().ConfigureAwait(false);
                         }
-                    }, testCts.Token));
+                    }));
                 }
 
                 await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
@@ -601,22 +607,26 @@ namespace Opc.Ua.Client.Tests
                 int totalSubscriptions = sessionCount * subscriptionsPerSession;
                 TestContext.Out.WriteLine(
                     $"Created {totalSubscriptions} event subscriptions across {sessionCount} sessions.");
-                TestContext.Out.WriteLine($"Generating {eventCount} events on the server...");
+                TestContext.Out.WriteLine($"Generating events on the server for {testDurationSeconds} seconds...");
 
                 // Generate events directly on the server to stress-test event delivery.
                 IServerInternal serverInternal = ReferenceServer.CurrentInstance;
                 ISystemContext serverContext = serverInternal.DefaultSystemContext;
+                int eventCount = 0;
+
+                using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                for (int i = 0; i < eventCount; i++)
+                while (!testCts.IsCancellationRequested)
                 {
                     var e = new BaseEventState(null);
                     e.Initialize(
                         serverContext,
-                        null,
+                        serverInternal.ServerObject,
                         EventSeverity.Medium,
-                        new LocalizedText($"LoadTest event {i}"));
+                        new LocalizedText($"LoadTest event {eventCount}"));
                     serverInternal.ReportEvent(serverContext, e);
+                    eventCount++;
                 }
 
                 sw.Stop();
@@ -636,6 +646,13 @@ namespace Opc.Ua.Client.Tests
 
                 double receiveRatio = expectedTotal > 0 ? (double)received / expectedTotal : 0;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
+
+                if (received > 0)
+                {
+                    long averageDelayTicks = Interlocked.Read(ref totalDelayTicks) / received;
+                    TimeSpan averageDelay = TimeSpan.FromTicks(averageDelayTicks);
+                    TestContext.Out.WriteLine($"Average event delivery delay: {averageDelay.TotalMilliseconds:F2} ms");
+                }
 
                 NUnit.Framework.Assert.That(
                     received,

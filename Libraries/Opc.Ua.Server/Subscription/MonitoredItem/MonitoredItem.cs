@@ -1036,9 +1036,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(instance));
             }
 
-            EventFilter filter;
-            FilterContext context;
-
             lock (m_lock)
             {
                 // this method should only be called for objects or views.
@@ -1065,53 +1062,28 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // event filter must be specified.
-                if (m_filterToUse is not EventFilter f)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInternalError);
-                }
-
-                filter = f;
-
                 // construct the context to use for the event filter.
-                // Capture preferred locales inside the lock so the context reflects the current session state.
-                context = new FilterContext(
+                var context = new FilterContext(
                     m_server.NamespaceUris,
                     m_server.TypeTree,
                     Session?.PreferredLocales,
                     m_server.Telemetry);
 
-                // apply filter - must be done inside the lock to protect m_filteredRetainConditionIds.
+                // event filter must be specified.
+                if (m_filterToUse is not EventFilter filter)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInternalError);
+                }
+
+                // apply filter.
                 if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
                 {
                     return;
                 }
-            }
 
-            // fetch the event fields outside the lock to reduce contention.
-            // GetEventFields traverses the event node hierarchy to read attribute values
-            // for each select clause in the filter, which can be expensive under load.
-            // The FilterContext is immutable after construction and can be safely reused here.
-            EventFieldList fields = GetEventFields(context, filter, instance);
-
-            lock (m_lock)
-            {
-                // Re-check queue state since it may have changed while reading event fields outside the lock.
-                // Both the overflow check and the enqueue are atomic with respect to m_lock, so there is
-                // no race condition between them.
-                if (m_eventQueueHandler == null)
-                {
-                    return;
-                }
-
-                if (m_eventQueueHandler.SetQueueOverflowIfFull())
-                {
-                    return;
-                }
-
-                m_eventQueueHandler.QueueEvent(fields);
-                m_readyToPublish = true;
-                m_readyToTrigger = true;
+                // fetch the event fields.
+                EventFieldList fields = GetEventFields(context, filter, instance);
+                QueueEvent(fields);
             }
         }
 

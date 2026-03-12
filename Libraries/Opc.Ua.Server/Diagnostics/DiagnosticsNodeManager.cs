@@ -453,9 +453,10 @@ namespace Opc.Ua.Server
                 {
                     if (passiveNode is ServerObjectState)
                     {
+                        // add the server object as the root notifier.
+                        await AddRootNotifierAsync(passiveNode, cancellationToken).ConfigureAwait(false);
                         break;
                     }
-
                     var activeNode = new ServerObjectState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
 

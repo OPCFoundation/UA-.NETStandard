@@ -981,7 +981,6 @@ namespace Opc.Ua.Client.Tests
                 null,
                 (EndpointDescription)endpoint.Description.MemberwiseClone(),
                 endpoint.Configuration);
-            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
             ConfiguredEndpoint tokenPolicyEndpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, userTokenPolicy, Endpoints)
                 .ConfigureAwait(false);
@@ -997,6 +996,12 @@ namespace Opc.Ua.Client.Tests
                     $"No UserTokenPolicy found for {userIdentity.TokenType}" +
                     $" / {userIdentity.IssuedTokenType}");
             }
+            if (identityPolicy.SecurityPolicyUri != userTokenPolicy)
+            {
+                NUnit.Framework.Assert.Fail(
+                    $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}" +
+                    $"Please fix Test parameters or Test server configuration");
+            }
             userIdentity.PolicyId = identityPolicy.PolicyId;
 
             // the active channel
@@ -1006,6 +1011,8 @@ namespace Opc.Ua.Client.Tests
             try
             {
                 await session1.ReconnectAsync(null, null).ConfigureAwait(false);
+                Assert.That(session1.Identity.PolicyId, Is.EqualTo(identityPolicy.PolicyId),
+                    "User Token PolicyId needs to be preserved after reconnect.");
             }
             finally
             {
