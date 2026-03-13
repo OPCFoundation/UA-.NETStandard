@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
@@ -339,7 +339,7 @@ namespace Opc.Ua.Client.Tests
             await m_requiredLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (Endpoints == null)
+                if (Endpoints.IsNull)
                 {
                     await GetEndpointsInternalAsync().ConfigureAwait(false);
                 }

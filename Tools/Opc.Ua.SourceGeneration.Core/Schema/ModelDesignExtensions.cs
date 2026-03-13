@@ -30,15 +30,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Data.SqlTypes;
 using System.Globalization;
 using System.Linq;
 using System.Xml;
-using System.Xml.Linq;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
-using static Opc.Ua.SourceGeneration.ParsedTemplateString;
 
 namespace Opc.Ua.Schema.Model
 {

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -91,7 +92,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            List<DataValue> values)
         {
             m_request = request;
 
@@ -138,7 +139,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            List<DataValue> values)
         {
             while (true)
             {
@@ -183,7 +184,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values,
+            List<DataValue> values,
             DataValue value)
         {
             // ignore invalid case.

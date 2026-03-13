@@ -440,38 +440,32 @@ namespace Opc.Ua.Server.Tests
             var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
             int eventIndexCounter = 0;
-            var desiredEventFields = new Dictionary<int, QualifiedNameCollection>
+            var desiredEventFields = new Dictionary<int, ArrayOf<QualifiedName>>
             {
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventId) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventType) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }] },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.CurrentState)
-                    }
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.EventId) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.EventType) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.Time) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.ActiveState) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.Message) ] },
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.CurrentState)
                 ]
                 },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.CurrentState),
-                        QualifiedName.From(BrowseNames.Id)
-                    }
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.CurrentState),
+                    QualifiedName.From(BrowseNames.Id)
                 ]
                 },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.LastTransition)
-                    }
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.LastTransition)
                 ]
                 }
             };
 
-            foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
+            foreach (ArrayOf<QualifiedName> desiredEventField in desiredEventFields.Values)
             {
                 simpleAttributeOperands.Add(
                     new SimpleAttributeOperand

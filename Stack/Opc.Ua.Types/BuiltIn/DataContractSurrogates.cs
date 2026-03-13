@@ -30,12 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 using Opc.Ua.Types;
@@ -179,7 +176,7 @@ namespace Opc.Ua
             { typeof(LocalizedText), typeof(SerializableLocalizedText) },
             { typeof(ByteString), typeof(SerializableByteString) },
             { typeof(DateTimeUtc), typeof(DateTimeUtc) },
-            { typeof(XmlElementCollection), typeof(SerializableXmlElementCollection) }
+            { typeof(ArrayOf<XmlElement>), typeof(SerializableXmlElementCollection) }
         };
     }
 
@@ -1180,7 +1177,7 @@ namespace Opc.Ua
        Namespace = Namespaces.OpcUaXsd,
        ItemName = "XmlElement")]
     public class SerializableXmlElementCollection : List<System.Xml.XmlElement>,
-        ISurrogateFor<XmlElementCollection>
+        ISurrogateFor<ArrayOf<XmlElement>>
     {
         /// <inheritdoc/>
         public SerializableXmlElementCollection()
@@ -1201,13 +1198,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public SerializableXmlElementCollection(XmlElementCollection collection)
-            : this(collection.Select(x => x.ToXmlElement()))
+        public SerializableXmlElementCollection(ArrayOf<XmlElement> collection)
+            : this(collection.ToList().Select(x => x.ToXmlElement()))
         {
         }
 
         /// <inheritdoc/>
-        public XmlElementCollection Value => new(this);
+        public ArrayOf<XmlElement> Value =>
+            this.ConvertAll(x => XmlElement.From(x)).ToArrayOf();
 
         /// <inheritdoc/>
         public object GetValue()

@@ -221,7 +221,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlQualifiedName Peek(XmlNodeType nodeType)
         {
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
 
             for (int i = context.Cursor; i < context.ChildElements.Count; i++)
             {
@@ -232,7 +232,7 @@ namespace Opc.Ua
                         return null;
                     }
 
-                    var child = context.ChildElements[i];
+                    System.Xml.XmlElement child = context.ChildElements[i];
                     return new XmlQualifiedName(child.LocalName, child.NamespaceURI);
                 }
             }
@@ -256,7 +256,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Peek(string fieldName)
         {
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
             string ns = m_namespaces.Peek();
 
             for (int i = context.Cursor; i < context.ChildElements.Count; i++)
@@ -277,7 +277,7 @@ namespace Opc.Ua
         /// </summary>
         public void ReadStartElement()
         {
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
 
             for (int i = context.Cursor; i < context.ChildElements.Count; i++)
             {
@@ -688,7 +688,7 @@ namespace Opc.Ua
             {
                 if (MoveToElement(null))
                 {
-                    var context = m_contextStack.Peek();
+                    ElementContext context = m_contextStack.Peek();
                     int childIdx = context.Cursor;
 
                     // Find the actual next unconsumed child.
@@ -701,7 +701,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    var found = context.ChildElements[childIdx];
+                    System.Xml.XmlElement found = context.ChildElements[childIdx];
                     context.Consumed.Add(childIdx);
                     context.Cursor = childIdx + 1;
 
@@ -1061,7 +1061,7 @@ namespace Opc.Ua
         public T ReadEncodeableAsExtensionObject<T>(string fieldName)
             where T : IEncodeable
         {
-            var extensionObject = ReadExtensionObject(fieldName);
+            ExtensionObject extensionObject = ReadExtensionObject(fieldName);
             if (extensionObject.TryGetEncodeable(out T value))
             {
                 return value;
@@ -2027,7 +2027,7 @@ namespace Opc.Ua
         public Variant ReadVariantValue()
         {
             // Find the first unconsumed child element to determine the type.
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
             string typeName = null;
             string typeNs = null;
 
@@ -2192,7 +2192,7 @@ namespace Opc.Ua
         public ExtensionObject ReadExtensionObjectBody(ExpandedNodeId typeId)
         {
             // Find the next unconsumed child element to determine body type.
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
             System.Xml.XmlElement bodyChild = null;
             int bodyChildIdx = -1;
 
@@ -2366,7 +2366,7 @@ namespace Opc.Ua
             Variant ReadMatrix(int[] dimensions)
             {
                 // Find first unconsumed child to determine element type.
-                var ctx = m_contextStack.Peek();
+                ElementContext ctx = m_contextStack.Peek();
                 string elementTypeName = null;
                 string elementTypeNs = null;
 
@@ -2484,7 +2484,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private string SafeReadString([CallerMemberName] string functionName = null)
         {
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
             string value = context.Element?.InnerText;
 
             // check the length.
@@ -2541,7 +2541,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
             string ns = m_namespaces.Peek();
 
             int idx = FindChildIndex(context, fieldName, ns);
@@ -2561,7 +2561,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            var found = context.ChildElements[idx];
+            System.Xml.XmlElement found = context.ChildElements[idx];
             context.Consumed.Add(idx);
             context.Cursor = idx + 1;
 
@@ -2612,7 +2612,7 @@ namespace Opc.Ua
         /// </summary>
         private bool MoveToElement(string elementName)
         {
-            var context = m_contextStack.Peek();
+            ElementContext context = m_contextStack.Peek();
 
             // Find the first unconsumed child element.
             for (int i = context.Cursor; i < context.ChildElements.Count; i++)
@@ -2625,7 +2625,7 @@ namespace Opc.Ua
                         return true;
                     }
 
-                    var child = context.ChildElements[i];
+                    System.Xml.XmlElement child = context.ChildElements[i];
                     if (child.LocalName == elementName &&
                         child.NamespaceURI == m_namespaces.Peek())
                     {
@@ -2762,7 +2762,7 @@ namespace Opc.Ua
                 name = typeName.Name;
             }
 
-            var docElement = m_document.DocumentElement;
+            System.Xml.XmlElement docElement = m_document.DocumentElement;
 
             if (ns == null)
             {

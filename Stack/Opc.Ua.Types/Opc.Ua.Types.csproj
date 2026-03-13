@@ -12,11 +12,6 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Encoders\BinaryReader.cs" />
-    <Compile Remove="Encoders\BinaryWriter.cs" />
-    <Compile Remove="Encoders\JsonReader.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>

@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
 

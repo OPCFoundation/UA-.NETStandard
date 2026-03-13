@@ -251,7 +251,7 @@ namespace Opc.Ua.Bindings
                 Stream responseContent = await response.Content.ReadAsStreamAsync()
                     .ConfigureAwait(false);
 #endif
-                var serviceResponse = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                IServiceResponse serviceResponse = BinaryDecoder.DecodeMessage<IServiceResponse>(
                     responseContent,
                     context);
                 if (serviceResponse != null)

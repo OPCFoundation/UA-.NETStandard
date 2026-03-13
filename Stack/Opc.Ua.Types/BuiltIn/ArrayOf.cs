@@ -30,7 +30,6 @@
 #nullable enable
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
@@ -423,6 +422,34 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<T> SafeSlice(int start, int length)
+        {
+            if (start >= Count)
+            {
+                return Empty;
+            }
+            if (start + length > Count)
+            {
+                length = Count - start;
+            }
+            if (length <= 0)
+            {
+                return Empty;
+            }
+            return new(m_memory.Slice(start, length));
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> SafeSlice(int start)
+        {
+            if (start >= Count)
+            {
+                return Empty;
+            }
+            return new(m_memory[start..]);
+        }
+
+        /// <inheritdoc/>
         Array? IConvertableToArray.ToArray()
         {
             return ToArray();
@@ -675,6 +702,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Find index of item
+        /// </summary>
+        public int IndexOf(T value, IEqualityComparer<T> comparer)
+        {
+#if NET10_0_OR_GREATER
+            return m_memory.Span.IndexOf(value, comparer);
+#else
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (comparer.Equals(value, m_memory.Span[i]))
+                {
+                    return i;
+                }
+            }
+            return -1;
+#endif
+        }
+
+        /// <summary>
         /// Find item
         /// </summary>
         public T Find(Predicate<T> predicate, T defaultValue = default!)
@@ -689,6 +735,14 @@ namespace Opc.Ua
         public bool Contains(T value)
         {
             return IndexOf(value) != -1;
+        }
+
+        /// <summary>
+        /// Returns true if array contains the value
+        /// </summary>
+        public bool Contains(T value, IEqualityComparer<T> comparer)
+        {
+            return IndexOf(value, comparer) != -1;
         }
 
         /// <summary>
@@ -863,7 +917,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(list));
             }
-            for (var i = 0; i < values.Count; i++)
+            for (int i = 0; i < values.Count; i++)
             {
                 list.Add(values.Span[i]);
             }

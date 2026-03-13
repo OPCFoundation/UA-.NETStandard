@@ -68,6 +68,15 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Variant.From("abc"),
         ];
 
+        [TearDown]
+        public void MyTestTearDown()
+        {
+            m_uaConfigurationUpdateEvent?.Dispose();
+            m_uaMetaDataShutdownEvent?.Dispose();
+            m_uaDeltaDataShutdownEvent?.Dispose();
+            m_uaDataShutdownEvent?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {

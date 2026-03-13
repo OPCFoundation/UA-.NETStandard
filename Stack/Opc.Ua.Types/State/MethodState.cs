@@ -602,9 +602,9 @@ namespace Opc.Ua
         public virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            VariantCollection outputArguments,
+            IList<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
             return CallInternalSyncOrAsync(
@@ -629,9 +629,9 @@ namespace Opc.Ua
         public virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            VariantCollection outputArguments)
+            IList<Variant> outputArguments)
         {
             // safe to access result directly as sync = true
 #pragma warning disable CA2012 // Use ValueTasks correctly
@@ -660,9 +660,9 @@ namespace Opc.Ua
         protected virtual async ValueTask<ServiceResult> CallInternalSyncOrAsync(
             ISystemContext context,
             NodeId objectId,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            VariantCollection outputArguments,
+            IList<Variant> outputArguments,
             bool sync,
             CancellationToken cancellationToken = default)
         {

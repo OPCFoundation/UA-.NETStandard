@@ -229,7 +229,7 @@ namespace Opc.Ua.Configuration
             configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
             if (configuration.ServerConfiguration != null)
             {
-                var baseAddresses = new string[configuration.ServerConfiguration.BaseAddresses.Count];
+                string[] baseAddresses = new string[configuration.ServerConfiguration.BaseAddresses.Count];
                 for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
                 {
                     baseAddresses[i] =
@@ -727,8 +727,8 @@ namespace Opc.Ua.Configuration
             m_logger.LogInformation("Check domains in certificate.");
 
             bool valid = true;
-            IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertificate(certificate);
+            ArrayOf<string> serverDomainNames = configuration.GetServerDomainNames();
+            ArrayOf<string> certificateDomainNames = X509Utils.GetDomainsFromCertificate(certificate);
 
             m_logger.LogInformation("Server Domain names:");
             foreach (string name in serverDomainNames)
@@ -750,7 +750,7 @@ namespace Opc.Ua.Configuration
 
             for (int ii = 0; ii < serverDomainNames.Count; ii++)
             {
-                if (Utils.FindStringIgnoreCase(certificateDomainNames, serverDomainNames[ii]))
+                if (certificateDomainNames.Contains(serverDomainNames[ii], StringComparer.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -760,7 +760,7 @@ namespace Opc.Ua.Configuration
                     "localhost",
                     StringComparison.OrdinalIgnoreCase))
                 {
-                    if (Utils.FindStringIgnoreCase(certificateDomainNames, computerName))
+                    if (certificateDomainNames.Contains(computerName, StringComparer.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -769,13 +769,12 @@ namespace Opc.Ua.Configuration
                     bool found = false;
 
                     // get IP addresses only if necessary.
-                    addresses ??= await Utils.GetHostAddressesAsync(computerName, ct).ConfigureAwait(
-                        false);
+                    addresses ??= await Utils.GetHostAddressesAsync(computerName, ct).ConfigureAwait(false);
 
                     // check for ip addresses.
                     for (int jj = 0; jj < addresses.Length; jj++)
                     {
-                        if (Utils.FindStringIgnoreCase(certificateDomainNames, addresses[jj].ToString()))
+                        if (certificateDomainNames.Contains(addresses[jj].ToString(), StringComparer.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;
@@ -830,11 +829,11 @@ namespace Opc.Ua.Configuration
             m_logger.LogInformation("Creating application instance certificate.");
 
             // get the domains from the configuration file.
-            IList<string> serverDomainNames = configuration.GetServerDomainNames();
+            ArrayOf<string> serverDomainNames = configuration.GetServerDomainNames();
 
-            if (serverDomainNames.Count == 0)
+            if (serverDomainNames.IsEmpty)
             {
-                serverDomainNames.Add(Utils.GetHostName());
+                serverDomainNames = [Utils.GetHostName()];
             }
 
             // ensure the certificate store directory exists.

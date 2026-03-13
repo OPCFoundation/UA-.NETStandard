@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(vn.MinimumSamplingInterval, Is.EqualTo(0.0));
             Assert.That(vn.Historizing, Is.True);
             Assert.That(vn.AccessLevelEx, Is.EqualTo(0u));
-            Assert.That(vn.ArrayDimensions, Is.Not.Null);
+            Assert.That(vn.ArrayDimensions.IsNull, Is.False);
         }
 
         [Test]

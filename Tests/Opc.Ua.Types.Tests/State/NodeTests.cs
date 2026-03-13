@@ -48,9 +48,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node.WriteMask, Is.EqualTo(0u));
             Assert.That(node.UserWriteMask, Is.EqualTo(0u));
             Assert.That(node.AccessRestrictions, Is.EqualTo((ushort)0));
-            Assert.That(node.References, Is.Not.Null);
-            Assert.That(node.RolePermissions, Is.Not.Null);
-            Assert.That(node.UserRolePermissions, Is.Not.Null);
+            Assert.That(node.References.IsNull, Is.False);
+            Assert.That(node.RolePermissions.IsNull, Is.False);
+            Assert.That(node.UserRolePermissions.IsNull, Is.False);
         }
 
         [Test]
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandleProperty()
         {
             var node = new Node();
-            var handle = new object();
+            object handle = new object();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }

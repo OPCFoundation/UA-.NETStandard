@@ -1156,7 +1156,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static DataSetMetaDataType CreateDataSetMetaData(
             string dataSetName,
             ushort namespaceIndex,
-            FieldMetaDataCollection fieldMetaDatas,
+            ArrayOf<FieldMetaData> fieldMetaDatas,
             uint majorVersion = 1,
             uint minorVersion = 1)
         {

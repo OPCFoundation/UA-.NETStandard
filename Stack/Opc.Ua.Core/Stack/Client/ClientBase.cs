@@ -33,7 +33,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -643,7 +642,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos<TRequest>(
-            DiagnosticInfoCollection response,
+            IReadOnlyList<DiagnosticInfo> response,
             IReadOnlyList<TRequest> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.

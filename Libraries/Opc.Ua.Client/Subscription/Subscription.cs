@@ -964,7 +964,7 @@ namespace Opc.Ua.Client
             VerifySessionAndSubscriptionState(true);
 
             // collect list of browse paths.
-            var (browsePaths, itemsToBrowse) = PrepareResolveItemNodeIds();
+            (ArrayOf<BrowsePath> browsePaths, ArrayOf<MonitoredItem> itemsToBrowse) = PrepareResolveItemNodeIds();
 
             // nothing to do.
             if (browsePaths.Count == 0)
@@ -977,7 +977,7 @@ namespace Opc.Ua.Client
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
                 .ConfigureAwait(false);
 
-            var results = response.Results;
+            ArrayOf<BrowsePathResult> results = response.Results;
             ClientBase.ValidateResponse(results, browsePaths);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
 
@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Client
         {
             VerifySession();
 
-            (var requestItems, var itemsToCreate) = await PrepareItemsToCreateAsync(ct)
+            (ArrayOf<MonitoredItemCreateRequest> requestItems, ArrayOf<MonitoredItem> itemsToCreate) = await PrepareItemsToCreateAsync(ct)
                 .ConfigureAwait(false);
 
             if (requestItems.Count == 0)
@@ -1018,7 +1018,7 @@ namespace Opc.Ua.Client
                     .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
                     .ConfigureAwait(false);
 
-                var results = response.Results;
+                ArrayOf<MonitoredItemCreateResult> results = response.Results;
                 ClientBase.ValidateResponse(results, itemsToCreate);
                 ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
 
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Client
         {
             VerifySessionAndSubscriptionState(true);
 
-            var (requestItems, itemsToModify) = PrepareItemsToModify();
+            (ArrayOf<MonitoredItemModifyRequest> requestItems, ArrayOf<MonitoredItem> itemsToModify) = PrepareItemsToModify();
             if (requestItems.Count == 0)
             {
                 return itemsToModify;
@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Client
                 .ModifyMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
                 .ConfigureAwait(false);
 
-            var results = response.Results;
+            ArrayOf<MonitoredItemModifyResult> results = response.Results;
             ClientBase.ValidateResponse(results, itemsToModify);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToModify);
 
@@ -1113,14 +1113,14 @@ namespace Opc.Ua.Client
             var itemsToDelete = m_deletedItems.ToArrayOf();
             m_deletedItems = [];
 
-            var monitoredItemIds = itemsToDelete.ConvertAll(
+            ArrayOf<uint> monitoredItemIds = itemsToDelete.ConvertAll(
                 monitoredItem => monitoredItem.Status.Id);
 
             DeleteMonitoredItemsResponse response = await Session
                 .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
                 .ConfigureAwait(false);
 
-            var results = response.Results;
+            ArrayOf<StatusCode> results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
 
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.Client
                 triggeringGroups = [];
                 foreach (MonitoredItem item in m_monitoredItems.Values)
                 {
-                    if (item.TriggeredItems != null && item.TriggeredItems.Count > 0)
+                    if (item.TriggeredItems.Count > 0)
                     {
                         // This item triggers other items
                         var triggeredServerIds = new List<uint>();
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Client
             foreach (KeyValuePair<uint, List<uint>> kvp in triggeringGroups)
             {
                 uint triggeringItemId = kvp.Key;
-                var linksToAdd = new UInt32Collection(kvp.Value);
+                var linksToAdd = kvp.Value.ToArrayOf();
 
                 try
                 {
@@ -1236,13 +1236,13 @@ namespace Opc.Ua.Client
             }
 
             // get list of items to update.
-            var monitoredItemIds = monitoredItems.ConvertAll(monitoredItem => monitoredItem.Status.Id);
+            ArrayOf<uint> monitoredItemIds = monitoredItems.ConvertAll(monitoredItem => monitoredItem.Status.Id);
 
             SetMonitoringModeResponse response = await Session
                 .SetMonitoringModeAsync(null, Id, monitoringMode, monitoredItemIds, ct)
                 .ConfigureAwait(false);
 
-            var results = response.Results;
+            ArrayOf<StatusCode> results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
 
@@ -1282,8 +1282,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException">Thrown when the operation fails.</exception>
         public async Task<SetTriggeringResponse> SetTriggeringAsync(
             MonitoredItem triggeringItem,
-            IList<MonitoredItem>? linksToAdd,
-            IList<MonitoredItem>? linksToRemove,
+            ArrayOf<MonitoredItem> linksToAdd,
+            ArrayOf<MonitoredItem> linksToRemove,
             CancellationToken ct = default)
         {
             if (triggeringItem == null)
@@ -1302,38 +1302,32 @@ namespace Opc.Ua.Client
             }
 
             // Convert monitored items to server IDs
-            var serverIdsToAdd = new UInt32Collection();
-            var clientHandlesToAdd = new UInt32Collection();
-            if (linksToAdd != null)
+            var serverIdsToAdd = new List<uint>();
+            var clientHandlesToAdd = new List<uint>();
+            foreach (MonitoredItem item in linksToAdd)
             {
-                foreach (MonitoredItem item in linksToAdd)
+                if (!item.Status.Created)
                 {
-                    if (!item.Status.Created)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState,
-                            $"Monitored item '{item.DisplayName}' has not been created on the server.");
-                    }
-                    serverIdsToAdd.Add(item.Status.Id);
-                    clientHandlesToAdd.Add(item.ClientHandle);
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        $"Monitored item '{item.DisplayName}' has not been created on the server.");
                 }
+                serverIdsToAdd.Add(item.Status.Id);
+                clientHandlesToAdd.Add(item.ClientHandle);
             }
 
-            var serverIdsToRemove = new UInt32Collection();
-            var clientHandlesToRemove = new UInt32Collection();
-            if (linksToRemove != null)
+            var serverIdsToRemove = new List<uint>();
+            var clientHandlesToRemove = new List<uint>();
+            foreach (MonitoredItem item in linksToRemove)
             {
-                foreach (MonitoredItem item in linksToRemove)
+                if (!item.Status.Created)
                 {
-                    if (!item.Status.Created)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState,
-                            $"Monitored item '{item.DisplayName}' has not been created on the server.");
-                    }
-                    serverIdsToRemove.Add(item.Status.Id);
-                    clientHandlesToRemove.Add(item.ClientHandle);
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        $"Monitored item '{item.DisplayName}' has not been created on the server.");
                 }
+                serverIdsToRemove.Add(item.Status.Id);
+                clientHandlesToRemove.Add(item.ClientHandle);
             }
 
             // Call the Session SetTriggering method
@@ -1348,9 +1342,6 @@ namespace Opc.Ua.Client
             // Update the triggering relationships for automatic restoration
             lock (m_cache)
             {
-                // Initialize the triggered items collection if needed
-                triggeringItem.TriggeredItems ??= [];
-
                 // Add new links
                 if (clientHandlesToAdd.Count > 0)
                 {
@@ -1358,7 +1349,7 @@ namespace Opc.Ua.Client
                     {
                         if (!triggeringItem.TriggeredItems.Contains(clientHandle))
                         {
-                            triggeringItem.TriggeredItems.Add(clientHandle);
+                            triggeringItem.TriggeredItems = triggeringItem.TriggeredItems.AddItem(clientHandle);
                         }
 
                         // Update the triggered item to remember its triggering item
@@ -1374,7 +1365,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (uint clientHandle in clientHandlesToRemove)
                     {
-                        triggeringItem.TriggeredItems.Remove(clientHandle);
+                        triggeringItem.TriggeredItems = triggeringItem.TriggeredItems.RemoveItem(clientHandle);
 
                         // Clear the triggering item reference
                         if (m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? triggeredItem))
@@ -1865,7 +1856,7 @@ namespace Opc.Ua.Client
             VerifySession();
             try
             {
-                var outputArguments = await Session.CallAsync(
+                ArrayOf<Variant> outputArguments = await Session.CallAsync(
                     ObjectIds.Server,
                     MethodIds.Server_GetMonitoredItems,
                     ct,
@@ -1900,7 +1891,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                var outputArguments = await Session
+                ArrayOf<Variant> outputArguments = await Session
                     .CallAsync(
                         ObjectIds.Server,
                         MethodIds.Server_SetSubscriptionDurable,

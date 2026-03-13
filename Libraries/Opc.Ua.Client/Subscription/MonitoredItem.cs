@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems != null ? [.. state.TriggeredItems] : null;
+            TriggeredItems = state.TriggeredItems;
             CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
         }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client
                 ServerId = Status.Id,
                 ClientId = ClientHandle,
                 TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems != null ? [.. TriggeredItems] : null,
+                TriggeredItems = TriggeredItems,
                 CacheQueueSize = CacheQueueSize
             };
         }
@@ -778,7 +778,7 @@ namespace Opc.Ua.Client
             string browsePath,
             uint attributeId)
         {
-            QualifiedNameCollection browseNames = SimpleAttributeOperand.Parse(browsePath);
+            ArrayOf<QualifiedName> browseNames = SimpleAttributeOperand.Parse(browsePath);
             return GetFieldValue(eventFields, eventTypeId, browseNames, attributeId);
         }
 
@@ -790,7 +790,7 @@ namespace Opc.Ua.Client
             NodeId eventTypeId,
             QualifiedName browseName)
         {
-            var browsePath = new QualifiedNameCollection { browseName };
+            ArrayOf<QualifiedName> browsePath = [browseName];
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
         }
 
@@ -800,7 +800,7 @@ namespace Opc.Ua.Client
         public object? GetFieldValue(
             EventFieldList eventFields,
             NodeId eventTypeId,
-            IList<QualifiedName> browsePath,
+            ArrayOf<QualifiedName> browsePath,
             uint attributeId)
         {
             if (eventFields == null)
@@ -830,7 +830,7 @@ namespace Opc.Ua.Client
                 }
 
                 // match null browse path.
-                if (browsePath == null || browsePath.Count == 0)
+                if (browsePath.IsEmpty)
                 {
                     if (!clause.BrowsePath.IsEmpty)
                     {
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Client
         /// Collection of server-side identifiers of monitored items that are
         /// triggered by this item. Null if this item does not trigger any other items.
         /// </summary>
-        internal UInt32Collection? TriggeredItems { get; set; }
+        internal ArrayOf<uint> TriggeredItems { get; set; } = [];
     }
 
     /// <summary>

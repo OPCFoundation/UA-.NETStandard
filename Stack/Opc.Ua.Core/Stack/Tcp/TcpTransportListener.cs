@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private EndpointDescriptionCollection m_descriptions;
+        private List<EndpointDescription> m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
         private CertificateTypesProvider m_serverCertificateTypesProvider;

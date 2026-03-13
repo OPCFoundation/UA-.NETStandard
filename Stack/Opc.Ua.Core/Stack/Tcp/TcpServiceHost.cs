@@ -71,7 +71,7 @@ namespace Opc.Ua.Bindings
 
             // build list of uris.
             var uris = new List<Uri>();
-            var endpoints = new EndpointDescriptionCollection();
+            var endpoints = new List<EndpointDescription>();
 
             // create the endpoint configuration to use.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
@@ -102,7 +102,7 @@ namespace Opc.Ua.Bindings
                 ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
-                    var listenerEndpoints = new EndpointDescriptionCollection();
+                    var listenerEndpoints = new List<EndpointDescription>();
                     uris.Add(uri.Uri);
 
                     foreach (ServerSecurityPolicy policy in securityPolicies)

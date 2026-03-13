@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
@@ -54,7 +53,7 @@ namespace Opc.Ua.Client.Tests
         private ReferenceServer m_server;
         private string m_pkiRoot;
         private Uri m_serverUrl;
-        private EndpointDescriptionCollection m_endpoints;
+        private ArrayOf<EndpointDescription> m_endpoints;
         private ITelemetryContext m_telemetry;
 
         [SetUp]
@@ -76,8 +75,8 @@ namespace Opc.Ua.Client.Tests
 
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
 
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName));
+            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
 
             m_server = await m_serverFixture.StartAsync().ConfigureAwait(false);
             m_server.TokenValidator = new TokenValidatorMock();
@@ -98,7 +97,7 @@ namespace Opc.Ua.Client.Tests
             m_endpoints = await discoveryClient.GetEndpointsAsync(default).ConfigureAwait(false);
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public async Task OneTimeTearDownAsync()
         {
             if (m_serverFixture != null)
@@ -106,7 +105,7 @@ namespace Opc.Ua.Client.Tests
                 await m_serverFixture.StopAsync().ConfigureAwait(false);
             }
 
-            Utils.SilentDispose(m_clientFixture);
+            m_clientFixture?.Dispose();
 
             try
             {
@@ -123,8 +122,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ClientIsLockedOutAfterMultipleFailedPasswordAttemptsAsync()
         {
-            EndpointDescription endpoint = m_endpoints.FirstOrDefault(
-                e => e.SecurityMode == MessageSecurityMode.None);
+            EndpointDescription endpoint = m_endpoints.Find(e => e.SecurityMode == MessageSecurityMode.None);
             Assert.That(endpoint, Is.Not.Null, "No endpoint with SecurityMode.None found");
 
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
@@ -177,8 +175,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task SuccessfulLoginAfterFailuresResetsLockoutCounterAsync()
         {
-            EndpointDescription endpoint = m_endpoints.FirstOrDefault(
-                e => e.SecurityMode == MessageSecurityMode.None);
+            EndpointDescription endpoint = m_endpoints.Find(e => e.SecurityMode == MessageSecurityMode.None);
             Assert.That(endpoint, Is.Not.Null, "No endpoint with SecurityMode.None found");
 
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
@@ -254,8 +251,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task AnonymousLoginFailsWhileLockedOutAsync()
         {
-            EndpointDescription endpoint = m_endpoints.FirstOrDefault(
-                e => e.SecurityMode == MessageSecurityMode.None);
+            EndpointDescription endpoint = m_endpoints.Find(e => e.SecurityMode == MessageSecurityMode.None);
             Assert.That(endpoint, Is.Not.Null, "No endpoint with SecurityMode.None found");
 
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);

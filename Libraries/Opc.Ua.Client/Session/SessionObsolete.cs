@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
         /// Updates the cache with the types and its subtypes.
         /// </summary>
         [Obsolete("Use FetchTypeTreeAsync instead.")]
-        public static void FetchTypeTree(this ISession session, ExpandedNodeIdCollection typeIds)
+        public static void FetchTypeTree(this ISession session, ArrayOf<ExpandedNodeId> typeIds)
         {
             session.FetchTypeTreeAsync(typeIds).GetAwaiter().GetResult();
         }
@@ -348,6 +348,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the preferred locales used for the session.
         /// </summary>
+        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
         public static void ChangePreferredLocales(
             this ISession session,
             ArrayOf<string> preferredLocales)
@@ -360,6 +361,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the user identity and/or locales used for the session.
         /// </summary>
+        [Obsolete("Use UpdateSessionAsync instead.")]
         public static void UpdateSession(
             this ISession session,
             IUserIdentity identity,
@@ -373,11 +375,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
+        [Obsolete("Use FindComponentIdsAsync instead.")]
         public static void FindComponentIds(this ISession session,
             NodeId instanceId,
             IList<string> componentPaths,
-            out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors)
+            out ArrayOf<NodeId> componentIds,
+            out ArrayOf<ServiceResult> errors)
         {
             (componentIds, errors) = session.FindComponentIdsAsync(
                 instanceId,
@@ -401,7 +404,7 @@ namespace Opc.Ua.Client
                 .GetAwaiter()
                 .GetResult();
 
-            var valuesBuffer = new object[dataValues.Count];
+            object[] valuesBuffer = new object[dataValues.Count];
             var errorsBuffer = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
@@ -808,7 +811,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
+            ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
             return Create(
@@ -1045,7 +1048,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
+            ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
@@ -1223,7 +1226,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
+            ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
             : base(
                   channel,
@@ -1278,7 +1281,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
+            ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
             return factory.Create(

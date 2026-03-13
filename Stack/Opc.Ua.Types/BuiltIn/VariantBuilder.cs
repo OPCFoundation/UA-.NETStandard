@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using static Opc.Ua.VariantBuilder;
 
 namespace Opc.Ua
 {

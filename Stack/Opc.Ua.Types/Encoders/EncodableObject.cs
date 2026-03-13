@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.Serialization;
-using System.Xml;
 using Opc.Ua.Types;
 
 namespace Opc.Ua

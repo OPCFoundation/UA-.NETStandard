@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                 var node = new BaseObjectState(null);
                 NodeId nodeId = manager.New(context, node);
 
-                Assert.That(nodeId, Is.Not.Null);
+                Assert.That(nodeId.IsNull, Is.False);
                 Assert.That(nodeId, Is.Not.EqualTo(NodeId.Null));
                 Assert.That(nodeId.NamespaceIndex, Is.EqualTo(manager.NamespaceIndexes[0]));
                 Assert.That(generatedNodeIds.Add(nodeId), Is.True, "Duplicate NodeId generated");
@@ -1494,8 +1494,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
-            Assert.That(metadata.RolePermissions, Is.Not.Null);
-            Assert.That(metadata.UserRolePermissions, Is.Not.Null);
+            Assert.That(metadata.RolePermissions.IsNull, Is.False);
+            Assert.That(metadata.UserRolePermissions.IsNull, Is.False);
             var cache2 = new Dictionary<NodeId, Variant[]>
             {
                 [node.NodeId] = []

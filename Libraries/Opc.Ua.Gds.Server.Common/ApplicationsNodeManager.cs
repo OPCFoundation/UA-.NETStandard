@@ -555,7 +555,9 @@ namespace Opc.Ua.Gds.Server
                 GdsRole.ApplicationSelfAdmin.RoleId,
                 context.NamespaceUris);
             IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-            if (!userIdentity.GrantedRoleIds.Contains(selfAdminRole))
+
+            if (userIdentity == null ||
+                !userIdentity.GrantedRoleIds.Contains(selfAdminRole))
             {
                 return ServiceResult.Good;
             }
@@ -1202,7 +1204,7 @@ namespace Opc.Ua.Gds.Server
 
             if (!certificateTypeId.IsNull)
             {
-                if (!certificateGroup.CertificateTypes.Any(certificateType =>
+                if (!certificateGroup.CertificateTypes.Contains(certificateType =>
                         Server.TypeTree.IsTypeOf(certificateType, certificateTypeId)))
                 {
                     return new ServiceResult(
@@ -1346,7 +1348,7 @@ namespace Opc.Ua.Gds.Server
 
             if (!certificateTypeId.IsNull)
             {
-                if (!certificateGroup.CertificateTypes.Any(certificateType =>
+                if (!certificateGroup.CertificateTypes.Contains(certificateType =>
                         Server.TypeTree.IsTypeOf(certificateType, certificateTypeId)))
                 {
                     result.ServiceResult = new ServiceResult(
@@ -1469,7 +1471,7 @@ namespace Opc.Ua.Gds.Server
                 .SingleOrDefault();
 
             if (!certificateTypeNodeId.IsNull &&
-                !certificateGroup.CertificateTypes.Any(certificateType =>
+                !certificateGroup.CertificateTypes.Contains(certificateType =>
                     Server.TypeTree.IsTypeOf(certificateType, certificateTypeNodeId)))
             {
                 result.ServiceResult = new ServiceResult(
@@ -1852,7 +1854,7 @@ namespace Opc.Ua.Gds.Server
             {
                 // Create a new custom certificate group node in the address space
                 // for any group whose Id does not match one of the three predefined groups.
-                var certGroupsFolder = FindPredefinedNode<Ua.CertificateGroupFolderState>(
+                CertificateGroupFolderState certGroupsFolder = FindPredefinedNode<Ua.CertificateGroupFolderState>(
                     ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris));
 
                 if (certGroupsFolder == null)

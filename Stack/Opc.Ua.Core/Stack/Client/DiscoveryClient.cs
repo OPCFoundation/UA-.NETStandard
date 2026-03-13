@@ -395,7 +395,7 @@ namespace Opc.Ua
         /// <param name="profileUris">The collection of profile URIs.</param>
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(
-            ArrayOf<String> profileUris,
+            ArrayOf<string> profileUris,
             CancellationToken ct = default)
         {
             GetEndpointsResponse response = await GetEndpointsAsync(

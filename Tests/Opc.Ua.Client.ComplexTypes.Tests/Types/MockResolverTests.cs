@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "Model",
@@ -212,7 +212,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "Engine",
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "NoOfPassengers",
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add type
@@ -371,7 +371,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -407,7 +407,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -431,7 +431,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -465,7 +465,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add types needed
@@ -622,7 +622,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -656,7 +656,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add types needed

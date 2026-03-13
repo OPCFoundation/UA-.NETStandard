@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using BenchmarkDotNet.Attributes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -126,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             NodeId n0 = decoder.ReadNodeId("D0");
-            Assert.AreEqual((int)n0.NamespaceIndex, 0);
+            Assert.AreEqual(0, (int)n0.NamespaceIndex);
             Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
 
             NodeId n1 = decoder.ReadNodeId("D1");
@@ -162,12 +161,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
-            Assert.AreEqual((int)n0.ServerIndex, 0);
-            Assert.AreEqual((int)n0.NamespaceIndex, 0);
+            Assert.AreEqual(0, (int)n0.ServerIndex);
+            Assert.AreEqual(0, (int)n0.NamespaceIndex);
             Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
 
             ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
-            Assert.AreEqual((int)n1.ServerIndex, 0);
+            Assert.AreEqual(0, (int)n1.ServerIndex);
 
             string uri = Get(NamespaceUris, index);
             int ns = context.NamespaceUris.GetIndex(uri);
@@ -183,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(Get(NumericIds, index), n1.TryGetIdentifier(out uint id1) ? id1 : 0);
 
             ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
-            Assert.AreEqual((int)n2.ServerIndex, 0);
+            Assert.AreEqual(0, (int)n2.ServerIndex);
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -201,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 n2.TryGetIdentifier(out string guid3) ? guid3 : null);
 
             ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
-            Assert.AreEqual((int)n3.ServerIndex, 0);
+            Assert.AreEqual(0, (int)n3.ServerIndex);
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -219,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 n3.TryGetIdentifier(out Guid id3) ? id3 : Guid.Empty);
 
             ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
-            Assert.AreEqual((int)n4.ServerIndex, 0);
+            Assert.AreEqual(0, (int)n4.ServerIndex);
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -323,7 +322,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             QualifiedName n0 = decoder.ReadQualifiedName("D0");
-            Assert.AreEqual((int)n0.NamespaceIndex, 0);
+            Assert.AreEqual(0, (int)n0.NamespaceIndex);
             Assert.AreEqual("ServerStatus", n0.Name);
 
             QualifiedName n1 = decoder.ReadQualifiedName("D1");
@@ -695,14 +694,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
-            var a1 = v1.GetInt64Matrix();
+            MatrixOf<long> a1 = v1.GetInt64Matrix();
             Assert.AreEqual(2, a1.Dimensions.Length);
             Assert.AreEqual(6, a1.Count);
             Assert.AreEqual(2, a1.Dimensions[0]);
             Assert.AreEqual(3, a1.Dimensions[1]);
 
             Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
-            var a2 = v2.GetInt64Matrix();
+            MatrixOf<long> a2 = v2.GetInt64Matrix();
             Assert.AreEqual(3, a2.Dimensions.Length);
             Assert.AreEqual(6, a2.Count);
             Assert.AreEqual(1, a2.Dimensions[0]);
@@ -802,7 +801,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(9876.5432, range.High);
 
             Variant v1 = decoder.ReadVariant("D1");
-            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
+            Assert.AreEqual(BuiltInType.ExtensionObject, v1.TypeInfo.BuiltInType);
 
             eo = v1.GetExtensionObject();
             Assert.IsNotNull(eo);
@@ -922,7 +921,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(9876.5432, range.High);
 
             Variant v1 = decoder.ReadVariant("D1");
-            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
+            Assert.AreEqual(BuiltInType.ExtensionObject, v1.TypeInfo.BuiltInType);
 
             eo = v1.GetExtensionObject();
             Assert.IsNotNull(eo);

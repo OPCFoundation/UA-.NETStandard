@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Client
             ByteString serverNonce = response.ServerNonce;
             ByteString serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
-            var serverEndpoints = response.ServerEndpoints;
+            ArrayOf<EndpointDescription> serverEndpoints = response.ServerEndpoints;
 
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
             {
-                var subTypes = new ExpandedNodeIdCollection();
+                var subTypes = new List<ExpandedNodeId>();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                 {
                     subTypes.Add(reference.TargetId);
@@ -1828,15 +1828,15 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(
-            ExpandedNodeIdCollection typeIds,
+            ArrayOf<ExpandedNodeId> typeIds,
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            var referenceTypeIds = new NodeIdCollection { ReferenceTypeIds.HasSubtype };
-            IList<INode> nodes = await NodeCache
+            ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
+            ArrayOf<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                 .ConfigureAwait(false);
-            var subTypes = new ExpandedNodeIdCollection();
+            var subTypes = new List<ExpandedNodeId>();
             foreach (INode inode in nodes)
             {
                 if (inode is Node node)
@@ -1852,7 +1852,7 @@ namespace Opc.Ua.Client
             }
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), ct).ConfigureAwait(false);
             }
         }
 
@@ -3391,7 +3391,7 @@ namespace Opc.Ua.Client
                 = m_PublishSequenceNumbersToAcknowledge;
 
             // collect the current set if acknowledgements.
-            SubscriptionAcknowledgementCollection? acknowledgementsToSend = null;
+            List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)
             {
                 if (callback != null)
@@ -3496,7 +3496,7 @@ namespace Opc.Ua.Client
         private void OnPublishComplete(
             Task<PublishResponse> task,
             NodeId sessionId,
-            SubscriptionAcknowledgementCollection? acknowledgementsToSend,
+            List<SubscriptionAcknowledgement>? acknowledgementsToSend,
             RequestHeader requestHeader)
         {
             // extract state information.
@@ -4206,7 +4206,7 @@ namespace Opc.Ua.Client
             lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the server does not have any more.
-                var acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                var acknowledgementsToSend = new List<SubscriptionAcknowledgement>();
 
                 uint latestSequenceNumberToSend = 0;
 
@@ -4602,7 +4602,7 @@ namespace Opc.Ua.Client
         }
 
         private void AddAcknowledgementToSend(
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
             uint subscriptionId,
             uint sequenceNumber)
         {
@@ -4923,7 +4923,7 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
-        private SubscriptionAcknowledgementCollection m_acknowledgementsToSend = [];
+        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         private readonly object m_acknowledgementsToSendLock = new();
 #if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
@@ -5116,8 +5116,8 @@ namespace Opc.Ua.Client
         /// Creates a new instance.
         /// </summary>
         public PublishSequenceNumbersToAcknowledgeEventArgs(
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
-            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> deferredAcknowledgementsToSend)
         {
             AcknowledgementsToSend = acknowledgementsToSend;
             DeferredAcknowledgementsToSend = deferredAcknowledgementsToSend;
@@ -5130,7 +5130,7 @@ namespace Opc.Ua.Client
         /// A client may also choose to remove an acknowledgement from this list to add it back
         /// to the list in a subsequent callback when the request is fully processed.
         /// </remarks>
-        public SubscriptionAcknowledgementCollection AcknowledgementsToSend { get; }
+        public List<SubscriptionAcknowledgement> AcknowledgementsToSend { get; }
 
         /// <summary>
         /// The deferred list of acknowledgements.
@@ -5139,6 +5139,6 @@ namespace Opc.Ua.Client
         /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
         /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
-        public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend { get; }
+        public List<SubscriptionAcknowledgement> DeferredAcknowledgementsToSend { get; }
     }
 }

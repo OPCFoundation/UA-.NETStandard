@@ -128,9 +128,9 @@ namespace Opc.Ua
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
-        public virtual EndpointDescriptionCollection GetEndpoints()
+        public virtual ArrayOf<EndpointDescription> GetEndpoints()
         {
-            return [.. Endpoints];
+            return Endpoints;
         }
 
         /// <summary>
@@ -270,11 +270,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out var endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = endpoints.ToArrayOf();
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -337,11 +337,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out var endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = endpoints.ToArrayOf();
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -820,7 +820,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
             ICertificateValidator certificateValidator)
@@ -871,13 +871,13 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <returns>
         /// Returns a collection of UserTokenPolicy objects,
-        /// the return type is <seealso cref="UserTokenPolicyCollection"/> .
+        /// the return type is <seealso cref="ArrayOf{UserTokenPolicy}"/> .
         /// </returns>
-        public virtual UserTokenPolicyCollection GetUserTokenPolicies(
+        public virtual ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
             EndpointDescription description)
         {
-            var policies = new UserTokenPolicyCollection();
+            var policies = new List<UserTokenPolicy>();
 
             if (configuration.ServerConfiguration == null ||
                 configuration.ServerConfiguration.UserTokenPolicies.IsNull)
@@ -1174,13 +1174,13 @@ namespace Opc.Ua
         /// <param name="endpoints">The endpoints.</param>
         /// <param name="application">The application to use with the endpoints.</param>
         /// <returns>The translated list of endpoints.</returns>
-        protected EndpointDescriptionCollection TranslateEndpointDescriptions(
+        protected ArrayOf<EndpointDescription> TranslateEndpointDescriptions(
             Uri clientUrl,
             IList<BaseAddress> baseAddresses,
             ArrayOf<EndpointDescription> endpoints,
             ApplicationDescription application)
         {
-            var translations = new EndpointDescriptionCollection();
+            var translations = new List<EndpointDescription>();
 
             bool matchPort = false;
             do
@@ -1510,10 +1510,10 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out ArrayOf<EndpointDescription> endpoints)
         {
             serverDescription = null;
-            endpoints = null;
+            endpoints = default;
             return [];
         }
 

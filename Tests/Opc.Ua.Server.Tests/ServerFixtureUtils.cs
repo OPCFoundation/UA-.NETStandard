@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -70,9 +69,9 @@ namespace Opc.Ua.Server.Tests
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
-            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            var endpoints = server.GetEndpoints();
             EndpointDescription endpoint =
-                endpoints.FirstOrDefault(e =>
+                endpoints.Find(e =>
                     e.TransportProfileUri
                         .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                     e.TransportProfileUri
@@ -273,7 +272,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<NodeId> nodeIdCollection,
             BrowseDescription template)
         {
-            var browseDescriptionCollection = new BrowseDescriptionCollection();
+            var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
                 var browseDescription = (BrowseDescription)template.MemberwiseClone();
@@ -292,7 +291,7 @@ namespace Opc.Ua.Server.Tests
         public static ArrayOf<ByteString> PrepareBrowseNext(
             ArrayOf<BrowseResult> browseResultCollection)
         {
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = new List<ByteString>();
             foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (!browseResult.ContinuationPoint.IsEmpty)

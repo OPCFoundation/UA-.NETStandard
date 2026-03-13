@@ -12,7 +12,7 @@
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
       - [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
-      - [Variant and ExtensionObject](#variant-and-extensionobject)
+      - [Variant, DataValue and ExtensionObject](#variant-datavalue-and-extensionobject)
         - [Deprecated boxing behavior](#deprecated-boxing-behavior)
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [XmlElement](#xmlelement)
@@ -113,24 +113,26 @@ To migrate, perform the following general replacements in your code:
 
 Similar to `ByteString`, `ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable generic value types representing non-scalar values. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`).
 
-In addition to slicing and range based access, both types provide the ability to apply a NumericIndex to them.  They are efficiently stored inside a Variant as well and can be used to allocate efficiently from `ArrayPool` providing the ability to built object pooling support at the array level. All *generated* collection types now convert to and from `ArrayOf<T>` to use them in API now taking `ArrayOf<T>` as input instead of the generated type. `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
+In addition to slicing and range based access, both types provide the ability to apply a NumericIndex to them.  They are efficiently stored inside a Variant as well and can be used to allocate efficiently from `ArrayPool` providing the ability to built object pooling support at the array level. `ArrayOf<T>` implicitly converts to `List<T>` but not vice versa. For API that is taking `ArrayOf<T>` as input convert any list using `ToArrayOf`. `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
 
 Internally an `ArrayOf`/`MatrixOf` stores a reference to "memory" and a offset and length integer. They have the same layout as `ReadOnlyMemory<T>` although this is not guaranteed to stay so in the future. All generated collection types implicitly convert to and from `ArrayOf<T>` whereby `T` is the member type of the collection type.  E.g. `VariantCollection` is effectively `ArrayOf<Variant>`.
 
-`ArrayOf<T>` provides helper methods e.g. to  `Append` an item or `Concat` another `ArrayOf<T>` which generate a new `ArrayOf<T>`, very similar to the .net ImmutableCollection classes or the respective extension methods in the `System.Linq`. `Filter`, `Find` and `ConvertAll` methods mimic the Linq `Where`, `Any`, `FirstOrDefault`, `Select` or the respective `List<T>` methods. However, you cannot use `Linq` expressions without converting to a list (`ToList`) or array (`ToArray`) first.
+`ArrayOf<T>` provides helper methods e.g. to  `AddItem` an item or `AddItems` of items in another `ArrayOf<T>`. Both return a new `ArrayOf<T>`, very similar to the .net ImmutableCollection classes or the `Append` or `Concat` extension methods in the `System.Linq`.
 
-All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`MatrixOf` instead of the generated/built-in collection types or `System.Array`. (*) Current exception: all data types use the Collection model due to compatibilty with DataContractSerializer.
+`Contains`, `IndexOf`, `Filter`, `Find`, `FindIndex` and `ConvertAll` methods mimic the Linq `Where`, `Any`, `FirstOrDefault`, `Select` or the respective methods on the `List<T>` type. Use `SafeSlice` instead of `Take` to slice up to the length and which returns an empty array instead of throwing which is what the regular Slice/range operators do.  You cannot use more advanced `Linq` expressions (e.g. order by or group by) without converting to a list (`ToList`) or array (`ToArray`) first. Linq is slow, so using the methods on the array type where possible will provide a performance improvement.
+
+All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`MatrixOf` instead of the previously generated/built-in non-generic collection types which have been removed.
 
 Note that equality operators and methods now compare the content of the Array and Matrix, not just reference equality as with `T[]`. It supports checking for an empty array or matrix via `IsEmpty` and `IsNull` whereby the first checks whether the array is effectively a `ArrayOf.Empty<T>` amd the second is just a check against `ArrayOf<T>` initialized using `default` (since it is not a reference type anymore). `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
 
 **Change code as follows:**
 
 - Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
-- Change all use of `<Type>Collection` to either `List<Type>` or `ArrayOf<Type>`.
-- In case of errors related to enumeration via Span enumerator across async, convert to a list using `ToList()` then enumerate.
+- Change all use of `<Type>Collection` or `IList<Type>` to `List<Type>` (add a `using System.Collections.Generic` directive if needed). When the collection is never mutated (items added, inserted or removed), use `ArrayOf<Type>`.
+- In case of `error CS4007: Instance of type 'System.ReadOnlySpan<T>.Enumerator' cannot be preserved across 'await' or 'yield' boundary` convert the enumerated `ArrayOf<T>` to a list using `ToList()` and enumerate the list.
 - When trying to set a value in the previous array, create a buffer `T[]` and after mutating convert to `ArrayOf<T>` using `buffer.ToArrayOf()`.
-- To add items to an `ArrayOf` use the new `Append`/`Concat` methods where you would have used `Add` or `AddRange` before. Note that ArrayOf is immutable so the result needs to be assigned to the variable to which you want to add.
-- In performance intensive code it is best to first create a `List<T>` and then assign the list to a variable of `ArrayOf<T>` type.
+- To add items to an `ArrayOf` use the new `AddItem`/`AddItems` methods where you would have used `Add` or `AddRange` before. Note that ArrayOf is immutable so the result needs to be assigned to the variable to which you want to add. You can also use the `+=` operator for less verbose code.
+- In performance intensive code or where items are added in a loop it is best to first create a `List<T>` and then assign the list later (e.g. after the loop) to a variable of `ArrayOf<T>` type.
 - Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code if needed.
 - Remove any use of `Matrix` which is deprecated and replace with `MatrixOf<T>` which is type safe.
 
@@ -144,7 +146,7 @@ Note that equality operators and methods now compare the content of the Array an
     // need to change to
     ArrayOf<Variant> c = [new Variant(1)]; // or
     ArrayOf<Variant> c = default; c = c.Add(new Variant(1)); // or
-    ArrayOf<Variant> c = default; c = c + new Variant(1);
+    ArrayOf<Variant> c = default; c += new Variant(1);
     var first = !c.IsEmpty ? c[0] : default;
     ArrayOf<int> i = c.ConvertAll(v => (int)v);
 ```
@@ -175,7 +177,7 @@ There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`
 
 > (*) Note that NodeId leverages the new `uint` field to cache the HashCode of a "non-uint" "Identifier", which provides faster lookup using NodeId/ExpandedNodeId as key.
 
-#### Variant and ExtensionObject
+#### Variant, DataValue and ExtensionObject
 
 Previously the `Variant` was a *mutable* struct containing a `TypeInfo` and `Value` property allowing setting the inner state and returning `object`.  All value types thus were implicitly boxed to object and landing on the heap. The new `Variant` only boxes value types > 8 bytes in size (*), and stores the rest in a union.  `TypeInfo`, previously a class, also now is stored as a 4 byte type (with padding).
 
@@ -183,7 +185,7 @@ The `ExtensionObject` was a reference type wrapping a `NodeId` and a body as a r
 
 ##### Deprecated boxing behavior
 
-Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGet(out <Type> value)` calls. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetEncodeable<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
+Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGet(out <Type> value)` calls. The same applies to the `Value` property of `DataValue`. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetEncodeable<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
 
 Creating a `Variant` or `ExtensionObject` via the constructor taking a `object` parameter is also marked [Obsolete] to encourage using type safe API to create a Variant (and thus not storing the wrong value in the inner `object` variable that cannot be converted out again or makes the Variant a null variant unexpectedly).
 
@@ -205,7 +207,7 @@ To perform conversion from `<T>` to a Variant, helper methods are available in `
 - *Casting*: Casting from Variant to built in system type "will just work" the same way as casting from the object, e.g. `object a; uint b = (uint)a;` is equivalent to `Variant a; uint b = (uint)a;`. Both throw `InvalidCastException` if the cast is not possible.
 - *Pattern matching*: If you use is pattern matching use the new `TryGet/TryGetStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
 - *Reflection*: Use `TypeInfo` property on Variant to obtain metadata for for example switching.
-- *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo<BuiltInType>()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
+- *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo[<]BuiltInType]()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
 
 To migrate, perform the following general replacements in your code:
 
@@ -237,9 +239,9 @@ All generated data types implementing `IEncodeable` are now equality comparable 
 
 **Change code as follows:**
 
-No changes are required, however:
+No changes are required, however there can be subtle bugs exposed, e.g.:
 
-- When comparing data type instances for reference equality, use `ReferenceEquals`, instead of `==` or `!=` operators.
+- When comparing data type instances for reference equality, use `ReferenceEquals`, instead of `==` or `!=` operators. You can use the `RefEqualityComparer<T>` helper when creating Dictionaries that use the type as key and require reference equality semantics for it.
 - When testing for `null`, use `is null` for more performant code.
 
 #### Obsoleted APIs and replacements
@@ -266,9 +268,11 @@ No changes are required, however:
 - `<T>Collection` classes -> use `ArrayOf<T>` or `List<T>`
 - `new Variant(object)` -> use `Variant.From(T)`
 - `Variant.Value` -> use `Variant.TryGet`, cast, or `AsBoxedObject` if absolutely necessary.
+- `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGet`)
 
 #### APIs permanently removed
 
+- All `<Type>Collection` classes, e.g. Int32Collection or ArgumentCollection -> use `List<Type>` or `ArrayOf<T>`
 - `ICloneable`/`Clone()`/`MemberwiseClone()` on the immutable built-in types -> use assignment for copies
 - Creating `NodeId` or `ExpandedNodeId` using `byte[]` -> use `ByteString` and type safe constructor.
 - Setters removed from immutable types:

@@ -30,7 +30,6 @@
 using System;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -235,7 +234,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             // Act
-            node.UserRolePermissions = new RolePermissionTypeCollection();
+            node.UserRolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
             Assert.That((node.ChangeMasks & NodeStateChangeMasks.NonValue), Is.Not.EqualTo(NodeStateChangeMasks.None));

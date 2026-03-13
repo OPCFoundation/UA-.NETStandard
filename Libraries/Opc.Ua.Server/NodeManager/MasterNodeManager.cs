@@ -775,11 +775,6 @@ namespace Opc.Ua.Server
             OperationContext context,
             ArrayOf<NodeId> nodesToUnregister)
         {
-            if (nodesToUnregister == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToUnregister));
-            }
-
             m_logger.LogTrace(
                 Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.UnregisterNodes - Count={Count}",
@@ -817,7 +812,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowsePathResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual async ValueTask<(ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
             ArrayOf<BrowsePath> browsePaths,
@@ -900,13 +895,8 @@ namespace Opc.Ua.Server
         protected void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
-            ref ArrayOf<DiagnosticInfo> diagnosticInfos)
+            ref List<DiagnosticInfo> diagnosticInfos)
         {
-            if (diagnosticInfos == null)
-            {
-                return;
-            }
-
             if (diagnosticsExist && context.StringTable.Count == 0)
             {
                 diagnosticsExist = false;
@@ -961,7 +951,7 @@ namespace Opc.Ua.Server
             // check the relative path.
             RelativePath relativePath = browsePath.RelativePath;
 
-            if (relativePath.Elements == null || relativePath.Elements.Count == 0)
+            if (relativePath.Elements.IsEmpty)
             {
                 return StatusCodes.BadNothingToDo;
             }
@@ -994,16 +984,18 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             if (ServiceResult.IsGood(serviceResult))
             {
+                List<BrowsePathTarget> targets = [];
                 // translate path only if validation is passing
                 await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
-                    result.Targets,
+                    targets,
                     0,
                     cancellationToken)
                 .ConfigureAwait(false);
+                result.Targets = targets;
             }
 
             return serviceResult;
@@ -1190,21 +1182,16 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowseResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
+        public virtual async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (nodesToBrowse == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToBrowse));
             }
 
             if (view != null && !view.ViewId.IsNull)
@@ -1248,7 +1235,7 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            var results = new BrowseResultCollection(nodesToBrowse.Count);
+            var results = new List<BrowseResult>(nodesToBrowse.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
@@ -1336,29 +1323,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <typeparam name="T">One of the following types used in the service calls:
         ///     ReadValueId used in the Read service</typeparam>
-        /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
+        /// <param name="nodesList">The collection of nodes on which the service operates uppon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
         /// <exception cref="ArgumentException"></exception>
         private static void PrepareValidationCache<T>(
-            List<T> nodesCollection,
+            ArrayOf<T> nodesList,
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
             var uniqueNodes = new HashSet<NodeId>();
-            for (int i = 0; i < nodesCollection.Count; i++)
+            for (int i = 0; i < nodesList.Count; i++)
             {
                 Type listType = typeof(T);
                 NodeId nodeId = default;
 
                 if (listType == typeof(ReadValueId))
                 {
-                    nodeId = (nodesCollection[i] as ReadValueId)?.NodeId ?? default;
+                    nodeId = (nodesList[i] as ReadValueId)?.NodeId ?? default;
                 }
 
                 if (nodeId.IsNull)
                 {
                     throw new ArgumentException(
                         "Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest",
-                        nameof(nodesCollection));
+                        nameof(nodesList));
                 }
 
                 uniqueNodes.Add(nodeId);
@@ -1372,11 +1359,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(BrowseResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
                 bool releaseContinuationPoints,
-                ByteStringCollection continuationPoints,
+                ArrayOf<ByteString> continuationPoints,
                 CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -1384,13 +1371,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (continuationPoints == null)
-            {
-                throw new ArgumentNullException(nameof(continuationPoints));
-            }
-
             bool diagnosticsExist = false;
-            var results = new BrowseResultCollection(continuationPoints.Count);
+            var results = new List<BrowseResult>(continuationPoints.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
@@ -1467,7 +1449,7 @@ namespace Opc.Ua.Server
                     // need to trap unexpected exceptions to handle bugs in the node managers.
                     try
                     {
-                        ReferenceDescriptionCollection references = result.References;
+                        ArrayOf<ReferenceDescription> references = result.References;
 
                         (error, cp, references) = await FetchReferencesAsync(
                                 context,
@@ -1603,7 +1585,7 @@ namespace Opc.Ua.Server
             }
 
             // loop until browse is complete or max results.
-            ReferenceDescriptionCollection references = result.References;
+            ArrayOf<ReferenceDescription> references = result.References;
 
             ServiceResult error;
 
@@ -1634,34 +1616,33 @@ namespace Opc.Ua.Server
         protected async ValueTask<(
             ServiceResult serviceResult,
             ContinuationPoint cp,
-            ReferenceDescriptionCollection references
+            ArrayOf<ReferenceDescription> references
             )> FetchReferencesAsync(
                 OperationContext context,
                 bool assignContinuationPoint,
                 ContinuationPoint cp,
-                ReferenceDescriptionCollection references,
+                ArrayOf<ReferenceDescription> references,
                 CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
-            Debug.Assert(references != null);
 
             IAsyncNodeManager nodeManager = cp.Manager;
             var nodeClassMask = (NodeClass)cp.NodeClassMask;
             BrowseResultMask resultMask = cp.ResultMask;
-
+            var referenceList = references.ToList();
             // loop until browse is complete or max results.
             while (cp != null)
             {
-                cp = await nodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                cp = await nodeManager.BrowseAsync(context, cp, referenceList, cancellationToken)
                     .ConfigureAwait(false);
 
-                var referencesToKeep = new ReferenceDescriptionCollection(references.Count);
+                var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
 
                 // check for incomplete reference descriptions.
-                for (int ii = 0; ii < references.Count; ii++)
+                for (int ii = 0; ii < referenceList.Count; ii++)
                 {
-                    ReferenceDescription reference = references[ii];
+                    ReferenceDescription reference = referenceList[ii];
 
                     // check if filtering must be applied.
                     if (reference.Unfiltered)
@@ -1693,14 +1674,14 @@ namespace Opc.Ua.Server
                 }
 
                 // replace list.
-                references = referencesToKeep;
+                referenceList = referencesToKeep;
 
                 // check if browse limit reached.
-                if (cp != null && references.Count >= cp.MaxResultsToReturn)
+                if (cp != null && referenceList.Count >= cp.MaxResultsToReturn)
                 {
                     if (!assignContinuationPoint)
                     {
-                        return (StatusCodes.BadNoContinuationPoints, cp, references);
+                        return (StatusCodes.BadNoContinuationPoints, cp, referenceList);
                     }
 
                     cp.Id = Guid.NewGuid();
@@ -1710,7 +1691,7 @@ namespace Opc.Ua.Server
             }
 
             // all is good.
-            return (ServiceResult.Good, cp, references);
+            return (ServiceResult.Good, cp, referenceList);
         }
 
         /// <summary>
@@ -1797,18 +1778,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(DataValueCollection values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
+        public virtual async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            if (nodesToRead == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToRead));
-            }
-
             if (maxAge < 0)
             {
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
@@ -1820,7 +1796,7 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            var values = new DataValueCollection(nodesToRead.Count);
+            var values = new List<DataValue>(nodesToRead.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // create empty list of errors.
@@ -1937,12 +1913,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(HistoryReadResultCollection values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
+        public virtual async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
             // validate history details parameter.
@@ -1958,7 +1934,7 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            var results = new HistoryReadResultCollection(nodesToRead.Count);
+            var results = new List<HistoryReadResult>(nodesToRead.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // pre-validate items.
@@ -2067,17 +2043,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
-            WriteValueCollection nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (nodesToWrite == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToWrite));
             }
 
             int count = nodesToWrite.Count;
@@ -2174,10 +2145,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(HistoryUpdateResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual async ValueTask<(ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             HistoryUpdateAsync(
                 OperationContext context,
-                ExtensionObjectCollection historyUpdateDetails,
+                ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
             Type detailsType = null;
@@ -2197,7 +2168,7 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            var results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
+            var results = new List<HistoryUpdateResult>(nodesToUpdate.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToUpdate.Count);
 
             // pre-validate items.
@@ -2307,10 +2278,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(CallMethodResultCollection results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual async ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
                 OperationContext context,
-                CallMethodRequestCollection methodsToCall,
+                ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -2318,13 +2289,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (methodsToCall == null)
-            {
-                throw new ArgumentNullException(nameof(methodsToCall));
-            }
-
             bool diagnosticsExist = false;
-            var results = new CallMethodResultCollection(methodsToCall.Count);
+            var results = new List<CallMethodResult>(methodsToCall.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(methodsToCall.Count);
             var errors = new List<ServiceResult>(methodsToCall.Count);
 
@@ -2451,7 +2417,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
@@ -2475,7 +2441,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
@@ -2485,11 +2451,6 @@ namespace Opc.Ua.Server
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (itemsToCreate == null)
-            {
-                throw new ArgumentNullException(nameof(itemsToCreate));
             }
 
             if (errors == null)
@@ -2592,7 +2553,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
@@ -2873,7 +2834,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults)
         {
@@ -2891,7 +2852,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default)
@@ -2899,11 +2860,6 @@ namespace Opc.Ua.Server
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (itemsToModify == null)
-            {
-                throw new ArgumentNullException(nameof(itemsToModify));
             }
 
             if (monitoredItems == null)
@@ -2997,7 +2953,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default)
@@ -3879,20 +3835,18 @@ namespace Opc.Ua.Server
             }
 
             // get the intersection of user role permissions and role permissions
-            RolePermissionTypeCollection userRolePermissions = null;
-            if (nodeMetadata.UserRolePermissions != null &&
-                nodeMetadata.UserRolePermissions.Count > 0)
+            ArrayOf<RolePermissionType> userRolePermissions = default;
+            if (!nodeMetadata.UserRolePermissions.IsEmpty)
             {
                 userRolePermissions = nodeMetadata.UserRolePermissions;
             }
-            else if (nodeMetadata.DefaultUserRolePermissions != null &&
-                nodeMetadata.DefaultUserRolePermissions.Count > 0)
+            else if (!nodeMetadata.DefaultUserRolePermissions.IsEmpty)
             {
                 userRolePermissions = nodeMetadata.DefaultUserRolePermissions;
             }
 
-            RolePermissionTypeCollection rolePermissions;
-            if (nodeMetadata.RolePermissions != null && nodeMetadata.RolePermissions.Count > 0)
+            ArrayOf<RolePermissionType> rolePermissions;
+            if (!nodeMetadata.RolePermissions.IsEmpty)
             {
                 rolePermissions = nodeMetadata.RolePermissions;
             }
@@ -3901,8 +3855,7 @@ namespace Opc.Ua.Server
                 rolePermissions = nodeMetadata.DefaultRolePermissions;
             }
 
-            if ((userRolePermissions == null || userRolePermissions.Count == 0) &&
-                (rolePermissions == null || rolePermissions.Count == 0))
+            if ((userRolePermissions.IsEmpty) && (rolePermissions.IsEmpty))
             {
                 // there is no restriction from role permissions
                 return StatusCodes.Good;
@@ -3910,7 +3863,7 @@ namespace Opc.Ua.Server
 
             // group all permissions defined in rolePermissions by RoleId
             var roleIdPermissions = new Dictionary<NodeId, PermissionType>();
-            if (rolePermissions != null && rolePermissions.Count > 0)
+            if (!rolePermissions.IsEmpty)
             {
                 foreach (RolePermissionType rolePermission in rolePermissions)
                 {
@@ -3929,7 +3882,7 @@ namespace Opc.Ua.Server
 
             // group all permissions defined in userRolePermissions by RoleId
             var roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
-            if (userRolePermissions != null && userRolePermissions.Count > 0)
+            if (!userRolePermissions.IsEmpty)
             {
                 foreach (RolePermissionType rolePermission in userRolePermissions)
                 {
@@ -3947,12 +3900,12 @@ namespace Opc.Ua.Server
             }
 
             Dictionary<NodeId, PermissionType> commonRoleIdPermissions;
-            if (rolePermissions == null || rolePermissions.Count == 0)
+            if (rolePermissions.IsEmpty)
             {
                 // there were no role permissions defined for this node only user role permissions
                 commonRoleIdPermissions = roleIdPermissionsDefinedForUser;
             }
-            else if (userRolePermissions == null || userRolePermissions.Count == 0)
+            else if (userRolePermissions.IsEmpty)
             {
                 // there were no role permissions defined for this node only user role permissions
                 commonRoleIdPermissions = roleIdPermissions;
@@ -3972,8 +3925,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            var currentRoleIds = context?.UserIdentity?.GrantedRoleIds;
-            if (currentRoleIds == null || currentRoleIds.Count == 0)
+            var currentRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
+            if (currentRoleIds.IsEmpty)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadUserAccessDenied,

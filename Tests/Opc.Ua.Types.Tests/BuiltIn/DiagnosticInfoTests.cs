@@ -487,7 +487,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Build two chains that are identical up to MaxInnerDepth but differ deeper
             // MaxInnerDepth is 5, so at depth 5, Equals returns true even if inners differ
-            DiagnosticInfo BuildChain(int depth, int leafSymbolicId)
+            static DiagnosticInfo BuildChain(int depth, int leafSymbolicId)
             {
                 var leaf = new DiagnosticInfo(leafSymbolicId, 0, 0, 0, null);
                 DiagnosticInfo current = leaf;

@@ -65,7 +65,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(100),
                 DataType = new NodeId(6u),
                 ValueRank = -1,
-                ArrayDimensions = new UInt32Collection(),
+                ArrayDimensions = [],
                 IsAbstract = false
             };
         }
@@ -81,7 +81,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(42.5),
                 DataType = new NodeId(11u),
                 ValueRank = 1,
-                ArrayDimensions = new UInt32Collection { 10 },
+                ArrayDimensions = [10],
                 IsAbstract = true
             };
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ArrayDimensionsSetNonNullValue()
         {
             var node = new VariableTypeNode();
-            var dims = new UInt32Collection { 3, 5, 7 };
+            ArrayOf<uint> dims = [3, 5, 7];
             node.ArrayDimensions = dims;
 
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
@@ -137,11 +137,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(varBase.ArrayDimensions.IsEmpty, Is.True);
 
             // Set via the public property, read via the explicit interface getter (line 235)
-            node.ArrayDimensions = new UInt32Collection { 10, 20 };
+            node.ArrayDimensions = [10, 20];
             Assert.That(varBase.ArrayDimensions.Count, Is.EqualTo(2));
 
             // Set via explicit interface setter (line 236)
-            varBase.ArrayDimensions = new uint[] { 1, 2, 3 };
+            varBase.ArrayDimensions = [1, 2, 3];
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
         }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void EncodeDecodeRoundTripPreservesAllProperties()
         {
             VariableTypeNode original = CreatePopulatedNode();
-            original.ArrayDimensions = new UInt32Collection { 5 };
+            original.ArrayDimensions = [5];
             original.ValueRank = 1;
 
             var context = new ServiceMessageContext();
@@ -252,8 +252,8 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IsEqualWithDifferentArrayDimensionsReturnsFalse()
         {
-            var node1 = new VariableTypeNode { ArrayDimensions = new UInt32Collection { 5 } };
-            var node2 = new VariableTypeNode { ArrayDimensions = new UInt32Collection { 10 } };
+            var node1 = new VariableTypeNode { ArrayDimensions = [5] };
+            var node2 = new VariableTypeNode { ArrayDimensions = [10] };
 
             Assert.That(node1.IsEqual(node2), Is.False);
         }
@@ -278,7 +278,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CloneCreatesEqualCopy()
         {
             VariableTypeNode original = CreatePopulatedNode();
-            original.ArrayDimensions = new UInt32Collection { 8 };
+            original.ArrayDimensions = [8];
             original.ValueRank = 1;
 
             var clone = (VariableTypeNode)original.Clone();
@@ -299,7 +299,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Value = new Variant(50),
                 DataType = new NodeId(6u),
                 ValueRank = 1,
-                ArrayDimensions = new UInt32Collection { 10 },
+                ArrayDimensions = [10],
                 IsAbstract = false
             };
 
@@ -356,14 +356,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void SupportsAttributeArrayDimensionsWhenPopulatedReturnsTrue()
         {
-            var node = new VariableTypeNode { ArrayDimensions = new UInt32Collection { 5 } };
+            var node = new VariableTypeNode { ArrayDimensions = [5] };
             Assert.That(node.SupportsAttribute(Attributes.ArrayDimensions), Is.True);
         }
 
         [Test]
         public void SupportsAttributeArrayDimensionsWhenEmptyReturnsFalse()
         {
-            var node = new VariableTypeNode { ArrayDimensions = new UInt32Collection() };
+            var node = new VariableTypeNode { ArrayDimensions = [] };
             Assert.That(node.SupportsAttribute(Attributes.ArrayDimensions), Is.False);
         }
 
@@ -409,7 +409,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new TestableVariableTypeNode
             {
-                ArrayDimensions = new UInt32Collection { 5, 10 }
+                ArrayDimensions = [5u, 10u]
             };
             Variant result = node.TestRead(Attributes.ArrayDimensions);
 
@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new TestableVariableTypeNode
             {
-                ArrayDimensions = new UInt32Collection()
+                ArrayDimensions = []
             };
             Variant result = node.TestRead(Attributes.ArrayDimensions);
 

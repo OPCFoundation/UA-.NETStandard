@@ -397,9 +397,9 @@ namespace Opc.Ua.Server
                 DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
-                NodeIdCollection currentRoleIds = EffectiveIdentity?.GrantedRoleIds;
-                if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
-                    (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
+                ArrayOf<NodeId> currentRoleIds = EffectiveIdentity?.GrantedRoleIds ?? default;
+                if ((currentRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) ||
+                    (currentRoleIds.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)))
                 {
                     requestHeader.ReturnDiagnostics
                         |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
@@ -425,11 +425,6 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="localeIds"/> is <c>null</c>.</exception>
         public bool UpdateLocaleIds(ArrayOf<string> localeIds)
         {
-            if (localeIds == null)
-            {
-                throw new ArgumentNullException(nameof(localeIds));
-            }
-
             lock (m_lock)
             {
                 string[] ids = [.. localeIds];

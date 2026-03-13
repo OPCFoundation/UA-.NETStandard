@@ -51,8 +51,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u)),
                 new DataValue(new Variant(4000u)),
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(25000u)),
                 new DataValue(new Variant(26000u)),
                 new DataValue(new Variant(27000u))
-            };
+            ];
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -139,8 +139,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -166,12 +166,12 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u))
-            };
+            ];
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -201,12 +201,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
-                new DataValue(StatusCodes.BadUnexpectedError)
-            };
-
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [new DataValue(StatusCodes.BadUnexpectedError)];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -232,12 +228,9 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
-                new DataValue("InvalidDataType")
-            };
+            ArrayOf<DataValue> dataValues = [new DataValue("InvalidDataType")];
 
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -316,8 +309,8 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct = CancellationToken.None;
 
             // Server returns larger values
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData - no client limit
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents - no client limit
                 new DataValue(new Variant(5000u)), // MaxNodesPerWrite - client has 2000
@@ -345,7 +338,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u))
-            };
+            ];
 
             channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -416,8 +409,8 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct = CancellationToken.None;
 
             // Server returns smaller values
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents
                 new DataValue(new Variant(5000u)), // MaxNodesPerWrite - server has 5000, client has 10000
@@ -445,7 +438,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u))
-            };
+            ];
 
             channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -686,8 +679,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(

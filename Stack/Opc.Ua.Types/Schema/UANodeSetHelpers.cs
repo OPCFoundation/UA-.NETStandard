@@ -826,7 +826,7 @@ namespace Opc.Ua.Export
 
             if (node.RolePermissions != null)
             {
-                var permissions = new RolePermissionTypeCollection();
+                var permissions = new List<RolePermissionType>();
 
                 foreach (RolePermission ii in node.RolePermissions)
                 {
@@ -1318,14 +1318,17 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        sd.Fields = (StructureFieldCollection)fields.ToArray();
+                        sd.Fields = fields;
                     }
 
                     definition = sd;
                 }
                 else
                 {
-                    var ed = new EnumDefinition { IsOptionSet = source.IsOptionSet };
+                    var ed = new EnumDefinition
+                    {
+                        IsOptionSet = source.IsOptionSet
+                    };
 
                     if (source.Field != null)
                     {
@@ -1344,7 +1347,7 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        ed.Fields = (EnumFieldCollection)fields.ToArray();
+                        ed.Fields = fields;
                     }
 
                     definition = ed;

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
@@ -85,9 +85,10 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadValuesWithTracingAsync()
         {
             NamespaceTable namespaceUris = Session.NamespaceUris;
-            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            (var values, var errors) = await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
+                await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }

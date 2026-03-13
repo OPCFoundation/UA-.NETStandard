@@ -246,13 +246,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
-        public static async Task<(NodeIdCollection, IList<ServiceResult>)> FindComponentIdsAsync(
+        public static async Task<(ArrayOf<NodeId>, ArrayOf<ServiceResult>)> FindComponentIdsAsync(
             this ISession session,
             NodeId instanceId,
             IList<string> componentPaths,
             CancellationToken ct = default)
         {
-            var componentIds = new NodeIdCollection();
+            var componentIds = new List<NodeId>();
             var errors = new List<ServiceResult>();
 
             // build list of paths to translate.
@@ -276,8 +276,8 @@ namespace Opc.Ua.Client
                 pathsToTranslate,
                 ct).ConfigureAwait(false);
 
-            var results = response.Results;
-            var diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             // verify that the server returned the correct number of results.
@@ -398,7 +398,7 @@ namespace Opc.Ua.Client
             }
 
             // look for cached values.
-            IList<INode> encodings = await session.NodeCache.FindAsync(
+            ArrayOf<INode> encodings = await session.NodeCache.FindAsync(
                 variableId,
                 ReferenceTypeIds.HasEncoding,
                 false,
@@ -407,7 +407,7 @@ namespace Opc.Ua.Client
 
             if (encodings.Count > 0)
             {
-                var references = new ReferenceDescriptionCollection();
+                var references = new List<ReferenceDescription>();
 
                 foreach (INode encoding in encodings)
                 {

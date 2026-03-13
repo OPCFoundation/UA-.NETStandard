@@ -358,9 +358,9 @@ namespace Opc.Ua.Types.Buffers.Tests
         {
             var buffer = new PooledBuffer(16);
 
-            Action act = () => buffer.EnsureFree(PooledBuffer.ArrayMaxLength + 1);
+            void Act() => buffer.EnsureFree(PooledBuffer.ArrayMaxLength + 1);
 
-            Assert.That(act, Throws.TypeOf<InvalidOperationException>()
+            Assert.That((Action)Act, Throws.TypeOf<InvalidOperationException>()
                 .With.Message.EqualTo("Out of memory"));
         }
 

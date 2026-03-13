@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Read(OperationContext context, double maxAge, IList<ReadValueId> nodesToRead, IList<DataValue> values, IList<ServiceResult> errors)
+        public void Read(OperationContext context, double maxAge, ArrayOf<ReadValueId> nodesToRead, IList<DataValue> values, IList<ServiceResult> errors)
         {
             m_nodeManager.ReadAsync(context, maxAge, nodesToRead, values, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors)
+        public void Write(OperationContext context, ArrayOf<WriteValue> nodesToWrite, IList<ServiceResult> errors)
         {
             m_nodeManager.WriteAsync(context, nodesToWrite, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
         public void HistoryUpdate(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Call(OperationContext context, IList<CallMethodRequest> methodsToCall, IList<CallMethodResult> results, IList<ServiceResult> errors)
+        public void Call(OperationContext context, ArrayOf<CallMethodRequest> methodsToCall, IList<CallMethodResult> results, IList<ServiceResult> errors)
         {
             m_nodeManager.CallAsync(context, methodsToCall, results, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {

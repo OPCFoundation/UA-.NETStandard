@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -1677,7 +1675,7 @@ namespace Opc.Ua
                 PushNamespace(xmlName.Namespace);
 
                 // encode each element in the array.
-                foreach (var value in values)
+                foreach (T value in values)
                 {
                     WriteEnumerated(xmlName.Name, value);
                 }

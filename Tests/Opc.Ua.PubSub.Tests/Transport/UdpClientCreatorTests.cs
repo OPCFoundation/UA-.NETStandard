@@ -87,8 +87,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 ipEndPoint.Address.ToString(),
                 m_urlHostName);
             Assert.AreEqual(
-                ipEndPoint.Port,
                 kDiscoveryPortNo,
+                ipEndPoint.Port,
                 "The url port: {0} is not equal to specified port: {1}",
                 ipEndPoint.Port,
                 kDiscoveryPortNo);

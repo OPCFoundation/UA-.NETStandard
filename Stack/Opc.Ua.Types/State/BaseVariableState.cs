@@ -30,11 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 

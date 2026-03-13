@@ -2444,8 +2444,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<XmlElement> result = decoder.ReadXmlElementArray("ListOfXmlElement");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0], Is.Not.Null);
-            Assert.That(result[1], Is.Not.Null);
+            Assert.That(result[0].IsNull, Is.False);
+            Assert.That(result[1].IsNull, Is.False);
         }
 
         [Test]

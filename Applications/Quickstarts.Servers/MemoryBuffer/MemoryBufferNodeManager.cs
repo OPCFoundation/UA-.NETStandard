@@ -44,7 +44,7 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration, [.. NamespacesUris]);
+            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>

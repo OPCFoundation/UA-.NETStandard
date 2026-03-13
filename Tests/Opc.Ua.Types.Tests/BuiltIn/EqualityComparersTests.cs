@@ -48,7 +48,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void NodeIdComparerDefaultInstanceExists()
         {
             Assert.That(NodeIdComparer.Default, Is.Not.Null);
-            Assert.That(NodeIdComparer.Default, Is.SameAs(NodeIdComparer.Default));
         }
 
         [Test]

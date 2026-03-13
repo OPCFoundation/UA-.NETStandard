@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -51,9 +53,9 @@ namespace Opc.Ua
         /// Returns the ids for all attributes which are valid for the at least one of
         /// the node classes specified by the mask.
         /// </summary>
-        public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
+        public static IReadOnlyList<uint> GetIdentifiers(NodeClass nodeClass)
         {
-            var ids = new UInt32Collection(s_idToName.Value.Count);
+            var ids = new List<uint>(s_idToName.Value.Count);
 
             foreach (uint id in s_idToName.Value.Keys)
             {

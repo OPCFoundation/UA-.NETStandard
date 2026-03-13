@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -65,7 +64,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture]
     [Category("Encoder")]
     [SetCulture("en-us")]
-    public class EncoderCommon
+    public abstract class EncoderCommon
     {
         protected const int kArrayRepeats = 3;
         protected const int kRandomStart = 4840;

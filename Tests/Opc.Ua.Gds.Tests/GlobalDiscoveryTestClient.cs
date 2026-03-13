@@ -387,7 +387,7 @@ namespace Opc.Ua.Gds.Tests
                 endpointConfiguration,
                 m_telemetry,
                 ct: ct).ConfigureAwait(false);
-            EndpointDescriptionCollection endpoints =
+            ArrayOf<EndpointDescription> endpoints =
                 await discoveryClient.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             await discoveryClient.CloseAsync(ct).ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;

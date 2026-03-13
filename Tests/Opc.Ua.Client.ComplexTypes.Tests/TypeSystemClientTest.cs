@@ -56,7 +56,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     {
         public ISession Session { get; private set; }
         private ServerFixture<ReferenceServer> m_serverFixture;
+#pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private ClientFixture m_clientFixture;
+#pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private ReferenceServer m_server;
         private readonly string m_uriScheme;
         private ITelemetryContext m_telemetry;
@@ -148,8 +150,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 Session = null;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
-            Utils.SilentDispose(m_clientFixture);
-            Utils.SilentDispose(m_server);
+            m_clientFixture?.Dispose();
+            m_server?.Dispose();
         }
 
         [Test]
@@ -209,17 +211,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
-            ReferenceDescriptionCollection referenceDescriptions = await samples
+            ArrayOf<ReferenceDescription> referenceDescriptions = await samples
                 .BrowseFullAddressSpaceAsync(this, Objects.RootFolder)
                 .ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
             m_browsedNodesCount = referenceDescriptions.Count;
 
-            var variableIds = new NodeIdCollection(
+            ArrayOf<NodeId> variableIds =
                 referenceDescriptions
-                    .Where(r => r.NodeClass == NodeClass.Variable)
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
+                    .Filter(r => r.NodeClass == NodeClass.Variable)
+                    .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -254,13 +256,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             m_fetchedNodesCount = allNodes.Count;
 
-            var variableIds = new NodeIdCollection(
+            var variableIds =
                 allNodes
                     .Where(r =>
                         r.NodeClass == NodeClass.Variable &&
                         r is VariableNode v &&
                         v.DataType.NamespaceIndex != 0)
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
+                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
+                    .ToList();
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -478,8 +481,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.AreEqual(complexType["ByteValue"], (byte)0);
-            Assert.AreEqual(complexType["StringValue"], "badbeef");
+            Assert.AreEqual((byte)0, complexType["ByteValue"]);
+            Assert.AreEqual("badbeef", complexType["StringValue"]);
             Assert.AreEqual(complexType["NumberValue"], new Variant((uint)3210));
             Assert.AreEqual(complexType["IntegerValue"], new Variant((long)54321));
             Assert.AreEqual(complexType["UIntegerValue"], new Variant((ulong)12345));

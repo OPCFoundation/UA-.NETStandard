@@ -30,7 +30,6 @@
 using Moq;
 using NUnit.Framework;
 using System;
-using System.IO;
 using System.Text;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests

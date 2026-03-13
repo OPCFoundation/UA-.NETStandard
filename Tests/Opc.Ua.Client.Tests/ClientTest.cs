@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -198,7 +199,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            ApplicationDescriptionCollection servers = await client.FindServersAsync(default)
+            ArrayOf<ApplicationDescription> servers = await client.FindServersAsync(default)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -272,7 +273,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            EndpointDescriptionCollection endpoints =
+            ArrayOf<EndpointDescription> endpoints =
                 await client.GetEndpointsAsync(default).ConfigureAwait(false);
             Assert.NotNull(endpoints);
 
@@ -1169,7 +1170,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ChangePreferredLocalesAsync()
         {
             // change locale
-            var localeCollection = new ArrayOf<string> { "de-de", "en-us" };
+            ArrayOf<string> localeCollection = ["de-de", "en-us"];
             await Session.ChangePreferredLocalesAsync(localeCollection).ConfigureAwait(false);
         }
 
@@ -1325,13 +1326,12 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task ReadDisplayNamesAsync()
         {
-            if (ReferenceDescriptions == null)
+            if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
-            var nodeIds = ReferenceDescriptions
-                .Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris))
-                .ToArrayOf();
+            ArrayOf<NodeId> nodeIds = ReferenceDescriptions
+                .ConvertAll(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris));
             if (OperationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
@@ -1398,12 +1398,12 @@ namespace Opc.Ua.Client.Tests
         [Order(550)]
         public async Task ReadNodeSyncAsync()
         {
-            if (ReferenceDescriptions == null)
+            if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 Node node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
@@ -1429,12 +1429,12 @@ namespace Opc.Ua.Client.Tests
         [Order(550)]
         public async Task ReadNodeAsync()
         {
-            if (ReferenceDescriptions == null)
+            if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
@@ -1463,20 +1463,20 @@ namespace Opc.Ua.Client.Tests
         [TestCase(MaxReferences)]
         public async Task ReadNodesSyncAsync(int nodeCount)
         {
-            if (ReferenceDescriptions == null)
+            if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            var nodes = new NodeIdCollection(
+            ArrayOf<NodeId> nodes =
                 ReferenceDescriptions
-                    .Take(nodeCount)
-                    .Select(reference => ExpandedNodeId.ToNodeId(
+                    .SafeSlice(0, nodeCount)
+                    .ConvertAll(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
-                        Session.NamespaceUris)));
+                        Session.NamespaceUris));
 
-            (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) = await Session.ReadNodesAsync(nodes)
-                .ConfigureAwait(false);
+            (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) =
+                await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
             Assert.False(nodeCollection.IsNull);
             Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
@@ -1490,7 +1490,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, errors.Count);
 
             int ii = 0;
-            var variableNodes = new NodeIdCollection();
+            var variableNodes = new List<NodeId>();
             foreach (Node node in nodeCollection.ToList())
             {
                 Assert.NotNull(node);
@@ -1535,18 +1535,18 @@ namespace Opc.Ua.Client.Tests
         [TestCase(MaxReferences)]
         public async Task ReadNodesAsync(int nodeCount)
         {
-            if (ReferenceDescriptions == null)
+            if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            var nodes = new NodeIdCollection(
+            ArrayOf<NodeId> nodes =
                 ReferenceDescriptions
-                    .Where(reference => reference.NodeClass == NodeClass.Variable)
-                    .Take(nodeCount)
-                    .Select(reference => ExpandedNodeId.ToNodeId(
+                    .Filter(reference => reference.NodeClass == NodeClass.Variable)
+                    .SafeSlice(0, nodeCount)
+                    .ConvertAll(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
-                        Session.NamespaceUris)));
+                        Session.NamespaceUris));
 
             (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) = await Session
                 .ReadNodesAsync(nodes, true)
@@ -1565,7 +1565,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, errors.Count);
 
             int ii = 0;
-            var variableNodes = new NodeIdCollection();
+            var variableNodes = new List<NodeId>();
             foreach (Node node in nodeCollection.ToList())
             {
                 Assert.NotNull(node);
@@ -1612,7 +1612,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await Session.ReadAvailableEncodingsAsync(DataTypeIds.BaseDataType)
                     .ConfigureAwait(false));
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
-            ReferenceDescriptionCollection encoding = await Session.ReadAvailableEncodingsAsync(
+            ArrayOf<ReferenceDescription> encoding = await Session.ReadAvailableEncodingsAsync(
                 VariableIds.Server_ServerStatus_CurrentTime).ConfigureAwait(false);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
@@ -1649,7 +1649,7 @@ namespace Opc.Ua.Client.Tests
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
                 ];
                 var clientTestServices = new ClientTestServices(Session, telemetry);
-                UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                ArrayOf<uint> subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                     clientTestServices,
                     requestHeader,
                     testSet,
@@ -1828,8 +1828,8 @@ namespace Opc.Ua.Client.Tests
         [Order(10000)]
         public async Task ReadBuildInfoAsync()
         {
-            var nodes = new NodeIdCollection
-            {
+            ArrayOf<NodeId> nodes =
+            [
                 VariableIds.Server_ServerStatus_BuildInfo,
                 VariableIds.Server_ServerStatus_BuildInfo_ProductName,
                 VariableIds.Server_ServerStatus_BuildInfo_ProductUri,
@@ -1837,7 +1837,7 @@ namespace Opc.Ua.Client.Tests
                 VariableIds.Server_ServerStatus_BuildInfo_SoftwareVersion,
                 VariableIds.Server_ServerStatus_BuildInfo_BuildNumber,
                 VariableIds.Server_ServerStatus_BuildInfo_BuildDate
-            };
+            ];
 
             (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) =
                 await Session.ReadNodesAsync(nodes).ConfigureAwait(false);

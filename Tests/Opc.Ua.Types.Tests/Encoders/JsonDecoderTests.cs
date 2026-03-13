@@ -1789,7 +1789,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable(null, expected);
-            var buffer = writer.CloseAndReturnText();
+            string buffer = writer.CloseAndReturnText();
             using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
             Argument result = reader.ReadEncodeableAsExtensionObject<Argument>(JsonProperties.Value);
             Assert.That(CoreUtils.IsEqual(result, expected), Is.True);

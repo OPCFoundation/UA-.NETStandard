@@ -118,7 +118,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NUnit.Framework.Assert.Throws<ArgumentException>(() => NodeId.Parse("Test"));
             NUnit.Framework.Assert.Throws<ArgumentException>(() => NodeId.Parse("nsu=urn:xyz;Test"));
             var expandedId1 = ExpandedNodeId.Parse("nsu=urn:xyz;Test");
-            Assert.That(expandedId1, Is.Not.Null);
+            Assert.That(expandedId1.IsNull, Is.False);
             var nullId = ExpandedNodeId.ToNodeId(default, new NamespaceTable());
             Assert.That(nullId.IsNull, Is.True);
 
@@ -474,7 +474,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseWithContextValidOpaque()
         {
             var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            var bytes = new byte[] { 1, 2, 3, 4 };
+            byte[] bytes = new byte[] { 1, 2, 3, 4 };
             string base64 = Convert.ToBase64String(bytes);
             NodeId result = NodeId.Parse(context, $"b={base64}");
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
@@ -788,7 +788,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatStaticAllIdTypes()
         {
             var guid = Guid.NewGuid();
-            var bytes = Convert.ToBase64String([1, 2, 3]);
+            string bytes = Convert.ToBase64String([1, 2, 3]);
 
             var bufferNumeric = new StringBuilder();
             NodeId.Format(CultureInfo.InvariantCulture, bufferNumeric, "42", IdType.Numeric, 0);

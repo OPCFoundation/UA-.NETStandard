@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -89,7 +88,7 @@ namespace Opc.Ua.Client
                     telemetry,
                     ct: ct).ConfigureAwait(false))
             {
-                var servers =
+                ArrayOf<ApplicationDescription> servers =
                     await client.FindServersAsync(default, ct).ConfigureAwait(false);
 
                 // populate the drop down list with the discovery URLs for the available servers.
@@ -169,7 +168,7 @@ namespace Opc.Ua.Client
                 ct: ct).ConfigureAwait(false);
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            var endpoints =
+            ArrayOf<EndpointDescription> endpoints =
                 await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             return SelectEndpoint(
                 application,
@@ -237,7 +236,7 @@ namespace Opc.Ua.Client
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            var endpoints =
+            ArrayOf<EndpointDescription> endpoints =
                 await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
@@ -263,8 +262,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Select the best supported endpoint from an
-        /// EndpointDescriptionCollection, with or without security.
+        /// Select the best supported endpoint from the
+        /// EndpointDescriptions, with or without security.
         /// </summary>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -812,7 +811,7 @@ namespace Opc.Ua.Gds.Client
                 applicationUri,
                 applicationType,
                 productUri,
-                Variant.From(serverCapabilities.ToArray())).ConfigureAwait(false);
+                Variant.From(serverCapabilities)).ConfigureAwait(false);
 
             ArrayOf<ApplicationDescription> applications = default;
 
@@ -1164,7 +1163,7 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 certificateTypeId,
                 subjectName,
-                Variant.From(domainNames.ToArray()),
+                Variant.From(domainNames),
                 privateKeyFormat,
                 new string(privateKeyPassword)).ConfigureAwait(false);
 

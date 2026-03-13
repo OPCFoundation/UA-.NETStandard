@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.StructureWithOptionalFields:
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.NotNull(structWithOptionalFieldsType);
-                    Assert.AreEqual(structWithOptionalFieldsType.EncodingMask, 0);
+                    Assert.AreEqual(0, structWithOptionalFieldsType.EncodingMask);
                     Assert.AreEqual(
                         structWithOptionalFieldsType.GetPropertyTypes().Count,
                         propertyBuiltInTypes);
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
                     Assert.NotNull(unionType);
-                    Assert.AreEqual(unionType.SwitchField, 0);
+                    Assert.AreEqual(0, unionType.SwitchField);
                     Assert.AreEqual(unionType.GetPropertyTypes().Count, propertyBuiltInTypes);
                     Assert.AreEqual(unionType.GetPropertyCount(), propertyBuiltInTypes);
                     Assert.IsTrue(unionType.Value.IsNull);

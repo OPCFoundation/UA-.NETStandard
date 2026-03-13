@@ -3,9 +3,7 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,7 +83,7 @@ namespace Opc.Ua.Client
                 return ResultSet<Node>.Empty;
             }
 
-            var nodeCollection = new NodeCollection(nodeIds.Count);
+            var nodeCollection = new List<Node>(nodeIds.Count);
 
             // first read only nodeclasses for nodes from server.
             ArrayOf<ReadValueId> itemsToRead = nodeIds
@@ -340,7 +338,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
-            for (var ii = 0; ii < values.Count; ii++)
+            for (int ii = 0; ii < values.Count; ii++)
             {
                 ServiceResult result = ServiceResult.Good;
                 if (StatusCode.IsBad(values[ii].StatusCode))
@@ -367,7 +365,7 @@ namespace Opc.Ua.Client
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             List<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            List<Node> nodeCollection,
             List<ServiceResult> errors,
             bool skipOptionalAttributes)
         {

@@ -407,7 +407,7 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// This method can be used to ensure the TypeTree is populated.
         /// </remarks>
-        Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default);
+        Task FetchTypeTreeAsync(ArrayOf<ExpandedNodeId> typeIds, CancellationToken ct = default);
 
         /// <summary>
         /// Establishes a session with the server.

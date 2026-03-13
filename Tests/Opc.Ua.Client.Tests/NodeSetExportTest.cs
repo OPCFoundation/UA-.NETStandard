@@ -111,14 +111,14 @@ namespace Opc.Ua.Client.Tests
                 NodeClassMask = 0
             };
 
-            var nodesToBrowse = new NodeIdCollection { ObjectIds.Server };
+            var nodesToBrowse = new List<NodeId> { ObjectIds.Server };
             var allNodes = new List<INode>();
 
             // Browse starting from Server object
-            ReferenceDescriptionCollection references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
 
             // Fetch the actual nodes
-            foreach (ReferenceDescription reference in references)
+            foreach (ReferenceDescription reference in references.ToList())
             {
                 INode node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
                 if (node != null)
@@ -335,7 +335,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
 
             // Export with default options
             string tempFile = Path.GetTempFileName();

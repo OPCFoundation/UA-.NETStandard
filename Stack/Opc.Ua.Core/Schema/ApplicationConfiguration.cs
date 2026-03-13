@@ -229,7 +229,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The extensions.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public XmlElementCollection Extensions
+        public ArrayOf<XmlElement> Extensions
         {
             get => m_extensions;
             set => m_extensions = value;
@@ -253,7 +253,7 @@ namespace Opc.Ua
         private ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
-        private XmlElementCollection m_extensions;
+        private ArrayOf<XmlElement> m_extensions;
         private List<object> m_extensionObjects;
         private Dictionary<string, object> m_properties;
     }
@@ -2169,10 +2169,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The server names.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public LocalizedTextCollection ServerNames
+        public ArrayOf<LocalizedText> ServerNames
         {
             get => m_serverNames;
-            set => m_serverNames = value ?? [];
+            set => m_serverNames = value ;
         }
 
         /// <summary>
@@ -2189,7 +2189,7 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public ServerRegistrationCollection ServerRegistrations { get; set; }
 
-        private LocalizedTextCollection m_serverNames;
+        private ArrayOf<LocalizedText> m_serverNames;
     }
 
     /// <summary>
@@ -2858,7 +2858,7 @@ namespace Opc.Ua
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public XmlElementCollection Extensions
+        public ArrayOf<XmlElement> Extensions
         {
             get => m_extensions;
             set => m_extensions = value;
@@ -2867,7 +2867,7 @@ namespace Opc.Ua
         private ConfiguredEndpointCollection m_collection;
         private EndpointDescription m_description;
         private EndpointConfiguration m_configuration;
-        private XmlElementCollection m_extensions;
+        private ArrayOf<XmlElement> m_extensions;
     }
 
     /// <summary>

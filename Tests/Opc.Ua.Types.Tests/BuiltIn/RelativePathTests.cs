@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var path = new RelativePath();
 
-            Assert.That(path.Elements, Is.Not.Null);
+            Assert.That(path.Elements.IsNull, Is.True);
             Assert.That(path.Elements.Count, Is.EqualTo(0));
         }
 
@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var browseName = new QualifiedName("TestNode", 0);
             var path = new RelativePath(browseName);
 
-            Assert.That(path.Elements, Is.Not.Null);
+            Assert.That(path.Elements.IsNull, Is.False);
             Assert.That(path.Elements.Count, Is.EqualTo(1));
             Assert.That(path.Elements[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
             Assert.That(path.Elements[0].IsInverse, Is.False);
@@ -101,18 +101,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ElementsSetterAcceptsCollection()
         {
             var path = new RelativePath();
-            var collection = new RelativePathElementCollection
-            {
+            ArrayOf<RelativePathElement> collection =
+            [
                 new RelativePathElement
                 {
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     TargetName = new QualifiedName("Child")
                 }
-            };
+            ];
 
             path.Elements = collection;
 
-            Assert.That(path.Elements, Is.SameAs(collection));
             Assert.That(path.Elements.Count, Is.EqualTo(1));
         }
 
@@ -163,16 +162,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void DecodeReadsElementsArray()
         {
             var mockDecoder = new Mock<IDecoder>();
-            var elements = new RelativePathElementCollection
-            {
+            ArrayOf<RelativePathElement> elements =
+            [
                 new RelativePathElement
                 {
                     ReferenceTypeId = ReferenceTypeIds.HasProperty,
                     TargetName = new QualifiedName("Prop1")
                 }
-            };
+            ];
             mockDecoder.Setup(d => d.ReadEncodeableArray<RelativePathElement>("Elements"))
-                .Returns((ArrayOf<RelativePathElement>)elements);
+                .Returns(elements);
 
             var path = new RelativePath();
             path.Decode(mockDecoder.Object);
@@ -238,7 +237,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(clone, Is.Not.SameAs(path));
             Assert.That(clone.Elements.Count, Is.EqualTo(path.Elements.Count));
-            Assert.That(clone.Elements, Is.Not.SameAs(path.Elements));
             Assert.That(clone.Elements[0].TargetName, Is.EqualTo(path.Elements[0].TargetName));
             Assert.That(clone.Elements[0].ReferenceTypeId, Is.EqualTo(path.Elements[0].ReferenceTypeId));
             Assert.That(clone.Elements[0].IsInverse, Is.EqualTo(path.Elements[0].IsInverse));
@@ -253,7 +251,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var clone = (RelativePath)path.MemberwiseClone();
 
             Assert.That(clone, Is.Not.SameAs(path));
-            Assert.That(clone.Elements, Is.Not.SameAs(path.Elements));
             Assert.That(clone.Elements.Count, Is.EqualTo(1));
         }
 
@@ -263,7 +260,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var path = new RelativePath();
             var mockTypeTree = new Mock<ITypeTable>();
 
-            var result = path.Format(mockTypeTree.Object);
+            string result = path.Format(mockTypeTree.Object);
 
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -276,7 +273,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             mockTypeTree.Setup(t => t.FindReferenceTypeName(ReferenceTypeIds.HierarchicalReferences))
                 .Returns(new QualifiedName("HierarchicalReferences"));
 
-            var result = path.Format(mockTypeTree.Object);
+            string result = path.Format(mockTypeTree.Object);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -783,7 +780,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var mockTypeTree = new Mock<ITypeTable>();
 
             var parsed = RelativePath.Parse("/ServerStatus", mockTypeTree.Object);
-            var formatted = parsed.Format(mockTypeTree.Object);
+            string formatted = parsed.Format(mockTypeTree.Object);
 
             Assert.That(formatted, Does.Contain("ServerStatus"));
         }
@@ -797,7 +794,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(parsed.Elements.Count, Is.EqualTo(2));
 
-            var formatted = parsed.Format(mockTypeTree.Object);
+            string formatted = parsed.Format(mockTypeTree.Object);
             Assert.That(formatted, Does.Contain("Server"));
             Assert.That(formatted, Does.Contain("Status"));
         }

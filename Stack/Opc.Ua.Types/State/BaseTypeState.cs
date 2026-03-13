@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -394,7 +393,7 @@ namespace Opc.Ua
                 !nodeId.IsNull &&
                 browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
             {
-                IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
+                ArrayOf<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
 
                 for (int ii = 0; ii < subtypeIds.Count; ii++)
                 {

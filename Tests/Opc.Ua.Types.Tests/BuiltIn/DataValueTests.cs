@@ -308,7 +308,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
-            var hash = dv.GetHashCode();
+            int hash = dv.GetHashCode();
 
             Assert.That(hash, Is.EqualTo(new Variant(42).GetHashCode()));
         }
@@ -321,7 +321,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCode = StatusCodes.BadUnexpectedError
             };
 
-            var hash = dv.GetHashCode();
+            int hash = dv.GetHashCode();
 
             Assert.That(hash, Is.EqualTo(StatusCodes.BadUnexpectedError.GetHashCode()));
         }
@@ -331,7 +331,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
-            var result = dv.ToString();
+            string result = dv.ToString();
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Does.Contain("42"));
@@ -342,7 +342,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant("test"));
 
-            var result = dv.ToString(null, null);
+            string result = dv.ToString(null, null);
 
             Assert.That(result, Does.Contain("test"));
         }
@@ -543,7 +543,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
-            var result = dv.GetValueOrDefault<int>();
+            int result = dv.GetValueOrDefault<int>();
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -553,7 +553,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42), StatusCodes.Bad);
 
-            var result = dv.GetValueOrDefault<int>();
+            int result = dv.GetValueOrDefault<int>();
 
             Assert.That(result, Is.EqualTo(0));
         }
@@ -563,7 +563,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant("hello"), StatusCodes.Bad);
 
-            var result = dv.GetValueOrDefault<string>();
+            string result = dv.GetValueOrDefault<string>();
 
             Assert.That(result, Is.Null);
         }
@@ -592,7 +592,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
-            var result = dv.GetValueOrDefault<string>();
+            string result = dv.GetValueOrDefault<string>();
 
             Assert.That(result, Is.Null);
         }
@@ -615,7 +615,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
-            var result = dv.GetValue(0);
+            int result = dv.GetValue(0);
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -625,7 +625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42), StatusCodes.Bad);
 
-            var result = dv.GetValue(-1);
+            int result = dv.GetValue(-1);
 
             Assert.That(result, Is.EqualTo(-1));
         }
@@ -636,7 +636,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Uncertain is considered not good
             var dv = new DataValue(new Variant(42), StatusCodes.Uncertain);
 
-            var result = dv.GetValue(-1);
+            int result = dv.GetValue(-1);
 
             Assert.That(result, Is.EqualTo(-1));
         }
@@ -671,7 +671,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant("hello"));
 
-            var result = dv.GetValue("default");
+            string result = dv.GetValue("default");
 
             Assert.That(result, Is.EqualTo("hello"));
         }
@@ -700,7 +700,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
-            var result = dv.ToString();
+            string result = dv.ToString();
 
             Assert.That(result, Is.Not.Null);
         }
@@ -759,7 +759,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(true));
 
-            var result = dv.GetValueOrDefault<bool>();
+            bool result = dv.GetValueOrDefault<bool>();
 
             Assert.That(result, Is.True);
         }
@@ -769,7 +769,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(3.14));
 
-            var result = dv.GetValueOrDefault<double>();
+            double result = dv.GetValueOrDefault<double>();
 
             Assert.That(result, Is.EqualTo(3.14));
         }

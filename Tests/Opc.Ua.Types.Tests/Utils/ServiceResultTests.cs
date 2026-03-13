@@ -1022,8 +1022,8 @@ namespace Opc.Ua.Types.Tests.Utils
             // Covers: LookupSymbolicId(uint) - lines 695-698
             // Verify the obsolete wrapper returns same result as the StatusCode method
             uint code = StatusCodes.BadUnexpectedError.Code;
-            var fromServiceResult = ServiceResult.LookupSymbolicId(code);
-            var fromStatusCode = StatusCode.LookupSymbolicId(code);
+            string fromServiceResult = ServiceResult.LookupSymbolicId(code);
+            string fromStatusCode = StatusCode.LookupSymbolicId(code);
             Assert.That(fromServiceResult, Is.EqualTo(fromStatusCode));
         }
 
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void LookupSymbolicIdForUnknownCodeReturnsNull()
         {
             // Covers: LookupSymbolicId(uint) with unknown code
-            var symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
+            string symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
             Assert.That(symbolicId, Is.Null);
         }
         [Test]
@@ -1050,7 +1050,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: ToString() and Append() - lines 748-795
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
-            var str = result.ToString();
+            string str = result.ToString();
             Assert.That(str, Does.Contain("80010000"));
         }
 
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Covers: Append - lines 764-777, SymbolicId without namespace
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
-            var str = result.ToString();
+            string str = result.ToString();
             Assert.That(str, Does.Contain("BadUnexpectedError"));
         }
 
@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 StatusCodes.BadUnexpectedError,
                 symbolicId,
                 LocalizedText.Null);
-            var str = result.ToString();
+            string str = result.ToString();
 
             Assert.That(str, Does.Contain("http://custom.org"));
             Assert.That(str, Does.Contain("CustomError"));
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // Covers: Append - lines 780-783
             var text = new LocalizedText("en", "Something bad happened");
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, text);
-            var str = result.ToString();
+            string str = result.ToString();
 
             Assert.That(str, Does.Contain("Something bad happened"));
         }
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 StatusCodes.BadUnexpectedError,
                 LocalizedText.Null,
                 "Debug trace info here");
-            var str = result.ToString();
+            string str = result.ToString();
 
             Assert.That(str, Does.Contain("Debug trace info here"));
         }
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // StatusCode with non-zero lower 16 bits triggers the [XXXX] sub-code format
             uint codeWithSubCode = StatusCodes.BadUnexpectedError.Code | 0x0001;
             var result = new ServiceResult(new StatusCode(codeWithSubCode));
-            var str = result.ToString();
+            string str = result.ToString();
 
             Assert.That(str, Does.Contain("[0001]"));
         }

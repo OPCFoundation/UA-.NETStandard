@@ -204,7 +204,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void SubRangesCanBeSetAndRetrieved()
         {
             var range = new NumericRange(0);
-            NumericRange[] subRanges = new[] { new NumericRange(0, 1), new NumericRange(2, 3) };
+            NumericRange[] subRanges = [new NumericRange(0, 1), new NumericRange(2, 3)];
             range.SubRanges = subRanges;
             Assert.That(range.SubRanges, Is.EqualTo(subRanges));
         }
@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.InstanceOf<int[]>());
-            var arr = (int[])value;
+            int[] arr = (int[])value;
             Assert.That(arr.Length, Is.EqualTo(3));
             Assert.That(arr[0], Is.EqualTo(20));
             Assert.That(arr[1], Is.EqualTo(30));
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeWithMatrixSubsets()
         {
             // Create a Matrix with 2D data
-            var data = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
+            int[,] data = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
             var matrix = new Matrix(data, BuiltInType.Int32);
             object value = matrix;
 
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeWithMatrixDimensionMismatch()
         {
             // Matrix dimensions don't match SubRanges length
-            var data = new int[,] { { 1, 2 }, { 3, 4 } };
+            int[,] data = new int[,] { { 1, 2 }, { 3, 4 } };
             var matrix = new Matrix(data, BuiltInType.Int32);
             object value = matrix;
 
@@ -1181,11 +1181,11 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeWithMatrixSubRanges()
         {
             // Test UpdateRange with Matrix type
-            var dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
+            int[,] dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
             var dstMatrix = new Matrix(dstData, BuiltInType.Int32);
             object dst = dstMatrix;
 
-            var srcData = new int[,] { { 90, 91 }, { 92, 93 } };
+            int[,] srcData = new int[,] { { 90, 91 }, { 92, 93 } };
             var srcMatrix = new Matrix(srcData, BuiltInType.Int32);
             object src = srcMatrix;
 
@@ -1238,11 +1238,11 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeMatrixDstWithArraySrc()
         {
             // dst is Matrix, src is regular array → tests the Matrix → toArray conversion path
-            var dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
+            int[,] dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
             var dstMatrix = new Matrix(dstData, BuiltInType.Int32);
             object dst = dstMatrix;
 
-            var srcData = new int[,] { { 90, 91 }, { 92, 93 } };
+            int[,] srcData = new int[,] { { 90, 91 }, { 92, 93 } };
             object src = srcData;
 
             var range = new NumericRange(0, 1)

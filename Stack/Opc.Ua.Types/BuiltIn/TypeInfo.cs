@@ -1767,14 +1767,14 @@ namespace Opc.Ua
 
             if (systemType.IsGenericType)
             {
-                var genericTypeDefinition = systemType.GetGenericTypeDefinition();
+                Type genericTypeDefinition = systemType.GetGenericTypeDefinition();
                 if (genericTypeDefinition == typeof(ArrayOf<>))
                 {
-                    return Construct(systemType.GetGenericArguments()[0]);
+                    return Construct(systemType.GetGenericArguments()[0]).WithValueRank(ValueRanks.OneDimension);
                 }
                 if (genericTypeDefinition == typeof(MatrixOf<>))
                 {
-                    return Construct(systemType.GetGenericArguments()[0]);
+                    return Construct(systemType.GetGenericArguments()[0]).WithValueRank(ValueRanks.TwoDimensions);
                 }
             }
 

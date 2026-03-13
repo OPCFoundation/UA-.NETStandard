@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server
     public interface ICertificateGroup
     {
         NodeId Id { get; set; }
-        NodeIdCollection CertificateTypes { get; set; }
+        ArrayOf<NodeId> CertificateTypes { get; set; }
         ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }

@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
@@ -3741,7 +3740,7 @@ namespace Opc.Ua.Schema.Model
                 if (variableType.DefaultValue != null)
                 {
                     var decoder = new XmlDecoder(variableType.DefaultValue, m_context);
-                    var variant = decoder.ReadVariantValue(null, default);
+                    Variant variant = decoder.ReadVariantValue(null, default);
 
                     if (!variant.TypeInfo.IsUnknown)
                     {
@@ -4311,11 +4310,11 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Maps the array dimensions onto a constant declaration..
         /// </summary>
-        private static UInt32Collection ConstructArrayDimensionsRW(ValueRank valueRank, string arrayDimensions)
+        private static ArrayOf<uint> ConstructArrayDimensionsRW(ValueRank valueRank, string arrayDimensions)
         {
             if (valueRank is < 0 and not ValueRank.OneOrMoreDimensions)
             {
-                return null;
+                return default;
             }
 
             if (string.IsNullOrEmpty(arrayDimensions))
@@ -4325,17 +4324,17 @@ namespace Opc.Ua.Schema.Model
                     return [.. new uint[1]];
                 }
 
-                return null;
+                return default;
             }
 
             string[] tokens = arrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries);
 
             if (tokens == null || tokens.Length < 1)
             {
-                return null;
+                return default;
             }
 
-            var dimensions = new UInt32Collection();
+            var dimensions = new List<uint>();
 
             for (int ii = 0; ii < tokens.Length; ii++)
             {

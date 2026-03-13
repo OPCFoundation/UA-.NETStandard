@@ -511,7 +511,7 @@ namespace TestData
             HistoryReadResult result)
         {
             var serverContext = context as ServerSystemContext;
-            DataValueCollection dataValues = [];
+            List<DataValue> dataValues = [];
 
             HistoryDataReader reader;
             if (nodeToRead.ContinuationPoint.Length > 0)
@@ -597,7 +597,7 @@ namespace TestData
             ServerSystemContext context,
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -639,7 +639,7 @@ namespace TestData
         /// </summary>
         protected override void HistoryReleaseContinuationPoints(
             ServerSystemContext context,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
             IDictionary<NodeId, NodeState> cache)

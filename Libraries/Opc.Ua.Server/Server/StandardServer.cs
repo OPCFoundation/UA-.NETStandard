@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> profileUris,
             CancellationToken ct)
         {
-            EndpointDescriptionCollection endpoints = null;
+            ArrayOf<EndpointDescription> endpoints = default;
 
             ValidateRequest(requestHeader);
 
@@ -212,12 +212,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the endpoints that match the base address and endpoint url.
         /// </summary>
-        protected EndpointDescriptionCollection GetEndpointDescriptions(
+        protected ArrayOf<EndpointDescription> GetEndpointDescriptions(
             string endpointUrl,
             IList<BaseAddress> baseAddresses,
             ArrayOf<string> localeIds)
         {
-            EndpointDescriptionCollection endpoints = null;
+            ArrayOf<EndpointDescription> endpoints = default;
 
             // parse the url provided by the client.
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
@@ -309,7 +309,7 @@ namespace Opc.Ua.Server
             double revisedSessionTimeout = 0;
             ByteString serverNonce;
             ByteString serverCertificate = default;
-            EndpointDescriptionCollection serverEndpoints = null;
+            ArrayOf<EndpointDescription> serverEndpoints = default;
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
@@ -669,10 +669,12 @@ namespace Opc.Ua.Server
             CancellationToken ct)
         {
             ByteString serverNonce;
-            StatusCodeCollection results = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
 
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.ActivateSession, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.ActivateSession,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -717,8 +719,8 @@ namespace Opc.Ua.Server
                 {
                     ResponseHeader = responseHeader,
                     ServerNonce = serverNonce,
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
+                    Results = [],
+                    DiagnosticInfos = []
                 };
             }
             catch (ServiceResultException e)
@@ -919,13 +921,17 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Browse, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Browse,
+                ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
 
-                (var results, var diagnosticInfos) =
+                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseAsync(
                         context,
                         view,
@@ -975,7 +981,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
 
-                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseNextAsync(
                         context,
                         releaseContinuationPoints,
@@ -1024,7 +1030,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
 
                 m_serverInternal.NodeManager
-                    .RegisterNodes(context, nodesToRegister, out NodeIdCollection registeredNodeIds);
+                    .RegisterNodes(context, nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
 
                 response = new RegisterNodesResponse
                 {
@@ -1122,7 +1128,7 @@ namespace Opc.Ua.Server
                         OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
                 }
 
-                (BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                         context,
                         browsePaths,
@@ -1171,7 +1177,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
 
-                (DataValueCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.ReadAsync(
                         context,
                         maxAge,
@@ -1235,7 +1241,7 @@ namespace Opc.Ua.Server
                         OperationLimits.MaxNodesPerHistoryReadData);
                 }
 
-                (HistoryReadResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.HistoryReadAsync(
                         context,
                         historyReadDetails,
@@ -1287,7 +1293,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
-                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager
                         .WriteAsync(context, nodesToWrite, ct)
                         .ConfigureAwait(false);
@@ -1335,7 +1341,7 @@ namespace Opc.Ua.Server
                 // must be checked in NodeManager (TODO)
                 ValidateOperationLimits(historyUpdateDetails);
 
-                (HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.HistoryUpdateAsync(context, historyUpdateDetails, ct).ConfigureAwait(false);
 
                 return new HistoryUpdateResponse
@@ -1710,8 +1716,8 @@ namespace Opc.Ua.Server
                     context,
                     publishingEnabled,
                     subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    out ArrayOf<StatusCode> results,
+                    out ArrayOf<DiagnosticInfo> diagnosticInfos);
 
                 response = new SetPublishingModeResponse
                 {
@@ -1773,10 +1779,10 @@ namespace Opc.Ua.Server
                     triggeringItemId,
                     linksToAdd,
                     linksToRemove,
-                    out StatusCodeCollection addResults,
-                    out DiagnosticInfoCollection addDiagnosticInfos,
-                    out StatusCodeCollection removeResults,
-                    out DiagnosticInfoCollection removeDiagnosticInfos);
+                    out ArrayOf<StatusCode> addResults,
+                    out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+                    out ArrayOf<StatusCode> removeResults,
+                    out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
 
                 response = new SetTriggeringResponse
                 {
@@ -1975,7 +1981,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
                     context,
                     subscriptionId,
@@ -2024,7 +2030,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
-                (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.CallAsync(context, methodsToCall, ct)
                         .ConfigureAwait(false);
 
@@ -2176,7 +2182,6 @@ namespace Opc.Ua.Server
                             // register the server.
                             if (m_useRegisterServer2)
                             {
-                                var discoveryConfiguration = new ExtensionObjectCollection();
                                 var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                 {
                                     ServerCapabilities = configuration.ServerConfiguration
@@ -2184,7 +2189,7 @@ namespace Opc.Ua.Server
                                     MdnsServerName = Utils.GetHostName()
                                 };
                                 var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                discoveryConfiguration.Add(extensionObject);
+                                ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
                                 await client.RegisterServer2Async(
                                     requestHeader,
                                     m_registrationInfo,
@@ -2704,11 +2709,8 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out ArrayOf<EndpointDescription> endpoints)
         {
-            serverDescription = null;
-            endpoints = null;
-
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
@@ -2718,12 +2720,12 @@ namespace Opc.Ua.Server
             }
 
             // ensure at least one user token policy exists.
-            if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
+            if (configuration.ServerConfiguration.UserTokenPolicies.IsEmpty)
             {
                 var userTokenPolicy = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
-                configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+                configuration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
             }
 
             // set server description.
@@ -2736,9 +2738,7 @@ namespace Opc.Ua.Server
                 DiscoveryUrls = GetDiscoveryUrls()
             };
 
-            endpoints = [];
-            IList<EndpointDescription> endpointsForHost = null;
-
+            List<EndpointDescription> endpointsList = [];
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
@@ -2747,7 +2747,7 @@ namespace Opc.Ua.Server
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
-                    endpointsForHost = binding.CreateServiceHost(
+                    var endpointsForHost = binding.CreateServiceHost(
                         this,
                         hosts,
                         configuration,
@@ -2755,10 +2755,10 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         InstanceCertificateTypesProvider);
-                    endpoints.AddRange(endpointsForHost);
+                    endpointsList.AddRange(endpointsForHost);
                 }
             }
-
+            endpoints = endpointsList;
             return [.. hosts.Values];
         }
 
@@ -2909,8 +2909,7 @@ namespace Opc.Ua.Server
                     {
                         ServerUri = serverDescription.ApplicationUri
                     };
-                    m_registrationInfo.ServerNames =
-                        m_registrationInfo.ServerNames.AddItem(serverDescription.ApplicationName);
+                    m_registrationInfo.ServerNames += serverDescription.ApplicationName;
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
                     m_registrationInfo.ServerType = serverDescription.ApplicationType;
                     m_registrationInfo.GatewayServerUri = null;

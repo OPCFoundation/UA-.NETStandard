@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -196,7 +195,7 @@ namespace Opc.Ua.Server
         void Read(
             OperationContext context,
             double maxAge,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors);
 
@@ -208,7 +207,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors);
 
@@ -221,7 +220,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         void Write(
             OperationContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors);
 
         /// <summary>
@@ -230,7 +229,7 @@ namespace Opc.Ua.Server
         void HistoryUpdate(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors);
 
@@ -239,7 +238,7 @@ namespace Opc.Ua.Server
         /// </summary>
         void Call(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors);
 
@@ -285,7 +284,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -307,7 +306,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors);
 
@@ -406,7 +405,7 @@ namespace Opc.Ua.Server
         /// </summary>
         ValueTask CallAsync(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
@@ -441,7 +440,7 @@ namespace Opc.Ua.Server
         ValueTask ReadAsync(
             OperationContext context,
             double maxAge,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
@@ -461,7 +460,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         ValueTask WriteAsync(
             OperationContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
     }
@@ -479,7 +478,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
@@ -496,7 +495,7 @@ namespace Opc.Ua.Server
         ValueTask HistoryUpdateAsync(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
@@ -642,7 +641,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             CancellationToken cancellationToken = default);
@@ -661,7 +660,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -985,24 +984,24 @@ namespace Opc.Ua.Server
         /// The RolePermissions for the Node.
         /// Specifies the Permissions that apply to a Node for all Roles which have access to the Node.
         /// </summary>
-        public RolePermissionTypeCollection RolePermissions { get; set; }
+        public ArrayOf<RolePermissionType> RolePermissions { get; set; }
 
         /// <summary>
         /// The DefaultRolePermissions of the Node's name-space meta-data
         /// The value reflects the DefaultRolePermissions Property from the NamespaceMetadata Object associated with the Node.
         /// </summary>
-        public RolePermissionTypeCollection DefaultRolePermissions { get; set; }
+        public ArrayOf<RolePermissionType> DefaultRolePermissions { get; set; }
 
         /// <summary>
         /// The UserRolePermissions of the Node.
         /// Specifies the Permissions that apply to a Node for all Roles granted to current Session.
         /// </summary>
-        public RolePermissionTypeCollection UserRolePermissions { get; set; }
+        public ArrayOf<RolePermissionType> UserRolePermissions { get; set; }
 
         /// <summary>
         /// The DefaultUserRolePermissions of the Node.
         /// The value reflects the DefaultUserRolePermissions Property from the NamespaceMetadata Object associated with the Node.
         /// </summary>
-        public RolePermissionTypeCollection DefaultUserRolePermissions { get; set; }
+        public ArrayOf<RolePermissionType> DefaultUserRolePermissions { get; set; }
     }
 }

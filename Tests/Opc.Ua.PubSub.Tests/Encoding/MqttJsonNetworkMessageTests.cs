@@ -1886,50 +1886,50 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     case MetaDataFailOptions.MessageId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MessageId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MessageId reason.");
                         break;
                     case MetaDataFailOptions.PublisherId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.PublisherId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing PublisherId reason.");
                         break;
                     case MetaDataFailOptions.DataSetWriterId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.DataSetWriterId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetWriterId reason.");
                         break;
                     case MetaDataFailOptions.NonMetadata:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.DataSetMetaData | MetaDataFailOptions.MessageType,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetMetaData reason.");
                         break;
                     case MetaDataFailOptions.MetaData_Name:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_Name,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Name reason.");
                         break;
                     case MetaDataFailOptions.MetaData_DataSetClassId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_DataSetClassId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.DataSetClassId reason.");
                         break;
                     case MetaDataFailOptions.MetaData_ConfigurationVersion:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_ConfigurationVersion,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.ConfigurationVersion reason.");
                         break;
                     case MetaDataFailOptions.MetaData_Fields:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_Fields,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Fields reason.");
                         break;
                 }
@@ -2003,26 +2003,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     {
                         case NetworkMessageFailOptions.MessageId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.MessageId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing MessageId reason.");
                             break;
                         case NetworkMessageFailOptions.MessageType:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.MessageType,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing MessageType reason.");
                             break;
                         case NetworkMessageFailOptions.PublisherId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.PublisherId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing PublisherId reason.");
                             break;
                         case NetworkMessageFailOptions.DataSetClassId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.DataSetClassId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing DataSetClassId reason.");
                             break;
                     }
@@ -2144,8 +2144,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dmfo != DataSetMessageFailOptions.Ok)
                 {
                     Assert.AreEqual(
-                        failOptions,
                         DataSetMessageFailOptions.DataSetWriterId,
+                        failOptions,
                         "ValidateMissingDataSetMessagesFields should fail due to missing DataSetWriterId reason.");
                 }
             }

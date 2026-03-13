@@ -154,8 +154,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            var namespaceUris = ReadStringArray("NamespaceUris");
-            var serverUris = ReadStringArray("ServerUris");
+            ArrayOf<string> namespaceUris = ReadStringArray("NamespaceUris");
+            ArrayOf<string> serverUris = ReadStringArray("ServerUris");
 
             if (!namespaceUris.IsEmpty || !serverUris.IsEmpty)
             {
@@ -2371,7 +2371,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName) where T : IEncodeable
         {
-            var array = ReadExtensionObjectArray(fieldName);
+            ArrayOf<ExtensionObject> array = ReadExtensionObjectArray(fieldName);
             return ArrayOf.From<T>(ExtensionObject.ToArray(array, typeof(T)));
         }
 

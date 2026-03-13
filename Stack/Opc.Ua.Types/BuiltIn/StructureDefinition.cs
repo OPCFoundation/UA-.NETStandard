@@ -72,16 +72,20 @@ namespace Opc.Ua
         public int FirstExplicitFieldIndex { get; set; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition;
+        public override ExpandedNodeId TypeId
+            => DataTypeIds.StructureDefinition;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
@@ -91,7 +95,7 @@ namespace Opc.Ua
             encoder.WriteNodeId("DefaultEncodingId", DefaultEncodingId);
             encoder.WriteNodeId("BaseDataType", BaseDataType);
             encoder.WriteEnumerated("StructureType", StructureType);
-            encoder.WriteEncodeableArray("Fields", [.. Fields]);
+            encoder.WriteEncodeableArray("Fields", Fields);
 
             encoder.PopNamespace();
         }

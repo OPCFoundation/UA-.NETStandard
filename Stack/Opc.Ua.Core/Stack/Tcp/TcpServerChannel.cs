@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
                 contextId,

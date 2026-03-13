@@ -134,7 +134,7 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            var uris = decoder.ReadStringArray("NamespaceUris");
+            ArrayOf<string> uris = decoder.ReadStringArray("NamespaceUris");
 
             foreach (string uri in uris)
             {

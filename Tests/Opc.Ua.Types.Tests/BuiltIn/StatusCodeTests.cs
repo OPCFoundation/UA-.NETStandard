@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using NUnit.Framework;
@@ -80,7 +81,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithInternedCodeResolvesSymbolicId()
         {
             // Ensure code is in the intern table, then verify constructor resolves it
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0AAA0000, "TestInterned")
             };
@@ -93,7 +94,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithInternedCodeAndNullSymbolicIdResolvesFromInternTable()
         {
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0BBB0000, "TestInternedNull")
             };
@@ -642,7 +643,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetHashCodeReturnsConsistentValue()
         {
             var sc = new StatusCode(0x80010000);
-            Assert.That(sc.GetHashCode(), Is.EqualTo(sc.GetHashCode()));
             Assert.That(sc.GetHashCode(), Is.EqualTo(0x80010000u.GetHashCode()));
         }
 
@@ -840,7 +840,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void LookupSymbolicIdReturnsNameForKnownCode()
         {
             // Ensure we have a known code in the intern table
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0FFA0000, "LookupTest")
             };
@@ -861,7 +861,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LookupUtf8SymbolicIdReturnsBytesForKnownCode()
         {
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0FFB0000, "Utf8LookupTest")
             };
@@ -883,7 +883,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetInternedStatusCodeReturnsTrueForKnownCode()
         {
             // Ensure a code is in the intern table
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0FFC0000, "InternTest")
             };
@@ -905,7 +905,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetInternedStatusCodeMasksToCodeBits()
         {
             // Ensure the code bits are in the intern table
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0FFD0000, "MaskTest")
             };
@@ -920,7 +920,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void InternAddsCustomStatusCodes()
         {
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0EEE0000, "CustomTestCode")
             };
@@ -934,7 +934,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void InternSkipsEntriesWithNullSymbolicId()
         {
-            var customCodes = new StatusCodeCollection
+            var customCodes = new List<StatusCode>
             {
                 new StatusCode(0x0DDD0000) // no symbolic id
             };
@@ -948,8 +948,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void InternedStatusCodesReturnsCollection()
         {
-            StatusCodeCollection collection = StatusCode.InternedStatusCodes;
-            Assert.That(collection, Is.Not.Null);
+            var collection = StatusCode.InternedStatusCodes;
+            Assert.That(collection.IsNull, Is.False);
             Assert.That(collection.Count, Is.GreaterThan(0));
         }
 

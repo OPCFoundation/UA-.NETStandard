@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -38,19 +39,14 @@ namespace Opc.Ua
     /// <summary>
     /// A class that stores a numeric range.
     /// </summary>
-    /// <remarks>
-    /// A class that stores a numeric range.
-    /// </remarks>
     public struct NumericRange : IFormattable, IEquatable<NumericRange>
     {
         /// <summary>
         /// Initializes the object with a begin index.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a begin index.
-        /// </remarks>
         /// <param name="begin">The starting point of the range</param>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown when the parameter is less than -1</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the
+        /// parameter is less than -1</exception>
         public NumericRange(int begin)
         {
             if (begin < -1)
@@ -68,11 +64,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a begin and end indexes.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a begin and end indexes.
-        /// </remarks>
         /// <param name="begin">The end of the range</param>
         /// <param name="end">The beginning of the range</param>
+        [JsonConstructor]
         public NumericRange(int begin, int end)
         {
             m_begin = -1;
@@ -86,10 +80,9 @@ namespace Opc.Ua
         /// <summary>
         /// The begining of the numeric range.
         /// </summary>
-        /// <remarks>
-        /// The begining of the numeric range.
-        /// </remarks>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less than -1, or when the value is greater than the end</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the
+        /// value is less than -1, or when the value is greater than the
+        /// end</exception>
         public int Begin
         {
             readonly get => m_begin;
@@ -112,9 +105,6 @@ namespace Opc.Ua
         /// <summary>
         /// The end of the numeric range.
         /// </summary>
-        /// <remarks>
-        /// The end of the numeric range.
-        /// </remarks>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less
         /// than -1 or when the end is less than the beginning</exception>
         public int End
@@ -139,9 +129,7 @@ namespace Opc.Ua
         /// <summary>
         /// The number of elements specified by the range.
         /// </summary>
-        /// <remarks>
-        /// The number of elements specified by the range.
-        /// </remarks>
+        [JsonIgnore]
         public readonly int Count
         {
             get
@@ -163,7 +151,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the number of dimensions in the range.
         /// </summary>
-        /// <value>The number of dimensions.</value>
+        [JsonIgnore]
         public readonly int Dimensions
         {
             get
@@ -183,18 +171,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// An empty numeric range.
+        /// </summary>
+        public static NumericRange Empty { get; } = new NumericRange(-1, -1);
+
+        /// <summary>
         /// Gets or sets the sub ranges for multidimensional ranges.
         /// </summary>
-        /// <value>The sub ranges.</value>
         public NumericRange[] SubRanges { get; set; }
 
         /// <summary>
         /// Ensures the bounds are valid values for the object passed in.
         /// </summary>
-        /// <remarks>
-        /// Returns false if the object is not indexable or if the numeric range is out-of-bounds.
-        /// </remarks>
-        /// <param name="value">The value to check</param>
         public bool EnsureValid(object value)
         {
             int count = -1;
@@ -222,10 +210,6 @@ namespace Opc.Ua
         /// <summary>
         /// Ensures the bounds are valid values for a collection with the specified length.
         /// </summary>
-        /// <remarks>
-        /// Returns false if the numeric range is out-of-bounds.
-        /// </remarks>
-        /// <param name="count">The value to check is within range</param>
         public bool EnsureValid(int count)
         {
             // object not indexable.
@@ -258,10 +242,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        /// <param name="obj">The object to test against this</param>
         public override readonly bool Equals(object obj)
         {
             if (obj is NumericRange numericRange)
@@ -274,9 +254,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="other">The NumericRange to test against this</param>
         public readonly bool Equals(NumericRange other)
         {
@@ -301,9 +278,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(NumericRange value1, NumericRange value2)
@@ -314,9 +288,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(NumericRange value1, NumericRange value2)
@@ -327,9 +298,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a suitable hash code for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a suitable hash code for the object.
-        /// </remarks>
         public override readonly int GetHashCode()
         {
             int hashCode = HashCode.Combine(m_begin, m_end);
@@ -350,9 +318,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         public override readonly string ToString()
         {
             return ToString(null, null);
@@ -361,12 +326,10 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the numeric range as a string.
         /// </summary>
-        /// <remarks>
-        /// Formats the numeric range as a string.
-        /// </remarks>
         /// <param name="format">(Unused) Always pass NULL/NOTHING</param>
         /// <param name="formatProvider">(Unused) Always pass NULL/NOTHING</param>
-        /// <exception cref="FormatException">Thrown when a non null/nothing is passed for either parameter</exception>
+        /// <exception cref="FormatException">Thrown when a non null/nothing is
+        /// passed for either parameter</exception>
         public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -381,14 +344,6 @@ namespace Opc.Ua
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
-
-        /// <summary>
-        /// An empty numeric range.
-        /// </summary>
-        /// <remarks>
-        /// An empty numeric range.
-        /// </remarks>
-        public static NumericRange Empty { get; } = new NumericRange(-1, -1);
 
         /// <summary>
         /// Parses a string representing a numeric range.
@@ -970,9 +925,6 @@ namespace Opc.Ua
         /// <summary>
         /// Applys the index range to an array value.
         /// </summary>
-        /// <remarks>
-        /// Replaces the value
-        /// </remarks>
         /// <param name="value">The array to subset.</param>
         /// <returns>The reason for the failure if the range could not be applied.</returns>
         public readonly StatusCode ApplyRange(ref Variant value)
@@ -987,11 +939,9 @@ namespace Opc.Ua
         /// <summary>
         /// Applys the index range to an array value.
         /// </summary>
-        /// <remarks>
-        /// Replaces the value
-        /// </remarks>
         /// <param name="value">The array to subset.</param>
-        /// <returns>The reason for the failure if the range could not be applied.</returns>
+        /// <returns>The reason for the failure if the range could not
+        /// be applied.</returns>
         public readonly StatusCode ApplyRange(ref object value)
         {
             // check for empty range.
@@ -1146,11 +1096,10 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a string representing a numeric range.
         /// </summary>
-        /// <remarks>
-        /// Parses a string representing a numeric range.
-        /// </remarks>
-        /// <param name="textToParse">The text to parse, prior to checking it is within the allowed range</param>
-        /// <exception cref="ServiceResultException">Thrown when the numeric value of the parsed text is out of range</exception>
+        /// <param name="textToParse">The text to parse, prior to checking
+        /// it is within the allowed range</param>
+        /// <exception cref="ServiceResultException">Thrown when the numeric
+        /// value of the parsed text is out of range</exception>
         public static NumericRange Parse(string textToParse)
         {
             ServiceResult result = Validate(textToParse, out NumericRange range);

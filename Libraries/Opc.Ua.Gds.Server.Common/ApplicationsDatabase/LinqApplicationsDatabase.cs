@@ -290,7 +290,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     names.Add(new LocalizedText(applicationName.Locale, applicationName.Text));
                 }
 
-                ArrayOf<string> discoveryUrls = null;
+                ArrayOf<string> discoveryUrls = default;
 
                 IEnumerable<ServerEndpoint> endpoints =
                     from ii in ServerEndpoints
@@ -299,12 +299,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (endpoints != null)
                 {
-                    discoveryUrls = [];
-
-                    foreach (ServerEndpoint endpoint in endpoints)
-                    {
-                        discoveryUrls.Add(endpoint.DiscoveryUrl);
-                    }
+                    discoveryUrls = [.. endpoints.Select(endpoint => endpoint.DiscoveryUrl)];
                 }
 
                 var capabilities = new List<string>();
@@ -356,7 +351,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         names = [LocalizedText.From(result.ApplicationName)];
                     }
 
-                    ArrayOf<string> discoveryUrls = null;
+                    ArrayOf<string> discoveryUrls = default;
 
                     IEnumerable<ServerEndpoint> endpoints =
                         from ii in ServerEndpoints
@@ -365,12 +360,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                     if (endpoints != null)
                     {
-                        discoveryUrls = [];
-
-                        foreach (ServerEndpoint endpoint in endpoints)
-                        {
-                            discoveryUrls.Add(endpoint.DiscoveryUrl);
-                        }
+                        discoveryUrls = [.. endpoints.Select(endpoint => endpoint.DiscoveryUrl)];
                     }
 
                     string[] capabilities = null;

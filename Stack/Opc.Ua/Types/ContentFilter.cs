@@ -86,7 +86,7 @@ namespace Opc.Ua
             var result = new Result(null);
 
             // check for empty filter.
-            if (m_elements == null || m_elements.Count == 0)
+            if (m_elements.IsEmpty)
             {
                 return result;
             }

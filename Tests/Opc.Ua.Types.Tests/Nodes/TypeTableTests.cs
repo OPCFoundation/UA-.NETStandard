@@ -336,7 +336,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindSubTypesReturnsEmptyForNull()
         {
-            IList<NodeId> result = m_typeTable.FindSubTypes(ExpandedNodeId.Null);
+            ArrayOf<NodeId> result = m_typeTable.FindSubTypes(ExpandedNodeId.Null);
             Assert.That(result, Is.Empty);
         }
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsEmptyForUnresolvableNamespace()
         {
             var id = new ExpandedNodeId(1000, 0, "http://unknown.example.com", 0);
-            IList<NodeId> result = m_typeTable.FindSubTypes(id);
+            ArrayOf<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsEmptyForUnknownType()
         {
             ExpandedNodeId id = UnknownTypeId;
-            IList<NodeId> result = m_typeTable.FindSubTypes(id);
+            ArrayOf<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
 
@@ -360,16 +360,16 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindSubTypesReturnsDirectChildren()
         {
             ExpandedNodeId id = RootTypeId;
-            IList<NodeId> result = m_typeTable.FindSubTypes(id);
+            ArrayOf<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result, Does.Contain(ChildTypeId));
+            Assert.That(result.ToList(), Does.Contain(ChildTypeId));
         }
 
         [Test]
         public void FindSubTypesReturnsEmptyForLeafType()
         {
             ExpandedNodeId id = GrandchildTypeId;
-            IList<NodeId> result = m_typeTable.FindSubTypes(id);
+            ArrayOf<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
         [Test]
@@ -895,14 +895,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void RemoveUpdatesParentSubTypeList()
         {
             // Before removal: RootTypeId has ChildTypeId as a subtype
-            IList<NodeId> subtypesBefore = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
-            Assert.That(subtypesBefore, Does.Contain(ChildTypeId));
+            ArrayOf<NodeId> subtypesBefore = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
+            Assert.That(subtypesBefore.ToList(), Does.Contain(ChildTypeId));
 
             m_typeTable.Remove(new ExpandedNodeId(ChildTypeId));
 
             // After removal: ChildTypeId should be gone from parent's subtype list
-            IList<NodeId> subtypesAfter = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
-            Assert.That(subtypesAfter, Does.Not.Contain(ChildTypeId));
+            ArrayOf<NodeId> subtypesAfter = m_typeTable.FindSubTypes(new ExpandedNodeId(RootTypeId));
+            Assert.That(subtypesAfter.ToList(), Does.Not.Contain(ChildTypeId));
         }
 
         [Test]
@@ -912,7 +912,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_typeTable.Remove(new ExpandedNodeId(GrandchildTypeId));
 
             // ChildTypeId should now have no subtypes (SubTypes set to null internally)
-            IList<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(ChildTypeId));
+            ArrayOf<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(ChildTypeId));
             Assert.That(subtypes, Is.Empty);
         }
         private static Mock<ILocalNode> CreateMockNode(
@@ -1133,8 +1133,8 @@ namespace Opc.Ua.Types.Tests.Nodes
                 superTypeTarget: new ExpandedNodeId(parentId));
             m_typeTable.Add(node.Object);
 
-            IList<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(parentId));
-            Assert.That(subtypes, Does.Contain(childId));
+            ArrayOf<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(parentId));
+            Assert.That(subtypes.ToList(), Does.Contain(childId));
         }
     }
 }

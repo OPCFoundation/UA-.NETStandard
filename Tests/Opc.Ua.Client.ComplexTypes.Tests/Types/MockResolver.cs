@@ -79,17 +79,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<IList<NodeId>> BrowseForEncodingsAsync(
-            IList<ExpandedNodeId> nodeIds,
+        public Task<ArrayOf<NodeId>> BrowseForEncodingsAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
             CancellationToken ct = default)
         {
-            return Task.FromResult((IList<NodeId>)[]);
+            return Task.FromResult<ArrayOf<NodeId>>([]);
         }
 
         /// <inheritdoc/>
         public Task<(
-            IList<NodeId> encodings,
+            ArrayOf<NodeId> encodings,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
         )> BrowseForEncodingsAsync(
@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 var result = new List<NodeId>();
                 foreach (
-                    ReferenceNode reference in dataTypeNode.References.Where(r =>
+                    ReferenceNode reference in dataTypeNode.References.Filter(r =>
                         r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
                 {
                     INode encodingNode = DataTypeNodes[
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 encodings = result;
             }
-            return Task.FromResult((encodings, binaryEncodingId, xmlEncodingId));
+            return Task.FromResult((encodings.ToArrayOf(), binaryEncodingId, xmlEncodingId));
         }
 
         /// <inheritdoc/>
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> LoadDataTypesAsync(
+        public async Task<ArrayOf<INode>> LoadDataTypesAsync(
             ExpandedNodeId dataType,
             bool nestedSubTypes = false,
             bool addRootNode = false,
@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             CancellationToken ct = default)
         {
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection { dataType };
+            var nodesToBrowse = new List<ExpandedNodeId> { dataType };
 
             if (addRootNode)
             {
@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             while (nodesToBrowse.Count > 0)
             {
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                var nextNodesToBrowse = new List<ExpandedNodeId>();
                 foreach (ExpandedNodeId node in nodesToBrowse)
                 {
                     IEnumerable<DataTypeNode> response = DataTypeNodes

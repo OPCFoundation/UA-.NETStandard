@@ -2490,7 +2490,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString bytes = decoder.ReadByteString(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(444, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
-            Assert.That(bytes, Is.Not.Null);
+            Assert.That(bytes.IsNull, Is.False);
         }
 
         [Test]

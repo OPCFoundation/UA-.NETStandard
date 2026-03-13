@@ -54,15 +54,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SurrogateTestData.AssertScalarContractEqual(instance, clone);
         }
 
-        [Test]
-        public void SerializerSupportsCollectionSurrogates()
-        {
-            SurrogateCollectionContract instance = SurrogateTestData.CreateCollectionContract(0);
-
-            SurrogateCollectionContract clone = Roundtrip(instance);
-
-            SurrogateTestData.AssertCollectionContractEqual(instance, clone);
-        }
 
         [Test]
         public void SerializerSupportsArrayOfSurrogates()
@@ -172,37 +163,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public sealed class SurrogateCollectionContract
-    {
-        [DataMember(Order = 1)]
-        public NodeIdCollection NodeIds { get; set; }
-
-        [DataMember(Order = 2)]
-        public ExpandedNodeIdCollection ExpandedNodeIds { get; set; }
-
-        [DataMember(Order = 3)]
-        public UuidCollection Uuids { get; set; }
-
-        [DataMember(Order = 4)]
-        public StatusCodeCollection StatusCodes { get; set; }
-
-        [DataMember(Order = 5)]
-        public QualifiedNameCollection QualifiedNames { get; set; }
-
-        [DataMember(Order = 6)]
-        public VariantCollection Variants { get; set; }
-
-        [DataMember(Order = 7)]
-        public LocalizedTextCollection LocalizedTexts { get; set; }
-
-        [DataMember(Order = 8)]
-        public ByteStringCollection ByteStrings { get; set; }
-
-        [DataMember(Order = 9)]
-        public DateTimeCollection DateTimes { get; set; }
-    }
-
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public sealed class SurrogateArrayOfContract
     {
         [DataMember(Order = 1)]
@@ -271,13 +231,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public SurrogateScalarContract Scalars { get; set; }
 
         [DataMember(Order = 2)]
-        public SurrogateCollectionContract Collections { get; set; }
+        public SurrogateArrayOfContract Arrays { get; set; }
 
         [DataMember(Order = 3)]
-        public SurrogateScalarContract[] AdditionalScalars { get; set; }
+        public SurrogateMatrixOfContract Matrices { get; set; }
 
         [DataMember(Order = 4)]
-        public SurrogateCollectionContract[] AdditionalCollections { get; set; }
+        public SurrogateScalarContract[] AdditionalScalars { get; set; }
+
+        [DataMember(Order = 5)]
+        public SurrogateMatrixOfContract[] AdditionalMatrices { get; set; }
+
+        [DataMember(Order = 6)]
+        public SurrogateArrayOfContract[] AdditionalArrays { get; set; }
     }
 
     internal static class SurrogateTestData
@@ -299,56 +265,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 LocalizedText = new LocalizedText("en-US", $"text-{index}"),
                 ByteString = ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
                 DateTime = DateTimeUtc.Now
-            };
-        }
-
-        public static SurrogateCollectionContract CreateCollectionContract(int index)
-        {
-            return new SurrogateCollectionContract
-            {
-                NodeIds =
-                [
-                    new NodeId((uint)(10 + index), 1),
-                    new NodeId($"node-{index}", 2)
-                ],
-                ExpandedNodeIds =
-                [
-                    new ExpandedNodeId((uint)(20 + index), 3, Namespaces.OpcUa, (uint)(index + 1))
-                ],
-                Uuids =
-                [
-                    Uuid.NewUuid(),
-                    Uuid.NewUuid()
-                ],
-                StatusCodes =
-                [
-                    StatusCodeConstants.Good,
-                    StatusCodeConstants.BadEncodingError
-                ],
-                QualifiedNames =
-                [
-                    new QualifiedName($"coll-qn-{index}", 4)
-                ],
-                Variants =
-                [
-                    new Variant($"variant-{index}"),
-                    new Variant(index + 42)
-                ],
-                LocalizedTexts =
-                [
-                    new LocalizedText("en-US", $"localized-{index}"),
-                    new LocalizedText("de-DE", $"lokalisiert-{index}")
-                ],
-                ByteStrings =
-                [
-                    ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
-                    ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
-                ],
-                DateTimes =
-                [
-                    DateTimeUtc.Now,
-                    DateTimeUtc.Now
-                ]
             };
         }
 
@@ -477,15 +393,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             return new SurrogateGraphContract
             {
                 Scalars = CreateScalarContract(0),
-                Collections = CreateCollectionContract(0),
+                Arrays = CreateArrayOfContract(0),
+                Matrices = CreateMatrixOfContract(0),
                 AdditionalScalars =
                 [
                     CreateScalarContract(1),
                     CreateScalarContract(2)
                 ],
-                AdditionalCollections =
+                AdditionalArrays =
                 [
-                    CreateCollectionContract(1)
+                    CreateArrayOfContract(1)
+                ],
+                AdditionalMatrices =
+                [
+                    CreateMatrixOfContract(1)
                 ]
             };
         }
@@ -511,32 +432,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.IsTrue(
                     CoreUtils.IsEqual(expected.LocalizedText, actual.LocalizedText),
                     "LocalizedText mismatch");
-            });
-        }
-
-        public static void AssertCollectionContractEqual(
-            SurrogateCollectionContract expected,
-            SurrogateCollectionContract actual)
-        {
-            Assert.IsNotNull(actual);
-
-            Assert.Multiple(() =>
-            {
-                Assert.IsTrue(CoreUtils.IsEqual(expected.NodeIds, actual.NodeIds), "NodeIds mismatch");
-                Assert.IsTrue(
-                    CoreUtils.IsEqual(expected.ExpandedNodeIds, actual.ExpandedNodeIds),
-                    "ExpandedNodeIds mismatch");
-                Assert.IsTrue(CoreUtils.IsEqual(expected.Uuids, actual.Uuids), "Uuids mismatch");
-                Assert.IsTrue(
-                    CoreUtils.IsEqual(expected.StatusCodes, actual.StatusCodes),
-                    "StatusCodes mismatch");
-                Assert.IsTrue(
-                    CoreUtils.IsEqual(expected.QualifiedNames, actual.QualifiedNames),
-                    "QualifiedNames mismatch");
-                Assert.IsTrue(CoreUtils.IsEqual(expected.Variants, actual.Variants), "Variants mismatch");
-                Assert.IsTrue(
-                    CoreUtils.IsEqual(expected.LocalizedTexts, actual.LocalizedTexts),
-                    "LocalizedTexts mismatch");
             });
         }
 
@@ -597,7 +492,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.IsNotNull(actual);
 
             AssertScalarContractEqual(expected.Scalars, actual.Scalars);
-            AssertCollectionContractEqual(expected.Collections, actual.Collections);
+            AssertArrayOfContractEqual(expected.Arrays, actual.Arrays);
+            AssertMatrixOfContractEqual(expected.Matrices, actual.Matrices);
 
             Assert.AreEqual(
                 expected.AdditionalScalars.Length,
@@ -610,15 +506,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             Assert.AreEqual(
-                expected.AdditionalCollections.Length,
-                actual.AdditionalCollections.Length,
-                "AdditionalCollections length mismatch");
+                expected.AdditionalArrays.Length,
+                actual.AdditionalArrays.Length,
+                "AdditionalArrays length mismatch");
 
-            for (int ii = 0; ii < expected.AdditionalCollections.Length; ii++)
+            for (int ii = 0; ii < expected.AdditionalArrays.Length; ii++)
             {
-                AssertCollectionContractEqual(
-                    expected.AdditionalCollections[ii],
-                    actual.AdditionalCollections[ii]);
+                AssertArrayOfContractEqual(
+                    expected.AdditionalArrays[ii],
+                    actual.AdditionalArrays[ii]);
+            }
+
+            Assert.AreEqual(
+                expected.AdditionalMatrices.Length,
+                actual.AdditionalMatrices.Length,
+                "AdditionalMatrices length mismatch");
+
+            for (int ii = 0; ii < expected.AdditionalMatrices.Length; ii++)
+            {
+                AssertMatrixOfContractEqual(
+                    expected.AdditionalMatrices[ii],
+                    actual.AdditionalMatrices[ii]);
             }
         }
     }

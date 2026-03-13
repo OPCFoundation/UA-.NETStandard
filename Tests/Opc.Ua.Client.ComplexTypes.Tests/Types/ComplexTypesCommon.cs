@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Complex Types Common Functions for Tests.
     /// </summary>
-    public class ComplexTypesCommon : EncoderCommon
+    public abstract class ComplexTypesCommon : EncoderCommon
     {
         protected AssemblyModule m_module;
         protected ComplexTypeBuilder m_complexTypeBuilder;
@@ -189,9 +189,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Return a collection of fields with BuiltInTypes.
         /// </summary>
-        public static StructureFieldCollection GetAllBuiltInTypesFields()
+        public static List<StructureField> GetAllBuiltInTypesFields()
         {
-            var collection = new StructureFieldCollection();
+            var collection = new List<StructureField>();
             foreach (BuiltInType builtInType in BuiltInTypes)
             {
                 if (builtInType
@@ -209,7 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         Name = builtInType.ToString(),
                         DataType = new NodeId((uint)builtInType),
-                        ArrayDimensions = null,
+                        ArrayDimensions = default,
                         Description = LocalizedText.From($"A BuiltInType.{builtInType} property."),
                         IsOptional = false,
                         MaxStringLength = 0,

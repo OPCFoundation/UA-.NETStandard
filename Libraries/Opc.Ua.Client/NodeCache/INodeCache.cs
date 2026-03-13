@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -55,8 +54,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<IList<INode?>> FindAsync(
-            IList<ExpandedNodeId> nodeIds,
+        Task<ArrayOf<INode?>> FindAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -73,8 +72,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeIds">The node identifier collection.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<IList<Node?>> FetchNodesAsync(
-            IList<ExpandedNodeId> nodeIds,
+        Task<ArrayOf<Node?>> FetchNodesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -90,7 +89,7 @@ namespace Opc.Ua.Client
         /// Returns the references of the specified node that
         /// meet the criteria specified.
         /// </summary>
-        Task<IList<INode>> FindReferencesAsync(
+        Task<ArrayOf<INode>> FindReferencesAsync(
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -101,9 +100,9 @@ namespace Opc.Ua.Client
         /// Returns the references of the specified nodes that
         /// meet the criteria specified.
         /// </summary>
-        Task<IList<INode>> FindReferencesAsync(
-            IList<ExpandedNodeId> nodeIds,
-            IList<NodeId> referenceTypeIds,
+        Task<ArrayOf<INode>> FindReferencesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
             CancellationToken ct = default);

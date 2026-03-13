@@ -1013,7 +1013,7 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     context.Out.Write($"{valueName} = ");
-                    var elementName = field.DataTypeNode.GetDotNetTypeName(
+                    string elementName = field.DataTypeNode.GetDotNetTypeName(
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,

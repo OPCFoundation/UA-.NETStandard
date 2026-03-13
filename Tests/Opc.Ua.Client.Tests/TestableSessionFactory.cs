@@ -51,8 +51,8 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            EndpointDescriptionCollection availableEndpoints = null,
-            ArrayOf<string> discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
         {
             return new TestableSession(
                 channel,

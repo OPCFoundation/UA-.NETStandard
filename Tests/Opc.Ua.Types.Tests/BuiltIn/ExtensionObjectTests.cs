@@ -66,7 +66,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
             Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
             Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
-            Assert.IsFalse(extensionObject.TryGetAsJson(out var _));
+            Assert.IsFalse(extensionObject.TryGetAsJson(out string _));
             Assert.IsTrue(extensionObject.IsNull);
             // static extensions
             Assert.Null(Ua.ExtensionObject.ToEncodeable(default));
@@ -103,14 +103,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 extensionObject.TypeId.GetHashCode());
             Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
             Assert.AreEqual(bytes, extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default);
-            // collection
-            var collection = new ExtensionObjectCollection();
-            Assert.NotNull(collection);
-            collection = new ExtensionObjectCollection(100);
-            Assert.NotNull(collection);
-            collection = [.. collection];
-            Assert.NotNull(collection);
-            collection = CoreUtils.Clone(collection);
             // default value is null
             Assert.That(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject), Is.EqualTo(ExtensionObject.Null));
         }

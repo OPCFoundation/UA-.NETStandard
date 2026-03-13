@@ -191,7 +191,7 @@ namespace Opc.Ua.Client.Tests
                 //simplified republish emulation
                 if (subscription.Id == subscriptionId && availableSequenceNumbers.Remove(sequenceNumber))
                 {
-                    subscription.SaveMessageInCache(null, messagesToProcess[sequenceNumber]);
+                    subscription.SaveMessageInCache(default, messagesToProcess[sequenceNumber]);
                     return true;
                 }
                 return false;

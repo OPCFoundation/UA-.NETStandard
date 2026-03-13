@@ -215,13 +215,23 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             // Set an initial non-default value so the next set is a change
-            node.RolePermissions = new RolePermissionTypeCollection {
-                new RolePermissionType { RoleId = new NodeId(1), Permissions = 1 }
-            };
+            node.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = new NodeId(1),
+                    Permissions = 1
+                }
+            ];
             node.ClearChangeMasks(m_context, false);
-            node.RolePermissions = new RolePermissionTypeCollection {
-                new RolePermissionType { RoleId = new NodeId(2), Permissions = 2 }
-            };
+            node.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = new NodeId(2),
+                    Permissions = 2
+                }
+            ];
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
         }
 
@@ -229,13 +239,23 @@ namespace Opc.Ua.Types.Tests.State
         public void UserRolePermissionsSetterUpdatesChangeMask()
         {
             using BaseObjectState node = CreateObjectNode();
-            node.UserRolePermissions = new RolePermissionTypeCollection {
-                new RolePermissionType { RoleId = new NodeId(1), Permissions = 1 }
-            };
+            node.UserRolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = new NodeId(1),
+                    Permissions = 1
+                }
+            ];
             node.ClearChangeMasks(m_context, false);
-            node.UserRolePermissions = new RolePermissionTypeCollection {
-                new RolePermissionType { RoleId = new NodeId(2), Permissions = 2 }
-            };
+            node.UserRolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = new NodeId(2),
+                    Permissions = 2
+                }
+            ];
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
         }
 
@@ -252,7 +272,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandlePropertyRoundTrips()
         {
             using BaseObjectState node = CreateObjectNode();
-            var handle = new object();
+            object handle = new object();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }
@@ -833,7 +853,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             bool invoked = false;
-            node.OnReferenceAdded = (n, refType, isInverse, target) => { invoked = true; };
+            node.OnReferenceAdded = (n, refType, isInverse, target) => invoked = true;
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             Assert.That(invoked, Is.True);
         }
@@ -843,7 +863,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             bool invoked = false;
-            node.OnReferenceRemoved = (n, refType, isInverse, target) => { invoked = true; };
+            node.OnReferenceRemoved = (n, refType, isInverse, target) => invoked = true;
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             node.RemoveReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             Assert.That(invoked, Is.True);
@@ -854,7 +874,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             int count = 0;
-            node.OnReferenceAdded = (n, refType, isInverse, target) => { count++; };
+            node.OnReferenceAdded = (n, refType, isInverse, target) => count++;
             var refs = new List<IReference>
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
@@ -904,7 +924,7 @@ namespace Opc.Ua.Types.Tests.State
             node.UpdateChangeMasks(NodeStateChangeMasks.Value);
 
             NodeStateChangeMasks captured = NodeStateChangeMasks.None;
-            node.OnStateChanged = (ctx, n, changes) => { captured = changes; };
+            node.OnStateChanged = (ctx, n, changes) => captured = changes;
             node.ClearChangeMasks(m_context, false);
             Assert.That(captured.HasFlag(NodeStateChangeMasks.Value), Is.True);
         }
@@ -917,7 +937,7 @@ namespace Opc.Ua.Types.Tests.State
             node.UpdateChangeMasks(NodeStateChangeMasks.References);
 
             NodeStateChangeMasks captured = NodeStateChangeMasks.None;
-            node.StateChanged += (ctx, n, changes) => { captured = changes; };
+            node.StateChanged += (ctx, n, changes) => captured = changes;
             node.ClearChangeMasks(m_context, false);
             Assert.That(captured.HasFlag(NodeStateChangeMasks.References), Is.True);
         }
@@ -929,7 +949,7 @@ namespace Opc.Ua.Types.Tests.State
             node.ClearChangeMasks(m_context, false);
 
             bool invoked = false;
-            node.OnStateChanged = (ctx, n, changes) => { invoked = true; };
+            node.OnStateChanged = (ctx, n, changes) => invoked = true;
             node.ClearChangeMasks(m_context, false);
             Assert.That(invoked, Is.False);
         }
@@ -1274,7 +1294,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             NodeStateChangeMasks captured = NodeStateChangeMasks.None;
-            node.OnStateChanged = (ctx, n, changes) => { captured = changes; };
+            node.OnStateChanged = (ctx, n, changes) => captured = changes;
             node.Delete(m_context);
             Assert.That(captured.HasFlag(NodeStateChangeMasks.Deleted), Is.True);
         }
@@ -1287,7 +1307,7 @@ namespace Opc.Ua.Types.Tests.State
             parent.AddChild(child);
 
             NodeStateChangeMasks childCapture = NodeStateChangeMasks.None;
-            child.OnStateChanged = (ctx, n, changes) => { childCapture = changes; };
+            child.OnStateChanged = (ctx, n, changes) => childCapture = changes;
             parent.Delete(m_context);
             Assert.That(childCapture.HasFlag(NodeStateChangeMasks.Deleted), Is.True);
         }
@@ -1382,12 +1402,14 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadRolePermissionsAttributeWhenSet()
         {
             using BaseObjectState node = CreateObjectNode();
-            node.RolePermissions = new RolePermissionTypeCollection {
-                new RolePermissionType {
+            node.RolePermissions =
+            [
+                new RolePermissionType
+                {
                     RoleId = new NodeId(1),
                     Permissions = (uint)PermissionType.Browse
                 }
-            };
+            ];
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.RolePermissions, NumericRange.Empty, default, dataValue);
@@ -2230,7 +2252,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             bool invoked = false;
-            node.OnReportEvent = (ctx, n, e) => { invoked = true; };
+            node.OnReportEvent = (ctx, n, e) => invoked = true;
             node.ReportEvent(m_context, null);
             Assert.That(invoked, Is.True);
         }
@@ -2247,7 +2269,7 @@ namespace Opc.Ua.Types.Tests.State
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, true, parent);
 
             bool parentEventReceived = false;
-            parent.OnReportEvent = (ctx, n, e) => { parentEventReceived = true; };
+            parent.OnReportEvent = (ctx, n, e) => parentEventReceived = true;
 
             source.ReportEvent(m_context, null);
             Assert.That(parentEventReceived, Is.True);
@@ -2258,7 +2280,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             bool invoked = false;
-            node.OnConditionRefresh = (ctx, n, events) => { invoked = true; };
+            node.OnConditionRefresh = (ctx, n, events) => invoked = true;
 
             var events = new List<IFilterTarget>();
             node.ConditionRefresh(m_context, events, false);
@@ -2273,7 +2295,7 @@ namespace Opc.Ua.Types.Tests.State
             parent.AddChild(child);
 
             bool childInvoked = false;
-            child.OnConditionRefresh = (ctx, n, events) => { childInvoked = true; };
+            child.OnConditionRefresh = (ctx, n, events) => childInvoked = true;
 
             var events = new List<IFilterTarget>();
             parent.ConditionRefresh(m_context, events, true);
@@ -2482,7 +2504,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             bool invoked = false;
-            node.OnPopulateBrowser = (ctx, n, browser) => { invoked = true; };
+            node.OnPopulateBrowser = (ctx, n, browser) => invoked = true;
 
             node.CreateBrowser(
                 m_context, default, default, true, BrowseDirection.Both, default, null, true);

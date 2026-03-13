@@ -127,8 +127,9 @@ namespace Opc.Ua.Gds.Tests
             [
                 .. m_server
                     .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
-                    .CertificateGroups.Where(cg => cg.Id == "Default")
-                    .SelectMany(cg => cg.CertificateTypes)
+                    .CertificateGroups
+                    .Where(cg => cg.Id == "Default")
+                    .SelectMany(cg => cg.CertificateTypes.ToList())
                     .Select(Ua.ObjectTypeIds.GetIdentifier)
                     .Where(n => !n.IsNull && Utils.IsSupportedCertificateType(n))
 #if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING

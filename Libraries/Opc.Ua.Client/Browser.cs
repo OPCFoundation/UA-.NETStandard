@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -299,7 +298,7 @@ namespace Opc.Ua.Client
 
             // fetch initial set of references.
             ByteString continuationPoint = results[0].ContinuationPoint;
-            var references = results[0].References;
+            ArrayOf<ReferenceDescription> references = results[0].References;
 
             try
             {
@@ -409,7 +408,7 @@ namespace Opc.Ua.Client
                     "Cannot browse if not connected to a server.");
 
             int count = nodesToBrowse.Count;
-            var result = new List<ReferenceDescriptionCollection>(count);
+            var result = new List<List<ReferenceDescription>>(count);
             var errors = new List<ServiceResult>(count);
 
             // first attempt for implementation: create the references for the output in advance.
@@ -424,7 +423,7 @@ namespace Opc.Ua.Client
             var nodesToBrowseForPass = new List<NodeId>(count);
             nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-            var resultForPass = new List<ReferenceDescriptionCollection>(count);
+            var resultForPass = new List<List<ReferenceDescription>>(count);
             resultForPass.AddRange(result);
 
             var errorsForPass = new List<ServiceResult>(count);
@@ -453,7 +452,7 @@ namespace Opc.Ua.Client
 
                 var nodesToBrowseForNextPass = new List<NodeId>();
                 var referenceDescriptionsForNextPass
-                    = new List<ReferenceDescriptionCollection>();
+                    = new List<List<ReferenceDescription>>();
                 var errorsForNextPass = new List<ServiceResult>();
 
                 // loop over the batches
@@ -593,11 +592,11 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
-            var result = new List<ReferenceDescriptionCollection>(nodeIds.Count);
-            result.AddRange(referenceDescriptions.ConvertAll(l => (ReferenceDescriptionCollection)l).ToList());
+            var result = new List<List<ReferenceDescription>>(nodeIds.Count);
+            result.AddRange(referenceDescriptions.ConvertAll(l => l.ToList()).ToList());
 
             // process any continuation point.
-            List<ReferenceDescriptionCollection> previousResults = result.ToList();
+            List<List<ReferenceDescription>> previousResults = [.. result];
             var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
             var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
             foreach (ServiceResult error in errors)
@@ -606,8 +605,8 @@ namespace Opc.Ua.Client
                 errorAnchors.Add(previousErrors[^1]);
             }
 
-            var nextContinuationPoints = new ByteStringCollection();
-            var nextResults = new List<ReferenceDescriptionCollection>();
+            var nextContinuationPoints = new List<ByteString>();
+            var nextResults = new List<List<ReferenceDescription>>();
             var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
 
             for (int ii = 0; ii < nodeIds.Count; ii++)

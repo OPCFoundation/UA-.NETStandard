@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Server
         public NodeId Id { get; set; }
 
         /// <inheritdoc/>
-        public NodeIdCollection CertificateTypes { get; set; }
+        public ArrayOf<NodeId> CertificateTypes { get; set; }
 
         /// <inheritdoc/>
         public CertificateGroupConfiguration Configuration { get; }
@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Server
                         continue;
                     }
 
-                    CertificateTypes.Add(certificateType);
+                    CertificateTypes = CertificateTypes.AddItem(certificateType);
                     Certificates.TryAdd(certificateType, null);
                 }
                 else
@@ -128,7 +128,7 @@ namespace Opc.Ua.Gds.Server
                         $"Unknown certificate type {certificateTypeString}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
                 }
             }
-            if (CertificateTypes.Count == 0)
+            if (CertificateTypes.IsEmpty)
             {
                 throw new ArgumentException("Please specify at least one valid Certificate Type");
             }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Server
                         NodeId certificateType = CertificateIdentifier.GetCertificateType(
                             certificate);
 
-                        if (CertificateTypes.Any(c => c == certificateType))
+                        if (CertificateTypes.Contains(c => c == certificateType))
                         {
                             if (Certificates[certificateType] != null)
                             {
@@ -497,7 +497,7 @@ namespace Opc.Ua.Gds.Server
             Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            var initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
+            X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
 
             //Update TrustedList Store
             await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);

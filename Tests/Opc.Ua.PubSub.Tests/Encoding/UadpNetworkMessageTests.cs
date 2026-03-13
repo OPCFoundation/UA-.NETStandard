@@ -67,6 +67,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public const ushort NamespaceIndexAllTypes = 3;
         public const ushort NamespaceIndexMassTest = 4;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_publisherApplication?.Dispose();
+            m_subscriberApplication?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {

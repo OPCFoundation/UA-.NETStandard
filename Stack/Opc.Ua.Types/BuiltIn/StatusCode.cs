@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
 using System.Text.Json.Serialization;
@@ -815,7 +814,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the interned status codes
         /// </summary>
-        public static StatusCodeCollection InternedStatusCodes => [.. s_statusCodes.Values];
+        public static ArrayOf<StatusCode> InternedStatusCodes => [.. s_statusCodes.Values];
 
         static StatusCode()
         {

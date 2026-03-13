@@ -1168,7 +1168,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromWithReflectionFallbackMultiDimArrayReturnsTrue()
         {
-            var array = new int[,] { { 1, 2 }, { 3, 4 } };
+            int[,] array = new int[,] { { 1, 2 }, { 3, 4 } };
             bool result = VariantHelper.TryCastFromWithReflectionFallback(
                 array, out Variant variant);
             Assert.That(result, Is.True);
@@ -1178,7 +1178,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromWithReflectionFallbackMultiDimDoubleArrayReturnsTrue()
         {
-            var array = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
+            double[,] array = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
             bool result = VariantHelper.TryCastFromWithReflectionFallback(
                 array, out Variant variant);
             Assert.That(result, Is.True);
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromWithReflectionFallbackMultiDimStringArrayReturnsTrue()
         {
-            var array = new string[,] { { "a", "b" }, { "c", "d" } };
+            string[,] array = new string[,] { { "a", "b" }, { "c", "d" } };
             bool result = VariantHelper.TryCastFromWithReflectionFallback(
                 array, out Variant variant);
             Assert.That(result, Is.True);
@@ -1206,7 +1206,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromWithReflectionFallbackMultiDimBoolArrayReturnsTrue()
         {
-            var array = new bool[,] { { true, false }, { false, true } };
+            bool[,] array = new bool[,] { { true, false }, { false, true } };
             bool result = VariantHelper.TryCastFromWithReflectionFallback(
                 array, out Variant variant);
             Assert.That(result, Is.True);
@@ -1986,7 +1986,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RoundtripIntArrayThroughVariantHelper()
         {
-            var original = new[] { 1, 2, 3 };
+            int[] original = new[] { 1, 2, 3 };
             VariantHelper.TryCastFrom(original, out Variant variant);
             variant.TryCastTo<int[]>(out int[] result);
             Assert.That(result, Is.EqualTo(original));

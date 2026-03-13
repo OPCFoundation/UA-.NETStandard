@@ -158,7 +158,7 @@ namespace Opc.Ua.Types.Tests.State
 
             // The value should be extracted
             Assert.That(propertyState.Value, Is.Not.Null);
-            Assert.That(propertyState.Value.Elements, Is.Not.Null);
+            Assert.That(propertyState.Value.Elements.IsNull, Is.False);
             Assert.That(propertyState.Value.Elements.Count, Is.EqualTo(1));
             Assert.That(propertyState.Value.Elements[0].TargetName.Name, Is.EqualTo("TestName"));
         }
@@ -850,7 +850,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             // Should not throw and should return a value
-            var hash = property.DeepGetHashCode();
+            int hash = property.DeepGetHashCode();
             Assert.That(hash, Is.TypeOf<int>());
         }
 
@@ -950,7 +950,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ArrayDimensionsToXmlReturnsNullForEmpty()
         {
-            var result = BaseVariableState.ArrayDimensionsToXml(default);
+            string result = BaseVariableState.ArrayDimensionsToXml(default);
 
             Assert.That(result, Is.Null);
         }
@@ -960,7 +960,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> dims = new uint[] { 10 }.ToArrayOf();
 
-            var result = BaseVariableState.ArrayDimensionsToXml(dims);
+            string result = BaseVariableState.ArrayDimensionsToXml(dims);
 
             Assert.That(result, Is.EqualTo("10"));
         }
@@ -970,7 +970,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> dims = new uint[] { 3, 4, 5 }.ToArrayOf();
 
-            var result = BaseVariableState.ArrayDimensionsToXml(dims);
+            string result = BaseVariableState.ArrayDimensionsToXml(dims);
 
             Assert.That(result, Is.EqualTo("3,4,5"));
         }
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> original = new uint[] { 2, 7, 11 }.ToArrayOf();
 
-            var xml = BaseVariableState.ArrayDimensionsToXml(original);
+            string xml = BaseVariableState.ArrayDimensionsToXml(original);
             ArrayOf<uint> parsed = BaseVariableState.ArrayDimensionsFromXml(xml);
 
             Assert.That(parsed.Count, Is.EqualTo(original.Count));

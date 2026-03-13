@@ -69,6 +69,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const ushort kTestDataSetWriterId = 1;
         private const ushort kMessageContentMask = 0x3f;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_subscriberApplication?.Dispose();
+            m_publisherApplication?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {

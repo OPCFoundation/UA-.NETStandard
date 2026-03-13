@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Tests
         public async Task SequentialPublishingSubscriptionAsync(bool enabled)
         {
             var subscriptionList = new List<Subscription>();
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new List<uint>();
             var sequenceBroken = new AutoResetEvent(false);
             long numOfNotifications = 0L;
             const int testWaitTime = 10000;
@@ -1529,16 +1529,16 @@ namespace Opc.Ua.Client.Tests
             SetTriggeringResponse response = await subscription.SetTriggeringAsync(
                 triggeringItem,
                 linksToAdd,
-                null,
+                default,
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
 
             // Verify the triggering relationships are tracked
-            Assert.That(triggeringItem.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItem.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItem.TriggeredItems.Count, Is.EqualTo(2));
-            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem1.ClientHandle));
-            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem2.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem1.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem2.ClientHandle));
 
             Assert.That(triggeredItem1.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
             Assert.That(triggeredItem2.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
@@ -1550,7 +1550,7 @@ namespace Opc.Ua.Client.Tests
             MonitoredItemState triggeringItemState = state.MonitoredItems
                 .FirstOrDefault(m => m.ClientId == triggeringItem.ClientHandle);
             Assert.That(triggeringItemState, Is.Not.Null);
-            Assert.That(triggeringItemState.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItemState.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItemState.TriggeredItems.Count, Is.EqualTo(2));
 
             // Clean up
@@ -1588,14 +1588,14 @@ namespace Opc.Ua.Client.Tests
             // Simulate concurrent CreateItemsAsync calls
             // Use 3 concurrent tasks to ensure at least 2 will race with each other
             const int concurrentTasks = 3;
-            var tasks = new List<Task<IList<MonitoredItem>>>();
+            var tasks = new List<Task<ArrayOf<MonitoredItem>>>();
             for (int i = 0; i < concurrentTasks; i++)
             {
                 tasks.Add(Task.Run(() =>
                     subscription.CreateItemsAsync(CancellationToken.None)));
             }
 
-            IList<MonitoredItem>[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            ArrayOf<MonitoredItem>[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
             // Verify that all items were created exactly once
             int totalCreated = 0;
@@ -1615,7 +1615,7 @@ namespace Opc.Ua.Client.Tests
             // Verify that each result list contains only the items that were actually created
             // by that specific call (should be empty for concurrent calls after the first)
             int nonEmptyResults = 0;
-            foreach (IList<MonitoredItem> result in results)
+            foreach (ArrayOf<MonitoredItem> result in results)
             {
                 if (result.Count > 0)
                 {

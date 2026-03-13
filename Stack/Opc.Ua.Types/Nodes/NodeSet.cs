@@ -680,19 +680,15 @@ namespace Opc.Ua
         /// The table of nodes.
         /// </summary>
         [DataMember(Name = "Nodes", Order = 3)]
-        internal NodeCollection Nodes
+        internal ArrayOf<Node> Nodes
         {
             get => [.. m_nodes.Values];
             set
             {
                 m_nodes = [];
-
-                if (value != null)
+                foreach (Node node in value)
                 {
-                    foreach (Node node in value)
-                    {
-                        m_nodes[node.NodeId] = node;
-                    }
+                    m_nodes[node.NodeId] = node;
                 }
             }
         }

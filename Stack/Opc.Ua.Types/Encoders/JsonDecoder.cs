@@ -1740,7 +1740,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                var result = new int[elements.Count];
+                int[] result = new int[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetEnumerationFromElement(elements[i], out result[i]))

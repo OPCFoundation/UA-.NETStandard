@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.Emit;
 using System.Threading;
 using System.Xml;
 using Opc.Ua.Types;
@@ -1205,7 +1204,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = decoder.ReadEnumerated<NodeClass>(null);
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1278,7 +1277,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = decoder.ReadEnumerated<NodeClass>(null);
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1558,7 +1557,7 @@ namespace Opc.Ua
 
             if (decoder.Peek("NodeClass"))
             {
-                var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
+                NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
                 if (NodeClass != NodeClass.Unspecified && nodeClass != NodeClass)
                 {
@@ -1816,7 +1815,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             NodeId nodeId = decoder.ReadNodeId("NodeId");
             QualifiedName browseName = decoder.ReadQualifiedName("BrowseName");
 
@@ -2095,7 +2094,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
             decoder.PopNamespace();
 
@@ -2194,8 +2193,8 @@ namespace Opc.Ua
                 description = decoder.ReadLocalizedText("Description");
             }
 
-            var writeMask = decoder.ReadEnumerated<AttributeWriteMask>("WriteMask");
-            var userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>("UserWriteMask");
+            AttributeWriteMask writeMask = decoder.ReadEnumerated<AttributeWriteMask>("WriteMask");
+            AttributeWriteMask userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>("UserWriteMask");
             NodeId referenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             NodeId typeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
 

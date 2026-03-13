@@ -169,7 +169,11 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                foreach (string endpoint in Application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct())
+                foreach (string endpoint in Application.Server
+                    .GetEndpoints()
+                    .ConvertAll(e => e.EndpointUrl)
+                    .ToList()
+                    .Distinct())
                 {
                     Console.WriteLine(endpoint);
                 }

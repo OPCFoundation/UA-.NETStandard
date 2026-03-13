@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -61,7 +60,7 @@ namespace Opc.Ua.Bindings
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
-            IList<string> baseAddresses,
+            ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider instanceCertificateTypesProvider)
@@ -76,7 +75,7 @@ namespace Opc.Ua.Bindings
 
             // build list of uris.
             var uris = new List<Uri>();
-            var endpoints = new EndpointDescriptionCollection();
+            var endpoints = new List<EndpointDescription>();
 
             // create the endpoint configuration to use.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);

@@ -89,6 +89,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private ILogger m_logger;
         private ManualResetEvent m_shutdownEvent;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_uaPublisherApplication?.Dispose();
+        }
+
         /// <summary>
         /// private UdpAddressesType m_udpAddressesType = UdpAddressesType.Unicast;
         /// </summary>
@@ -266,12 +272,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 writerGroup0.WriterGroupId,
                 "UadpNetworkMessage.WriterGroupId is invalid.");
             Assert.AreEqual(
-                networkMessage0.UADPVersion,
                 1,
+                networkMessage0.UADPVersion,
                 "UadpNetworkMessage.UADPVersion is invalid.");
             Assert.AreEqual(
-                networkMessage0.SequenceNumber,
                 1,
+                networkMessage0.SequenceNumber,
                 "UadpNetworkMessage.SequenceNumber is not 1.");
             Assert.AreEqual(
                 networkMessage0.GroupVersion,
@@ -285,8 +291,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 networkMessage0.DataSetMessages,
                 "UadpNetworkMessage.UadpDataSetMessages is null.");
             Assert.AreEqual(
-                networkMessage0.DataSetMessages.Count,
                 3,
+                networkMessage0.DataSetMessages.Count,
                 "UadpNetworkMessage.UadpDataSetMessages.Count is not 3.");
             //validate flags
             Assert.AreEqual(

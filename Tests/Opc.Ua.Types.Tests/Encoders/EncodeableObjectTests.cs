@@ -124,7 +124,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var original = new TestEncodeableObject();
 
             // Act
-            var clone = original.Clone();
+            object clone = original.Clone();
 
             // Assert
             Assert.That(clone, Is.Not.Null);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var original = new TestEncodeableObject();
 
             // Act
-            var clone = original.MemberwiseClone();
+            object clone = original.MemberwiseClone();
 
             // Assert
             Assert.That(clone, Is.Not.Null);
@@ -364,7 +364,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = EncodeableObject.Encode(context, arg, useXml: true);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
             Assert.That(result.IsNull, Is.False);
         }
 
@@ -379,7 +378,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = EncodeableObject.Encode(context, arg, useXml: false);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.IsNull, Is.False);
         }
 

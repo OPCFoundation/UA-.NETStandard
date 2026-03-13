@@ -93,15 +93,15 @@ namespace Opc.Ua.Client.Tests
                 .MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
             ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Tests
                         .ConnectAsync(
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
-                            null,
+                            default,
                             new UserIdentity("sysadmin", "demo"u8))
                         .ConfigureAwait(false);
                     Session.DeleteSubscriptionsOnClose = false;
@@ -263,14 +263,14 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
             NUnit.Framework.Assert
                 .That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
+            ArrayOf<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
                 .ConfigureAwait(false);
             NUnit.Framework.Assert
                 .That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
             NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
@@ -494,7 +494,7 @@ namespace Opc.Ua.Client.Tests
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
-                    null,
+                    default,
                     new UserIdentity("sysadmin", "demo"u8))
                 .ConfigureAwait(false);
 #else // TODO: Remove once failure is understood.
@@ -647,7 +647,7 @@ namespace Opc.Ua.Client.Tests
             NodeId currentLifetimeCountNodeId = default;
             NodeId publishingIntervalNodeId = default;
 
-            (_, _, ReferenceDescriptionCollection references) = await Session.BrowseAsync(
+            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
                 null,
                 null,
                 serverDiags,
@@ -665,7 +665,7 @@ namespace Opc.Ua.Client.Tests
                 references.Count,
                 subscriptionId);
 
-            foreach (ReferenceDescription reference in references)
+            foreach (ReferenceDescription reference in references.ToList())
             {
                 TestContext.Out
                     .WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
@@ -676,7 +676,7 @@ namespace Opc.Ua.Client.Tests
                     (
                         _,
                         ByteString anotherContinuationPoint,
-                        ReferenceDescriptionCollection desiredReferences
+                        ArrayOf<ReferenceDescription> desiredReferences
                     ) = await Session.BrowseAsync(
                         null,
                         null,

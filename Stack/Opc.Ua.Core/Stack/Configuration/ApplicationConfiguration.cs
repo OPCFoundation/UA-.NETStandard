@@ -108,7 +108,7 @@ namespace Opc.Ua
         /// Returns the domain names which the server is configured to use.
         /// </summary>
         /// <returns>A list of domain names.</returns>
-        public IList<string> GetServerDomainNames()
+        public ArrayOf<string> GetServerDomainNames()
         {
             var baseAddresses = new List<string>();
 

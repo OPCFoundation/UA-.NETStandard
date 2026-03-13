@@ -43,7 +43,7 @@ namespace Boiler
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new BoilerNodeManager(server, configuration, [.. NamespacesUris]);
+            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>

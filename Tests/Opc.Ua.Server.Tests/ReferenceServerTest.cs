@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,7 +63,7 @@ namespace Opc.Ua.Server.Tests
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
         private OperationLimits m_operationLimits;
-        private ReferenceDescriptionCollection m_referenceDescriptions;
+        private ArrayOf<ReferenceDescription> m_referenceDescriptions;
         private RandomSource m_random;
         private DataGenerator m_generator;
         private bool m_sessionClosed;
@@ -167,7 +168,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void GetEndpoints()
         {
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            var endpoints = m_server.GetEndpoints();
             Assert.NotNull(endpoints);
         }
 
@@ -258,7 +259,7 @@ namespace Opc.Ua.Server.Tests
                 readResponse.ResponseHeader.StringTable,
                 logger);
 
-            DataValueCollection results = readResponse.Results;
+            ArrayOf<DataValue> results = readResponse.Results;
             Assert.NotNull(results);
             Assert.AreEqual(readIdCollection.Count, results.Count);
 
@@ -321,14 +322,16 @@ namespace Opc.Ua.Server.Tests
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
             }
-            m_referenceDescriptions ??= await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
-                serverTestServices,
-                m_requestHeader,
-                m_operationLimits).ConfigureAwait(false);
-
+            if (m_referenceDescriptions.IsNull)
+            {
+                m_referenceDescriptions = await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
+                    serverTestServices,
+                    m_requestHeader,
+                    m_operationLimits).ConfigureAwait(false);
+            }
             // Read all variables
             RequestHeader requestHeader = m_requestHeader;
-            foreach (ReferenceDescription reference in m_referenceDescriptions)
+            foreach (ReferenceDescription reference in m_referenceDescriptions.ToList())
             {
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 var nodeId = ExpandedNodeId.ToNodeId(
@@ -590,10 +593,13 @@ namespace Opc.Ua.Server.Tests
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
             }
-            m_referenceDescriptions ??= await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
-                serverTestServices,
-                m_requestHeader,
-                m_operationLimits).ConfigureAwait(false);
+            if (m_referenceDescriptions.IsNull)
+            {
+                m_referenceDescriptions = await CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(
+                    serverTestServices,
+                    m_requestHeader,
+                    m_operationLimits).ConfigureAwait(false);
+            }
             _ = await CommonTestWorkers.TranslateBrowsePathWorkerAsync(
                 serverTestServices,
                 m_referenceDescriptions,
@@ -636,7 +642,7 @@ namespace Opc.Ua.Server.Tests
             ];
             transferRequestHeader.Timestamp = DateTimeUtc.Now;
             serverTestServices.SecureChannelContext = transferContext;
-            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+            ArrayOf<uint> subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                 serverTestServices,
                 transferRequestHeader,
                 testSet,
@@ -691,7 +697,7 @@ namespace Opc.Ua.Server.Tests
                 .. CommonTestWorkers.NodeIdTestSetStatic
                         .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
             ];
-            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+            ArrayOf<uint> subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                 serverTestServices,
                 m_requestHeader,
                 testSet,
@@ -742,28 +748,28 @@ namespace Opc.Ua.Server.Tests
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
-            NodeIdCollection testSetCollection = CommonTestWorkers
+            var testSetCollection = CommonTestWorkers
                 .NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .ToArray();
+                .ToList();
             testSetCollection.AddRange(
                 CommonTestWorkers.NodeIdTestDataSetStatic
                     .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
             NodeId[] testSet = [.. testSetCollection];
 
             //Re-use method CreateSubscriptionForTransfer to create a subscription
-            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+            ArrayOf<uint> subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                 serverTestServices,
                 m_requestHeader,
                 testSet,
                 queueSize,
                 0).ConfigureAwait(false);
 
-            (RequestHeader resendDataRequestHeader, SecureChannelContext resendDataSecurityContext) = await m_server.CreateAndActivateSessionAsync(
-                "ResendData").ConfigureAwait(false);
+            (RequestHeader resendDataRequestHeader, SecureChannelContext resendDataSecurityContext) =
+                await m_server.CreateAndActivateSessionAsync("ResendData").ConfigureAwait(false);
 
             serverTestServices.SecureChannelContext = m_secureChannelContext;
             // After the ResendData call there will be data to publish again
-            var nodesToCall = await ResendDataCallAsync(
+            ArrayOf<CallMethodRequest> nodesToCall = await ResendDataCallAsync(
                 StatusCodes.Good,
                 subscriptionIds).ConfigureAwait(false);
 
@@ -854,13 +860,13 @@ namespace Opc.Ua.Server.Tests
                     //If sampling groups are used, samplingInterval needs to be waited before values are queued
                     if (m_fixture.UseSamplingGroupsInReferenceNodeManager)
                     {
-                        Thread.Sleep((int)(100.0 * 1.7));
+                        await Task.Delay((int)(100.0 * 1.7)).ConfigureAwait(false);
                     }
                     await UpdateValuesAsync(testSet).ConfigureAwait(false);
                 }
 
                 // Wait a bit to ensure that the server has time to queue the values
-                Thread.Sleep(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
             }
 
             // call ResendData method from the same session context
@@ -877,7 +883,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(testSet.Length, totalNotifications,
                 "One MonitoredItemNotification should be returned for each Node present in the TestSet");
 
-            Thread.Sleep(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
             if (updateValues && queueSize > 1)
             {
@@ -922,7 +928,7 @@ namespace Opc.Ua.Server.Tests
         private static async Task<int> CollectNotificationsAsync(
             ServerTestServices serverTestServices,
             RequestHeader requestHeader,
-            SubscriptionAcknowledgementCollection acknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements,
             uint subscriptionId,
             int expectedCount)
         {
@@ -942,16 +948,18 @@ namespace Opc.Ua.Server.Tests
                 if (publishResponse.NotificationMessage.NotificationData.Count > 0)
                 {
                     // acknowledge the notification
-                    acknowledgements.Clear();
-                    acknowledgements.Add(new SubscriptionAcknowledgement
-                    {
-                        SubscriptionId = subscriptionId,
-                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
-                    });
+                    acknowledgements =
+                    [
+                        new SubscriptionAcknowledgement
+                        {
+                            SubscriptionId = subscriptionId,
+                            SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                        }
+                    ];
 
                     foreach (ExtensionObject item in publishResponse.NotificationMessage.NotificationData)
                     {
-                        if (item.TryGetEncodeable(out  DataChangeNotification dcn))
+                        if (item.TryGetEncodeable(out DataChangeNotification dcn))
                         {
                             totalNotifications += dcn.MonitoredItems.Count;
                         }
@@ -1040,7 +1048,7 @@ namespace Opc.Ua.Server.Tests
                 logger);
             Assert.AreEqual(testSet.Length, readResponse.Results.Count);
 
-            var modifiedValues = new DataValueCollection();
+            var modifiedValues = new List<DataValue>();
             foreach (DataValue dataValue in readResponse.Results)
             {
                 TypeInfo typeInfo = dataValue.WrappedValue.TypeInfo;
@@ -1335,7 +1343,7 @@ namespace Opc.Ua.Server.Tests
             Assert.IsTrue(server.ProvisioningMode, "Server should be in provisioning mode");
 
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
-            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            var endpoints = server.GetEndpoints();
             Assert.IsNotNull(endpoints);
             Assert.IsTrue(endpoints.Count > 0, "Server should have endpoints");
 

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -54,11 +55,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         private const int kBoolToogleLimit = 2;
         private const int kSimpleInt32Limit = 10000;
 
-        private readonly FieldMetaDataCollection m_simpleFields = [];
-        private readonly FieldMetaDataCollection m_allTypesFields = [];
+        private readonly List<FieldMetaData> m_simpleFields = [];
+        private readonly List<FieldMetaData> m_allTypesFields = [];
 
         private readonly ILogger m_logger;
-        private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
+        private readonly ArrayOf<PublishedDataSetDataType> m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
 
@@ -117,7 +118,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// </summary>
         public void Start()
         {
-            if (m_publishedDataSets != null)
+            if (!m_publishedDataSets.IsNull)
             {
                 // Remember the fields to be updated
                 foreach (PublishedDataSetDataType publishedDataSet in m_publishedDataSets)

@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Server
         {
             get
             {
-                if (CertificateTypes.Count > 0)
+                if (!CertificateTypes.IsEmpty)
                 {
                     return CertificateTypes[0];
                 }
@@ -124,20 +124,24 @@ namespace Opc.Ua.Gds.Server
             }
             set
             {
-                if (CertificateTypes.Count > 0)
+                if (!CertificateTypes.IsEmpty)
                 {
+                    // This is broken - we remove potentially everything by
+                    // assigning null multiple times. This should not be settable
+                    // at all, but for backward compatibility with existing
+                    // configuration we keep it like this.
                     if (value == null)
                     {
-                        CertificateTypes.RemoveAt(0);
+                        CertificateTypes = CertificateTypes[1..];
                     }
                     else
                     {
-                        CertificateTypes[0] = value;
+                        CertificateTypes = CertificateTypes.AddItem(value, 0);
                     }
                 }
                 else
                 {
-                    CertificateTypes.Add(value);
+                    CertificateTypes = [value];
                 }
             }
         }

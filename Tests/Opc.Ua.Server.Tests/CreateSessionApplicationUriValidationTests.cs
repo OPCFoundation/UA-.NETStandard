@@ -311,7 +311,7 @@ namespace Opc.Ua.Server.Tests
 
                 // Get server endpoint with RSA-compatible security policy
                 EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
-                    .FirstOrDefault(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                    .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
 
                 Assert.NotNull(endpoint, "No suitable endpoint found");

@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
         public async Task<ISession> ConnectAsync(
             Uri url,
             string securityProfile,
-            EndpointDescriptionCollection endpoints = null,
+            ArrayOf<EndpointDescription> endpoints = default,
             IUserIdentity userIdentity = null)
         {
             string uri = url.AbsoluteUri;
@@ -373,9 +373,12 @@ namespace Opc.Ua.Client.Tests
         public async Task<ConfiguredEndpoint> GetEndpointAsync(
             Uri url,
             string securityPolicy,
-            EndpointDescriptionCollection endpoints = null)
+            ArrayOf<EndpointDescription> endpoints = default)
         {
-            endpoints ??= await GetEndpointsAsync(url).ConfigureAwait(false);
+            if (endpoints.IsNull)
+            {
+                endpoints = await GetEndpointsAsync(url).ConfigureAwait(false);
+            }
             EndpointDescription endpointDescription = SelectEndpoint(
                 Config,
                 endpoints,
@@ -395,7 +398,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration configuration,
-            EndpointDescriptionCollection endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             Uri url,
             string securityPolicy)
         {
@@ -436,7 +439,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get endpoints from discovery endpoint.
         /// </summary>
-        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(
+        public async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             Uri url,
             CancellationToken ct = default)
         {
@@ -449,7 +452,7 @@ namespace Opc.Ua.Client.Tests
                 m_telemetry,
                 ct: ct).ConfigureAwait(false);
             client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointDescriptionCollection result = await client.GetEndpointsAsync(default, ct)
+            ArrayOf<EndpointDescription> result = await client.GetEndpointsAsync(default, ct)
                 .ConfigureAwait(false);
             await client.CloseAsync(ct).ConfigureAwait(false);
             return result;

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Xml.Linq;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -53,23 +52,27 @@ namespace Opc.Ua
         public bool IsOptionSet { get; set; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId TypeId => DataTypeIds.EnumDefinition;
+        public override ExpandedNodeId TypeId
+            => DataTypeIds.EnumDefinition;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("Fields", [.. Fields]);
+            encoder.WriteEncodeableArray("Fields", Fields);
 
             encoder.PopNamespace();
         }

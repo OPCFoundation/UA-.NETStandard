@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -240,7 +241,7 @@ namespace Opc.Ua.Server.Tests
             // Browse
             uint requestedMaxReferencesPerNode = operationLimits.MaxNodesPerBrowse;
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
-            var referenceDescriptions = new ReferenceDescriptionCollection();
+            var referenceDescriptions = new List<ReferenceDescription>();
 
             // Test if server responds with BadNothingToDo
             {
@@ -361,7 +362,7 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 foreach (BrowseResult result in allResults)
                 {
                     referenceDescriptions.AddRange(result.References);
@@ -633,9 +634,9 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    var dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
+                    DataChangeNotification dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
                         .TryGetEncodeable(out DataChangeNotification d) ? d : default;
-                    var eventNotification = publishResponse.NotificationMessage.NotificationData[0]
+                    EventNotificationList eventNotification = publishResponse.NotificationMessage.NotificationData[0]
                         .TryGetEncodeable(out EventNotificationList e) ? e : default;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
@@ -703,7 +704,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test TransferSubscriptions of a server.
         /// </summary>
-        public static async Task<UInt32Collection> CreateSubscriptionForTransferAsync(
+        public static async Task<ArrayOf<uint>> CreateSubscriptionForTransferAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             NodeId[] testNodes,
@@ -835,8 +836,8 @@ namespace Opc.Ua.Server.Tests
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
                 Assert.IsTrue(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification));
-                MonitoredItemNotificationCollection monitoredItemsCollection = dataChangeNotification.MonitoredItems;
-                Assert.IsNotEmpty(monitoredItemsCollection);
+                ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
+                Assert.IsFalse(monitoredItemsCollection.IsEmpty);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 

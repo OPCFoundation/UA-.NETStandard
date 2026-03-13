@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var id = new NodeId("test", 0);
-            var browsePath = new QualifiedNameCollection { QualifiedName.From("invalid") };
+            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("invalid") ];
             var context = new Mock<INodeCacheContext>();
 
             context
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests
                 NodeId = id,
                 NodeClass = NodeClass.Variable
             };
-            var browsePath = new QualifiedNameCollection { QualifiedName.From("child") };
+            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("child")];
             var references = new List<ReferenceDescription>
             {
                 new()
@@ -335,11 +335,11 @@ namespace Opc.Ua.Client.Tests
             var rootId = new NodeId("root", 0);
             var childId = new NodeId("child", 0);
             var grandChildId = new NodeId("grandChild", 0);
-            var browsePath = new QualifiedNameCollection
-            {
+            ArrayOf<QualifiedName> browsePath =
+            [
                 new QualifiedName("child"),
                 new QualifiedName("grandChild")
-            };
+            ];
 
             var rootReferences = new List<ReferenceDescription>
             {
@@ -1113,15 +1113,15 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var typeId = new NodeId("type", 0);
             var subTypeId = new NodeId("subType", 0);
-            var references = new ReferenceDescriptionCollection
-            {
+            ArrayOf<ReferenceDescription> references =
+            [
                 new()
                 {
                     NodeId = new ExpandedNodeId(subTypeId),
                     ReferenceTypeId = ReferenceTypeIds.HasSubtype,
                     IsForward = true
                 }
-            };
+            ];
 
             var context = new Mock<INodeCacheContext>();
             var nsTable = new NamespaceTable();

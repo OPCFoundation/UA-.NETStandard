@@ -33,8 +33,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
-using System.Security.AccessControl;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -140,10 +138,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void EncodeDataValueWithoutValuePropertyTest(DataValue dataValue)
         {
-            var encoderType = EncodingType.Binary;
-            var builtInType = BuiltInType.Null;
-            var memoryStreamType = MemoryStreamType.MemoryStream;
-            var jsonEncodingType = JsonEncodingType.Verbose;
+            EncodingType encoderType = EncodingType.Binary;
+            BuiltInType builtInType = BuiltInType.Null;
+            MemoryStreamType memoryStreamType = MemoryStreamType.MemoryStream;
+            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose;
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             DataValue expected = dataValue;
@@ -721,7 +719,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            var variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false);
+            Variant variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false);
             string json = EncodeDataValue(
                 encoderType,
                 BuiltInType.Variant,

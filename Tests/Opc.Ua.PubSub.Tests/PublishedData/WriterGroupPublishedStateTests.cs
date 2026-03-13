@@ -375,7 +375,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 }
                 else
                 {
-                    Assert.AreEqual(keyFrameCount, 1, "keyFrameCount = 1 if dataset is not delta!");
+                    Assert.AreEqual(1, keyFrameCount, "keyFrameCount = 1 if dataset is not delta!");
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
                         Assert.IsNotNull(

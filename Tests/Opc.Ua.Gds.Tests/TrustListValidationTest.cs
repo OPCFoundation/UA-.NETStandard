@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Tests
             for (int i = 0; i < 10; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation")
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
             }
@@ -142,7 +142,7 @@ namespace Opc.Ua.Gds.Tests
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
@@ -186,7 +186,7 @@ namespace Opc.Ua.Gds.Tests
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
@@ -244,7 +244,7 @@ namespace Opc.Ua.Gds.Tests
                 while (currentSize <= customMaxTrustListSize)
                 {
                     using X509Certificate2 cert =
-                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized", null).CreateForRSA();
+                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized").CreateForRSA();
                     oversizedTrustList.TrustedCertificates =
                         oversizedTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                     currentSize = GetEncodedSize(oversizedTrustList);
@@ -266,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
                 for (int i = 0; i < 2; i++)
                 {
                     using X509Certificate2 cert = CertificateFactory
-                        .CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid", null)
+                        .CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid")
                         .CreateForRSA();
                     validTrustList.TrustedCertificates =
                         validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());

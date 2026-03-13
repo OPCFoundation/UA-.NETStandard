@@ -113,13 +113,13 @@ namespace Opc.Ua.Gds.Tests
                                         ["xxxyyyzzz"],
                                         RandomSource.NextInt32(0x7fff),
                                         "TestClient")
-                                    : null;
+                                    : default;
                             break;
                         case 4:
                             appRecord.ServerCapabilities =
                                 appRecord.ApplicationType == ApplicationType.Client
                                     ? RandomServerCapabilities()
-                                    : null;
+                                    : default;
                             break;
                         case 5:
                             appRecord.ApplicationId = new NodeId(100);
@@ -147,8 +147,8 @@ namespace Opc.Ua.Gds.Tests
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLowerInvariant())
                 .Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            var discoveryUrls = new List<string>();
-            var serverCapabilities = new List<string>();
+            ArrayOf<string> discoveryUrls = default;
+            ArrayOf<string> serverCapabilities = default;
             int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
@@ -161,7 +161,7 @@ namespace Opc.Ua.Gds.Tests
                 case ApplicationType.DiscoveryServer:
                     appName += " DiscoveryServer";
                     discoveryUrls = RandomDiscoveryUrl(domainNames, 4840, pureAppUri);
-                    serverCapabilities.Add("LDS");
+                    serverCapabilities = ["LDS"];
                     break;
                 case ApplicationType.Server:
                     appName += " Server";

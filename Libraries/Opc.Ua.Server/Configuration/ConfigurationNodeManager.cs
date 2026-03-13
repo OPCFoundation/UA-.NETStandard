@@ -954,7 +954,7 @@ namespace Opc.Ua.Server
             X509Certificate2 certWithPrivateKey;
             if (regeneratePrivateKey)
             {
-                IList<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+                ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
 
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
@@ -999,7 +999,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             ServerCertificateGroup certificateGroup,
             string subjectName,
-            IList<string> domainNames)
+            ArrayOf<string> domainNames)
         {
             X509Certificate2 certificate;
 

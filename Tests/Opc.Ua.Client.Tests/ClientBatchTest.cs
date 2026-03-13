@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,8 +144,8 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false);
 
                         Assert.NotNull(response);
-                        AddNodesResultCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<AddNodesResult> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.AreEqual(nodesToAdd.Count, results.Count);
                         Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
@@ -178,8 +179,8 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false);
 
                         Assert.NotNull(response);
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.AreEqual(referencesToAdd.Count, results.Count);
                         Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
@@ -208,8 +209,8 @@ namespace Opc.Ua.Client.Tests
                             .DeleteNodesAsync(requestHeader, nodesTDelete, CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
                         Assert.AreEqual(nodesTDelete.Count, results.Count);
@@ -242,8 +243,8 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
                         Assert.AreEqual(referencesToDelete.Count, results.Count);
@@ -274,7 +275,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             var requestHeader = new RequestHeader();
-            var referenceDescriptions = new ReferenceDescriptionCollection();
+            var referenceDescriptions = new List<ReferenceDescription>();
 
             ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
@@ -327,7 +328,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 foreach (BrowseResult result in allResults)
                 {
                     referenceDescriptions.AddRange(result.References);
@@ -366,7 +367,7 @@ namespace Opc.Ua.Client.Tests
 
             // test register nodes
             TestContext.Out.WriteLine("Test Register Nodes...");
-            var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
+            var nodesToRegister = nodesToRead.Select(n => n.NodeId).ToList();
             RegisterNodesResponse registerResponse = await Session
                 .RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None)
                 .ConfigureAwait(false);

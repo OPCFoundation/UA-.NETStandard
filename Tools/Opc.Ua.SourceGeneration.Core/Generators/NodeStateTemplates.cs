@@ -1963,7 +1963,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString ListOfRolePermissions = TemplateString.Parse(
             $$"""
-            state.RolePermissions = new global::Opc.Ua.RolePermissionTypeCollection
+            state.RolePermissions = new global::Opc.Ua.RolePermissionType[]
             {
                 {{Tokens.ListOfRolePermissions}}
             };

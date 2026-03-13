@@ -29,7 +29,6 @@
 
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using System;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {

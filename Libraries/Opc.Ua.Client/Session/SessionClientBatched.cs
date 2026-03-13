@@ -27,11 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -300,7 +298,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 RegisterNodesResponse? response = null;
-                var registeredNodeIds = new NodeIdCollection();
+                var registeredNodeIds = new List<NodeId>();
                 foreach (ArrayOf<NodeId> batchNodesToRegister in nodesToRegister.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -1490,7 +1488,7 @@ namespace Opc.Ua
         /// </remarks>
         private static void AddResponses<T>(
             ref List<T> results,
-            ref List<DiagnosticInfo?> diagnosticInfos,
+            ref List<DiagnosticInfo> diagnosticInfos,
             ref List<string> stringTable,
             ArrayOf<T> batchedResults,
             ArrayOf<DiagnosticInfo> batchedDiagnosticInfos,
@@ -1513,7 +1511,7 @@ namespace Opc.Ua
                 // fill missing diagnostics infos with null entries
                 for (int i = 0; i < correctionCount; i++)
                 {
-                    diagnosticInfos.Add(null);
+                    diagnosticInfos.Add(null!);
                 }
             }
             else if (batchedStringTable.Count > 0)

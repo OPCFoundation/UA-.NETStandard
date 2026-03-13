@@ -34,7 +34,6 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Xml;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -601,7 +600,7 @@ namespace Opc.Ua
             }
 
             // convert each encodeable to an extension object.
-            var extensibles = new ExtensionObjectCollection();
+            var extensibles = new List<ExtensionObject>();
             foreach (IEncodeable encodeable in encodeables)
             {
                 extensibles.Add(new ExtensionObject(encodeable));

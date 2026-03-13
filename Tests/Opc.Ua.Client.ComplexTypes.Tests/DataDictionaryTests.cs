@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -108,15 +107,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
@@ -198,7 +197,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 Assert.IsNotNull(dictionary);
 
                 // Sanity checks: verify that some well-known information is present
-                Assert.AreEqual(dictionary.TypeSystemName, "OPC Binary");
+                Assert.AreEqual("OPC Binary", dictionary.TypeSystemName);
 
                 if (dataDictionaryId == dictionaryIds[0])
                 {
@@ -256,7 +255,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 NodeClassMask = (uint)NodeClass.Variable,
                 ResultMask = (uint)BrowseResultMask.All
             };
-            var browseDescriptions = new BrowseDescriptionCollection { browseDescription };
+            ArrayOf<BrowseDescription> browseDescriptions = [browseDescription];
 
             Assert.NotNull(Session, "Client not connected to Server.");
             BrowseResponse response = await Session.BrowseAsync(
@@ -266,8 +265,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 browseDescriptions,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {

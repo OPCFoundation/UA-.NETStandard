@@ -1400,7 +1400,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private readonly EndpointDescriptionCollection m_endpoints;
+        private readonly List<EndpointDescription> m_endpoints;
         private EndpointDescription m_selectedEndpoint;
         private readonly CertificateTypesProvider m_serverCertificateTypesProvider;
         private bool m_uninitialized;

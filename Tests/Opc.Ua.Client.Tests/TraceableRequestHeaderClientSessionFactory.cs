@@ -51,7 +51,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            EndpointDescriptionCollection availableEndpoints,
+            ArrayOf<EndpointDescription> availableEndpoints,
             ArrayOf<string> discoveryProfileUris)
         {
             return new TraceableRequestHeaderClientSession(

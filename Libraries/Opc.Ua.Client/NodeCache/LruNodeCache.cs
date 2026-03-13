@@ -430,11 +430,11 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
-            QualifiedNameCollection browsePath,
+            ArrayOf<QualifiedName> browsePath,
             CancellationToken ct)
         {
             INode? found = null;
-            foreach (QualifiedName browseName in browsePath)
+            foreach (QualifiedName browseName in browsePath.ToList())
             {
                 found = null;
                 while (true)
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
             // fetch nodes and references from server.
-            var localIds = new NodeIdCollection(remainingIds);
+            var localIds = new List<NodeId>(remainingIds);
             (ArrayOf<Node> nodes, ArrayOf<ServiceResult> readErrors) =
                 await m_context.FetchNodesAsync(null, localIds, ct: ct)
                     .ConfigureAwait(false);

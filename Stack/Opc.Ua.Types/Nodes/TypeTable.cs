@@ -154,7 +154,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
+        public ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
             var subtypes = new List<NodeId>();
 

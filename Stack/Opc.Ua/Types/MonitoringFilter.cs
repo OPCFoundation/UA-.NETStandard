@@ -310,7 +310,7 @@ namespace Opc.Ua
             var result = new Result();
 
             // check for top level error.
-            if (m_selectClauses == null || m_selectClauses.Count == 0)
+            if (m_selectClauses.IsEmpty)
             {
                 result.Status = ServiceResult.Create(
                     StatusCodes.BadStructureMissing,
@@ -555,7 +555,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
 
-            if (BrowsePath != null && BrowsePath.Count > 0)
+            if (!BrowsePath.IsEmpty)
             {
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", Format(BrowsePath));
             }
@@ -577,7 +577,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static string Format(ArrayOf<QualifiedName> browsePath)
         {
-            if (browsePath == null || browsePath.Count == 0)
+            if (browsePath.IsEmpty)
             {
                 return string.Empty;
             }
@@ -624,9 +624,9 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a browse path.
         /// </summary>
-        public static QualifiedNameCollection Parse(string browsePath)
+        public static ArrayOf<QualifiedName> Parse(string browsePath)
         {
-            var browseNames = new QualifiedNameCollection();
+            var browseNames = new List<QualifiedName>();
 
             if (string.IsNullOrEmpty(browsePath))
             {

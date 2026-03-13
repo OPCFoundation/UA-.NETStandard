@@ -82,19 +82,19 @@ namespace Quickstarts
 
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }]);
+                [QualifiedName.From(BrowseNames.Time)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]);
+                [QualifiedName.From(BrowseNames.ActiveState)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]);
+                [QualifiedName.From(BrowseNames.Message)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState) }]);
+                [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition) }]);
+                [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition)]);
         }
 
         /// <summary>
@@ -266,7 +266,7 @@ namespace Quickstarts
 
                 // Call Browse service
                 Console.WriteLine($"Browsing {nodeToBrowse} node...");
-                ReferenceDescriptionCollection browseResults =
+                ArrayOf<ReferenceDescription> browseResults =
                     await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
@@ -307,7 +307,7 @@ namespace Quickstarts
                 // Input argument requires a Float and an UInt32 value
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                var outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
@@ -354,7 +354,7 @@ namespace Quickstarts
                 // Input argument requires a Float and an UInt32 value
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                var outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
@@ -501,7 +501,7 @@ namespace Quickstarts
 
                 var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
-                foreach (QualifiedNameCollection desiredEventField in m_desiredEventFields.Values)
+                foreach (ArrayOf<QualifiedName> desiredEventField in m_desiredEventFields.Values)
                 {
                     simpleAttributeOperands.Add(
                         new SimpleAttributeOperand
@@ -568,8 +568,8 @@ namespace Quickstarts
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
-            var references = new NodeIdCollection { ReferenceTypeIds.HierarchicalReferences };
-            var nodesToBrowse = new ExpandedNodeIdCollection { startingNode };
+            ArrayOf<NodeId> references = [ReferenceTypeIds.HierarchicalReferences];
+            ArrayOf<ExpandedNodeId> nodesToBrowse = [startingNode];
 
             // start
             stopwatch.Start();
@@ -604,11 +604,11 @@ namespace Quickstarts
                     searchDepth,
                     nodesToBrowse.Count,
                     stopwatch.ElapsedMilliseconds);
-                IList<INode> response = await uaClient
+                ArrayOf<INode> response = await uaClient
                     .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true, ct)
                     .ConfigureAwait(false);
 
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                var nextNodesToBrowse = new List<ExpandedNodeId>();
                 int duplicates = 0;
                 int leafNodes = 0;
                 foreach (INode node in response)
@@ -706,7 +706,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
+        public async Task<ArrayOf<ReferenceDescription>> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
             BrowseDescription browseDescription = null,
@@ -850,7 +850,7 @@ namespace Quickstarts
 
             stopWatch.Stop();
 
-            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+            var result = new List<ReferenceDescription>(referenceDescriptions.Values);
 
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
@@ -882,7 +882,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
+        public async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
             BrowseDescription browseDescription = null,
@@ -906,7 +906,7 @@ namespace Quickstarts
                 };
             ArrayOf<BrowseDescription> browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
-                [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
+                [startingNode.IsNull ? ObjectIds.RootFolder : startingNode],
                 browseTemplate);
 
             // Browse
@@ -923,10 +923,10 @@ namespace Quickstarts
                     browseDescriptionCollection.Count,
                     stopWatch.ElapsedMilliseconds);
 
-                var allBrowseResults = new BrowseResultCollection();
+                var allBrowseResults = new List<BrowseResult>();
                 bool repeatBrowse;
                 ArrayOf<BrowseResult> browseResultCollection = default;
-                var unprocessedOperations = new BrowseDescriptionCollection();
+                var unprocessedOperations = new List<BrowseDescription>();
                 ArrayOf<DiagnosticInfo> diagnosticsInfoCollection;
                 do
                 {
@@ -1033,7 +1033,7 @@ namespace Quickstarts
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 int duplicates = 0;
                 foreach (BrowseResult browseResult in allBrowseResults)
                 {
@@ -1068,7 +1068,7 @@ namespace Quickstarts
 
             stopWatch.Stop();
 
-            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+            var result = new List<ReferenceDescription>(referenceDescriptions.Values);
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_logger.LogInformation(
@@ -1156,9 +1156,10 @@ namespace Quickstarts
             CancellationToken ct = default)
         {
             NamespaceTable namespaceUris = session.NamespaceUris;
-            IEnumerable<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
-                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris));
-            return session.FetchTypeTreeAsync([.. referenceTypes], ct);
+            var referenceTypes = ReferenceTypeIds.Identifiers
+                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris))
+                .ToArrayOf();
+            return session.FetchTypeTreeAsync(referenceTypes, ct);
         }
 
         /// <summary>
@@ -1166,7 +1167,7 @@ namespace Quickstarts
         /// </summary>
         public async Task<ResultSet<DataValue>> ReadAllValuesAsync(
             IUAClient uaClient,
-            NodeIdCollection variableIds,
+            ArrayOf<NodeId> variableIds,
             CancellationToken ct = default)
         {
             bool retrySingleRead = false;
@@ -1182,7 +1183,7 @@ namespace Quickstarts
                         values = [];
                         errors = [];
 
-                        foreach (NodeId variableId in variableIds)
+                        foreach (NodeId variableId in variableIds.ToList())
                         {
                             try
                             {
@@ -1263,7 +1264,7 @@ namespace Quickstarts
         /// <param name="variableIds">The variables to subscribe.</param>
         public async Task SubscribeAllValuesAsync(
             IUAClient uaClient,
-            NodeCollection variableIds,
+            ArrayOf<Node> variableIds,
             int samplingInterval,
             int publishingInterval,
             uint queueSize,
@@ -1413,7 +1414,7 @@ namespace Quickstarts
         private void FastDataChangeNotification(
             Subscription subscription,
             DataChangeNotification notification,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             try
             {
@@ -1467,7 +1468,7 @@ namespace Quickstarts
                 // Log MonitoredItem Notification event
                 var notification = e.NotificationValue as EventFieldList;
 
-                foreach (KeyValuePair<int, QualifiedNameCollection> entry in m_desiredEventFields)
+                foreach (KeyValuePair<int, ArrayOf<QualifiedName>> entry in m_desiredEventFields)
                 {
                     Variant field = notification.EventFields[entry.Key];
                     if (field.TypeInfo.BuiltInType != BuiltInType.Null)
@@ -1561,7 +1562,7 @@ namespace Quickstarts
             ArrayOf<NodeId> nodeIdCollection,
             BrowseDescription template)
         {
-            var browseDescriptionCollection = new BrowseDescriptionCollection();
+            var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
                 var browseDescription = (BrowseDescription)template.MemberwiseClone();
@@ -1750,7 +1751,7 @@ namespace Quickstarts
         private static ArrayOf<ByteString> PrepareBrowseNext(
             ArrayOf<BrowseResult> browseResultCollection)
         {
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = new List<ByteString>();
             foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (!browseResult.ContinuationPoint.IsEmpty)
@@ -1780,7 +1781,7 @@ namespace Quickstarts
         private readonly ILogger m_logger;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
-        private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields;
+        private readonly Dictionary<int, ArrayOf<QualifiedName>> m_desiredEventFields;
         private int m_processedEvents;
         private DateTimeUtc m_lastEventTime = DateTimeUtc.Now;
     }

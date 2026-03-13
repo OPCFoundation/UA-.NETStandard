@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests
         public async Task FailedAuthenticationAttemptsAreTrackedAsync()
         {
             const string sessionName = nameof(FailedAuthenticationAttemptsAreTrackedAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            var endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ClientIsLockedOutAfterFiveFailedAttemptsAsync()
         {
             const string sessionName = nameof(ClientIsLockedOutAfterFiveFailedAttemptsAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            var endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SuccessfulAuthenticationClearsFailedAttemptsAsync()
         {
             const string sessionName = nameof(SuccessfulAuthenticationClearsFailedAttemptsAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            var endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
         }
 
-        private static EndpointDescription FindTcpEndpoint(EndpointDescriptionCollection endpoints)
+        private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>
                 e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||

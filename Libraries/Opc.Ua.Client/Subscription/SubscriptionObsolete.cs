@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
             this Subscription subscription,
             ISession session,
             uint id,
-            UInt32Collection availableSequenceNumbers)
+            ArrayOf<uint> availableSequenceNumbers)
         {
             return subscription.TransferAsync(
                 session,

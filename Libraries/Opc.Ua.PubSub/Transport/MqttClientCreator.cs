@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     try
                     {
-                        foreach (string topic in topicFilter)
+                        foreach (string topic in topicFilter.ToList())
                         {
                             // subscribe to provided topics, messages are also filtered on the receiveMessageHandler
                             await mqttClient.SubscribeAsync(topic).ConfigureAwait(false);

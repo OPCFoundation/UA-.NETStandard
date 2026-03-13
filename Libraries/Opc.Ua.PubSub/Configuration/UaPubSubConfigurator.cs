@@ -396,8 +396,7 @@ namespace Opc.Ua.PubSub.Configuration
                     //remember connection
                     m_idsToObjects.Add(newPublishedDataSetId, publishedDataSetDataType);
                     m_objectsToIds.Add(publishedDataSetDataType, newPublishedDataSetId);
-                    PubSubConfiguration.PublishedDataSets =
-                        PubSubConfiguration.PublishedDataSets.AddItem(publishedDataSetDataType);
+                    PubSubConfiguration.PublishedDataSets += publishedDataSetDataType;
 
                     // raise PublishedDataSetAdded event
                     PublishedDataSetAdded?.Invoke(
@@ -408,7 +407,7 @@ namespace Opc.Ua.PubSub.Configuration
                             PublishedDataSetDataType = publishedDataSetDataType
                         });
 
-                    var extensionFields = publishedDataSetDataType.ExtensionFields;
+                    ArrayOf<KeyValuePair> extensionFields = publishedDataSetDataType.ExtensionFields;
                     publishedDataSetDataType.ExtensionFields = [];
                     foreach (KeyValuePair extensionField in extensionFields)
                     {
@@ -557,8 +556,7 @@ namespace Opc.Ua.PubSub.Configuration
                 //remember connection
                 m_idsToObjects.Add(newextensionFieldId, extensionField);
                 m_objectsToIds.Add(extensionField, newextensionFieldId);
-                publishedDataSetDataType.ExtensionFields =
-                    publishedDataSetDataType.ExtensionFields.AddItem(extensionField);
+                publishedDataSetDataType.ExtensionFields += extensionField;
 
                 // raise ExtensionFieldAdded event
                 ExtensionFieldAdded?.Invoke(
@@ -658,9 +656,9 @@ namespace Opc.Ua.PubSub.Configuration
                     }
 
                     // remember collections
-                    var writerGroups = pubSubConnectionDataType.WriterGroups;
+                    ArrayOf<WriterGroupDataType> writerGroups = pubSubConnectionDataType.WriterGroups;
                     pubSubConnectionDataType.WriterGroups = [];
-                    var readerGroups = pubSubConnectionDataType.ReaderGroups;
+                    ArrayOf<ReaderGroupDataType> readerGroups = pubSubConnectionDataType.ReaderGroups;
                     pubSubConnectionDataType.ReaderGroups = [];
 
                     uint newConnectionId = m_nextId++;
@@ -674,8 +672,7 @@ namespace Opc.Ua.PubSub.Configuration
                         newConnectionId,
                         GetInitialPubSubState(pubSubConnectionDataType));
 
-                    PubSubConfiguration.Connections =
-                        PubSubConfiguration.Connections.AddItem(pubSubConnectionDataType);
+                    PubSubConfiguration.Connections += pubSubConnectionDataType;
 
                     // raise ConnectionAdded event
                     ConnectionAdded?.Invoke(
@@ -833,7 +830,7 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections
-                    var dataSetWriters = writerGroupDataType.DataSetWriters;
+                    ArrayOf<DataSetWriterDataType> dataSetWriters = writerGroupDataType.DataSetWriters;
                     writerGroupDataType.DataSetWriters = [];
                     if (value is PubSubConnectionDataType parentConnection)
                     {
@@ -859,8 +856,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember writer group
                         m_idsToObjects.Add(newWriterGroupId, writerGroupDataType);
                         m_objectsToIds.Add(writerGroupDataType, newWriterGroupId);
-                        parentConnection.WriterGroups =
-                            parentConnection.WriterGroups.AddItem(writerGroupDataType);
+                        parentConnection.WriterGroups += writerGroupDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newWriterGroupId, parentConnectionId);
@@ -1042,8 +1038,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember connection
                         m_idsToObjects.Add(newDataSetWriterId, dataSetWriterDataType);
                         m_objectsToIds.Add(dataSetWriterDataType, newDataSetWriterId);
-                        parentWriterGroup.DataSetWriters =
-                            parentWriterGroup.DataSetWriters.AddItem(dataSetWriterDataType);
+                        parentWriterGroup.DataSetWriters += dataSetWriterDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newDataSetWriterId, parentWriterGroupId);
@@ -1186,7 +1181,7 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections
-                    var dataSetReaders = readerGroupDataType.DataSetReaders;
+                    ArrayOf<DataSetReaderDataType> dataSetReaders = readerGroupDataType.DataSetReaders;
                     readerGroupDataType.DataSetReaders = [];
                     if (value is PubSubConnectionDataType parentConnection)
                     {
@@ -1212,8 +1207,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember reader group
                         m_idsToObjects.Add(newReaderGroupId, readerGroupDataType);
                         m_objectsToIds.Add(readerGroupDataType, newReaderGroupId);
-                        parentConnection.ReaderGroups =
-                            parentConnection.ReaderGroups.AddItem(readerGroupDataType);
+                        parentConnection.ReaderGroups += readerGroupDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newReaderGroupId, parentConnectionId);
@@ -1395,8 +1389,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember connection
                         m_idsToObjects.Add(newDataSetReaderId, dataSetReaderDataType);
                         m_objectsToIds.Add(dataSetReaderDataType, newDataSetReaderId);
-                        parentReaderGroup.DataSetReaders =
-                            parentReaderGroup.DataSetReaders.AddItem(dataSetReaderDataType);
+                        parentReaderGroup.DataSetReaders += dataSetReaderDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newDataSetReaderId, parentReaderGroupId);

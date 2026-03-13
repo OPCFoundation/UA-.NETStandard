@@ -488,7 +488,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var typeInfo = new TypeInfo(type, ValueRanks.Scalar);
             NodeId result = TypeInfo.GetDataTypeId(typeInfo);
-            Assert.That(result, Is.Not.Null);
             Assert.That(result.IsNull, Is.False);
         }
 
@@ -1469,14 +1468,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetDefaultValueWithNodeIdNonScalarReturnsNull()
         {
-            var result = TypeInfo.GetDefaultValue(new NodeId(6u), ValueRanks.OneDimension, null);
+            object result = TypeInfo.GetDefaultValue(new NodeId(6u), ValueRanks.OneDimension, null);
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void GetDefaultValueWithNullNodeIdReturnsNull()
         {
-            var result = TypeInfo.GetDefaultValue(NodeId.Null, ValueRanks.Scalar, null);
+            object result = TypeInfo.GetDefaultValue(NodeId.Null, ValueRanks.Scalar, null);
             Assert.That(result, Is.Null);
         }
 
@@ -1537,7 +1536,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Setup(t => t.FindSuperType(It.IsAny<NodeId>()))
                 .Returns(new NodeId(6u)); // resolves to Int32
 
-            var result = TypeInfo.GetDefaultValue(
+            object result = TypeInfo.GetDefaultValue(
                 new NodeId(50000u), ValueRanks.Scalar, mockTypeTree.Object);
             Assert.That(result, Is.Not.Null);
         }
@@ -1545,7 +1544,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetDefaultValueForUnknownIdWithNullTypeTreeReturnsNull()
         {
-            var result =
+            object result =
                 TypeInfo.GetDefaultValue(new NodeId(50000u), ValueRanks.Scalar, null);
             Assert.That(result, Is.Null);
         }

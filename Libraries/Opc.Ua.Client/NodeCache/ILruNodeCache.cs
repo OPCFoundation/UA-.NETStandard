@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -60,7 +59,7 @@ namespace Opc.Ua.Client
         /// </summary>
         ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
-            QualifiedNameCollection browsePath,
+            ArrayOf<QualifiedName> browsePath,
             CancellationToken ct = default);
 
         /// <summary>

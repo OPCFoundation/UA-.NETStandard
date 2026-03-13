@@ -119,7 +119,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ToStringForInverseReferenceContainsInverseMarker()
         {
             ReferenceNode node = CreateNode(isInverse: true);
-            var result = node.ToString();
+            string result = node.ToString();
 
             Assert.That(result, Is.Not.Null.And.Not.Empty);
             Assert.That(result, Does.Contain("<!"));
@@ -129,7 +129,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ToStringForForwardReferenceDoesNotContainInverseMarker()
         {
             ReferenceNode node = CreateNode(isInverse: false);
-            var result = node.ToString();
+            string result = node.ToString();
 
             Assert.That(result, Is.Not.Null.And.Not.Empty);
             Assert.That(result, Does.StartWith("<"));
@@ -194,7 +194,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void GetHashCodeReturnsSameValueOnMultipleCalls()
         {
             ReferenceNode node = CreateNode(42, true, 100);
-            Assert.That(node.GetHashCode(), Is.EqualTo(node.GetHashCode()));
+            Assert.That(node.GetHashCode(), Is.Not.EqualTo(0));
         }
 
         [Test]

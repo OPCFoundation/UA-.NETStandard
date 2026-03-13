@@ -471,8 +471,8 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Browse Objects folder")]
         public async Task BrowseAsync()
         {
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             BrowseResponse response = await Session.BrowseAsync(
                 null,
@@ -506,7 +506,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseMultipleNodesAsync()
         {
             //await Task.Delay(5000);
-            var nodesToBrowse = new BrowseDescriptionCollection(
+            var nodesToBrowse =
                 m_smallTestSet.Select(nodeId => new BrowseDescription
                 {
                     NodeId = nodeId,
@@ -515,8 +515,7 @@ namespace Opc.Ua.Client.Tests
                     IncludeSubtypes = true,
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
-                })
-            );
+                }).ToArrayOf();
 
             BrowseResponse response = await Session.BrowseAsync(
                 null,
@@ -648,8 +647,8 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Browse
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -659,7 +658,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             await Session.BrowseAsync(
                 null,
@@ -754,8 +753,8 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Browse 100 ops (for throughput)")]
         public async Task BrowseThroughputAsync()
         {
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -765,7 +764,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)

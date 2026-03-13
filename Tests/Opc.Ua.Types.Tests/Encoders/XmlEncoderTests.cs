@@ -1714,7 +1714,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.Close();
 
             // Assert
-            var result = sb.ToString();
+            string result = sb.ToString();
             Assert.That(result, Does.Contain("TestByteString"));
             Assert.That(result, Does.Contain("AQIDBAU="));
         }
@@ -1737,7 +1737,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.Close();
 
             // Assert
-            var result = sb.ToString();
+            string result = sb.ToString();
             Assert.That(result, Does.Not.Contain("TestByteString"));
         }
 #endif

@@ -316,7 +316,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 }
                                 else
                                 {
-                                    property.SetValue(typeInstance, new DiagnosticInfoCollection());
+                                    property.SetValue(typeInstance, Array.Empty<DiagnosticInfo>());
                                 }
                             }
                             break;

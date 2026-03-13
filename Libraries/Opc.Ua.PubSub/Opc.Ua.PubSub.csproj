@@ -9,12 +9,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Encoding\IJsonDecoder.cs" />
-    <Compile Remove="Encoding\IJsonEncoder.cs" />
-    <Compile Remove="Encoding\JsonDecoderOld.cs" />
-    <Compile Remove="Encoding\JsonEncoderOld.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

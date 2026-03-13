@@ -243,8 +243,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int[]? array = (int[]?)matrix.CreateArrayInstance();
             Assert.That(array, Is.Not.Null);
             Assert.That(array, Is.EqualTo(arrayOf.ToArray()));
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(arrayOf == matrix, Is.True);
             Assert.That(arrayOf != matrix, Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]

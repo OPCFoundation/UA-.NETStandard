@@ -1044,7 +1044,7 @@ namespace Opc.Ua
         public T ReadEncodeableAsExtensionObject<T>(string fieldName)
             where T : IEncodeable
         {
-            var extensionObject = ReadExtensionObject(fieldName);
+            ExtensionObject extensionObject = ReadExtensionObject(fieldName);
             if (extensionObject.TryGetEncodeable(out T value))
             {
                 return value;

@@ -318,10 +318,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task AddRemoveCertAsync()
         {
             using X509Certificate2 trustedCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test", null)
+                .CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test")
                 .CreateForRSA();
             using X509Certificate2 issuerCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test", null)
+                .CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test")
                 .CreateForRSA();
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -498,7 +498,7 @@ namespace Opc.Ua.Gds.Tests
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             using X509Certificate2 invalidCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
+                .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test")
                 .CreateForRSA();
             using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
@@ -772,8 +772,7 @@ namespace Opc.Ua.Gds.Tests
                     .CreateCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1",
-                        null)
+                        m_selfSignedServerCert.Subject + "1")
                     .SetECCurve(curve.Value)
                     .CreateForECDsa();
             }
@@ -784,8 +783,7 @@ namespace Opc.Ua.Gds.Tests
                     .CreateCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1",
-                        null)
+                        m_selfSignedServerCert.Subject + "1")
                     .CreateForRSA();
             }
 
@@ -918,7 +916,7 @@ namespace Opc.Ua.Gds.Tests
                 () => m_pushClient.PushClient.GetCertificatesAsync(default),
                 Throws.Exception).ConfigureAwait(false);
 
-            (var certificateTypeIds, var certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
+            (ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup).ConfigureAwait(false);
 
             NUnit.Framework.Assert.That(certificateTypeIds.Count == certificates.Count);
@@ -1292,7 +1290,7 @@ namespace Opc.Ua.Gds.Tests
             if (curve != null)
             {
                 m_caCert = await CertificateFactory
-                    .CreateCertificate(null, null, subjectName, null)
+                    .CreateCertificate(null, null, subjectName)
                     .SetCAConstraint()
                     .SetECCurve(curve.Value)
                     .CreateForECDsa()
@@ -1303,7 +1301,7 @@ namespace Opc.Ua.Gds.Tests
             else
             {
                 m_caCert = await CertificateFactory
-                    .CreateCertificate(null, null, subjectName, null)
+                    .CreateCertificate(null, null, subjectName)
                     .SetCAConstraint()
                     .CreateForRSA()
                     .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)

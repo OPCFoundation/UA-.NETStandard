@@ -33,9 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 using System.Buffers;
 #endif
@@ -1618,7 +1616,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         private void WriteVariantIntoObject(string fieldName, Variant value)
         {
-            var boxed = value.AsBoxedObject();
+            object boxed = value.AsBoxedObject();
             if (boxed is null)
             {
                 return;

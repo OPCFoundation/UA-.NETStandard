@@ -619,7 +619,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 TargetName = new QualifiedName("Node/A")
             });
 
-            var str = formatter.ToString();
+            string str = formatter.ToString();
 
             Assert.That(str, Is.EqualTo("/Node&/A"));
 
@@ -995,7 +995,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RoundTripWithEscapedCharacters()
         {
-            var original = "/Node&/A";
+            string original = "/Node&/A";
             var parsed = RelativePathFormatter.Parse(original);
 
             Assert.That(parsed.Elements[0].TargetName.Name, Is.EqualTo("Node/A"));

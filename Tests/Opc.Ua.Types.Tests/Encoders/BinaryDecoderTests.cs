@@ -521,8 +521,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(null);
 
             // Assert
-            int[] decoded = Array.ConvertAll(result.ToArray(), item => item.Value);
-            int[] expected = [1, 2];
+            ArrayOf<int> decoded = result.ConvertAll(item => item.Value);
+            ArrayOf<int> expected = [1, 2];
             Assert.That(decoded, Is.EqualTo(expected));
         }
 
@@ -557,9 +557,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new ExpandedNodeId(99999, 0));
 
             // Assert
-            int[] decoded = Array.ConvertAll(result.ToArray(), item => item.Value);
-            int[] expected = [3, 4];
-            Assert.That(decoded, Is.EquivalentTo(expected));
+            ArrayOf<int> decoded = result.ConvertAll(item => item.Value);
+            ArrayOf<int> expected = [3, 4];
+            Assert.That(decoded, Is.EqualTo(expected));
         }
 
         [Test]
@@ -700,7 +700,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> result = decoder.ReadEncodeableArray<TestEncodeable>(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -726,7 +726,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> result = decoder.ReadEncodeableArray<TestEncodeable>(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -2323,7 +2323,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString result = decoder.ReadByteString(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Span.ToArray().Length, Is.EqualTo(0));
         }
 
@@ -2361,7 +2361,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString result = decoder.ReadByteString(0);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Span.ToArray(), Is.EqualTo(data));
         }
 
@@ -2385,7 +2385,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             XmlElement result = decoder.ReadXmlElement(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.OuterXml, Does.Contain("<root>"));
             Assert.That(result.OuterXml, Does.Contain("<child>value</child>"));
         }
@@ -2416,7 +2416,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             XmlElement result = decoder.ReadXmlElement(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.OuterXml, Does.Contain("<root>test</root>"));
         }
 
@@ -2578,7 +2578,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             LocalizedText result = decoder.ReadLocalizedText(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Locale, Is.EqualTo(locale));
             Assert.That(result.Text, Is.EqualTo(text));
         }
@@ -2603,7 +2603,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             LocalizedText result = decoder.ReadLocalizedText(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Locale, Is.Null);
             Assert.That(result.Text, Is.EqualTo(text));
         }
@@ -2624,7 +2624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             LocalizedText result = decoder.ReadLocalizedText(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.True);
             Assert.That(result.Locale, Is.Null);
             Assert.That(result.Text, Is.Null);
         }
@@ -4514,7 +4514,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString result = decoder.ReadByteString(3);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Memory.ToArray(), Is.EqualTo(data));
         }
 
@@ -4613,7 +4613,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             NodeId result = decoder.ReadNodeId(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.TryGetIdentifier(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(100u));
         }
@@ -4637,7 +4637,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObject(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.TryGetEncodeable(out TestEncodeable _), Is.True);
         }
 
@@ -4759,7 +4759,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -4782,7 +4782,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(TestEnum.Value0));
             Assert.That(result[1], Is.EqualTo(TestEnum.Value1));

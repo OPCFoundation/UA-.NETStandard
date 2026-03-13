@@ -139,15 +139,15 @@ namespace Opc.Ua.Client.Tests
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
 
-            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ServerFixtureWithLimits.Config.ServerConfiguration.MaxBrowseContinuationPoints = 2;
             ServerFixtureWithLimits.Config.ServerConfiguration.OperationLimits.MaxNodesPerBrowse
@@ -256,25 +256,25 @@ namespace Opc.Ua.Client.Tests
             };
 
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection { ObjectIds.ObjectsFolder };
+            var nodesToBrowse = new List<ExpandedNodeId> { ObjectIds.ObjectsFolder };
 
             await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false);
 
             while (nodesToBrowse.Count > 0)
             {
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                var nextNodesToBrowse = new List<ExpandedNodeId>();
                 foreach (ExpandedNodeId node in nodesToBrowse)
                 {
                     try
                     {
-                        IList<INode> organizers = await Session.NodeCache.FindReferencesAsync(
+                        ArrayOf<INode> organizers = await Session.NodeCache.FindReferencesAsync(
                             node,
                             ReferenceTypeIds.HierarchicalReferences,
                             false,
                             true).ConfigureAwait(false);
-                        nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
-                        IEnumerable<INode> objectNodes = organizers.Where(n => n is ObjectNode);
-                        IEnumerable<INode> variableNodes = organizers.Where(n => n is VariableNode);
+                        nextNodesToBrowse.AddRange(organizers.ConvertAll(n => n.NodeId));
+                        ArrayOf<INode> objectNodes = organizers.Filter(n => n is ObjectNode);
+                        ArrayOf<INode> variableNodes = organizers.Filter(n => n is VariableNode);
                         result.AddRange(variableNodes);
                     }
                     catch (ServiceResultException sre)
@@ -766,19 +766,19 @@ namespace Opc.Ua.Client.Tests
                 .InputMaxNumberOfContinuationPoints;
 
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection { ObjectIds.ObjectsFolder };
+            var nodesToBrowse = new List<ExpandedNodeId> { ObjectIds.ObjectsFolder };
 
             await Session
                 .FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken())
                 .ConfigureAwait(false);
 
-            var referenceTypeIds = new NodeIdCollection { ReferenceTypeIds.HierarchicalReferences };
+            var referenceTypeIds = new List<NodeId> { ReferenceTypeIds.HierarchicalReferences };
             while (nodesToBrowse.Count > 0)
             {
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                var nextNodesToBrowse = new List<ExpandedNodeId>();
                 try
                 {
-                    IList<INode> organizers = await Session
+                    ArrayOf<INode> organizers = await Session
                         .NodeCache.FindReferencesAsync(
                             nodesToBrowse,
                             referenceTypeIds,
@@ -786,9 +786,9 @@ namespace Opc.Ua.Client.Tests
                             true,
                             new CancellationToken())
                         .ConfigureAwait(false);
-                    nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
-                    IEnumerable<INode> objectNodes = organizers.Where(n => n is ObjectNode);
-                    IEnumerable<INode> variableNodes = organizers.Where(n => n is VariableNode);
+                    nextNodesToBrowse.AddRange(organizers.ConvertAll(n => n.NodeId));
+                    ArrayOf<INode> objectNodes = organizers.Filter(n => n is ObjectNode);
+                    ArrayOf<INode> variableNodes = organizers.Filter(n => n is VariableNode);
                     result.AddRange(variableNodes);
                 }
                 catch (ServiceResultException sre)

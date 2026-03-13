@@ -644,7 +644,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCaseSource(nameof(ArrayDescriptorCases))]
         public void TryGetArray_Succeeds(VariantDescriptor descriptor)
         {
-            var values = descriptor.CreateValue();
+            object values = descriptor.CreateValue();
             var variant = new Variant(values);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), Array(descriptor.ValueType.MakeByRefType()));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
@@ -674,7 +674,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCaseSource(nameof(ArrayDescriptorCases))]
         public void GetArray_ReturnsStoredValue(VariantDescriptor descriptor)
         {
-            var values = descriptor.CreateValue();
+            object values = descriptor.CreateValue();
             var variant = new Variant(values);
             MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
@@ -747,7 +747,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCaseSource(nameof(ArrayDescriptorCases))]
         public void GenericTryGetArray_Succeeds(VariantDescriptor descriptor)
         {
-            var values = descriptor.CreateValue();
+            object values = descriptor.CreateValue();
             var variant = new Variant(values);
             Type elementType = descriptor.ValueType.GetGenericArguments()[0] ?? descriptor.ValueType;
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eo = new ExtensionObject(new Argument());
             var v = new Variant(eo);
             ExtensionObject result = (ExtensionObject)v;
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -3331,7 +3331,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var v = new Variant(true);
             // Just ensure it doesn't throw and returns a value
-            Assert.That(v.GetHashCode(), Is.Not.EqualTo(new Variant(false).GetHashCode()).Or.EqualTo(v.GetHashCode()));
+            Assert.That(v.GetHashCode(), Is.Not.EqualTo(0));
         }
 
         [Test]

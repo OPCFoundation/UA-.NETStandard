@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -194,7 +193,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName.Oid.FriendlyName}");
             Assert.False(subjectAlternateName.Critical);
-            IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
+            ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
             foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));

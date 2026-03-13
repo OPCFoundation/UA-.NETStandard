@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
@@ -868,7 +867,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             DataSetWriterIds = [.. binaryDecoder.ReadUInt16Array("DataSetWriterIds")];
 
-            var dataSetWriterConfigurationDecoded =
+            WriterGroupDataType dataSetWriterConfigurationDecoded =
                 binaryDecoder.ReadEncodeable<WriterGroupDataType>("DataSetWriterConfiguration");
 
             DataSetWriterConfiguration =

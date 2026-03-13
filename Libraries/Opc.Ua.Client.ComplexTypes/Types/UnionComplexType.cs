@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -209,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (--unionSelector == 0)
                         {
-                            var unionProperty = property.GetValue(this);
+                            Variant unionProperty = property.GetValue(this);
                             AppendPropertyValue(
                                 body,
                                 unionProperty);

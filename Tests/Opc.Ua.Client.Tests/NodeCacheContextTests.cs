@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -58,7 +57,6 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
             ];
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -67,7 +65,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = dataValues,
-                    DiagnosticInfos = diagnosticInfos
+                    DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
 
@@ -88,7 +86,6 @@ namespace Opc.Ua.Client.Tests
 
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -97,7 +94,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = [dataValue],
-                    DiagnosticInfos = diagnosticInfos
+                    DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
 
@@ -134,7 +131,6 @@ namespace Opc.Ua.Client.Tests
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow);
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -143,7 +139,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = [dataValue],
-                    DiagnosticInfos = diagnosticInfos
+                    DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
 
@@ -171,7 +167,6 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
             ];
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -180,7 +175,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = dataValues,
-                    DiagnosticInfos = diagnosticInfos
+                    DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
 
@@ -249,7 +244,7 @@ namespace Opc.Ua.Client.Tests
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
             var diagnosticInfo = new DiagnosticInfo();
-            var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo };
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [diagnosticInfo];
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -267,7 +262,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(dataValue));
-            Assert.That(diagnosticInfos, Contains.Item(diagnosticInfo));
+            Assert.That(diagnosticInfos.ToList(), Contains.Item(diagnosticInfo));
 
             session.Channel.Verify();
         }
@@ -556,7 +551,6 @@ namespace Opc.Ua.Client.Tests
                 BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -915,8 +909,8 @@ namespace Opc.Ua.Client.Tests
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
-            var references = new ReferenceDescriptionCollection
-            {
+            ArrayOf<ReferenceDescription> references =
+            [
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
@@ -931,7 +925,7 @@ namespace Opc.Ua.Client.Tests
                     DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
-            };
+            ];
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -951,10 +945,10 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            ReferenceDescriptionCollection result = await sut.FetchReferencesAsync(null, nodeId).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> result = await sut.FetchReferencesAsync(null, nodeId).ConfigureAwait(false);
 
             // Assert
-            Assert.That(result, Is.EquivalentTo(references));
+            Assert.That(result, Is.EqualTo(references));
 
             session.Channel.Verify();
         }
@@ -1098,7 +1092,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            ReferenceDescriptionCollection result = await sut.FetchReferencesAsync(null, nodeId).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> result = await sut.FetchReferencesAsync(null, nodeId).ConfigureAwait(false);
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(1));

@@ -1255,7 +1255,7 @@ namespace Opc.Ua
             }
 
             // get the know discovery URLs.
-            var discoveryUrls =  m_description.Server?.DiscoveryUrls ?? default;
+            ArrayOf<string> discoveryUrls =  m_description.Server?.DiscoveryUrls ?? default;
 
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls.IsEmpty)
@@ -1349,7 +1349,7 @@ namespace Opc.Ua
             {
                 if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    var policies = m_description.UserIdentityTokens;
+                    ArrayOf<UserTokenPolicy> policies = m_description.UserIdentityTokens;
 
                     if (SelectedUserTokenPolicyIndex >= 0 &&
                         policies.Count > SelectedUserTokenPolicyIndex)
@@ -1364,7 +1364,7 @@ namespace Opc.Ua
             {
                 if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    var policies = m_description.UserIdentityTokens;
+                    ArrayOf<UserTokenPolicy> policies = m_description.UserIdentityTokens;
 
                     for (int ii = 0; ii < policies.Count; ii++)
                     {
