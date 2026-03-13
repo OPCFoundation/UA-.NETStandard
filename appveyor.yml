@@ -14,3 +14,7 @@ branches:
   # blacklist
   except:
     - gh-pages
+
+build:
+  project: UA.slnx
+  parallel: true

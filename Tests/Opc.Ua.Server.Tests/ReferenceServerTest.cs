@@ -935,26 +935,14 @@ namespace Opc.Ua.Server.Tests
             await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
 
             // Data should be available for publishing now
-            m_requestHeader.Timestamp = DateTime.UtcNow;
-            publishResponse = await serverTestServices.PublishAsync(
+            int totalNotifications = await CollectNotificationsAsync(
+                serverTestServices,
                 m_requestHeader,
-                acknowledgements).ConfigureAwait(false);
-
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
-            ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
-            ServerFixtureUtils.ValidateDiagnosticInfos(
-                publishResponse.DiagnosticInfos,
                 acknowledgements,
-                publishResponse.ResponseHeader.StringTable,
-                serverTestServices.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
-            ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-            Assert.IsTrue(items.Body is DataChangeNotification);
-            MonitoredItemNotificationCollection monitoredItemsCollection = (
-                (DataChangeNotification)items.Body
-            ).MonitoredItems;
-            Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count,
+                subscriptionIds[0],
+                testSet.Length).ConfigureAwait(false);
+
+            Assert.AreEqual(testSet.Length, totalNotifications,
                 "One MonitoredItemNotification should be returned for each Node present in the TestSet");
 
             Thread.Sleep(1000);
@@ -962,26 +950,17 @@ namespace Opc.Ua.Server.Tests
             if (updateValues && queueSize > 1)
             {
                 // remaining queue Data should be sent in this publish
-                m_requestHeader.Timestamp = DateTime.UtcNow;
-                publishResponse = await serverTestServices.PublishAsync(
+                int expectedCount = testSet.Length * ((int)queueSize - 1);
+                totalNotifications = await CollectNotificationsAsync(
+                    serverTestServices,
                     m_requestHeader,
-                    acknowledgements).ConfigureAwait(false);
-
-                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
-                ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
-                ServerFixtureUtils.ValidateDiagnosticInfos(
-                    publishResponse.DiagnosticInfos,
                     acknowledgements,
-                    publishResponse.ResponseHeader.StringTable,
-                    serverTestServices.Logger);
-                Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-                Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
-                items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is DataChangeNotification);
-                monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
+                    subscriptionIds[0],
+                    expectedCount).ConfigureAwait(false);
+
                 Assert.AreEqual(
-                    testSet.Length * (queueSize - 1),
-                    monitoredItemsCollection.Count,
+                    expectedCount,
+                    totalNotifications,
                     testSet.Length);
             }
 
@@ -1006,6 +985,59 @@ namespace Opc.Ua.Server.Tests
 
             resendDataRequestHeader.Timestamp = DateTime.UtcNow;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private static async Task<int> CollectNotificationsAsync(
+            ServerTestServices serverTestServices,
+            RequestHeader requestHeader,
+            SubscriptionAcknowledgementCollection acknowledgements,
+            uint subscriptionId,
+            int expectedCount)
+        {
+            int totalNotifications = 0;
+            int retries = 50;
+            while (totalNotifications < expectedCount && retries-- > 0)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
+                Assert.AreEqual(subscriptionId, publishResponse.SubscriptionId);
+
+                if (publishResponse.NotificationMessage.NotificationData.Count > 0)
+                {
+                    // acknowledge the notification
+                    acknowledgements.Clear();
+                    acknowledgements.Add(new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                    });
+
+                    foreach (ExtensionObject item in publishResponse.NotificationMessage.NotificationData)
+                    {
+                        if (item.Body is DataChangeNotification dcn)
+                        {
+                            totalNotifications += dcn.MonitoredItems.Count;
+                        }
+                    }
+                }
+
+                if (totalNotifications >= expectedCount)
+                {
+                    break;
+                }
+
+                if (!publishResponse.MoreNotifications)
+                {
+                    // Wait for potential background processing
+                    await Task.Delay(100).ConfigureAwait(false);
+                }
+            }
+            return totalNotifications;
         }
 
         private async Task<CallMethodRequestCollection> ResendDataCallAsync(
