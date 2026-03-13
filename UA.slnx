@@ -91,7 +91,6 @@
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/DurableSubscription.md" />
     <File Path="Docs/EccProfiles.md" />
-    <File Path=".github/agents/coverage-test-generator.agent.md" />
     <File Path="Docs/AsyncServerSupport.md" />
     <File Path="Docs/Certificates.md" />
     <File Path="Docs/Observability.md" />
@@ -103,6 +102,10 @@
     <File Path="Docs/MigrationGuide.md" />
     <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />
+  </Folder>
+  <Folder Name="/Solution Items/Skills/">
+    <File Path=".github/agents/coverage-test-generator.agent.md" />
+    <File Path=".github/agents/opcua-v16-migration.agent.md" />
   </Folder>
   <Folder Name="/SourceGeneration/">
     <Project Path="Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
