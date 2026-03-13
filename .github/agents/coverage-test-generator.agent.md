@@ -52,19 +52,23 @@ Edge cases and pitfalls:
 - **Events/callbacks**: Test that events are raised or callbacks invoked by setting up handlers and verifying they were called.
 
 Output format:
-- Generate a complete, compilable NUnit test file (.cs)
+- If an existing test file does not exist, generate a new and complete, compilable NUnit test file (.cs). 
+- The test file name is <classname under test>Tests.cs (e.g., UserServiceTests.cs).
 - Include all necessary using statements
-- Organize tests into a single [TestFixture] per class under test
-- Include clear comments explaining non-obvious test scenarios
-- List the uncovered lines/paths each test addresses
+- Organize tests into a single [TestFixture] 
+- Include clear comments only if it is required to explain non-obvious test scenarios, otherwise the test should speak for itself.
 
 Quality checks before delivering:
 1. Verify each test method targets a specific uncovered path
-2. Confirm test names are descriptive and follow naming conventions
-3. Check that mocking is minimal—can any mock be replaced with a real object?
+2. Confirm test names are descriptive and follow naming conventions, specifically
+  - async tests should end with Async
+  - test method names do not contain _ characters and use CamelCase for readability
+3. Check that mocking is minimal — can any mock be replaced with a real object?
 4. Ensure no reflection is used without prior user approval
 5. Validate syntax—tests should compile without errors
 6. Confirm assertions actually verify the intended behavior
+7. Ensure all test code compiles (no errors and warnings). 
+8. Finally, run dotnet format on the generated test file to ensure consistent formatting and compliance with .editorconfig rules.
 
 When to escalate and ask for guidance:
 - If the class design requires reflection to test (private methods, internal state)
@@ -72,3 +76,4 @@ When to escalate and ask for guidance:
 - If the coverage target conflicts with pragmatic test design
 - If the code uses advanced patterns you don\'t fully understand (async generators, expression trees, etc.)
 - If you need to understand business logic to write meaningful tests
+- If the code to test needs to be refactored to achieve > 80% coverage and you are unsure how to proceed

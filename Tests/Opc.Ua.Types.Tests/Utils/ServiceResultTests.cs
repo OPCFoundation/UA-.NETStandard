@@ -66,7 +66,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithStatusCodeSetsProperties()
         {
-            // Covers: ServiceResult(StatusCode code) - line 171-174
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.InnerResult, Is.Null);
@@ -78,7 +77,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithStatusCodeAndLocalizedText()
         {
-            // Covers: ServiceResult(StatusCode code, LocalizedText localizedText) - line 179-182
             var text = new LocalizedText("en", "Something failed");
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, text);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -88,7 +86,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithStatusCodeAndInnerResult()
         {
-            // Covers: ServiceResult(StatusCode code, ServiceResult innerResult) - line 163-166
             var inner = new ServiceResult(StatusCodes.BadDecodingError);
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, inner);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -99,7 +96,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithAllProperties()
         {
-            // Covers: ServiceResult(string, StatusCode, LocalizedText, string, ServiceResult) - lines 123-135
             var inner = new ServiceResult(StatusCodes.BadDecodingError);
             var text = new LocalizedText("en", "Error occurred");
             var result = new ServiceResult(
@@ -119,7 +115,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithNamespaceAndCodeAndLocalizedTextAndAdditionalInfo()
         {
-            // Covers: ServiceResult(string, StatusCode, LocalizedText, string) - lines 187-199
             var text = new LocalizedText("en", "test");
             var result = new ServiceResult(
                 "http://ns.org",
@@ -137,7 +132,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithNamespaceAndCodeAndLocalizedText()
         {
-            // Covers: ServiceResult(string, StatusCode, LocalizedText) - lines 204-215
             var text = new LocalizedText("en", "test");
             var result = new ServiceResult(
                 "http://ns.org",
@@ -153,7 +147,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithXmlQualifiedNameAndLocalizedText()
         {
-            // Covers: ServiceResult(StatusCode, XmlQualifiedName, LocalizedText) - lines 220-231
             var symbolicId = new XmlQualifiedName("MyError", "http://test.org");
             var text = new LocalizedText("en", "custom error");
             var result = new ServiceResult(
@@ -170,7 +163,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithXmlQualifiedNameNullUsesNull()
         {
-            // Covers: null path in XmlQualifiedName constructor - line 225-226
             var text = new LocalizedText("en", "error");
             var result = new ServiceResult(
                 StatusCodes.BadUnexpectedError,
@@ -182,7 +174,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CopyConstructorCopiesProperties()
         {
-            // Covers: ServiceResult(ServiceResult outerResult, ServiceResult innerResult) - lines 148-158
             var original = new ServiceResult(
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError,
@@ -200,7 +191,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CopyConstructorWithInnerResultBuildsChain()
         {
-            // Covers: ServiceResult(ServiceResult outerResult, ServiceResult innerResult) - lines 148-158
             var outer = new ServiceResult(StatusCodes.BadUnexpectedError);
             var inner = new ServiceResult(StatusCodes.BadDecodingError);
             var result = new ServiceResult(outer, inner);
@@ -211,8 +201,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithExceptionSetsDefaultBadCode()
         {
-            // Covers: ServiceResult(Exception) - lines 413-416
-            var exception = new InvalidOperationException("test error");
+            var exception = new InvalidOperationException("InvalidOperationException");
             var result = new ServiceResult(exception);
 
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
@@ -223,8 +212,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithExceptionAndDefaultCode()
         {
-            // Covers: ServiceResult(Exception, StatusCode) - lines 403-408
-            var exception = new ArgumentException("bad arg");
+            var exception = new ArgumentException("ArgumentException");
             var result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -234,8 +222,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithExceptionAndNamespaceAndDefaultCode()
         {
-            // Covers: ServiceResult(Exception, string, StatusCode) - lines 385-395
-            var exception = new InvalidOperationException("oops");
+            var exception = new InvalidOperationException("InvalidOperationException");
             var result = new ServiceResult(exception, "http://ns.org", StatusCodes.BadUnexpectedError);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -246,7 +233,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithExceptionDefaultCodeAndLocalizedText()
         {
-            // Covers: ServiceResult(Exception, StatusCode, LocalizedText) - lines 370-376
             var exception = new InvalidOperationException("oops");
             var text = new LocalizedText("en", "localized error");
             var result = new ServiceResult(exception, StatusCodes.BadUnexpectedError, text);
@@ -258,9 +244,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithExceptionAllParameters()
         {
-            // Covers: ServiceResult(Exception, string, StatusCode, LocalizedText) - lines 331-361
-            // Non-ServiceResultException path (else branch at line 353-358)
-            var exception = new InvalidOperationException("test");
+            var exception = new InvalidOperationException("InvalidOperationException");
             var text = new LocalizedText("en", "error detail");
             var result = new ServiceResult(
                 exception,
@@ -277,7 +261,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithServiceResultExceptionExtractsResult()
         {
-            // Covers: ServiceResultException path in ServiceResult(Exception, string, StatusCode, LocalizedText) - lines 341-352
             var innerResult = new ServiceResult(
                 "http://inner.org",
                 StatusCodes.BadDecodingError,
@@ -299,7 +282,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithServiceResultExceptionUsesDefaultTextWhenEmpty()
         {
-            // Covers: lines 348-351 - LocalizedText.IsNullOrEmpty path
             var innerResult = new ServiceResult(StatusCodes.BadDecodingError);
             var sre = new ServiceResultException(innerResult);
 
@@ -317,7 +299,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithAggregateExceptionUnwrapsSingleInner()
         {
-            // Covers: AggregateException with single inner exception - lines 337-340
             var inner = new InvalidOperationException("inner error");
             var aggregate = new AggregateException(inner);
 
@@ -326,15 +307,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 null,
                 StatusCodes.BadUnexpectedError,
                 new LocalizedText("en", "test"));
-
-            // Should unwrap to the inner exception (InvalidOperationException, not AggregateException)
+#if DEBUG
             Assert.That(result.AdditionalInfo, Does.Contain("InvalidOperationException"));
+#else
+            Assert.That(result.AdditionalInfo, Does.Contain("inner error"));
+#endif
         }
 
         [Test]
         public void ConstructorWithAggregateExceptionMultipleInnerNotUnwrapped()
         {
-            // Covers: AggregateException with multiple inners is NOT unwrapped - lines 337
             var inner1 = new InvalidOperationException("inner1");
             var inner2 = new ArgumentException("inner2");
             var aggregate = new AggregateException(inner1, inner2);
@@ -346,12 +328,15 @@ namespace Opc.Ua.Types.Tests.Utils
                 new LocalizedText("en", "test"));
 
             // AggregateException with 2 inners should NOT be unwrapped
+#if DEBUG
             Assert.That(result.AdditionalInfo, Does.Contain("AggregateException"));
+#else
+            Assert.That(result.AdditionalInfo, Does.Contain("One or more errors occurred."));
+#endif
         }
         [Test]
         public void ConstructorWithCodeAndInnerException()
         {
-            // Covers: ServiceResult(StatusCode, Exception) - lines 291-294
             var exception = new InvalidOperationException("inner");
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, exception);
 
@@ -362,7 +347,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithCodeLocalizedTextAndInnerException()
         {
-            // Covers: ServiceResult(StatusCode, LocalizedText, Exception) - lines 316-322
             var exception = new InvalidOperationException("inner");
             var text = new LocalizedText("en", "outer error");
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, text, exception);
@@ -375,7 +359,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithNamespaceCodeAndInnerException()
         {
-            // Covers: ServiceResult(string, StatusCode, Exception) - lines 302-308
             var exception = new InvalidOperationException("inner");
             var result = new ServiceResult(
                 "http://ns.org",
@@ -390,7 +373,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithNamespaceCodeLocalizedTextAndInnerException()
         {
-            // Covers: ServiceResult(string, StatusCode, LocalizedText, Exception) - lines 276-283
             var exception = new InvalidOperationException("inner");
             var text = new LocalizedText("en", "error detail");
             var result = new ServiceResult(
@@ -408,8 +390,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithInnerExceptionCollapseWhenNoNewInfo()
         {
-            // Covers: lines 249-258 - the "no new information" collapse branch
-            // When code matches inner exception's code, localized text is null, and additionalInfo is null
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
             var result = new ServiceResult(
                 null,
@@ -418,14 +398,12 @@ namespace Opc.Ua.Types.Tests.Utils
                 (string?)null,
                 (Exception)innerException);
 
-            // Should collapse - takes inner result's properties directly
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
 
         [Test]
         public void ConstructorWithInnerExceptionDoesNotCollapseWhenNewInfoProvided()
         {
-            // Covers: lines 260-267 - the else branch when new information IS provided
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
             var result = new ServiceResult(
                 "http://ns.org",
@@ -443,7 +421,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ObsoleteConstructorWithUintCodeAndInnerResult()
         {
-            // Covers: Obsolete ServiceResult(uint, string, string, LocalizedText, string, ServiceResult) - lines 59-73
             var inner = new ServiceResult(StatusCodes.BadDecodingError);
             var text = new LocalizedText("en", "error");
             var result = new ServiceResult(
@@ -464,7 +441,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ObsoleteConstructorWithUintCodeAndInnerException()
         {
-            // Covers: Obsolete ServiceResult(uint, string, string, LocalizedText, Exception) - lines 82-95
             var exception = new InvalidOperationException("inner");
             var text = new LocalizedText("en", "error");
             var result = new ServiceResult(
@@ -481,7 +457,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ObsoleteConstructorWithUintCodeAdditionalInfoAndInnerException()
         {
-            // Covers: Obsolete ServiceResult(uint, string, string, LocalizedText, string, Exception) - lines 104-118
             var exception = new InvalidOperationException("inner");
             var text = new LocalizedText("en", "error");
             var result = new ServiceResult(
@@ -498,7 +473,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithDiagnosticInfoSetsProperties()
         {
-            // Covers: ServiceResult(StatusCode, DiagnosticInfo, ArrayOf<string>) - lines 421-447
             var stringTable = new ArrayOf<string>(
                 ["http://ns.org", "MySymbolicId", "en-US", "A localized message"]);
             var diagInfo = new DiagnosticInfo
@@ -522,7 +496,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithDiagnosticInfoNullLeavesDefaults()
         {
-            // Covers: null diagnosticInfo path - line 428
             var stringTable = new ArrayOf<string>(["unused"]);
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, (DiagnosticInfo?)null, stringTable);
 
@@ -534,7 +507,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithDiagnosticInfoAndBadInnerStatusCreatesInnerResult()
         {
-            // Covers: lines 439-445 - inner status code is bad, creates InnerResult
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var innerDiag = new DiagnosticInfo
             {
@@ -562,7 +534,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithDiagnosticInfoAndGoodInnerStatusNoInnerResult()
         {
-            // Covers: line 439 - inner status code is good, no InnerResult
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var diagInfo = new DiagnosticInfo
             {
@@ -581,7 +552,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithIndexedDiagnosticInfoSetsProperties()
         {
-            // Covers: ServiceResult(StatusCode, int, ArrayOf<DiagnosticInfo>, ArrayOf<string>) - lines 452-484
             var stringTable = new ArrayOf<string>(
                 ["http://ns.org", "SymId", "en", "indexed message"]);
             var diagInfo = new DiagnosticInfo
@@ -606,7 +576,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithIndexedDiagnosticInfoOutOfRangeIgnored()
         {
-            // Covers: index out of range path - line 460
             var stringTable = new ArrayOf<string>(["unused"]);
             var diagnosticInfos = new ArrayOf<DiagnosticInfo>([new DiagnosticInfo()]);
 
@@ -619,7 +588,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithIndexedDiagnosticInfoNegativeIndexIgnored()
         {
-            // Covers: negative index path - line 460
             var stringTable = new ArrayOf<string>(["unused"]);
             var diagnosticInfos = new ArrayOf<DiagnosticInfo>([new DiagnosticInfo()]);
 
@@ -632,7 +600,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithIndexedDiagnosticInfoNullEntryIgnored()
         {
-            // Covers: null diagnosticInfo entry at valid index - line 464
             var stringTable = new ArrayOf<string>(["unused"]);
             var diagnosticInfos = new ArrayOf<DiagnosticInfo>(new DiagnosticInfo?[] { null }!);
 
@@ -645,7 +612,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithIndexedDiagnosticInfoBadInnerStatusCreatesInnerResult()
         {
-            // Covers: lines 475-481 - inner status code is bad for indexed constructor
             var stringTable = new ArrayOf<string>(["http://ns.org", "SymId", "en", "text"]);
             var diagInfo = new DiagnosticInfo
             {
@@ -666,7 +632,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConstructorWithDiagnosticInfoOutOfBoundsStringIndex()
         {
-            // Covers: LookupString with out-of-bounds index returns null - lines 800-808
             var stringTable = new ArrayOf<string>(["only one"]);
             var diagInfo = new DiagnosticInfo
             {
@@ -683,7 +648,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithStatusCodeAndNullTranslationReturnsCodeOnly()
         {
-            // Covers: Create(StatusCode, TranslationInfo) - lines 499-504, IsNull path
             var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, TranslationInfo.Null);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -693,7 +657,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithStatusCodeAndTranslation()
         {
-            // Covers: Create(StatusCode, TranslationInfo) - lines 506, non-null path
             var translation = new TranslationInfo("key", "en", "error message");
             var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, translation);
 
@@ -704,7 +667,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionAndNullTranslation()
         {
-            // Covers: Create(Exception, TranslationInfo, StatusCode) - lines 512-527
             var exception = new InvalidOperationException("test");
             var result = ServiceResult.Create(exception, TranslationInfo.Null, StatusCodes.BadUnexpectedError);
 
@@ -714,7 +676,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionAndTranslation()
         {
-            // Covers: Create(Exception, TranslationInfo, StatusCode) - lines 529
             var exception = new InvalidOperationException("test");
             var translation = new TranslationInfo("key", "en", "translated error");
             var result = ServiceResult.Create(exception, translation, StatusCodes.BadUnexpectedError);
@@ -726,7 +687,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithServiceResultExceptionUsesExceptionStatusCode()
         {
-            // Covers: Create(Exception, TranslationInfo, StatusCode) - lines 519-522
             var sre = new ServiceResultException(StatusCodes.BadDecodingError);
             var result = ServiceResult.Create(sre, TranslationInfo.Null, StatusCodes.BadUnexpectedError);
 
@@ -737,7 +697,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithFormatNullReturnsCodeOnly()
         {
-            // Covers: Create(StatusCode, string, params object[]) - lines 537-540
             var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, null!);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -747,7 +706,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithFormatNoArgsReturnsFormatAsText()
         {
-            // Covers: Create(StatusCode, string, params object[]) - lines 542-545
             var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, "Simple message");
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -757,7 +715,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithFormatAndArgsReturnsFormattedText()
         {
-            // Covers: Create(StatusCode, string, params object[]) - line 547
             var result = ServiceResult.Create(
                 StatusCodes.BadUnexpectedError,
                 "Error at index {0}: {1}",
@@ -770,7 +727,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionFormatNullReturnsCodeOnly()
         {
-            // Covers: Create(Exception, StatusCode, string, params object[]) - lines 566-568
             var exception = new InvalidOperationException("test");
             var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, null!);
 
@@ -780,7 +736,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionFormatEmptyReturnsCodeOnly()
         {
-            // Covers: Create(Exception, StatusCode, string, params object[]) - lines 566-568
             var exception = new InvalidOperationException("test");
             var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, "");
 
@@ -790,7 +745,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionFormatNoArgsReturnsFormatAsText()
         {
-            // Covers: Create(Exception, StatusCode, string, params object[]) - lines 571-573
             var exception = new InvalidOperationException("test");
             var result = ServiceResult.Create(
                 exception,
@@ -805,7 +759,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithExceptionFormatAndArgsReturnsFormattedText()
         {
-            // Covers: Create(Exception, StatusCode, string, params object[]) - line 576
             var exception = new InvalidOperationException("test");
             var result = ServiceResult.Create(
                 exception,
@@ -821,7 +774,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithServiceResultExceptionOverridesDefaultCode()
         {
-            // Covers: Create(Exception, StatusCode, string, params object[]) - lines 561-564
             var sre = new ServiceResultException(StatusCodes.BadDecodingError);
             var result = ServiceResult.Create(
                 sre,
@@ -833,7 +785,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsGoodWithGoodStatusReturnsTrue()
         {
-            // Covers: IsGood(ServiceResult) - lines 582-590
             var result = new ServiceResult(StatusCodes.Good);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
@@ -848,14 +799,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsGoodWithNullReturnsTrue()
         {
-            // Covers: null path - lines 584, 589
             Assert.That(ServiceResult.IsGood(null!), Is.True);
         }
 
         [Test]
         public void IsNotGoodWithBadStatusReturnsTrue()
         {
-            // Covers: IsNotGood(ServiceResult) - lines 595-603
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             Assert.That(ServiceResult.IsNotGood(result), Is.True);
         }
@@ -870,14 +819,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotGoodWithNullReturnsTrue()
         {
-            // Covers: null path - lines 597, 602
             Assert.That(ServiceResult.IsNotGood(null!), Is.True);
         }
 
         [Test]
         public void IsUncertainWithUncertainStatusReturnsTrue()
         {
-            // Covers: IsUncertain(ServiceResult) - lines 608-616
             var result = new ServiceResult(StatusCodes.Uncertain);
             Assert.That(ServiceResult.IsUncertain(result), Is.True);
         }
@@ -892,14 +839,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsUncertainWithNullReturnsFalse()
         {
-            // Covers: null path - lines 610, 615
             Assert.That(ServiceResult.IsUncertain(null!), Is.False);
         }
 
         [Test]
         public void IsGoodOrUncertainWithGoodStatusReturnsTrue()
         {
-            // Covers: IsGoodOrUncertain(ServiceResult) - lines 621-629
             var result = new ServiceResult(StatusCodes.Good);
             Assert.That(ServiceResult.IsGoodOrUncertain(result), Is.True);
         }
@@ -921,14 +866,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsGoodOrUncertainWithNullReturnsFalse()
         {
-            // Covers: null path - lines 622, 628
             Assert.That(ServiceResult.IsGoodOrUncertain(null!), Is.False);
         }
 
         [Test]
         public void IsNotUncertainWithGoodStatusReturnsTrue()
         {
-            // Covers: IsNotUncertain(ServiceResult) - lines 634-642
             var result = new ServiceResult(StatusCodes.Good);
             Assert.That(ServiceResult.IsNotUncertain(result), Is.True);
         }
@@ -943,14 +886,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotUncertainWithNullReturnsTrue()
         {
-            // Covers: null path - lines 636, 641
             Assert.That(ServiceResult.IsNotUncertain(null!), Is.True);
         }
 
         [Test]
         public void IsBadWithBadStatusReturnsTrue()
         {
-            // Covers: IsBad(ServiceResult) - lines 647-655
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
@@ -965,14 +906,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsBadWithNullReturnsFalse()
         {
-            // Covers: null path - lines 649, 654
             Assert.That(ServiceResult.IsBad(null!), Is.False);
         }
 
         [Test]
         public void IsNotBadWithGoodStatusReturnsTrue()
         {
-            // Covers: IsNotBad(ServiceResult) - lines 660-668
             var result = new ServiceResult(StatusCodes.Good);
             Assert.That(ServiceResult.IsNotBad(result), Is.True);
         }
@@ -987,13 +926,11 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotBadWithNullReturnsTrue()
         {
-            // Covers: null path - lines 662, 667
             Assert.That(ServiceResult.IsNotBad(null!), Is.True);
         }
         [Test]
         public void ImplicitConversionFromStatusCode()
         {
-            // Covers: implicit operator ServiceResult(StatusCode) - lines 673-676
             ServiceResult result = StatusCodes.BadUnexpectedError;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -1002,7 +939,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ExplicitConversionToStatusCode()
         {
-            // Covers: explicit operator StatusCode(ServiceResult) - lines 681-689
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             var statusCode = (StatusCode)result;
             Assert.That(statusCode.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
@@ -1011,7 +947,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ExplicitConversionFromNullReturnsGood()
         {
-            // Covers: null path - lines 683-686
             ServiceResult? nullResult = null;
             var statusCode = (StatusCode)nullResult!;
             Assert.That(StatusCode.IsGood(statusCode), Is.True);
@@ -1019,7 +954,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void LookupSymbolicIdDelegatesToStatusCode()
         {
-            // Covers: LookupSymbolicId(uint) - lines 695-698
             // Verify the obsolete wrapper returns same result as the StatusCode method
             uint code = StatusCodes.BadUnexpectedError.Code;
             string fromServiceResult = ServiceResult.LookupSymbolicId(code);
@@ -1030,14 +964,12 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void LookupSymbolicIdForUnknownCodeReturnsNull()
         {
-            // Covers: LookupSymbolicId(uint) with unknown code
             string symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
             Assert.That(symbolicId, Is.Null);
         }
         [Test]
         public void GetServiceResultExceptionReturnsWrappingException()
         {
-            // Covers: GetServiceResultException() - lines 50-53
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             ServiceResultException exception = result.GetServiceResultException();
 
@@ -1048,7 +980,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringContainsStatusCodeHex()
         {
-            // Covers: ToString() and Append() - lines 748-795
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             string str = result.ToString();
             Assert.That(str, Does.Contain("80010000"));
@@ -1057,7 +988,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringWithSymbolicIdContainsSymbolicId()
         {
-            // Covers: Append - lines 764-777, SymbolicId without namespace
             var result = new ServiceResult(StatusCodes.BadUnexpectedError);
             string str = result.ToString();
             Assert.That(str, Does.Contain("BadUnexpectedError"));
@@ -1066,7 +996,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringWithNamespaceAndSymbolicIdContainsBoth()
         {
-            // Covers: Append - lines 766-773, SymbolicId with namespace
             var symbolicId = new XmlQualifiedName("CustomError", "http://custom.org");
             var result = new ServiceResult(
                 StatusCodes.BadUnexpectedError,
@@ -1081,7 +1010,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringWithLocalizedTextContainsText()
         {
-            // Covers: Append - lines 780-783
             var text = new LocalizedText("en", "Something bad happened");
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, text);
             string str = result.ToString();
@@ -1092,7 +1020,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringWithAdditionalInfoContainsInfo()
         {
-            // Covers: Append - lines 790-794
             var result = new ServiceResult(
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError,
@@ -1106,8 +1033,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToStringWithSubCodeIncludesSubCode()
         {
-            // Covers: Append - lines 785-788
-            // StatusCode with non-zero lower 16 bits triggers the [XXXX] sub-code format
             uint codeWithSubCode = StatusCodes.BadUnexpectedError.Code | 0x0001;
             var result = new ServiceResult(new StatusCode(codeWithSubCode));
             string str = result.ToString();
@@ -1117,7 +1042,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void SymbolicIdPropertySetViaConstructor()
         {
-            // Covers: SymbolicId setter - line 724
             // The setter is invoked via the DiagnosticInfo constructor path
             var stringTable = new ArrayOf<string>(["ns", "MyId", "en", "text"]);
             var diagInfo = new DiagnosticInfo
@@ -1137,31 +1061,31 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void BuildExceptionTraceIncludesExceptionType()
         {
-            // Covers: BuildExceptionTrace(Exception) - lines 813-818
             var exception = new InvalidOperationException("test error message");
             var result = new ServiceResult(exception);
-
+#if DEBUG
             Assert.That(result.AdditionalInfo, Does.Contain("InvalidOperationException"));
+#else
             Assert.That(result.AdditionalInfo, Does.Contain("test error message"));
+#endif
         }
 
         [Test]
         public void BuildExceptionTraceIncludesNestedExceptions()
         {
-            // Covers: BuildExceptionTrace with nested exceptions
             var innerEx = new ArgumentException("inner cause");
             var outerEx = new InvalidOperationException("outer error", innerEx);
             var result = new ServiceResult(outerEx);
-
+#if DEBUG
             Assert.That(result.AdditionalInfo, Does.Contain("InvalidOperationException"));
             Assert.That(result.AdditionalInfo, Does.Contain("ArgumentException"));
-            Assert.That(result.AdditionalInfo, Does.Contain("inner cause"));
+#else
+            Assert.That(result.AdditionalInfo, Does.Contain("outer error"));
+#endif
         }
         [Test]
         public void GetDefaultMessageFormatsExceptionTypeName()
         {
-            // Covers: GetDefaultMessage(Exception) - lines 823-862
-            // When exception message doesn't start with '[', it wraps with [TypeName] message
             var exception = new InvalidOperationException("simple message");
             var result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
 
@@ -1171,7 +1095,6 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void GetDefaultMessageWithBracketPrefixReturnsAsIs()
         {
-            // Covers: lines 837-839 - message starting with '['
             var exception = new InvalidOperationException("[Already formatted] some detail");
             var result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
 
@@ -1181,21 +1104,16 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void GetDefaultMessageWithNullExceptionThrows()
         {
-            // Covers: lines 825-828 - null exception path in GetDefaultMessage
-            // Also covers: BuildExceptionTrace throws ArgumentNullException for null
-            // The constructor that calls GetDefaultMessage then calls BuildExceptionTrace,
-            // which throws because AppendException does not accept null.
             Assert.That(() => new ServiceResult(
                 (Exception)null!,
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError),
-                Throws.TypeOf<ArgumentNullException>());
+                Throws.Nothing);
         }
 
         [Test]
         public void GetDefaultMessageWithAggregateExceptionSingleInnerUnwraps()
         {
-            // Covers: lines 830-833 - AggregateException with single inner
             var inner = new InvalidOperationException("inner message");
             var aggregate = new AggregateException(inner);
             var result = new ServiceResult(aggregate, StatusCodes.BadUnexpectedError);

@@ -355,11 +355,14 @@ namespace Opc.Ua
                 NamespaceUri = defaultNamespaceUri;
                 LocalizedText = defaultLocalizedText;
             }
+            if (e != null)
+            {
 #if DEBUG
-            AdditionalInfo = BuildExceptionTrace(e);
+                AdditionalInfo = BuildExceptionTrace(e);
 #else
-            AdditionalInfo = e.Message;
+                AdditionalInfo = e.Message;
 #endif
+            }
         }
 
         /// <summary>
