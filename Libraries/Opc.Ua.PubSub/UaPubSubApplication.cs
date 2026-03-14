@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub
         /// Get the read only list of <see cref="UaPubSubConnection"/> created for this
         /// Application instance
         /// </summary>
-        public ReadOnlyList<IUaPubSubConnection> PubSubConnections => new(m_uaPubSubConnections);
+        public ArrayOf<IUaPubSubConnection> PubSubConnections => m_uaPubSubConnections.ToArrayOf();
 
         /// <summary>
         /// Get reference to current configured DataCollector for this UaPubSubApplication

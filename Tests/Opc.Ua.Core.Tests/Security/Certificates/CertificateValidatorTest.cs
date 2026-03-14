@@ -1138,7 +1138,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             const string applicationName = "App Test Cert";
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, applicationName, null, null)
+                .CreateCertificate(null, applicationName, null)
                 .SetNotBefore(DateTime.Today.AddDays(14))
                 .CreateForRSA();
             Assert.NotNull(cert);
@@ -1191,7 +1191,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             const string applicationName = "App Test Cert";
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, applicationName, null, null)
+                .CreateCertificate(null, applicationName, null)
                 .SetNotBefore(new DateTime(2010, 1, 1))
                 .SetLifeTime(12)
                 .CreateForRSA();
@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             const string subject = "CN=Signed App Test Cert, O=OPC Foundation";
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, null, subject, null)
+                .CreateCertificate(null, null, subject)
                 .SetNotBefore(DateTime.Today.AddDays(30))
                 .SetLifeTime(12)
                 .SetIssuer(m_caChain[0])
@@ -1322,7 +1322,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
+                .CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation")
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create(telemetry);
@@ -1386,7 +1386,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, null, subject, null)
+                .CreateCertificate(null, null, subject)
                 .SetCAConstraint(0)
                 .CreateForRSA();
 
@@ -1432,8 +1432,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 certBase = CertificateFactory.CreateCertificate(
                 null,
                 null,
-                subject,
-                null).CreateForRSA();
+                subject).CreateForRSA();
 
             var generator = X509SignatureGenerator.CreateForRSA(
                 m_caChain[0].GetRSAPrivateKey(),
@@ -1442,8 +1441,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ICertificateBuilder builder = CertificateFactory.CreateCertificate(
                 null,
                 null,
-                subject,
-                null);
+                subject);
             if (ca)
             {
                 // set the CA flag changes the key usage to sign only
@@ -1510,7 +1508,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             X509Certificate2 cert = CertificateFactory
-                .CreateCertificate(null, null, "CN=1k Key", null)
+                .CreateCertificate(null, null, "CN=1k Key")
                 .SetRSAKeySize(1024)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create(telemetry);
@@ -1608,8 +1606,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 cert = CertificateFactory.CreateCertificate(
                 null,
                 null,
-                "CN=Test",
-                null).CreateForRSA();
+                "CN=Test").CreateForRSA();
             var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {

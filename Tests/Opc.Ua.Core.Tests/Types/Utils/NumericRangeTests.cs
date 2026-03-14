@@ -167,22 +167,26 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
             var numericRange = Ua.NumericRange.Parse("1,1:2");
-            object dst = new byte[][] {
-                [0x11, 0x22, 0x33, 0x44],
-                [0x55, 0x66, 0x77, 0x88],
-                [0x99, 0xAA, 0xBB, 0xCC] };
+            object dst = new ByteString[]
+            {
+                ByteString.From(0x11, 0x22, 0x33, 0x44),
+                ByteString.From(0x55, 0x66, 0x77, 0x88),
+                ByteString.From(0x99, 0xAA, 0xBB, 0xCC)
+            };
             StatusCode statusCode = numericRange.UpdateRange(
                 ref dst,
-                new byte[][] { [0xDD, 0xEE] });
+                new ByteString[] { [0xDD, 0xEE] });
             Assert.AreEqual(StatusCodes.Good, statusCode);
 
-            byte[][] updatedValue = dst as byte[][];
+            ByteString[] updatedValue = dst as ByteString[];
             Assert.NotNull(updatedValue);
             Assert.AreEqual(
-                new byte[][] {
-                    [0x11, 0x22, 0x33, 0x44],
-                    [0x55, 0xDD, 0xEE, 0x88],
-                    [0x99, 0xAA, 0xBB, 0xCC] },
+                new ByteString[]
+                {
+                    ByteString.From(0x11, 0x22, 0x33, 0x44),
+                    ByteString.From(0x55, 0xDD, 0xEE, 0x88),
+                    ByteString.From(0x99, 0xAA, 0xBB, 0xCC)
+                },
                 updatedValue);
         }
     }

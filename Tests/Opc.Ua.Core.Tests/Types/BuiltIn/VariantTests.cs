@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             object randomData = DataGenerator.GetRandom(builtInType);
             var variant1 = new Variant(randomData);
             Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            var variant2 = new Variant(randomData, TypeInfo.CreateScalar(builtInType));
+            var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.Scalar));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
             var variant3 = new Variant(variant2);
             Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
@@ -142,16 +142,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 100,
                 false);
             var variant1 = new Variant(randomData);
-            if (builtInType == BuiltInType.Byte)
-            {
-                // Without hint, byte array can not be distinguished from bytestring
-                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
-            }
-            else
-            {
-                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            }
-            var variant2 = new Variant(randomData, TypeInfo.CreateArray(builtInType));
+            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
         }
     }

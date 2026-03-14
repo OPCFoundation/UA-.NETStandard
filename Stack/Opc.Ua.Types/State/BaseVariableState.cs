@@ -30,11 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
@@ -55,10 +52,10 @@ namespace Opc.Ua
         {
             m_value = Variant.Null;
             m_statusCode = StatusCodes.BadWaitingForInitialData;
-            m_timestamp = DateTime.MinValue;
+            m_timestamp = DateTimeUtc.MinValue;
             m_dataType = DataTypeIds.BaseDataType;
             m_valueRank = ValueRanks.Any;
-            m_arrayDimensions = null;
+            m_arrayDimensions = default;
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
             m_minimumSamplingInterval = MinimumSamplingIntervals.Continuous;
             m_historizing = false;
@@ -88,17 +85,12 @@ namespace Opc.Ua
                 m_timestamp = instance.m_timestamp;
                 m_dataType = instance.m_dataType;
                 m_valueRank = instance.m_valueRank;
-                m_arrayDimensions = null;
+                m_arrayDimensions = instance.m_arrayDimensions;
                 m_accessLevel = instance.m_accessLevel;
                 m_userAccessLevel = instance.m_userAccessLevel;
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
                 m_valueTouched = instance.m_valueTouched;
-
-                if (instance.m_arrayDimensions != null)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(instance.m_arrayDimensions, true);
-                }
             }
 
             base.Initialize(context, source);
@@ -119,7 +111,8 @@ namespace Opc.Ua
         /// If overridden returns the id of the default type definition node for the instance.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
-        /// <returns>Returns the id of the default type definition or <see cref="VariableTypes.BaseVariableType"/></returns> if not overridden
+        /// <returns>Returns the id of the default type definition or
+        /// <see cref="VariableTypes.BaseVariableType"/></returns> if not overridden
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return VariableTypeIds.BaseVariableType;
@@ -130,7 +123,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
         /// <returns>
-        /// The id <see cref="NodeId"/> of the default data type node for the instance or <see cref="DataTypes.BaseDataType"/> if not overridden.
+        /// The id <see cref="NodeId"/> of the default data type node for the instance
+        /// or <see cref="DataTypes.BaseDataType"/> if not overridden.
         /// </returns>
         protected virtual NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
@@ -149,57 +143,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a values contained in a variant to the value defined for the variable.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="value">The value.</param>
-        /// <param name="throwOnError">if set to <c>true</c> throw an exception on error.</param>
-        /// <returns>If not overridden returns <paramref name="value"/>.</returns>
-        protected virtual object ExtractValueFromVariant(
-            ISystemContext context,
-            Variant value,
-            bool throwOnError)
-        {
-            return value;
-        }
-
-        /// <summary>
-        /// Returns the value after checking if the variable is null.
-        /// </summary>
-        /// <typeparam name="T">The framework type of value contained in the <paramref name="variable"/>.</typeparam>
-        /// <param name="variable">The variable.</param>
-        /// <returns>
-        /// The value contained by the <paramref name="variable"/> or the default value for the datatype if the variable is null.
-        /// </returns>
-        public static T GetValue<T>(BaseDataVariableState<T> variable)
-        {
-            if (variable == null)
-            {
-                return default;
-            }
-
-            return variable.Value;
-        }
-
-        /// <summary>
-        /// Returns the value after checking if the property is null.
-        /// </summary>
-        /// <typeparam name="T">The type of value contained in the property.</typeparam>
-        /// <param name="property">The property.</param>
-        /// <returns>
-        /// The value. The default value for the datatype if the property is null.
-        /// </returns>
-        public static T GetValue<T>(PropertyState<T> property)
-        {
-            if (property == null)
-            {
-                return default;
-            }
-
-            return property.Value;
-        }
-
-        /// <summary>
         /// Decodes the contents of an extension object.
         /// </summary>
         /// <param name="context">The context (uses MessageContextExtension.Current.MessageContext if null).</param>
@@ -214,9 +157,10 @@ namespace Opc.Ua
             ExtensionObject extension,
             bool throwOnError)
         {
-            if (targetType.IsInstanceOfType(extension.Body))
+            if (extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                targetType.IsInstanceOfType(encodeable))
             {
-                return extension.Body;
+                return encodeable;
             }
 
             if (Activator.CreateInstance(targetType) is IEncodeable instance)
@@ -236,11 +180,15 @@ namespace Opc.Ua
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
+                        decoder = new BinaryDecoder(
+                            extension.TryGetAsBinary(out ByteString b) ? b.ToArray() : [],
+                            messageContext);
                     }
                     else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
+                        decoder = new XmlDecoder(
+                            extension.TryGetAsXml(out XmlElement xe) ? xe : default,
+                            messageContext);
                     }
 
                     if (decoder != null)
@@ -280,57 +228,6 @@ namespace Opc.Ua
             return null;
         }
 
-        /// <summary>
-        /// Checks the data type of a value before casting it to the type <typeparamref name="T"/>.
-        /// </summary>
-        /// <typeparam name="T">The framework type of value contained in the variable.</typeparam>
-        /// <param name="value">The value.</param>
-        /// <param name="throwOnError">if set to <c>true</c> <see cref="ServiceResultException"/> is thrown on error.</param>
-        /// <returns>Returns <paramref name="value"/> or default for <typeparamref name="T"/></returns>
-        /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null
-        /// and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
-        public static T CheckTypeBeforeCast<T>(Variant value, bool throwOnError)
-        {
-            if (value.IsNull)
-            {
-                // Use default either null or default value of value type
-                return default;
-            }
-
-            object boxedValue = value.AsBoxedObject();
-            if (boxedValue is T typedValue)
-            {
-                // Can convert
-                return typedValue;
-            }
-
-            if (boxedValue is ExtensionObject eo &&
-                ExtensionObject.ToEncodeable(eo) is T encodeable)
-            {
-                // Can convert extension object
-                return encodeable;
-            }
-
-            if (boxedValue is ExtensionObject[] eos &&
-                typeof(T).IsArray &&
-                ExtensionObject.ToArray(eos, typeof(T).GetElementType()) is T encodeables)
-            {
-                // Can convert extension object
-                return encodeables;
-            }
-
-            // Otherwise check if we need to throw and throw or return default
-            if (throwOnError)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTypeMismatch,
-                    "Cannot convert '{0}' to a {1}.",
-                    value,
-                    typeof(T).Name);
-            }
-            return default;
-        }
-
         /// <inheritdoc/>
         public override object Clone()
         {
@@ -353,13 +250,11 @@ namespace Opc.Ua
                 EqualityComparer<object>.Default.Equals(state.Value, Value) &&
                 state.DataType == DataType &&
                 state.ValueRank == ValueRank &&
-                ArrayEqualityComparer<uint>.Default.Equals(
-                    state.ArrayDimensions?.ToArray(), ArrayDimensions?.ToArray()) &&
+                state.ArrayDimensions == ArrayDimensions &&
                 state.AccessLevel == AccessLevel &&
                 state.UserAccessLevel == UserAccessLevel &&
                 state.MinimumSamplingInterval == MinimumSamplingInterval &&
-                state.Historizing == Historizing &&
-                state.IsValueType == IsValueType
+                state.Historizing == Historizing
                 ;
         }
 
@@ -373,13 +268,11 @@ namespace Opc.Ua
             hash.Add(Value);
             hash.Add(DataType);
             hash.Add(ValueRank);
-            hash.Add(ArrayEqualityComparer<uint>.Default.GetHashCode(
-                ArrayDimensions?.ToArray()));
+            hash.Add(ArrayDimensions);
             hash.Add(AccessLevel);
             hash.Add(UserAccessLevel);
             hash.Add(MinimumSamplingInterval);
             hash.Add(Historizing);
-            hash.Add(IsValueType);
             return hash.ToHashCode();
         }
 
@@ -399,15 +292,9 @@ namespace Opc.Ua
                 state.UserAccessLevel = UserAccessLevel;
                 state.MinimumSamplingInterval = MinimumSamplingInterval;
                 state.Historizing = Historizing;
-                state.IsValueType = IsValueType;
             }
             base.CopyTo(target);
         }
-
-        /// <summary>
-        /// Whether the value can be set to null.
-        /// </summary>
-        public bool IsValueType { get; set; }
 
         /// <summary>
         /// The value of the variable as a Variant.
@@ -449,7 +336,7 @@ namespace Opc.Ua
         /// The timestamp associated with the variable value.
         /// </summary>
         /// <value>The timestamp.</value>
-        public DateTime Timestamp
+        public DateTimeUtc Timestamp
         {
             get => m_timestamp;
             set
@@ -539,12 +426,12 @@ namespace Opc.Ua
         /// If the Value Rank attribute specifies an array of a specific dimension (i.e. ValueRank &gt; 0) then the Array Dimensions
         /// attribute shall be specified in the table defining the Variable.
         /// </remarks>
-        public ReadOnlyList<uint> ArrayDimensions
+        public ArrayOf<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
             set
             {
-                if (!ReferenceEquals(m_arrayDimensions, value))
+                if (m_arrayDimensions != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -704,12 +591,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnWriteArrayDimensions;
 
         /// <summary>
         /// Raised when the AccessLevel attribute is read.
@@ -762,9 +649,11 @@ namespace Opc.Ua
         public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
 
         /// <summary>
-        /// Exports a copy of the node to a <paramref name="node"/> node provided the <paramref name="node"/> type is compatible with <see cref="VariableNode"/>.
+        /// Exports a copy of the node to a <paramref name="node"/> node provided the
+        /// <paramref name="node"/> type is compatible with <see cref="VariableNode"/>.
         /// </summary>
-        /// <param name="context">The context that describes how access the system containing the data.</param>
+        /// <param name="context">The context that describes how access the system
+        /// containing the data.</param>
         /// <param name="node">The node to be a copy of this instance.</param>
         protected override void Export(ISystemContext context, Node node)
         {
@@ -774,19 +663,11 @@ namespace Opc.Ua
             {
                 try
                 {
-                    variableNode.Value = new Variant(CoreUtils.Clone(Value));
+                    variableNode.Value = CoreUtils.Clone(Value); // TODO: Clone correctly
 
                     variableNode.DataType = DataType;
                     variableNode.ValueRank = ValueRank;
-                    variableNode.ArrayDimensions = null;
-
-                    ReadOnlyList<uint> arrayDimensions = ArrayDimensions;
-
-                    if (arrayDimensions != null)
-                    {
-                        variableNode.ArrayDimensions = [.. arrayDimensions];
-                    }
-
+                    variableNode.ArrayDimensions = ArrayDimensions;
                     variableNode.AccessLevel = AccessLevel;
                     variableNode.UserAccessLevel = UserAccessLevel;
                     variableNode.MinimumSamplingInterval = MinimumSamplingInterval;
@@ -830,7 +711,7 @@ namespace Opc.Ua
                 encoder.WriteInt32("ValueRank", ValueRank);
             }
 
-            if (ArrayDimensions != null)
+            if (!ArrayDimensions.IsEmpty)
             {
                 encoder.WriteString("ArrayDimensions", ArrayDimensionsToXml(ArrayDimensions));
             }
@@ -957,7 +838,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ValueRank;
             }
 
-            if (m_arrayDimensions != null)
+            if (!m_arrayDimensions.IsEmpty)
             {
                 attributesToSave |= AttributesToSave.ArrayDimensions;
             }
@@ -1020,7 +901,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
             {
-                encoder.WriteUInt32Array(null, m_arrayDimensions);
+                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray());
             }
 
             if ((attributesToSave & AttributesToSave.AccessLevel) != 0)
@@ -1079,16 +960,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
             {
-                UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
-
-                if (arrayDimensions != null && arrayDimensions.Count > 0)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                }
-                else
-                {
-                    m_arrayDimensions = null;
-                }
+                m_arrayDimensions = decoder.ReadUInt32Array(null);
             }
 
             if ((attributesToLoad & AttributesToSave.AccessLevel) != 0)
@@ -1117,9 +989,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="arrayDimensions">The array dimensions.</param>
         /// <returns>The XML string value.</returns>
-        public static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
+        public static string ArrayDimensionsToXml(ArrayOf<uint> arrayDimensions)
         {
-            if (arrayDimensions == null)
+            if (arrayDimensions.IsEmpty)
             {
                 return null;
             }
@@ -1144,18 +1016,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The XML string value.</param>
         /// <returns>The array dimensions list.</returns>
-        public static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
+        public static ArrayOf<uint> ArrayDimensionsFromXml(string value)
         {
             if (string.IsNullOrEmpty(value))
             {
-                return null;
+                return default;
             }
 
             string[] fields = value.Split(s_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (fields == null || fields.Length == 0)
             {
-                return null;
+                return default;
             }
 
             uint[] arrayDimensions = new uint[fields.Length];
@@ -1174,7 +1046,7 @@ namespace Opc.Ua
                 }
             }
 
-            return new ReadOnlyList<uint>(arrayDimensions);
+            return arrayDimensions.ToArrayOf();
         }
 
         /// <summary>
@@ -1186,13 +1058,13 @@ namespace Opc.Ua
         public override void SetStatusCode(
             ISystemContext context,
             StatusCode statusCode,
-            DateTime timestamp)
+            DateTimeUtc timestamp)
         {
             base.SetStatusCode(context, statusCode, timestamp);
 
             StatusCode = statusCode;
 
-            if (timestamp != DateTime.MinValue)
+            if (timestamp != DateTimeUtc.MinValue)
             {
                 Timestamp = timestamp;
             }
@@ -1250,9 +1122,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
+                    ArrayOf<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<uint[]> onReadArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>> onReadArrayDimensions
                         = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
@@ -1372,7 +1244,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             // check the access level for the variable.
             if ((m_accessLevel & AccessLevels.CurrentRead) == 0)
@@ -1390,9 +1262,9 @@ namespace Opc.Ua
             }
 
             // ensure a value timestamp exists.
-            if (m_timestamp == DateTime.MinValue)
+            if (m_timestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
             else
             {
@@ -1581,7 +1453,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    if (!value.TryGet(out uint[] arrayDimensions))
+                    if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
                     {
                         if (!value.IsNull)
                         {
@@ -1595,7 +1467,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<uint[]> onWriteArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>> onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -1605,14 +1477,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (arrayDimensions != null)
-                        {
-                            ArrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                        }
-                        else
-                        {
-                            ArrayDimensions = null;
-                        }
+                        ArrayDimensions = arrayDimensions;
                     }
 
                     return result;
@@ -1738,7 +1603,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -1781,9 +1646,9 @@ namespace Opc.Ua
                 m_timestamp = sourceTimestamp;
 
                 // update timestamp if not set by function.
-                if (sourceTimestamp == DateTime.MinValue)
+                if (sourceTimestamp == DateTimeUtc.MinValue)
                 {
-                    m_timestamp = DateTime.UtcNow;
+                    m_timestamp = DateTimeUtc.Now;
                 }
 
                 ChangeMasks |= NodeStateChangeMasks.Value;
@@ -1792,9 +1657,9 @@ namespace Opc.Ua
             }
 
             // ensure the source timestamp has a valid value.
-            if (sourceTimestamp == DateTime.MinValue)
+            if (sourceTimestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
 
             // verify data type.
@@ -1866,7 +1731,7 @@ namespace Opc.Ua
                         return result;
                     }
 
-                    value = new Variant(target);
+                    value = VariantHelper.CastFrom(target);
                 }
             }
 
@@ -1881,334 +1746,18 @@ namespace Opc.Ua
         }
 
         private Variant m_value;
-        private DateTime m_timestamp;
+        private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
         private StatusCode m_statusCode;
         private NodeId m_dataType;
         private int m_valueRank;
-        private ReadOnlyList<uint> m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
         private uint m_accessLevel;
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
         private ILogger m_logger = LoggerUtils.Null.Logger;
         private static readonly char[] s_commaSeparator = [','];
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class PropertyState : BaseVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public PropertyState(NodeState parent)
-            : base(parent)
-        {
-            StatusCode = StatusCodes.BadWaitingForInitialData;
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new PropertyState(parent);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.PropertyType);
-            NodeId = default;
-            BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = new LocalizedText(SymbolicName);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = ReferenceTypeIds.HasProperty;
-            TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = VariableTypes.PropertyType;
-            Value = Variant.Null;
-            DataType = GetDefaultDataTypeId(context.NamespaceUris);
-            ValueRank = GetDefaultValueRank();
-            ArrayDimensions = null;
-            AccessLevel = AccessLevels.CurrentReadOrWrite;
-            UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            MinimumSamplingInterval = MinimumSamplingIntervals.Continuous;
-            Historizing = false;
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return VariableTypeIds.PropertyType;
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class PropertyState<T> : PropertyState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public PropertyState(NodeState parent)
-            : base(parent)
-        {
-            Value = default;
-            IsValueType = !typeof(T).GetTypeInfo().IsValueType;
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BaseDataVariableState : BaseVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public BaseDataVariableState(NodeState parent)
-            : base(parent)
-        {
-            if (parent != null)
-            {
-                StatusCode = StatusCodes.BadWaitingForInitialData;
-                ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            }
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new BaseDataVariableState(parent);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
-            NodeId = default;
-            BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = new LocalizedText(SymbolicName);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = VariableTypes.BaseDataVariableType;
-            Value = Variant.Null;
-            DataType = GetDefaultDataTypeId(context.NamespaceUris);
-            ValueRank = GetDefaultValueRank();
-            ArrayDimensions = null;
-            AccessLevel = AccessLevels.CurrentReadOrWrite;
-            UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            MinimumSamplingInterval = MinimumSamplingIntervals.Continuous;
-            Historizing = false;
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return VariableTypeIds.BaseDataVariableType;
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (BaseDataVariableState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
-        public override bool DeepEquals(NodeState node)
-        {
-            if (node is not BaseDataVariableState state)
-            {
-                return false;
-            }
-            return
-                base.DeepEquals(state) &&
-                EqualityComparer<PropertyState<LocalizedText[]>>.Default.Equals(
-                    state.EnumStrings, EnumStrings);
-        }
-
-        /// <inheritdoc/>
-        public override int DeepGetHashCode()
-        {
-            var hash = new HashCode();
-            hash.Add(base.DeepGetHashCode());
-            hash.Add(EnumStrings);
-            return hash.ToHashCode();
-        }
-
-        /// <inheritdoc/>
-        protected override void CopyTo(NodeState target)
-        {
-            if (target is BaseDataVariableState state)
-            {
-                state.EnumStrings = EnumStrings;
-            }
-            base.CopyTo(target);
-        }
-
-        /// <summary>
-        /// The strings that describe the values for an enumeration.
-        /// </summary>
-        public PropertyState<LocalizedText[]> EnumStrings
-        {
-            get => m_enumStrings;
-            set
-            {
-                if (!ReferenceEquals(m_enumStrings, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_enumStrings = value;
-            }
-        }
-
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
-        {
-            if (m_enumStrings != null)
-            {
-                children.Add(m_enumStrings);
-            }
-
-            base.GetChildren(context, children);
-        }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (browseName.IsNull)
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-            switch (browseName.Name)
-            {
-                case BrowseNames.EnumStrings:
-                    instance = !createOrReplace ?
-                        EnumStrings : CreateOrReplaceEnumStrings(context, replacement);
-                    break;
-            }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-
-        /// <summary>
-        /// Create or replace enum strings
-        /// </summary>
-        public PropertyState<LocalizedText[]> CreateOrReplaceEnumStrings(
-            ISystemContext context,
-            BaseInstanceState replacement)
-        {
-            if (EnumStrings == null)
-            {
-                if (replacement is not PropertyState<LocalizedText[]> child)
-                {
-                    child = new PropertyState<LocalizedText[]>(this);
-                    if (replacement != null)
-                    {
-                        child.Create(context, replacement);
-                    }
-                }
-                EnumStrings = child;
-            }
-            return EnumStrings;
-        }
-
-        private PropertyState<LocalizedText[]> m_enumStrings;
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BaseDataVariableState<T> : BaseDataVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public BaseDataVariableState(NodeState parent)
-            : base(parent)
-        {
-            Value = default;
-            IsValueType = !typeof(T).GetTypeInfo().IsValueType;
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        /// <param name="context">An object that describes how access the system containing the data. </param>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
-        }
     }
 
     /// <summary>
@@ -2245,7 +1794,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the timestamp associated with the value.
         /// </summary>
-        public DateTime Timestamp { get; set; }
+        public DateTimeUtc Timestamp { get; set; }
 
         /// <summary>
         /// Clears the change masks for all nodes in the update list.
@@ -2300,14 +1849,14 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             lock (Lock)
             {
                 // ensure a value timestamp exists.
-                if (Timestamp == DateTime.MinValue)
+                if (Timestamp == DateTimeUtc.MinValue)
                 {
-                    Timestamp = DateTime.UtcNow;
+                    Timestamp = DateTimeUtc.Now;
                 }
 
                 timestamp = Timestamp;

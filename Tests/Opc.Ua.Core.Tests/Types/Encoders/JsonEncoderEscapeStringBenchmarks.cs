@@ -820,8 +820,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static string s_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
+#pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private RecyclableMemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
+#pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private readonly int m_streamSize = 1024;
         private const string kSpecialString = "\"\\\n\r\t\b\f";
 

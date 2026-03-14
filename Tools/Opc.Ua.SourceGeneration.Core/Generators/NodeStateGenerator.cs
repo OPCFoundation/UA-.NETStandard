@@ -310,6 +310,7 @@ namespace Opc.Ua.SourceGeneration
                 node.Children.Values,
                 LoadTemplate_ListOfProperties,
                 WriteTemplate_ListOfProperties);
+
             context.Template.AddReplacement(
                 Tokens.ListOfChildOperations,
                 NodeStateTemplates.ChildOperations,
@@ -317,20 +318,22 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_FindChildMethods,
                 WriteTemplate_FindChildMethods);
 
+            List<InstanceDesign> properties =
+                GetChildrenWithProperties(node, true);
             context.Template.AddReplacement(
                 Tokens.ListOfChildCopies,
                 NodeStateTemplates.CloneChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
             context.Template.AddReplacement(
                 Tokens.ListOfChildHashes,
                 NodeStateTemplates.HashChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
             context.Template.AddReplacement(
                 Tokens.ListOfEqualityComparers,
                 NodeStateTemplates.CompareChild,
-                node.Children.Values,
+                properties,
                 WriteTemplate_ListOfChildren);
 
             return context.Template.Render();
@@ -496,8 +499,7 @@ namespace Opc.Ua.SourceGeneration
 
         private TemplateString LoadTemplate_VariableTypeValueInitializers(ILoadContext context)
         {
-            if (context.Target is not KeyValuePair<string, Parameter> field ||
-                field.Value == null)
+            if (context.Target is not KeyValuePair<string, Parameter> field || field.Value == null)
             {
                 return null;
             }
@@ -562,6 +564,8 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
                     nullable: NullableAnnotation.NonNullable));
+
+            AddVariantAccesssor(context, field.Value.DataTypeNode);
 
             return context.Template.Render();
         }
@@ -1124,31 +1128,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            List<InstanceDesign> childrenWithProperties = [];
-            foreach (NodeToGenerate child in node.Children.Values)
-            {
-                if (child.Design is not InstanceDesign instance)
-                {
-                    continue;
-                }
-                if (child.IsNotExplicitlyDefined)
-                {
-                    continue;
-                }
-                if (instance.ModellingRule is
-                    not ModellingRule.Mandatory and
-                    not ModellingRule.Optional)
-                {
-                    continue;
-                }
-                if (instance.IsOverriddenWithSameClass(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces))
-                {
-                    continue;
-                }
-                childrenWithProperties.Add(instance);
-            }
+            List<InstanceDesign> childrenWithProperties = GetChildrenWithProperties(node);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFindChildCase,
@@ -1162,29 +1142,7 @@ namespace Opc.Ua.SourceGeneration
                 childrenWithProperties,
                 WriteTemplate_ListOfChildren);
 
-            List<InstanceDesign> additionalChildren = [];
-            foreach (NodeToGenerate child in node.Children.Values)
-            {
-                if (child.Design is not InstanceDesign instance)
-                {
-                    continue;
-                }
-                if (child.IsNotExplicitlyDefined)
-                {
-                    continue;
-                }
-                if (instance.ModellingRule is
-                    not ModellingRule.Mandatory and
-                    not ModellingRule.Optional)
-                {
-                    continue;
-                }
-                if (instance.IsOverridden())
-                {
-                    continue;
-                }
-                additionalChildren.Add(instance);
-            }
+            List<InstanceDesign> additionalChildren = GetAdditionalChildren(node);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFindChildren,
@@ -1217,6 +1175,10 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.ClassName, instance.GetNodeStateClassName(
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(Tokens.ClassFactory, instance.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
@@ -1700,19 +1662,35 @@ namespace Opc.Ua.SourceGeneration
 
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
+                // Overrides a variable type that does not require a template parameter so we
+                // need to add it
                 context.Template.AddReplacement(Tokens.BaseT, string.Empty);
             }
             else
             {
-                string parameter = GetTemplateParameter(variableType);
-
+                // Overrides a typed variable type where the base class requires a template
+                // parameter, so the same template parameter is needed plus the Variant builder
+                // to access the variant content of the type T.
+                string parameter = GetTemplateParameter(variableType, out string variantBuilder);
                 if (parameter == "<T>" && variableType.ValueRank != ValueRank.Scalar)
                 {
                     parameter = "<global::Opc.Ua.Variant>";
+                    variantBuilder = "global::Opc.Ua.VariantBuilder";
                 }
-
-                context.Template.AddReplacement(Tokens.BaseT, parameter);
-            }
+                if (string.IsNullOrEmpty(parameter))
+                {
+                    context.Template.AddReplacement(Tokens.BaseT, string.Empty);
+                }
+                else
+                {
+                    // The class extends from the generic one through its inner
+                    // Implementation<TBuilder> class to provide generic variant
+                    // value accessors
+                    context.Template.AddReplacement(
+                        Tokens.BaseT,
+                        CoreUtils.Format("{0}.Implementation<{1}>", parameter, variantBuilder));
+                }
+           }
 
             string valueRank = variableType.ValueRank.GetValueRankAsCode(
                 variableType.ArrayDimensions);
@@ -1731,6 +1709,8 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
+            AddVariantAccesssor(context, variableType.DataTypeNode);
+
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
                 variableType.DataTypeNode.GetValueAsCode(
@@ -1743,7 +1723,6 @@ namespace Opc.Ua.SourceGeneration
                     m_messageContext,
                     () => AddXmlInitializerForComplexValue(
                         variableType,
-                        variableType.ValueRank,
                         variableType.DataTypeNode,
                         variableType.DefaultValue)));
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
@@ -1876,6 +1855,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.StateClassName,
                 "global::Opc.Ua.BaseObjectTypeState");
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                "new global::Opc.Ua.BaseObjectTypeState");
         }
 
         private void AddVariableTypeStateFactoryReplacements(
@@ -1890,6 +1872,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.StateClassName,
                 "global::Opc.Ua.BaseDataVariableTypeState");
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                "new global::Opc.Ua.BaseDataVariableTypeState");
 
             context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
                 "state.WrappedValue = {0};",
@@ -1903,7 +1888,6 @@ namespace Opc.Ua.SourceGeneration
                     m_messageContext,
                     () => AddXmlInitializerForComplexValue(
                         node,
-                        node.ValueRank,
                         node.DataTypeNode,
                         node.DefaultValue))));
             string dataTypeId =
@@ -1933,6 +1917,12 @@ namespace Opc.Ua.SourceGeneration
                 node.GetNodeStateClassName(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
             context.Template.AddReplacement(
                 Tokens.TypeDefinitionId,
                 node.TypeDefinitionNode.GetNodeIdAsCode(
@@ -1984,12 +1974,12 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesXsd.ToArray());");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesBsd.ToArray());");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
@@ -2003,8 +1993,16 @@ namespace Opc.Ua.SourceGeneration
             {
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
-                    NodeStateTemplates.VariantArrayValue,
+                    NodeStateTemplates.VariantArrayOfValue,
                     [args],
+                    WriteTemplate_ArgumentCollection);
+            }
+            else if (node.DecodedValue is ArrayOf<Argument> arguments)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueCode,
+                    NodeStateTemplates.VariantArrayOfValue,
+                    [arguments.ToList()],
                     WriteTemplate_ArgumentCollection);
             }
             else
@@ -2021,7 +2019,6 @@ namespace Opc.Ua.SourceGeneration
                         m_messageContext,
                         () => AddXmlInitializerForComplexValue(
                             node,
-                            node.ValueRank,
                             node.DataTypeNode,
                             node.DefaultValue))));
             }
@@ -2082,6 +2079,12 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
             context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
+            context.Template.AddReplacement(
                 Tokens.TypeDefinitionId,
                 node.TypeDefinitionNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
@@ -2117,6 +2120,12 @@ namespace Opc.Ua.SourceGeneration
                 node.GetNodeStateClassName(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
                 GetModellingRuleReplacement(node.ModellingRule));
@@ -2277,7 +2286,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private bool IsInAddressSpace(NodeToGenerate node)
+        private static bool IsInAddressSpace(NodeToGenerate node)
         {
             bool isInAddressSpace = !node.Design.NotInAddressSpace;
             if (node.Design is InstanceDesign instanceDesign &&
@@ -2641,6 +2650,72 @@ namespace Opc.Ua.SourceGeneration
             return references;
         }
 
+        private static List<InstanceDesign> GetAdditionalChildren(NodeToGenerate node)
+        {
+            List<InstanceDesign> additionalChildren = [];
+            foreach (NodeToGenerate child in node.Children.Values)
+            {
+                if (child.Design is not InstanceDesign instance)
+                {
+                    continue;
+                }
+                if (child.IsNotExplicitlyDefined)
+                {
+                    continue;
+                }
+                if (instance.ModellingRule is
+                    not ModellingRule.Mandatory and
+                    not ModellingRule.Optional)
+                {
+                    continue;
+                }
+                if (instance.IsOverridden())
+                {
+                    continue;
+                }
+                additionalChildren.Add(instance);
+            }
+
+            return additionalChildren;
+        }
+
+        private List<InstanceDesign> GetChildrenWithProperties(
+            NodeToGenerate node,
+            bool excludeBuiltIn = false)
+        {
+            List<InstanceDesign> childrenWithProperties = [];
+            foreach (NodeToGenerate child in node.Children.Values)
+            {
+                if (child.Design is not InstanceDesign instance)
+                {
+                    continue;
+                }
+                if (child.IsNotExplicitlyDefined)
+                {
+                    continue;
+                }
+                if (instance.ModellingRule is
+                    not ModellingRule.Mandatory and
+                    not ModellingRule.Optional)
+                {
+                    continue;
+                }
+                if (instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces))
+                {
+                    continue;
+                }
+                if (excludeBuiltIn && IsBuiltInProperty(child))
+                {
+                    continue;
+                }
+                childrenWithProperties.Add(instance);
+            }
+
+            return childrenWithProperties;
+        }
+
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
         {
             var rolePermissions = new HashSet<RolePermission>();
@@ -2707,11 +2782,11 @@ namespace Opc.Ua.SourceGeneration
         {
             string constant = modellingRule switch
             {
-                ModellingRule.Mandatory => "global::Opc.Ua.Objects.ModellingRule_Mandatory",
-                ModellingRule.Optional => "global::Opc.Ua.Objects.ModellingRule_Optional",
-                ModellingRule.MandatoryPlaceholder => "global::Opc.Ua.Objects.ModellingRule_MandatoryPlaceholder",
-                ModellingRule.OptionalPlaceholder => "global::Opc.Ua.Objects.ModellingRule_OptionalPlaceholder",
-                ModellingRule.ExposesItsArray => "global::Opc.Ua.Objects.ModellingRule_ExposesItsArray",
+                ModellingRule.Mandatory => "global::Opc.Ua.ObjectIds.ModellingRule_Mandatory",
+                ModellingRule.Optional => "global::Opc.Ua.ObjectIds.ModellingRule_Optional",
+                ModellingRule.MandatoryPlaceholder => "global::Opc.Ua.ObjectIds.ModellingRule_MandatoryPlaceholder",
+                ModellingRule.OptionalPlaceholder => "global::Opc.Ua.ObjectIds.ModellingRule_OptionalPlaceholder",
+                ModellingRule.ExposesItsArray => "global::Opc.Ua.ObjectIds.ModellingRule_ExposesItsArray",
                 _ => null
             };
 
@@ -2750,8 +2825,9 @@ namespace Opc.Ua.SourceGeneration
             return instance.DataTypeNode.GetNodeIdAsCode(namespaceUris, kNamespaceTableContextVariable);
         }
 
-        private string GetTemplateParameter(TypeDesign type)
+        private string GetTemplateParameter(TypeDesign type, out string variantBuilder)
         {
+            variantBuilder = "global::Opc.Ua.VariantBuilder";
             if (type is not VariableTypeDesign variableType)
             {
                 return string.Empty;
@@ -2759,17 +2835,17 @@ namespace Opc.Ua.SourceGeneration
 
             if (type.BaseTypeNode == null)
             {
-                return CoreUtils.Format("<T>");
+                return "<T>";
             }
 
-            if (GetTemplateParameter(type.BaseTypeNode) != "<T>")
+            if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {
                 return string.Empty;
             }
 
             BasicDataType basicType = variableType.DataTypeNode.BasicDataType;
 
-            if (basicType == BasicDataType.BaseDataType)
+            if (basicType == BasicDataType.BaseDataType) // == Variant, so any
             {
                 return "<T>";
             }
@@ -2780,6 +2856,7 @@ namespace Opc.Ua.SourceGeneration
                 case BasicDataType.UserDefined:
                     scalarName = variableType.DataTypeNode.GetClassName(
                         m_context.ModelDesign.Namespaces);
+                    variantBuilder = variableType.DataTypeNode.GetVariantBuilder(scalarName);
                     break;
                 default:
                     scalarName = variableType.DataTypeNode.GetDotNetTypeName(
@@ -2787,17 +2864,24 @@ namespace Opc.Ua.SourceGeneration
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.NonNullable,
                         true);
+                    variantBuilder = variableType.DataTypeNode.GetVariantBuilder(scalarName);
                     break;
             }
 
-            if (variableType.ValueRank != ValueRank.Scalar)
+            if (variableType.ValueRank == ValueRank.Scalar)
             {
-                return variableType.ValueRank == ValueRank.Array ?
-                    $"<{scalarName}[]>" :
-                    "<global::Opc.Ua.Variant>";
+                return $"<{scalarName}>";
             }
-
-            return $"<{scalarName}>";
+            if (variableType.ValueRank == ValueRank.Array)
+            {
+                return $"<global::Opc.Ua.ArrayOf<{scalarName}>>";
+            }
+            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions)
+            {
+                // TODO: matrixOf
+            }
+            variantBuilder = "global::Opc.Ua.VariantBuilder";
+            return "<global::Opc.Ua.Variant>";
         }
 
         private static void CollectMatchingFields(
@@ -2857,9 +2941,8 @@ namespace Opc.Ua.SourceGeneration
 
         private string AddXmlInitializerForComplexValue(
             NodeDesign node,
-            ValueRank valueRank,
             DataTypeDesign dataType,
-            XmlElement element)
+            System.Xml.XmlElement element)
         {
             string xml = element?.OuterXml;
             if (string.IsNullOrEmpty(xml))
@@ -2880,6 +2963,21 @@ namespace Opc.Ua.SourceGeneration
                 uniqueName = resourceName + i;
             }
             throw new InvalidOperationException("Unexpected duplicate resource names");
+        }
+
+        private static void AddVariantAccesssor(IWriteContext context, DataTypeDesign dataType)
+        {
+            switch (dataType.BasicDataType)
+            {
+                case BasicDataType.UserDefined when !dataType.IsEnumeration:
+                    context.Template.AddReplacement(Tokens.VariantFrom, "FromStructure");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetStructure");
+                    break;
+                default:
+                    context.Template.AddReplacement(Tokens.VariantFrom, "From");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGet");
+                    break;
+            }
         }
 
         /// <summary>

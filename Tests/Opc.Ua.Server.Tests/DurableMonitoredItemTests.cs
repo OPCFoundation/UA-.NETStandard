@@ -735,7 +735,7 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -758,11 +758,17 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(2, false);
 
-            var value = new EventFieldList { EventFields = [new Variant(true)] };
+            var value = new EventFieldList
+            {
+                EventFields = [new Variant(true)]
+            };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
+            var value2 = new EventFieldList
+            {
+                EventFields = [new Variant(false)]
+            };
 
             queueHandler.QueueEvent(value2);
 
@@ -1411,8 +1417,8 @@ namespace Opc.Ua.Server.Tests
                     queue.Dequeue(out DataValue value, out ServiceResult _),
                     $"Dequeue operation failed for the {i}st item");
 
-                Assert.That(value.Value, Is.Not.Null, $"{i}st item has no value");
-                Assert.That(value.Value, Is.EqualTo(i));
+                Assert.That(value.WrappedValue.IsNull, Is.False, $"{i}st item has no value");
+                Assert.That((uint)value.WrappedValue, Is.EqualTo(i));
 
                 //simulate publishing operation
                 if (i % 501 == 0)

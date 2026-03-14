@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attributes.
-                List<object> values = target.ReadAttributes(
+                ArrayOf<Variant> values = target.ReadAttributes(
                     systemContext,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
@@ -1079,52 +1079,56 @@ namespace Opc.Ua.Server
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0] != null && values[1] != null)
+
+                if (values[0].TryGet(out uint writeMask) &&
+                    values[1].TryGet(out uint userWriteMask))
                 {
-                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) &
-                        ((uint)values[1]));
+                    metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
+                }
+                if (values[2].TryGet(out NodeId dataType))
+                {
+                    metadata.DataType = dataType;
+                }
+                if (values[3].TryGet(out int valueRank))
+                {
+                    metadata.ValueRank = valueRank;
+                }
+                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                {
+                    metadata.ArrayDimensions = arrayDimensions;
+                }
+                if (values[5].TryGet(out byte accessLevel) &&
+                    values[6].TryGet(out byte userAccessLevel))
+                {
+                    metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
-
-                if (values[3] != null)
+                if (values[7].TryGet(out byte eventNotifier))
                 {
-                    metadata.ValueRank = (int)values[3];
+                    metadata.EventNotifier = eventNotifier;
                 }
 
-                metadata.ArrayDimensions = (IList<uint>)values[4];
-
-                if (values[5] != null && values[6] != null)
+                if (values[8].TryGet(out bool executable) &&
+                    values[9].TryGet(out bool userExecutable))
                 {
-                    metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
+                    metadata.Executable = executable && userExecutable;
                 }
 
-                if (values[7] != null)
+                if (values[10].TryGet(out ushort accessRestriction))
                 {
-                    metadata.EventNotifier = (byte)values[7];
+                    metadata.AccessRestrictions = (AccessRestrictionType)accessRestriction;
                 }
 
-                if (values[8] != null && values[9] != null)
+                if (values[11].TryGetStructure(
+                    out ArrayOf<RolePermissionType> rolePermissions))
                 {
-                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
+                    metadata.RolePermissions = rolePermissions;
                 }
 
-                if (values[10] != null)
+                if (values[12].TryGetStructure(
+                    out ArrayOf<RolePermissionType> userRolePermissions))
                 {
-                    metadata.AccessRestrictions = (AccessRestrictionType)
-                        Enum.ToObject(typeof(AccessRestrictionType), values[10]);
-                }
-
-                if (values[11] != null)
-                {
-                    metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                        values[11])];
-                }
-
-                if (values[12] != null)
-                {
-                    metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                        values[12])];
+                    metadata.UserRolePermissions = userRolePermissions;
                 }
 
                 SetDefaultPermissions(systemContext, target, metadata);
@@ -1144,22 +1148,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
         /// </summary>
-        private static void SetAccessAndRolePermissions(List<object> values, NodeMetadata metadata)
+        private static void SetAccessAndRolePermissions(ArrayOf<Variant> values, NodeMetadata metadata)
         {
-            if (values[0] != null)
+            if (values[0].TryGet(out ushort accessRestrictions))
             {
-                metadata.AccessRestrictions = (AccessRestrictionType)
-                    Enum.ToObject(typeof(AccessRestrictionType), values[0]);
+                metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
-            if (values[1] != null)
+
+            if (values[1].TryGetStructure(
+                out ArrayOf<RolePermissionType> rolePermissions))
             {
-                metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                    values[1])];
+                metadata.RolePermissions = rolePermissions;
             }
-            if (values[2] != null)
+
+            if (values[2].TryGetStructure(
+                out ArrayOf<RolePermissionType> userRolePermissions))
             {
-                metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                    values[2])];
+                metadata.UserRolePermissions = userRolePermissions;
             }
         }
 
@@ -1171,14 +1176,14 @@ namespace Opc.Ua.Server
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadAndCacheValidationAttributes(
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+        private static ArrayOf<Variant> ReadAndCacheValidationAttributes(
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
             NodeId key)
         {
-            List<object> values = ReadValidationAttributes(systemContext, target);
-            uniqueNodesServiceAttributes[key] = values;
+            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target);
+            uniqueNodesServiceAttributes[key] = values.ToArray();
 
             return values;
         }
@@ -1189,7 +1194,7 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadValidationAttributes(
+        private static ArrayOf<Variant> ReadValidationAttributes(
             ServerSystemContext systemContext,
             NodeState target)
         {
@@ -1604,7 +1609,7 @@ namespace Opc.Ua.Server
         public virtual void Read(
             OperationContext context,
             double maxAge,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors)
         {
@@ -1641,7 +1646,7 @@ namespace Opc.Ua.Server
                     // create an initial value.
                     DataValue value = values[ii] = new DataValue();
 
-                    value.Value = null;
+                    value.WrappedValue = default;
                     value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.Good;
@@ -1815,7 +1820,7 @@ namespace Opc.Ua.Server
         /// <param name="cache">The cache.</param>
         protected virtual void Read(
             ServerSystemContext context,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToValidate,
@@ -1854,7 +1859,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void Write(
             OperationContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -1936,9 +1941,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = Convert.ToDouble(
-                                    nodeToWrite.Value.Value,
-                                    CultureInfo.InvariantCulture);
+                                double newValue = (double)nodeToWrite.Value.WrappedValue.ConvertToDouble();
 
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)
@@ -2168,7 +2171,7 @@ namespace Opc.Ua.Server
         /// <param name="cache">The cache.</param>
         protected virtual void Write(
             ServerSystemContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToValidate,
             IDictionary<NodeId, NodeState> cache)
@@ -2211,7 +2214,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
@@ -2249,7 +2252,7 @@ namespace Opc.Ua.Server
                     HistoryReadResult result = results[ii] = new HistoryReadResult();
 
                     result.HistoryData = default;
-                    result.ContinuationPoint = null;
+                    result.ContinuationPoint = default;
                     result.StatusCode = StatusCodes.Good;
 
                     // check if the node is a area in memory.
@@ -2311,7 +2314,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryReleaseContinuationPoints(
             ServerSystemContext context,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
             IDictionary<NodeId, NodeState> cache)
@@ -2339,7 +2342,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2368,7 +2371,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadProcessedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2397,7 +2400,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadAtTimeDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2426,7 +2429,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadEventDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2457,7 +2460,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2521,8 +2524,7 @@ namespace Opc.Ua.Server
             if (details is ReadProcessedDetails readProcessedDetails)
             {
                 // check the list of aggregates.
-                if (readProcessedDetails.AggregateType == null ||
-                    readProcessedDetails.AggregateType.Count != nodesToRead.Count)
+                if (readProcessedDetails.AggregateType.Count != nodesToRead.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
                 }
@@ -2611,7 +2613,7 @@ namespace Opc.Ua.Server
         public virtual void HistoryUpdate(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
@@ -2706,7 +2708,7 @@ namespace Opc.Ua.Server
         protected virtual void HistoryUpdate(
             ServerSystemContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2812,7 +2814,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryUpdateData(
             ServerSystemContext context,
-            IList<UpdateDataDetails> nodesToUpdate,
+            ArrayOf<UpdateDataDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2839,7 +2841,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryUpdateStructureData(
             ServerSystemContext context,
-            IList<UpdateStructureDataDetails> nodesToUpdate,
+            ArrayOf<UpdateStructureDataDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2866,7 +2868,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryUpdateEvents(
             ServerSystemContext context,
-            IList<UpdateEventDetails> nodesToUpdate,
+            ArrayOf<UpdateEventDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2893,7 +2895,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryDeleteRawModified(
             ServerSystemContext context,
-            IList<DeleteRawModifiedDetails> nodesToUpdate,
+            ArrayOf<DeleteRawModifiedDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2920,7 +2922,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryDeleteAtTime(
             ServerSystemContext context,
-            IList<DeleteAtTimeDetails> nodesToUpdate,
+            ArrayOf<DeleteAtTimeDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2947,7 +2949,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryDeleteEvents(
             ServerSystemContext context,
-            IList<DeleteEventDetails> nodesToUpdate,
+            ArrayOf<DeleteEventDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2974,7 +2976,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void Call(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
@@ -2993,7 +2995,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask CallInternalAsync(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             bool sync,
@@ -3106,7 +3108,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
             var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new VariantCollection();
+            var outputArguments = new List<Variant>();
 
             ServiceResult callResult;
 
@@ -3139,13 +3141,15 @@ namespace Opc.Ua.Server
             // check for argument errors.
             bool argumentsValid = true;
 
+            var inputArgumentResults = new List<StatusCode>();
+            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
             for (int jj = 0; jj < argumentErrors.Count; jj++)
             {
                 ServiceResult argumentError = argumentErrors[jj];
 
                 if (argumentError != null)
                 {
-                    result.InputArgumentResults.Add(argumentError.StatusCode);
+                    inputArgumentResults.Add(argumentError.StatusCode);
 
                     if (ServiceResult.IsBad(argumentError))
                     {
@@ -3159,7 +3163,7 @@ namespace Opc.Ua.Server
                     {
                         if (ServiceResult.IsBad(argumentError))
                         {
-                            result.InputArgumentDiagnosticInfos.Add(
+                            inputArgumentDiagnosticInfos.Add(
                                 new DiagnosticInfo(
                                     argumentError,
                                     systemContext.OperationContext.DiagnosticsMask,
@@ -3169,7 +3173,7 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            result.InputArgumentDiagnosticInfos.Add(null);
+                            inputArgumentDiagnosticInfos.Add(null);
                         }
                     }
                 }
@@ -3178,14 +3182,13 @@ namespace Opc.Ua.Server
             // check for validation errors.
             if (!argumentsValid)
             {
+                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
+                // when StatusCode is Good. Therefore only set here.
+                result.InputArgumentResults = inputArgumentResults;
+                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return result.StatusCode;
             }
-
-            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
-            // Clear diagnostics and argument results if there are no errors.
-            result.InputArgumentDiagnosticInfos.Clear();
-            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;
@@ -3699,7 +3702,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -3948,7 +3951,7 @@ namespace Opc.Ua.Server
         {
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
@@ -4076,7 +4079,7 @@ namespace Opc.Ua.Server
             result = null;
 
             // nothing to do if the filter is not specified.
-            if (ExtensionObject.IsNull(filter))
+            if (filter.IsNull)
             {
                 return StatusCodes.Good;
             }
@@ -4234,7 +4237,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
@@ -4773,7 +4776,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -4796,7 +4799,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                List<object> values = null;
+                ArrayOf<Variant> values = default;
 
                 // construct the meta-data object.
                 var metadata = new NodeMetadata(target, target.NodeId);
@@ -4807,7 +4810,7 @@ namespace Opc.Ua.Server
                     NodeId key = handle.NodeId;
                     if (uniqueNodesServiceAttributesCache.ContainsKey(key))
                     {
-                        if (uniqueNodesServiceAttributesCache[key].Count == 0)
+                        if (uniqueNodesServiceAttributesCache[key].Length == 0)
                         {
                             values = ReadAndCacheValidationAttributes(
                                 uniqueNodesServiceAttributesCache,
@@ -4859,22 +4862,17 @@ namespace Opc.Ua.Server
 
             if (namespaceMetadataState != null)
             {
-                List<object> namespaceMetadataValues;
+                ArrayOf<Variant> namespaceMetadataValues;
 
                 if (namespaceMetadataState.DefaultAccessRestrictions != null)
                 {
                     // get DefaultAccessRestrictions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGet(out AccessRestrictionType accessRestrictions))
                     {
-                        metadata.DefaultAccessRestrictions = (AccessRestrictionType)
-                            Enum.ToObject(
-                                typeof(AccessRestrictionType),
-                                namespaceMetadataValues[0]);
+                        metadata.DefaultAccessRestrictions = accessRestrictions;
                     }
                 }
 
@@ -4882,17 +4880,12 @@ namespace Opc.Ua.Server
                 {
                     // get DefaultRolePermissions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGetStructure(
+                            out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultRolePermissions =
-                        [
-                            .. ExtensionObject.ToList<RolePermissionType>(
-                                namespaceMetadataValues[0])
-                        ];
+                        metadata.DefaultRolePermissions = rolePermissions;
                     }
                 }
 
@@ -4900,17 +4893,12 @@ namespace Opc.Ua.Server
                 {
                     // get DefaultUserRolePermissions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGetStructure(
+                            out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultUserRolePermissions =
-                        [
-                            .. ExtensionObject.ToList<RolePermissionType>(
-                                namespaceMetadataValues[0])
-                        ];
+                        metadata.DefaultUserRolePermissions = rolePermissions;
                     }
                 }
             }

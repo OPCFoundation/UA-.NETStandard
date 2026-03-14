@@ -57,8 +57,8 @@ namespace Opc.Ua.Server.Tests
         private NamespaceTable m_namespaceTable;
         private readonly string m_testNamespaceUri = "http://test.org/UA/Data/";
         private readonly bool m_useSamplingGroups;
-        private static readonly double[] s_value = [10.0, 200.0, 30.0];
-        private static readonly double[] s_expected = [10.0, 20.0, 30.0];
+        private static readonly ArrayOf<double> s_value = [10.0, 200.0, 30.0];
+        private static readonly ArrayOf<double> s_expected = [10.0, 20.0, 30.0];
 
         public enum AsyncCustomNodeManagerType
         {
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests
 
             m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory(mockTelemetry.Object));
 
-            // Setup DefaultSystemContext 
+            // Setup DefaultSystemContext
             m_serverSystemContext = new ServerSystemContext(m_mockServer.Object);
             m_mockServer.Setup(s => s.DefaultSystemContext).Returns(m_serverSystemContext);
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                 var node = new BaseObjectState(null);
                 NodeId nodeId = manager.New(context, node);
 
-                Assert.That(nodeId, Is.Not.Null);
+                Assert.That(nodeId.IsNull, Is.False);
                 Assert.That(nodeId, Is.Not.EqualTo(NodeId.Null));
                 Assert.That(nodeId.NamespaceIndex, Is.EqualTo(manager.NamespaceIndexes[0]));
                 Assert.That(generatedNodeIds.Add(nodeId), Is.True, "Duplicate NodeId generated");
@@ -365,7 +365,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodesToRead[1].Processed, Is.False);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
-            Assert.That(values[0].Value, Is.EqualTo(42));
+            Assert.That((int)values[0].WrappedValue, Is.EqualTo(42));
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
             Assert.That(values[0].ServerTimestamp, Is.EqualTo(values[0].SourceTimestamp));
@@ -522,7 +522,7 @@ namespace Opc.Ua.Server.Tests
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange = new PropertyState<Range>(variable)
+            variable.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
             {
                 Value = new Range { Low = 0.0, High = 100.0 }
             };
@@ -559,13 +559,13 @@ namespace Opc.Ua.Server.Tests
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("AnalogArrayVar", nsIdx);
             variable.BrowseName = new QualifiedName("AnalogArrayVar", nsIdx);
-            variable.Value = new double[] { 10.0, 20.0, 30.0 };
+            variable.Value = ArrayOf.Wrapped(10.0, 20.0, 30.0);
             variable.DataType = DataTypeIds.Double;
             variable.ValueRank = ValueRanks.OneDimension;
-            variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+            variable.ArrayDimensions = [0];
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange = new PropertyState<Range>(variable)
+            variable.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
             {
                 Value = new Range { Low = 0.0, High = 100.0 }
             };
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(nodesToWrite[0].Processed, Is.True);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-            Assert.That((double[])variable.Value, Is.EqualTo(s_expected));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_expected));
         }
 
         [Test]
@@ -677,8 +677,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notifications.Count, Is.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That(notification.Value.Value, Is.EqualTo(0));
-                Assert.That(notificationAfterWrite.Value.Value, Is.EqualTo(123));
+                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
+                Assert.That((int)notificationAfterWrite.Value.WrappedValue, Is.EqualTo(123));
                 Assert.That(diagnostics.Count, Is.EqualTo(2));
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
@@ -782,7 +782,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notifications.Count, Is.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That(notification.Value.Value, Is.EqualTo(0));
+                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
                 Assert.That(diagnostics.Count, Is.EqualTo(2));
             }
@@ -1127,11 +1127,11 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("CallMethod", nsIdx)
             };
 
-            method.InputArguments = new PropertyState<Argument[]>(method)
+            method.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
             {
                 Value = []
             };
-            method.OutputArguments = new PropertyState<Argument[]>(method)
+            method.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
             {
                 Value =
                 [
@@ -1494,9 +1494,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
-            Assert.That(metadata.RolePermissions, Is.Not.Null);
-            Assert.That(metadata.UserRolePermissions, Is.Not.Null);
-            var cache2 = new Dictionary<NodeId, List<object>>
+            Assert.That(metadata.RolePermissions.IsNull, Is.False);
+            Assert.That(metadata.UserRolePermissions.IsNull, Is.False);
+            var cache2 = new Dictionary<NodeId, Variant[]>
             {
                 [node.NodeId] = []
             };
@@ -1529,11 +1529,11 @@ namespace Opc.Ua.Server.Tests
 
             var eventState = new BaseEventState(null)
             {
-                EventType = new PropertyState<NodeId>(null)
+                EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(null)
                 {
                     Value = NodeId.Null
                 },
-                SourceNode = new PropertyState<NodeId>(null)
+                SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(null)
                 {
                     Value = NodeId.Null
                 }

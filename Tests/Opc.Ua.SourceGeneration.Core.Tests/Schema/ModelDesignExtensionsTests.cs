@@ -508,7 +508,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.Array.Empty<int>()"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf.Empty<int>()"));
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.From(global::System.Array.Empty<int>())"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.From(global::Opc.Ua.ArrayOf.Empty<int>())"));
         }
 
         /// <summary>
@@ -614,7 +614,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
             Namespace[] namespaces = [];
             var mockContext = new Mock<IServiceMessageContext>();
-            XmlElement mockDefaultValue = new XmlDocument().CreateElement("Root");
+            System.Xml.XmlElement mockDefaultValue = new XmlDocument().CreateElement("Root");
 
             // Act
             string result = mockDataType.GetValueAsCode(
@@ -644,7 +644,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
             Namespace[] namespaces = [];
             var mockContext = new Mock<IServiceMessageContext>();
-            XmlElement mockDefaultValue = new XmlDocument().CreateElement("test");
+            System.Xml.XmlElement mockDefaultValue = new XmlDocument().CreateElement("test");
 
             // Act
             string result = mockDataType.GetValueAsCode(
@@ -1262,7 +1262,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
         /// <summary>
         /// Tests GetDefaultDotNetValue with DateTime type and DateTime.MinValue.
-        /// Expected: Returns "global::System.DateTime.MinValue".
+        /// Expected: Returns "global::Opc.Ua.DateTimeUtc.MinValue".
         /// </summary>
         [Test]
         public void GetDefaultDotNetValue_DateTimeWithMinValue_ReturnsMinValue()
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime.MinValue"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc.MinValue"));
         }
 
         /// <summary>
@@ -1316,13 +1316,13 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("global::System.DateTime.ParseExact("));
+            Assert.That(result, Does.StartWith("global::Opc.Ua.DateTimeUtc.From("));
             Assert.That(result, Does.Contain("2024-01-15 10:30:45"));
         }
 
         /// <summary>
         /// Tests GetDefaultDotNetValue with DateTime type and invalid value.
-        /// Expected: Returns "global::System.DateTime.MinValue".
+        /// Expected: Returns "global::Opc.Ua.DateTimeUtc.MinValue".
         /// </summary>
         [Test]
         public void GetDefaultDotNetValue_DateTimeWithInvalidValue_ReturnsMinValue()
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime.MinValue"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc.MinValue"));
         }
 
         /// <summary>
@@ -1467,7 +1467,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("default(byte[])"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString.Empty"));
         }
 
         /// <summary>
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("CoreUtils.FromHexString("));
+            Assert.That(result, Does.StartWith("global::Opc.Ua.ByteString.FromHexString("));
             Assert.That(result, Does.EndWith(")"));
         }
 
@@ -3008,7 +3008,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = mockVariable.GetNodeStateClassName("http://test.org", namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("BaseVariableTypeState<int[]>"));
+            Assert.That(result, Is.EqualTo("BaseVariableTypeState<global::Opc.Ua.ArrayOf<int>>"));
         }
 
         /// <summary>
@@ -4744,17 +4744,12 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.Throws<ArgumentException>(() => dataType.GetClassName([]));
         }
 
-        /// <summary>
-        /// Tests that IsDotNetValueType returns false when valueRank is not Scalar.
-        /// Input: DataTypeDesign with any BasicDataType, valueRank = Array (non-Scalar)
-        /// Expected: Returns false regardless of BasicDataType.
-        /// </summary>
         [TestCase(ValueRank.Array)]
         [TestCase(ValueRank.ScalarOrArray)]
         [TestCase(ValueRank.OneOrMoreDimensions)]
         [TestCase(ValueRank.ScalarOrOneDimension)]
         [TestCase(ValueRank.Any)]
-        public void IsDotNetValueType_NonScalarValueRank_ReturnsFalse(ValueRank valueRank)
+        public void IsDotNetValueType_NonScalarValueRank_ReturnsTrue(ValueRank valueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign
@@ -4766,7 +4761,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetValueType(valueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
         /// <summary>
@@ -4863,16 +4858,11 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetValueType returns false for out-of-range ValueRank enum values.
-        /// Input: DataTypeDesign with any BasicDataType, valueRank = invalid (cast from int)
-        /// Expected: Returns false (not equal to Scalar).
-        /// </summary>
         [TestCase(-1)]
         [TestCase(999)]
         [TestCase(int.MinValue)]
         [TestCase(int.MaxValue)]
-        public void IsDotNetValueType_InvalidValueRank_ReturnsFalse(int invalidValueRank)
+        public void IsDotNetValueType_InvalidValueRank_ReturnsTrue(int invalidValueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign
@@ -4884,7 +4874,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetValueType((ValueRank)invalidValueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
         /// <summary>
@@ -5824,37 +5814,37 @@ namespace Opc.Ua.Schema.Model.Tests
         /// <summary>
         /// Tests GetDotNetTypeName returns proper collection type names for Array valueRank with all basic data types.
         /// </summary>
-        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.BooleanCollection")]
-        [TestCase(BasicDataType.SByte, "global::Opc.Ua.SByteCollection")]
-        [TestCase(BasicDataType.Byte, "global::Opc.Ua.ByteCollection")]
-        [TestCase(BasicDataType.Int16, "global::Opc.Ua.Int16Collection")]
-        [TestCase(BasicDataType.UInt16, "global::Opc.Ua.UInt16Collection")]
-        [TestCase(BasicDataType.Int32, "global::Opc.Ua.Int32Collection")]
-        [TestCase(BasicDataType.UInt32, "global::Opc.Ua.UInt32Collection")]
-        [TestCase(BasicDataType.Int64, "global::Opc.Ua.Int64Collection")]
-        [TestCase(BasicDataType.UInt64, "global::Opc.Ua.UInt64Collection")]
-        [TestCase(BasicDataType.Float, "global::Opc.Ua.FloatCollection")]
-        [TestCase(BasicDataType.Double, "global::Opc.Ua.DoubleCollection")]
-        [TestCase(BasicDataType.String, "global::Opc.Ua.StringCollection")]
-        [TestCase(BasicDataType.DateTime, "global::Opc.Ua.DateTimeCollection")]
-        [TestCase(BasicDataType.Guid, "global::Opc.Ua.UuidCollection")]
-        [TestCase(BasicDataType.ByteString, "global::Opc.Ua.ByteStringCollection")]
-        [TestCase(BasicDataType.XmlElement, "global::Opc.Ua.XmlElementCollection")]
-        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.NodeIdCollection")]
-        [TestCase(BasicDataType.ExpandedNodeId, "global::Opc.Ua.ExpandedNodeIdCollection")]
-        [TestCase(BasicDataType.StatusCode, "global::Opc.Ua.StatusCodeCollection")]
-        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.DiagnosticInfoCollection")]
-        [TestCase(BasicDataType.QualifiedName, "global::Opc.Ua.QualifiedNameCollection")]
-        [TestCase(BasicDataType.LocalizedText, "global::Opc.Ua.LocalizedTextCollection")]
-        [TestCase(BasicDataType.DataValue, "global::Opc.Ua.DataValueCollection")]
-        [TestCase(BasicDataType.Number, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.Integer, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.UInteger, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.VariantCollection")]
-        [TestCase(BasicDataType.Structure, "global::Opc.Ua.ExtensionObjectCollection")]
-        public void GetDotNetTypeName_ArrayValueRankWithBasicDataTypes_ReturnsCorrectCollectionType(
+        [TestCase(BasicDataType.Boolean, "global::Opc.Ua.ArrayOf<bool>")]
+        [TestCase(BasicDataType.SByte, "global::Opc.Ua.ArrayOf<sbyte>")]
+        [TestCase(BasicDataType.Byte, "global::Opc.Ua.ArrayOf<byte>")]
+        [TestCase(BasicDataType.Int16, "global::Opc.Ua.ArrayOf<short>")]
+        [TestCase(BasicDataType.UInt16, "global::Opc.Ua.ArrayOf<ushort>")]
+        [TestCase(BasicDataType.Int32, "global::Opc.Ua.ArrayOf<int>")]
+        [TestCase(BasicDataType.UInt32, "global::Opc.Ua.ArrayOf<uint>")]
+        [TestCase(BasicDataType.Int64, "global::Opc.Ua.ArrayOf<long>")]
+        [TestCase(BasicDataType.UInt64, "global::Opc.Ua.ArrayOf<ulong>")]
+        [TestCase(BasicDataType.Float, "global::Opc.Ua.ArrayOf<float>")]
+        [TestCase(BasicDataType.Double, "global::Opc.Ua.ArrayOf<double>")]
+        [TestCase(BasicDataType.String, "global::Opc.Ua.ArrayOf<string>")]
+        [TestCase(BasicDataType.DateTime, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DateTimeUtc>")]
+        [TestCase(BasicDataType.Guid, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Uuid>")]
+        [TestCase(BasicDataType.ByteString, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ByteString>")]
+        [TestCase(BasicDataType.XmlElement, "global::Opc.Ua.ArrayOf<global::Opc.Ua.XmlElement>")]
+        [TestCase(BasicDataType.NodeId, "global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeId>")]
+        [TestCase(BasicDataType.ExpandedNodeId, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ExpandedNodeId>")]
+        [TestCase(BasicDataType.StatusCode, "global::Opc.Ua.ArrayOf<global::Opc.Ua.StatusCode>")]
+        [TestCase(BasicDataType.DiagnosticInfo, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DiagnosticInfo>")]
+        [TestCase(BasicDataType.QualifiedName, "global::Opc.Ua.ArrayOf<global::Opc.Ua.QualifiedName>")]
+        [TestCase(BasicDataType.LocalizedText, "global::Opc.Ua.ArrayOf<global::Opc.Ua.LocalizedText>")]
+        [TestCase(BasicDataType.DataValue, "global::Opc.Ua.ArrayOf<global::Opc.Ua.DataValue>")]
+        [TestCase(BasicDataType.Number, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Integer, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.UInteger, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.BaseDataType, "global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant>")]
+        [TestCase(BasicDataType.Structure, "global::Opc.Ua.ArrayOf<global::Opc.Ua.ExtensionObject>")]
+        public void GetDotNetTypeName_ArrayValueRankWithBasicDataTypes_ReturnsCorrectArrayType(
             BasicDataType basicDataType,
-            string expectedCollectionType)
+            string expectedArrayOfTType)
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5872,14 +5862,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo(expectedCollectionType));
+            Assert.That(result, Is.EqualTo(expectedArrayOfTType));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName returns Int32Collection for built-in Enumeration type with Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithBuiltInEnumeration_ReturnsInt32Collection()
+        public void GetDotNetTypeName_ArrayValueRankWithBuiltInEnumeration_ReturnsArrayOfInt32()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5898,14 +5885,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<int>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName returns custom enumeration collection name for non-built-in Enumeration type with Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithCustomEnumeration_ReturnsCustomEnumerationCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithCustomEnumeration_ReturnsArrayOfCustomEnumeration()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5927,14 +5911,14 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("MyCustomEnumCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<MyCustomEnum>"));
         }
 
         /// <summary>
         /// Tests GetDotNetTypeName for Array valueRank with OptionSet Enumeration calls recursively to base type.
         /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithOptionSetEnumeration_ReturnsBaseTypeCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithOptionSetEnumeration_ReturnsArrayOfBaseType()
         {
             // Arrange
             var mockBaseDataType = new DataTypeDesign
@@ -5960,48 +5944,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.UInt32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<uint>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName for Array valueRank with Enumeration not derived from built-in calls recursively to base type.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithDerivedEnumeration_ReturnsBaseTypeCollection()
-        {
-            // Arrange
-            var mockBaseDataType = new DataTypeDesign
-            {
-                BasicDataType = BasicDataType.Int32
-            };
-
-            var mockDataType = new DataTypeDesign
-            {
-                BasicDataType = BasicDataType.Enumeration,
-                SymbolicId = new XmlQualifiedName("DerivedEnum", "http://custom.namespace"),
-                IsOptionSet = false,
-                BaseType = new XmlQualifiedName("CustomBase", "http://custom.namespace"),
-                BaseTypeNode = mockBaseDataType
-            };
-            Namespace[] namespaces = [];
-            const string targetNamespace = "http://test.namespace";
-
-            // Act
-            string result = mockDataType.GetDotNetTypeName(
-                ValueRank.Array,
-                targetNamespace,
-                namespaces,
-                NullableAnnotation.NonNullable);
-
-            // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
-        }
-
-        /// <summary>
-        /// Tests GetDotNetTypeName returns custom user-defined type collection for Array valueRank.
-        /// </summary>
-        [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithUserDefinedType_ReturnsCustomCollection()
+        public void GetDotNetTypeName_ArrayValueRankWithUserDefinedType_ReturnsArrayOfCustomType()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -6020,7 +5967,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("MyCustomTypeCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<MyCustomType>"));
         }
 
         /// <summary>
@@ -6169,7 +6116,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.BooleanCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<bool>"));
         }
 
         /// <summary>
@@ -6193,7 +6140,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<int>"));
         }
 
         /// <summary>
@@ -6217,7 +6164,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.DoubleCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<double>"));
         }
 
         /// <summary>
@@ -6242,14 +6189,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.FloatCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<float>"));
         }
 
-        /// <summary>
-        /// Tests GetDotNetTypeName with NullableExceptDataTypes annotation for Array valueRank.
-        /// </summary>
         [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithNullableExceptDataTypes_ReturnsCollectionType()
+        public void GetDotNetTypeName_ArrayValueRankWithNullableExceptDataTypes_ReturnsArrayOfType()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -6267,7 +6211,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 NullableAnnotation.NullableExceptDataTypes);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.StringCollection"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf<string>"));
         }
 
         /// <summary>
@@ -7911,7 +7855,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.DateTime"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.DateTimeUtc"));
         }
 
         /// <summary>
@@ -7953,7 +7897,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces, NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("byte[]"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString"));
         }
 
         /// <summary>
@@ -7974,7 +7918,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces, NullableAnnotation.Nullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("byte[]?"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString"));
         }
 
         /// <summary>
@@ -7995,7 +7939,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.Xml.XmlElement"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.XmlElement"));
         }
 
         /// <summary>
@@ -9273,7 +9217,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(ValueRank.OneOrMoreDimensions)]
         [TestCase(ValueRank.ScalarOrOneDimension)]
         [TestCase(ValueRank.Any)]
-        public void IsDotNetEqualityComparable_NonScalarValueType_ReturnsFalse(ValueRank valueRank)
+        public void IsDotNetEqualityComparable_NonScalarValueType_ReturnsTrue(ValueRank valueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign { BasicDataType = BasicDataType.Int32 };
@@ -9282,7 +9226,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetEqualityComparable(valueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
         /// <summary>
@@ -9295,7 +9239,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(ValueRank.OneOrMoreDimensions)]
         [TestCase(ValueRank.ScalarOrOneDimension)]
         [TestCase(ValueRank.Any)]
-        public void IsDotNetEqualityComparable_NonScalarString_ReturnsFalse(ValueRank valueRank)
+        public void IsDotNetEqualityComparable_NonScalarString_ReturnsTrue(ValueRank valueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign { BasicDataType = BasicDataType.String };
@@ -9304,19 +9248,15 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetEqualityComparable(valueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetEqualityComparable returns false for non-scalar reference types.
-        /// Tests that arrays of reference types are not equality comparable.
-        /// </summary>
         [TestCase(ValueRank.Array)]
         [TestCase(ValueRank.ScalarOrArray)]
         [TestCase(ValueRank.OneOrMoreDimensions)]
         [TestCase(ValueRank.ScalarOrOneDimension)]
         [TestCase(ValueRank.Any)]
-        public void IsDotNetEqualityComparable_NonScalarReferenceType_ReturnsFalse(ValueRank valueRank)
+        public void IsDotNetEqualityComparable_NonScalarReferenceType_ReturnsTrue(ValueRank valueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign { BasicDataType = BasicDataType.ByteString };
@@ -9325,7 +9265,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetEqualityComparable(valueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
         /// <summary>
@@ -9353,7 +9293,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// The method should return false for undefined ValueRank values with value types.
         /// </summary>
         [Test]
-        public void IsDotNetEqualityComparable_UndefinedValueRank_ReturnsFalse()
+        public void IsDotNetEqualityComparable_UndefinedValueRank_ReturnsTrue()
         {
             // Arrange
             var dataType = new DataTypeDesign { BasicDataType = BasicDataType.Int32 };
@@ -9363,7 +9303,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetEqualityComparable(valueRank);
 
             // Assert
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
         }
 
         /// <summary>
@@ -11647,12 +11587,8 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.Throws<ArgumentNullException>(() => objectType.GetEventNotifierAsCode());
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true when ValueRank is Array.
-        /// Since arrays are reference types in .NET, this should return true regardless of the underlying data type.
-        /// </summary>
         [Test]
-        public void IsDotNetReferenceType_ValueRankArray_ReturnsTrue()
+        public void IsDotNetReferenceType_ValueRankArray_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11662,15 +11598,11 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true when ValueRank is ScalarOrArray.
-        /// When valueRank is not Scalar, the method should return true.
-        /// </summary>
         [Test]
-        public void IsDotNetReferenceType_ValueRankScalarOrArray_ReturnsTrue()
+        public void IsDotNetReferenceType_ValueRankScalarOrArray_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11680,7 +11612,7 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
         /// <summary>
@@ -11688,7 +11620,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// When valueRank is not Scalar, the method should return true.
         /// </summary>
         [Test]
-        public void IsDotNetReferenceType_ValueRankOneOrMoreDimensions_ReturnsTrue()
+        public void IsDotNetReferenceType_ValueRankOneOrMoreDimensions_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11698,15 +11630,11 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true when ValueRank is ScalarOrOneDimension.
-        /// When valueRank is not Scalar, the method should return true.
-        /// </summary>
-        [Test]
-        public void IsDotNetReferenceType_ValueRankScalarOrOneDimension_ReturnsTrue()
+         [Test]
+        public void IsDotNetReferenceType_ValueRankScalarOrOneDimension_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11716,15 +11644,11 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true when ValueRank is Any.
-        /// When valueRank is not Scalar, the method should return true.
-        /// </summary>
         [Test]
-        public void IsDotNetReferenceType_ValueRankAny_ReturnsTrue()
+        public void IsDotNetReferenceType_ValueRankAny_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11734,13 +11658,9 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true when ValueRank is Scalar and BasicDataType is String.
-        /// String is a reference type in .NET, so this should return true.
-        /// </summary>
         [Test]
         public void IsDotNetReferenceType_ScalarStringType_ReturnsTrue()
         {
@@ -11772,12 +11692,6 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.Throws<ArgumentNullException>(() => dataType.IsDotNetReferenceType(valueRank));
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns false when ValueRank is Scalar and the data type
-        /// would be treated as a .NET value type based on the BasicDataType determination.
-        /// This test covers the case where the BasicDataType cannot be determined and the recursive
-        /// check is performed.
-        /// </summary>
         [Test]
         public void IsDotNetReferenceType_ScalarValueType_ReturnsFalse()
         {
@@ -11800,15 +11714,11 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns appropriate result for various undefined/invalid ValueRank values.
-        /// Tests boundary conditions by casting integer values to ValueRank enum.
-        /// </summary>
-        [TestCase((ValueRank)(-1), ExpectedResult = true)]
-        [TestCase((ValueRank)100, ExpectedResult = true)]
-        [TestCase((ValueRank)int.MaxValue, ExpectedResult = true)]
-        [TestCase((ValueRank)int.MinValue, ExpectedResult = true)]
-        public bool IsDotNetReferenceType_InvalidValueRankValues_ReturnsTrue(ValueRank valueRank)
+        [TestCase((ValueRank)(-1), ExpectedResult = false)]
+        [TestCase((ValueRank)100, ExpectedResult = false)]
+        [TestCase((ValueRank)int.MaxValue, ExpectedResult = false)]
+        [TestCase((ValueRank)int.MinValue, ExpectedResult = false)]
+        public bool IsDotNetReferenceType_InvalidValueRankValues_ReturnsFalse(ValueRank valueRank)
         {
             // Arrange
             var dataType = new DataTypeDesign();
@@ -11817,10 +11727,6 @@ namespace Opc.Ua.Schema.Model.Tests
             return dataType.IsDotNetReferenceType(valueRank);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns false for optionset data types with Scalar ValueRank.
-        /// OptionSet types are treated as enumerations which are value types in .NET.
-        /// </summary>
         [Test]
         public void IsDotNetReferenceType_ScalarOptionSetType_ReturnsFalse()
         {
@@ -11838,12 +11744,8 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetReferenceType returns true for optionset data types with Array ValueRank.
-        /// Even though OptionSet is a value type, arrays are reference types in .NET.
-        /// </summary>
         [Test]
-        public void IsDotNetReferenceType_ArrayOptionSetType_ReturnsTrue()
+        public void IsDotNetReferenceType_ArrayOptionSetType_ReturnsFalse()
         {
             // Arrange
             var dataType = new DataTypeDesign
@@ -11856,12 +11758,9 @@ namespace Opc.Ua.Schema.Model.Tests
             bool result = dataType.IsDotNetReferenceType(valueRank);
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
         }
 
-        /// <summary>
-        /// Tests that GetMergedInstance returns the original instance when the instance has no parent.
-        /// </summary>
         [Test]
         public void GetMergedInstance_InstanceWithNoParent_ReturnsOriginalInstance()
         {
@@ -11878,9 +11777,6 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.SameAs(mockInstance));
         }
 
-        /// <summary>
-        /// Tests that GetMergedInstance returns the original instance when the parent is not a root node.
-        /// </summary>
         [Test]
         public void GetMergedInstance_ParentIsNotRoot_ReturnsOriginalInstance()
         {
@@ -11908,9 +11804,6 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.SameAs(mockInstance));
         }
 
-        /// <summary>
-        /// Tests that GetMergedInstance returns the original instance when the root parent has null Hierarchy.
-        /// </summary>
         [Test]
         public void GetMergedInstance_RootParentHasNullHierarchy_ReturnsOriginalInstance()
         {

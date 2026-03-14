@@ -82,19 +82,19 @@ namespace Quickstarts
 
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }]);
+                [QualifiedName.From(BrowseNames.Time)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]);
+                [QualifiedName.From(BrowseNames.ActiveState)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]);
+                [QualifiedName.From(BrowseNames.Message)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState) }]);
+                [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState)]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition) }]);
+                [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition)]);
         }
 
         /// <summary>
@@ -111,25 +111,25 @@ namespace Quickstarts
             try
             {
                 // build a list of nodes to be read
-                var nodesToRead = new ReadValueIdCollection
-                {
+                ArrayOf<ReadValueId> nodesToRead =
+                [
                     // Value of ServerStatus
                     new ReadValueId {
-                        NodeId = Variables.Server_ServerStatus,
+                        NodeId = VariableIds.Server_ServerStatus,
                         AttributeId = Attributes.Value },
                     // BrowseName of ServerStatus_StartTime
                     new ReadValueId
                     {
-                        NodeId = Variables.Server_ServerStatus_StartTime,
+                        NodeId = VariableIds.Server_ServerStatus_StartTime,
                         AttributeId = Attributes.BrowseName
                     },
                     // Value of ServerStatus_StartTime
                     new ReadValueId
                     {
-                        NodeId = Variables.Server_ServerStatus_StartTime,
+                        NodeId = VariableIds.Server_ServerStatus_StartTime,
                         AttributeId = Attributes.Value
                     }
-                };
+                ];
 
                 // Read the node attributes
                 Console.WriteLine("Reading nodes...");
@@ -142,8 +142,8 @@ namespace Quickstarts
                     nodesToRead,
                     ct).ConfigureAwait(false);
 
-                DataValueCollection resultsValues = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<DataValue> resultsValues = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the results
                 ValidateResponse(resultsValues, nodesToRead);
@@ -151,12 +151,12 @@ namespace Quickstarts
                 // Display the results.
                 foreach (DataValue result in resultsValues)
                 {
-                    Console.WriteLine($"Read Value = {result.Value} , StatusCode = {result.StatusCode}");
+                    Console.WriteLine($"Read Value = {result.WrappedValue} , StatusCode = {result.StatusCode}");
                 }
 
                 // Read Server NamespaceArray
                 Console.WriteLine("Reading Value of NamespaceArray node...");
-                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
+                DataValue namespaceArray = await session.ReadValueAsync(VariableIds.Server_NamespaceArray, ct)
                     .ConfigureAwait(false);
                 // Display the result
                 Console.WriteLine($"NamespaceArray Value = {namespaceArray}");
@@ -182,34 +182,32 @@ namespace Quickstarts
             try
             {
                 // Write the configured nodes
-                var nodesToWrite = new WriteValueCollection();
+                ArrayOf<WriteValue> nodesToWrite =
+                [
+                    // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
+                    new WriteValue
+                    {
+                        NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Int32"),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(100))
+                    },
 
-                // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
-                var intWriteVal = new WriteValue
-                {
-                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Int32"),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue { Value = 100 }
-                };
-                nodesToWrite.Add(intWriteVal);
+                    // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
+                    new WriteValue
+                    {
+                        NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Float"),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(100.5f))
+                    },
 
-                // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
-                var floatWriteVal = new WriteValue
-                {
-                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Float"),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue { Value = (float)100.5 }
-                };
-                nodesToWrite.Add(floatWriteVal);
-
-                // String Node - Objects\CTT\Scalar\Scalar_Static\String
-                var stringWriteVal = new WriteValue
-                {
-                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_String"),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue { Value = "String Test" }
-                };
-                nodesToWrite.Add(stringWriteVal);
+                    // String Node - Objects\CTT\Scalar\Scalar_Static\String
+                    new WriteValue
+                    {
+                        NodeId = NodeId.Parse("ns=2;s=Scalar_Static_String"),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From("String Test"))
+                    }
+                ];
 
                 // Write the node attributes
                 Console.WriteLine("Writing nodes...");
@@ -220,8 +218,8 @@ namespace Quickstarts
                     nodesToWrite,
                     ct).ConfigureAwait(false);
 
-                StatusCodeCollection results = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<StatusCode> results = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the response
                 ValidateResponse(results, nodesToWrite);
@@ -268,7 +266,7 @@ namespace Quickstarts
 
                 // Call Browse service
                 Console.WriteLine($"Browsing {nodeToBrowse} node...");
-                ReferenceDescriptionCollection browseResults =
+                ArrayOf<ReferenceDescription> browseResults =
                     await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
@@ -309,7 +307,7 @@ namespace Quickstarts
                 // Input argument requires a Float and an UInt32 value
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
@@ -356,7 +354,7 @@ namespace Quickstarts
                 // Input argument requires a Float and an UInt32 value
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
@@ -501,9 +499,9 @@ namespace Quickstarts
 
                 var filter = new EventFilter();
 
-                var simpleAttributeOperands = new SimpleAttributeOperandCollection();
+                var simpleAttributeOperands = new List<SimpleAttributeOperand>();
 
-                foreach (QualifiedNameCollection desiredEventField in m_desiredEventFields.Values)
+                foreach (ArrayOf<QualifiedName> desiredEventField in m_desiredEventFields.Values)
                 {
                     simpleAttributeOperands.Add(
                         new SimpleAttributeOperand
@@ -524,7 +522,7 @@ namespace Quickstarts
                 };
                 var desiredEventType = new LiteralOperand
                 {
-                    Value = new Variant(ObjectTypeIds.ExclusiveLevelAlarmType)
+                    Value = Variant.From(ObjectTypeIds.ExclusiveLevelAlarmType)
                 };
 
                 whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
@@ -570,8 +568,8 @@ namespace Quickstarts
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
-            var references = new NodeIdCollection { ReferenceTypeIds.HierarchicalReferences };
-            var nodesToBrowse = new ExpandedNodeIdCollection { startingNode };
+            ArrayOf<NodeId> references = [ReferenceTypeIds.HierarchicalReferences];
+            ArrayOf<ExpandedNodeId> nodesToBrowse = [startingNode];
 
             // start
             stopwatch.Start();
@@ -606,11 +604,11 @@ namespace Quickstarts
                     searchDepth,
                     nodesToBrowse.Count,
                     stopwatch.ElapsedMilliseconds);
-                IList<INode> response = await uaClient
+                ArrayOf<INode> response = await uaClient
                     .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true, ct)
                     .ConfigureAwait(false);
 
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                var nextNodesToBrowse = new List<ExpandedNodeId>();
                 int duplicates = 0;
                 int leafNodes = 0;
                 foreach (INode node in response)
@@ -708,7 +706,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
+        public async Task<ArrayOf<ReferenceDescription>> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
             BrowseDescription browseDescription = null,
@@ -743,7 +741,7 @@ namespace Quickstarts
                 }
             }
 
-            var nodesToBrowse = new List<NodeId> { startingNode.IsNull ? ObjectIds.RootFolder : startingNode };
+            ArrayOf<NodeId> nodesToBrowse = [startingNode.IsNull ? ObjectIds.RootFolder : startingNode];
 
             const int kMaxReferencesPerNode = 1000;
 
@@ -753,8 +751,8 @@ namespace Quickstarts
             int searchDepth = 0;
             uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
 
-            var allReferenceDescriptions = new List<ReferenceDescriptionCollection>();
-            var newReferenceDescriptions = new List<ReferenceDescriptionCollection>();
+            var allReferenceDescriptions = new List<ArrayOf<ReferenceDescription>>();
+            var newReferenceDescriptions = new List<ArrayOf<ReferenceDescription>>();
             var allServiceResults = new List<ServiceResult>();
 
             while (nodesToBrowse.Count != 0 && searchDepth < kMaxSearchDepth)
@@ -782,7 +780,7 @@ namespace Quickstarts
                         // maybe the API should be extended to
                         // support it. But that will then also be
                         // necessary for BrowseAsync
-                        (IList<ReferenceDescriptionCollection> descriptions, IList<ServiceResult> errors) =
+                        (ArrayOf<ArrayOf<ReferenceDescription>> descriptions, ArrayOf<ServiceResult> errors) =
                             await uaClient
                                 .Session.ManagedBrowseAsync(
                                     null,
@@ -815,7 +813,7 @@ namespace Quickstarts
                 // Build browse request for next level
                 var nodesForNextManagedBrowse = new List<NodeId>();
                 int duplicates = 0;
-                foreach (ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
+                foreach (ArrayOf<ReferenceDescription> referenceCollection in newReferenceDescriptions)
                 {
                     foreach (ReferenceDescription reference in referenceCollection)
                     {
@@ -840,7 +838,7 @@ namespace Quickstarts
 
                 newReferenceDescriptions.Clear();
 
-                nodesToBrowse = nodesForNextManagedBrowse;
+                nodesToBrowse = nodesForNextManagedBrowse.ToArrayOf();
 
                 if (duplicates > 0)
                 {
@@ -852,7 +850,7 @@ namespace Quickstarts
 
             stopWatch.Stop();
 
-            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+            var result = new List<ReferenceDescription>(referenceDescriptions.Values);
 
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
@@ -884,7 +882,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
+        public async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
             BrowseDescription browseDescription = null,
@@ -906,9 +904,9 @@ namespace Quickstarts
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
                 };
-            BrowseDescriptionCollection browseDescriptionCollection
+            ArrayOf<BrowseDescription> browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
-                [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
+                [startingNode.IsNull ? ObjectIds.RootFolder : startingNode],
                 browseTemplate);
 
             // Browse
@@ -925,11 +923,11 @@ namespace Quickstarts
                     browseDescriptionCollection.Count,
                     stopWatch.ElapsedMilliseconds);
 
-                var allBrowseResults = new BrowseResultCollection();
+                var allBrowseResults = new List<BrowseResult>();
                 bool repeatBrowse;
-                var browseResultCollection = new BrowseResultCollection();
-                var unprocessedOperations = new BrowseDescriptionCollection();
-                DiagnosticInfoCollection diagnosticsInfoCollection;
+                ArrayOf<BrowseResult> browseResultCollection = default;
+                var unprocessedOperations = new List<BrowseDescription>();
+                ArrayOf<DiagnosticInfo> diagnosticsInfoCollection;
                 do
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
@@ -937,11 +935,15 @@ namespace Quickstarts
                         m_logger.LogInformation("Browse aborted.");
                         break;
                     }
+					if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
+                    {
+                        maxNodesPerBrowse = 0; // Do not slice, take all
+                    }
 
-                    BrowseDescriptionCollection browseCollection =
+                    ArrayOf<BrowseDescription> browseCollection =
                         maxNodesPerBrowse == 0
                             ? browseDescriptionCollection
-                            : browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
+                            : browseDescriptionCollection[..(int)maxNodesPerBrowse];
                     repeatBrowse = false;
                     try
                     {
@@ -1003,19 +1005,12 @@ namespace Quickstarts
                     }
                 } while (repeatBrowse);
 
-                if (maxNodesPerBrowse == 0)
-                {
-                    browseDescriptionCollection.Clear();
-                }
-                else
-                {
-                    browseDescriptionCollection = browseDescriptionCollection
-                        .Skip(browseResultCollection.Count)
-                        .ToArray();
-                }
+                browseDescriptionCollection = maxNodesPerBrowse == 0 ?
+                    default :
+                    browseDescriptionCollection[(int)maxNodesPerBrowse..];
 
                 // Browse next
-                ByteStringCollection continuationPoints = PrepareBrowseNext(browseResultCollection);
+                ArrayOf<ByteString> continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Count > 0)
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
@@ -1027,7 +1022,7 @@ namespace Quickstarts
                     BrowseNextResponse browseNextResult = await uaClient
                         .Session.BrowseNextAsync(null, false, continuationPoints, ct)
                         .ConfigureAwait(false);
-                    BrowseResultCollection browseNextResultCollection = browseNextResult.Results;
+                    ArrayOf<BrowseResult> browseNextResultCollection = browseNextResult.Results;
                     diagnosticsInfoCollection = browseNextResult.DiagnosticInfos;
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(
@@ -1038,7 +1033,7 @@ namespace Quickstarts
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 int duplicates = 0;
                 foreach (BrowseResult browseResult in allBrowseResults)
                 {
@@ -1065,16 +1060,15 @@ namespace Quickstarts
                 {
                     m_logger.LogInformation("Browse Result {Count} duplicate nodes were ignored.", duplicates);
                 }
-                browseDescriptionCollection.AddRange(
-                    CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
-
-                // add unprocessed nodes if any
-                browseDescriptionCollection.AddRange(unprocessedOperations);
+                browseDescriptionCollection = ArrayOf.Combine(
+                    browseDescriptionCollection,
+                    CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate),
+                    unprocessedOperations); // add unprocessed nodes if any
             }
 
             stopWatch.Stop();
 
-            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+            var result = new List<ReferenceDescription>(referenceDescriptions.Values);
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_logger.LogInformation(
@@ -1162,9 +1156,10 @@ namespace Quickstarts
             CancellationToken ct = default)
         {
             NamespaceTable namespaceUris = session.NamespaceUris;
-            IEnumerable<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
-                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris));
-            return session.FetchTypeTreeAsync([.. referenceTypes], ct);
+            var referenceTypes = ReferenceTypeIds.Identifiers
+                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris))
+                .ToArrayOf();
+            return session.FetchTypeTreeAsync(referenceTypes, ct);
         }
 
         /// <summary>
@@ -1172,12 +1167,12 @@ namespace Quickstarts
         /// </summary>
         public async Task<ResultSet<DataValue>> ReadAllValuesAsync(
             IUAClient uaClient,
-            NodeIdCollection variableIds,
+            ArrayOf<NodeId> variableIds,
             CancellationToken ct = default)
         {
             bool retrySingleRead = false;
-            DataValueCollection values = null;
-            IList<ServiceResult> errors = null;
+            List<DataValue> values = null;
+            List<ServiceResult> errors = null;
 
             do
             {
@@ -1188,7 +1183,7 @@ namespace Quickstarts
                         values = [];
                         errors = [];
 
-                        foreach (NodeId variableId in variableIds)
+                        foreach (NodeId variableId in variableIds.ToList())
                         {
                             try
                             {
@@ -1205,7 +1200,7 @@ namespace Quickstarts
                                         uaClient.Session.MessageContext,
                                         variableId.ToString(),
                                         value,
-                                        JsonEncodingType.Compact);
+                                        JsonEncoderOptions.Compact);
                                     m_logger.LogInformation("{Value}", valueString);
                                 }
                                 else
@@ -1223,8 +1218,11 @@ namespace Quickstarts
                     }
                     else
                     {
-                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds, ct)
+                        (ArrayOf<DataValue> valueList, ArrayOf<ServiceResult> errorList) = await uaClient.Session.ReadValuesAsync(variableIds, ct)
                             .ConfigureAwait(false);
+
+                        values = valueList.ToList();
+                        errors = errorList.ToList();
 
                         int ii = 0;
                         foreach (DataValue value in values)
@@ -1235,7 +1233,7 @@ namespace Quickstarts
                                     uaClient.Session.MessageContext,
                                     variableIds[ii].ToString(),
                                     value,
-                                    JsonEncodingType.Compact);
+                                    JsonEncoderOptions.Compact);
                                 m_logger.LogInformation("{Value}", valueString);
                             }
                             else
@@ -1266,7 +1264,7 @@ namespace Quickstarts
         /// <param name="variableIds">The variables to subscribe.</param>
         public async Task SubscribeAllValuesAsync(
             IUAClient uaClient,
-            NodeCollection variableIds,
+            ArrayOf<Node> variableIds,
             int samplingInterval,
             int publishingInterval,
             uint queueSize,
@@ -1358,7 +1356,7 @@ namespace Quickstarts
             IServiceMessageContext messageContext,
             string name,
             DataValue value,
-            JsonEncodingType jsonEncodingType)
+            JsonEncoderOptions jsonEncodingType = null)
         {
             string textbuffer;
             using (var jsonEncoder = new JsonEncoder(messageContext, jsonEncodingType))
@@ -1416,7 +1414,7 @@ namespace Quickstarts
         private void FastDataChangeNotification(
             Subscription subscription,
             DataChangeNotification notification,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             try
             {
@@ -1470,7 +1468,7 @@ namespace Quickstarts
                 // Log MonitoredItem Notification event
                 var notification = e.NotificationValue as EventFieldList;
 
-                foreach (KeyValuePair<int, QualifiedNameCollection> entry in m_desiredEventFields)
+                foreach (KeyValuePair<int, ArrayOf<QualifiedName>> entry in m_desiredEventFields)
                 {
                     Variant field = notification.EventFields[entry.Key];
                     if (field.TypeInfo.BuiltInType != BuiltInType.Null)
@@ -1492,7 +1490,7 @@ namespace Quickstarts
                         {
                             try
                             {
-                                DateTime currentTime = field.GetDateTime();
+                                DateTimeUtc currentTime = field.GetDateTime();
                                 TimeSpan timeSpan = currentTime - m_lastEventTime;
                                 m_lastEventTime = currentTime;
                                 m_processedEvents++;
@@ -1560,11 +1558,11 @@ namespace Quickstarts
         /// </summary>
         /// <param name="nodeIdCollection">The node id collection.</param>
         /// <param name="template">The template for the browse description for each node id.</param>
-        private static BrowseDescriptionCollection CreateBrowseDescriptionCollectionFromNodeId(
-            NodeIdCollection nodeIdCollection,
+        private static ArrayOf<BrowseDescription> CreateBrowseDescriptionCollectionFromNodeId(
+            ArrayOf<NodeId> nodeIdCollection,
             BrowseDescription template)
         {
-            var browseDescriptionCollection = new BrowseDescriptionCollection();
+            var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
                 var browseDescription = (BrowseDescription)template.MemberwiseClone();
@@ -1750,13 +1748,13 @@ namespace Quickstarts
         /// </summary>
         /// <param name="browseResultCollection">The browse result collection to use.</param>
         /// <returns>The collection of continuation points for the BrowseNext service.</returns>
-        private static ByteStringCollection PrepareBrowseNext(
-            BrowseResultCollection browseResultCollection)
+        private static ArrayOf<ByteString> PrepareBrowseNext(
+            ArrayOf<BrowseResult> browseResultCollection)
         {
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = new List<ByteString>();
             foreach (BrowseResult browseResult in browseResultCollection)
             {
-                if (browseResult.ContinuationPoint != null)
+                if (!browseResult.ContinuationPoint.IsEmpty)
                 {
                     continuationPoints.Add(browseResult.ContinuationPoint);
                 }
@@ -1765,12 +1763,12 @@ namespace Quickstarts
         }
 
         private void ValidateResponse<TRequest, TResponse>(
-            IReadOnlyList<TRequest> requests,
-            IReadOnlyList<TResponse> responses)
+            ArrayOf<TRequest> requests,
+            ArrayOf<TResponse> responses)
         {
             if (m_validate != null)
             {
-                m_validate(requests?.ToList(), responses?.ToList());
+                m_validate(requests.ToArray(), responses.ToArray());
             }
             else
             {
@@ -1783,8 +1781,8 @@ namespace Quickstarts
         private readonly ILogger m_logger;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
-        private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields;
+        private readonly Dictionary<int, ArrayOf<QualifiedName>> m_desiredEventFields;
         private int m_processedEvents;
-        private DateTime m_lastEventTime = DateTime.Now;
+        private DateTimeUtc m_lastEventTime = DateTimeUtc.Now;
     }
 }

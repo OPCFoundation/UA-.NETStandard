@@ -501,7 +501,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine(subjectAlternateName.Format(true));
             Assert.False(subjectAlternateName.Critical);
-            IList<string> domainNames = X509Utils.GetDomainsFromCertificate(cert);
+            ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(cert);
             foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));

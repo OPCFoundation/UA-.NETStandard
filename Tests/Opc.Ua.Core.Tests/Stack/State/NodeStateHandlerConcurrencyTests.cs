@@ -707,7 +707,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             return ServiceResult.Good;
         }

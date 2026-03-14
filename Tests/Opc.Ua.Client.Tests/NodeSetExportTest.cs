@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -110,14 +111,14 @@ namespace Opc.Ua.Client.Tests
                 NodeClassMask = 0
             };
 
-            var nodesToBrowse = new NodeIdCollection { ObjectIds.Server };
+            var nodesToBrowse = new List<NodeId> { ObjectIds.Server };
             var allNodes = new List<INode>();
 
             // Browse starting from Server object
-            ReferenceDescriptionCollection references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
 
             // Fetch the actual nodes
-            foreach (ReferenceDescription reference in references)
+            foreach (ReferenceDescription reference in references.ToList())
             {
                 INode node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
                 if (node != null)
@@ -334,6 +335,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            DateTime now = DateTime.UtcNow;
 
             // Export with default options
             string tempFile = Path.GetTempFileName();
@@ -347,7 +349,12 @@ namespace Opc.Ua.Client.Tests
                         ServerUris = Session.ServerUris
                     };
 
-                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default);
+                    CoreClientUtils.ExportNodesToNodeSet2(
+                        systemContext,
+                        allNodes,
+                        stream,
+                        NodeSetExportOptions.Default,
+                        lastModified: now);
                 }
 
                 // Read it back and verify values are not exported
@@ -380,7 +387,12 @@ namespace Opc.Ua.Client.Tests
                             ServerUris = Session.ServerUris
                         };
 
-                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete);
+                        CoreClientUtils.ExportNodesToNodeSet2(
+                            systemContext,
+                            allNodes,
+                            stream,
+                            NodeSetExportOptions.Complete,
+                            lastModified: now);
                     }
 
                     var completeFile = new FileInfo(tempFileComplete);
@@ -388,12 +400,7 @@ namespace Opc.Ua.Client.Tests
 
                     // Default should be smaller or equal to complete
                     // (Equal if nodes don't have values to export)
-                    if (completeSize < defaultSize)
-                    {
-                        TestContext.Out.WriteLine($"Complete:\r\n|{File.ReadAllText(tempFileComplete)}|");
-                        TestContext.Out.WriteLine($"Default:\r\n|{File.ReadAllText(tempFile)}|");
-                        Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
-                    }
+                    Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
                 }
                 finally
                 {

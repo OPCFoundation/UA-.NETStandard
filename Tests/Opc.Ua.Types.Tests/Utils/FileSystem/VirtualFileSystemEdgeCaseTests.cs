@@ -32,9 +32,10 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 
+#pragma warning disable CA2022 // Avoid inexact read with 'Stream.Read'
+
 namespace Opc.Ua.Types.Tests.Utils.FileSystem
 {
-#pragma warning disable CA2022 // Avoid inexact read with 'Stream.Read'
     /// <summary>
     /// Tests for VirtualFileSystem error conditions and edge cases
     /// </summary>

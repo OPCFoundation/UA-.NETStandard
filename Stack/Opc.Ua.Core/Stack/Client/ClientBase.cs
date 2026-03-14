@@ -410,7 +410,7 @@ namespace Opc.Ua
                 var spanContextParameter = new KeyValuePair
                 {
                     Key = QualifiedName.From("SpanContext"),
-                    Value = new Variant(new SpanContextDataType
+                    Value = Variant.FromStructure(new SpanContextDataType
                     {
 #if NET8_0_OR_GREATER
                         SpanId = BitConverter.ToUInt64(spanId),
@@ -424,15 +424,16 @@ namespace Opc.Ua
                 if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
                     var additionalHeader = new AdditionalParametersType();
-                    additionalHeader.Parameters.Add(spanContextParameter);
+                    additionalHeader.Parameters = [spanContextParameter];
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.Body is
-                    AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters.Add(spanContextParameter);
+                    existingParameters.Parameters =
+                        existingParameters.Parameters.AddItem(spanContextParameter);
                 }
             }
         }
@@ -471,7 +472,7 @@ namespace Opc.Ua
                 statusCode = StatusCodes.Bad;
             }
 
-            DateTime? timestamp = request?.RequestHeader?.Timestamp;
+            DateTime? timestamp = (DateTime?)request?.RequestHeader?.Timestamp;
             TimeSpan? duration = timestamp != null ? DateTime.UtcNow - timestamp.Value : null;
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {
@@ -592,17 +593,35 @@ namespace Opc.Ua
             IReadOnlyList<TResponse> response,
             IReadOnlyList<TRequest> request)
         {
-            if (response is DiagnosticInfoCollection)
+            ValidateResponse(response.ToArrayOf(), request.ToArrayOf());
+        }
+
+        /// <summary>
+        /// Validates a response returned by the server.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        /// <param name="response">The response.</param>
+        /// <param name="request">The request.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateResponse<TRequest, TResponse>(
+            ArrayOf<TResponse> response,
+            ArrayOf<TRequest> request)
+        {
+            if (response is ArrayOf<DiagnosticInfo>)
             {
                 throw new ArgumentException(
-                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    "Must call ValidateDiagnosticInfos() for ArrayOf<DiagnosticInfo>.",
                     nameof(response));
             }
 
-            if (response == null || request == null || response.Count != request.Count)
+            if (response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
-                    "The server returned a list without the expected number of elements.");
+                    "The server returned {0} responses but {1} requests were made.",
+                    response.Count,
+                    request.Count);
             }
 
             for (int ii = 0; ii < response.Count; ii++)
@@ -610,7 +629,7 @@ namespace Opc.Ua
                 if (response[ii] is null)
                 {
                     throw ServiceResultException.Unexpected(
-                        "The server returned a list that contained elements set to null.");
+                        "The server returned responses contain a null response at index {0}.", ii);
                 }
             }
         }
@@ -623,14 +642,30 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos<TRequest>(
-            DiagnosticInfoCollection response,
+            IReadOnlyList<DiagnosticInfo> response,
             IReadOnlyList<TRequest> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null &&
-                response.Count != 0 &&
-                request != null &&
-                response.Count != request.Count)
+            if (response != null && response.Count != 0 && response.Count != request.Count)
+            {
+                throw ServiceResultException.Unexpected(
+                    "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+            }
+        }
+
+        /// <summary>
+        /// Validates a response returned by the server.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <param name="response">The response.</param>
+        /// <param name="request">The request.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateDiagnosticInfos<TRequest>(
+            ArrayOf<DiagnosticInfo> response,
+            ArrayOf<TRequest> request)
+        {
+            // returning an empty list for diagnostic info arrays is allowed.
+            if (!response.IsEmpty && response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
                     "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
@@ -648,10 +683,10 @@ namespace Opc.Ua
         public static ServiceResult GetResult(
             StatusCode statusCode,
             int index,
-            DiagnosticInfoCollection? diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader? responseHeader)
         {
-            if (diagnosticInfos != null && diagnosticInfos.Count > index)
+            if (!diagnosticInfos.IsEmpty && diagnosticInfos.Count > index)
             {
                 return new ServiceResult(
                     statusCode.Code,
@@ -675,7 +710,7 @@ namespace Opc.Ua
             DataValue value,
             Type expectedType,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             // check for null.

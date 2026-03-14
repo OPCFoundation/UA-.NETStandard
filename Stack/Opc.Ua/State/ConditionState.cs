@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua
 {
@@ -177,7 +176,7 @@ namespace Opc.Ua
                 branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
                 branchedNodeState.ReportStateChange(context, false);
 
-                string postEventId = CoreUtils.ToHexString(branchedNodeState.EventId.Value);
+                string postEventId = branchedNodeState.EventId.Value.ToHexString();
 
                 Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -206,9 +205,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">Desired Event Id</param>
         /// <returns>ConditionState branch if it exists</returns>
-        public virtual ConditionState GetEventByEventId(byte[] eventId)
+        public virtual ConditionState GetEventByEventId(ByteString eventId)
         {
-            if (EventId.Value.SequenceEqual(eventId))
+            if (EventId.Value == eventId)
             {
                 return this;
             }
@@ -221,7 +220,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">Desired Event Id</param>
         /// <returns>ConditionState branch if it exists</returns>
-        public ConditionState GetBranch(byte[] eventId)
+        public ConditionState GetBranch(ByteString eventId)
         {
             ConditionState alarm = null;
 
@@ -229,7 +228,7 @@ namespace Opc.Ua
 
             foreach (ConditionState branchEvent in branches.Values)
             {
-                if (branchEvent.EventId.Value.SequenceEqual(eventId))
+                if (branchEvent.EventId.Value == eventId)
                 {
                     alarm = branchEvent;
                     break;
@@ -244,10 +243,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="originalEventId">Event Id prior to the Acknowledgement</param>
         /// <param name="alarm">Branch, containing the updated EventId to be stored</param>
-        protected void ReplaceBranchEvent(byte[] originalEventId, ConditionState alarm)
+        protected void ReplaceBranchEvent(ByteString originalEventId, ConditionState alarm)
         {
-            string originalKey = CoreUtils.ToHexString(originalEventId);
-            string newKey = CoreUtils.ToHexString(alarm.EventId.Value);
+            string originalKey = originalEventId.ToHexString();
+            string newKey = alarm.EventId.Value.ToHexString();
 
             Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -259,9 +258,9 @@ namespace Opc.Ua
         /// Remove a specific branch
         /// </summary>
         /// <param name="eventId">The desired event to remove</param>
-        protected void RemoveBranchEvent(byte[] eventId)
+        protected void RemoveBranchEvent(ByteString eventId)
         {
-            string key = CoreUtils.ToHexString(eventId);
+            string key = eventId.ToHexString();
 
             Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -400,7 +399,7 @@ namespace Opc.Ua
             if (AutoReportStateChanges)
             {
                 // create a new event instance.
-                EventId.Value = Uuid.NewUuid().ToByteArray();
+                EventId.Value = Uuid.NewUuid().ToByteString();
                 Time.Value = DateTime.UtcNow;
                 ReceiveTime.Value = Time.Value;
 
@@ -438,7 +437,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeAddComment(context, eventId, comment);
@@ -483,7 +482,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -513,10 +512,10 @@ namespace Opc.Ua
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeAddComment(
             ISystemContext context,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -550,8 +549,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnEnableCalled(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult error = ProcessBeforeEnableDisable(context, true);
 
@@ -608,8 +607,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnDisableCalled(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // check that method can be called.
             ServiceResult error = ProcessBeforeEnableDisable(context, false);
@@ -791,6 +790,6 @@ namespace Opc.Ua
     public delegate ServiceResult ConditionAddCommentEventHandler(
         ISystemContext context,
         ConditionState condition,
-        byte[] eventId,
+        ByteString eventId,
         LocalizedText comment);
 }

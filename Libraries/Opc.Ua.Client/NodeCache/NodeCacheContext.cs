@@ -3,9 +3,7 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +31,7 @@ namespace Opc.Ua.Client
         public StringTable ServerUris => m_session.MessageContext.ServerUris;
 
         /// <inheritdoc/>
-        public async ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
+        public async ValueTask<ArrayOf<ReferenceDescription>> FetchReferencesAsync(
             RequestHeader? requestHeader,
             NodeId nodeId,
             CancellationToken ct = default)
@@ -46,21 +44,21 @@ namespace Opc.Ua.Client
                 IncludeSubtypes = true,
                 NodeClassMask = 0
             });
-            ResultSet<ReferenceDescriptionCollection> results =
+            ResultSet<ArrayOf<ReferenceDescription>> results =
                 await browser.BrowseAsync([nodeId], ct).ConfigureAwait(false);
             return results.Results[0];
         }
 
         /// <inheritdoc/>
-        public ValueTask<ResultSet<ReferenceDescriptionCollection>> FetchReferencesAsync(
+        public ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> FetchReferencesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
             {
-                return new ValueTask<ResultSet<ReferenceDescriptionCollection>>(
-                    ResultSet<ReferenceDescriptionCollection>.Empty);
+                return new ValueTask<ResultSet<ArrayOf<ReferenceDescription>>>(
+                    ResultSet<ArrayOf<ReferenceDescription>>.Empty);
             }
             var browser = new Browser(m_session, new BrowserOptions
             {
@@ -76,7 +74,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default)
         {
@@ -85,16 +83,15 @@ namespace Opc.Ua.Client
                 return ResultSet<Node>.Empty;
             }
 
-            var nodeCollection = new NodeCollection(nodeIds.Count);
-            var itemsToRead = new ReadValueIdCollection(nodeIds.Count);
+            var nodeCollection = new List<Node>(nodeIds.Count);
 
             // first read only nodeclasses for nodes from server.
-            itemsToRead =
-            [
-                .. nodeIds.Select(nodeId => new ReadValueId {
+            ArrayOf<ReadValueId> itemsToRead = nodeIds
+                .ConvertAll(nodeId => new ReadValueId
+                {
                     NodeId = nodeId,
-                    AttributeId = Attributes.NodeClass })
-            ];
+                    AttributeId = Attributes.NodeClass
+                });
 
             ReadResponse readResponse = await m_session.ReadAsync(
                 null,
@@ -104,8 +101,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection nodeClassValues = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> nodeClassValues = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -113,7 +110,7 @@ namespace Opc.Ua.Client
             // second determine attributes to read per nodeclass
             var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
             var serviceResults = new List<ServiceResult>(nodeIds.Count);
-            var attributesToRead = new ReadValueIdCollection();
+            var attributesToRead = new List<ReadValueId>();
 
             CreateAttributesReadNodesRequest(
                 readResponse.ResponseHeader,
@@ -128,23 +125,24 @@ namespace Opc.Ua.Client
 
             if (attributesToRead.Count > 0)
             {
+                itemsToRead = attributesToRead.ToArrayOf();
                 readResponse = await m_session.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Neither,
-                    attributesToRead,
+                    itemsToRead,
                     ct)
                     .ConfigureAwait(false);
 
-                DataValueCollection values = readResponse.Results;
+                ArrayOf<DataValue> values = readResponse.Results;
                 diagnosticInfos = readResponse.DiagnosticInfos;
 
-                ClientBase.ValidateResponse(values, attributesToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
                 ProcessAttributesReadNodesResponse(
                     readResponse.ResponseHeader,
-                    attributesToRead,
+                    itemsToRead,
                     attributesPerNodeId,
                     values,
                     diagnosticInfos,
@@ -158,7 +156,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default)
@@ -176,11 +174,10 @@ namespace Opc.Ua.Client
                     skipOptionalAttributes, ct).ConfigureAwait(false);
             }
 
-            var nodeCollection = new NodeCollection(nodeIds.Count);
-
+            var nodeCollection = new List<Node>(nodeIds.Count);
             // determine attributes to read for nodeclass
             var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
-            var attributesToRead = new ReadValueIdCollection();
+            var attributesToRead = new List<ReadValueId>();
 
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIds,
@@ -190,24 +187,25 @@ namespace Opc.Ua.Client
                 nodeCollection,
                 skipOptionalAttributes);
 
+            var itemsToRead = attributesToRead.ToArrayOf();
             ReadResponse readResponse = await m_session.ReadAsync(
                 requestHeader,
                 0,
                 TimestampsToReturn.Neither,
-                attributesToRead,
+                itemsToRead,
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             List<ServiceResult> serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 readResponse.ResponseHeader,
-                attributesToRead,
+                itemsToRead,
                 attributesPerNodeId,
                 values,
                 diagnosticInfos,
@@ -231,12 +229,12 @@ namespace Opc.Ua.Client
                 skipOptionalAttributes);
 
             // build list of values to read.
-            var itemsToRead = new ReadValueIdCollection();
-            foreach (uint attributeId in attributes.Keys)
-            {
-                var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = attributeId };
-                itemsToRead.Add(itemToRead);
-            }
+            var itemsToRead = attributes.Keys
+                .Select(attributeId => new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = attributeId
+                }).ToArrayOf();
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
@@ -247,8 +245,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -267,12 +265,14 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            var itemToRead = new ReadValueId
-            {
-                NodeId = nodeId,
-                AttributeId = Attributes.Value
-            };
-            var itemsToRead = new ReadValueIdCollection { itemToRead };
+            ArrayOf<ReadValueId> itemsToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
@@ -283,8 +283,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<DataValue>> FetchValuesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
@@ -314,12 +314,15 @@ namespace Opc.Ua.Client
             }
 
             // read all values from server.
-            var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(
-                    nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }));
+            ArrayOf<ReadValueId> itemsToRead = nodeIds
+                .ConvertAll(nodeId => new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                });
 
             // read from server.
-            var errors = new List<ServiceResult>(itemsToRead.Count);
+            var errors = new ServiceResult[itemsToRead.Count];
 
             ReadResponse readResponse = await m_session.ReadAsync(
                 null,
@@ -329,24 +332,24 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
-            foreach (DataValue value in values)
+            for (int ii = 0; ii < values.Count; ii++)
             {
                 ServiceResult result = ServiceResult.Good;
-                if (StatusCode.IsBad(value.StatusCode))
+                if (StatusCode.IsBad(values[ii].StatusCode))
                 {
                     result = ClientBase.GetResult(
-                        values[0].StatusCode,
-                        0,
+                        values[ii].StatusCode,
+                        ii,
                         diagnosticInfos,
                         readResponse.ResponseHeader);
                 }
-                errors.Add(result);
+                errors[ii] = result;
             }
 
             return ResultSet.From(values, errors);
@@ -357,16 +360,15 @@ namespace Opc.Ua.Client
         /// </summary>
         private static void CreateAttributesReadNodesRequest(
             ResponseHeader responseHeader,
-            ReadValueIdCollection itemsToRead,
-            DataValueCollection nodeClassValues,
-            DiagnosticInfoCollection diagnosticInfos,
-            ReadValueIdCollection attributesToRead,
+            ArrayOf<ReadValueId> itemsToRead,
+            ArrayOf<DataValue> nodeClassValues,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            List<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            List<Node> nodeCollection,
             List<ServiceResult> errors,
             bool skipOptionalAttributes)
         {
-            NodeClass? nodeClass;
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
                 var node = new Node { NodeId = itemsToRead[ii].NodeId };
@@ -384,11 +386,9 @@ namespace Opc.Ua.Client
                 }
 
                 // check for valid node class.
-                nodeClass = nodeClassValues[ii].Value as NodeClass?;
-
-                if (nodeClass == null)
+                if (!nodeClassValues[ii].WrappedValue.TryGet(out NodeClass nodeClass))
                 {
-                    if (nodeClassValues[ii].Value is int nc)
+                    if (nodeClassValues[ii].WrappedValue.TryGet(out int nc))
                     {
                         nodeClass = (NodeClass)nc;
                     }
@@ -399,14 +399,13 @@ namespace Opc.Ua.Client
                             ServiceResult.Create(
                                 StatusCodes.BadUnexpectedError,
                                 "Node does not have a valid value for NodeClass: {0}.",
-                                nodeClassValues[ii].Value));
+                                nodeClassValues[ii].WrappedValue));
                         attributesPerNodeId.Add(null);
                         continue;
                     }
                 }
 
-                node.NodeClass = nodeClass.Value;
-
+                node.NodeClass = nodeClass;
                 Dictionary<uint, DataValue?> attributes = CreateAttributes(
                     node.NodeClass,
                     skipOptionalAttributes);
@@ -438,11 +437,11 @@ namespace Opc.Ua.Client
         /// <param name="errors">The service results for each node.</param>
         private static void ProcessAttributesReadNodesResponse(
             ResponseHeader responseHeader,
-            ReadValueIdCollection attributesToRead,
+            ArrayOf<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos,
-            NodeCollection nodeCollection,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            List<Node> nodeCollection,
             List<ServiceResult> errors)
         {
             int readIndex = 0;
@@ -455,12 +454,11 @@ namespace Opc.Ua.Client
                 }
 
                 int readCount = attributes.Count;
-                var subRangeAttributes = new ReadValueIdCollection(
-                    attributesToRead.GetRange(readIndex, readCount));
-                var subRangeValues = new DataValueCollection(values.GetRange(readIndex, readCount));
-                DiagnosticInfoCollection subRangeDiagnostics =
+                ArrayOf<ReadValueId> subRangeAttributes = attributesToRead.Slice(readIndex, readCount);
+                ArrayOf<DataValue> subRangeValues = values.Slice(readIndex, readCount);
+                ArrayOf<DiagnosticInfo> subRangeDiagnostics =
                     diagnosticInfos.Count > 0
-                        ? [.. diagnosticInfos.GetRange(readIndex, readCount)]
+                        ? diagnosticInfos.Slice(readIndex, readCount)
                         : diagnosticInfos;
                 try
                 {
@@ -487,12 +485,12 @@ namespace Opc.Ua.Client
         private static Node ProcessReadResponse(
             ResponseHeader responseHeader,
             IDictionary<uint, DataValue?> attributes,
-            ReadValueIdCollection itemsToRead,
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos)
+            ArrayOf<ReadValueId> itemsToRead,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             // process results.
-            NodeClass? nodeClass = null;
+            NodeClass nodeClass = default;
 
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
@@ -511,19 +509,11 @@ namespace Opc.Ua.Client
                     }
 
                     // check for valid node class.
-                    nodeClass = values[ii].Value as NodeClass?;
-                    if (nodeClass == null)
+                    if (!values[ii].WrappedValue.TryGet(out nodeClass))
                     {
-                        if (values[ii].Value is int nc)
-                        {
-                            nodeClass = (NodeClass)nc;
-                        }
-                        else
-                        {
-                            throw ServiceResultException.Unexpected(
-                                "Node does not have a valid value for NodeClass: {0}.",
-                                values[ii].Value);
-                        }
+                        throw ServiceResultException.Unexpected(
+                            "Node does not have a valid value for NodeClass: {0}.",
+                            values[ii]);
                     }
                 }
                 else if (!DataValue.IsGood(values[ii]))
@@ -610,7 +600,7 @@ namespace Opc.Ua.Client
                             "Variable does not support the DataType attribute.");
                     }
 
-                    variableNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
+                    variableNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
                     value = attributes[Attributes.ValueRank];
@@ -628,13 +618,13 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        if (value.Value == null)
+                        if (!value.WrappedValue.TryGet(out ArrayOf<uint> arrayDimensions1))
                         {
-                            variableNode.ArrayDimensions = Array.Empty<uint>();
+                            variableNode.ArrayDimensions = [];
                         }
                         else
                         {
-                            variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                            variableNode.ArrayDimensions = arrayDimensions1;
                         }
                     }
 
@@ -647,7 +637,7 @@ namespace Opc.Ua.Client
                             "Variable does not support the AccessLevel attribute.");
                     }
 
-                    variableNode.AccessLevel = value.GetValueOrDefault<byte>();
+                    variableNode.AccessLevel = value.WrappedValue.GetByte();
 
                     // UserAccessLevel Attribute
                     value = attributes[Attributes.UserAccessLevel];
@@ -658,7 +648,7 @@ namespace Opc.Ua.Client
                             "Variable does not support the UserAccessLevel attribute.");
                     }
 
-                    variableNode.UserAccessLevel = value.GetValueOrDefault<byte>();
+                    variableNode.UserAccessLevel = value.WrappedValue.GetByte();
 
                     // Historizing Attribute
                     value = attributes[Attributes.Historizing];
@@ -669,16 +659,15 @@ namespace Opc.Ua.Client
                             "Variable does not support the Historizing attribute.");
                     }
 
-                    variableNode.Historizing = value.GetValueOrDefault<bool>();
+                    variableNode.Historizing = value.WrappedValue.GetBoolean();
 
                     // MinimumSamplingInterval Attribute
                     value = attributes[Attributes.MinimumSamplingInterval];
 
                     if (value != null)
                     {
-                        variableNode.MinimumSamplingInterval = Convert.ToDouble(
-                            attributes[Attributes.MinimumSamplingInterval]?.Value,
-                            CultureInfo.InvariantCulture);
+                        variableNode.MinimumSamplingInterval =
+                            (double)value.WrappedValue.ConvertToDouble();
                     }
 
                     // AccessLevelEx Attribute
@@ -686,7 +675,7 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        variableNode.AccessLevelEx = value.GetValueOrDefault<uint>();
+                        variableNode.AccessLevelEx = value.WrappedValue.GetUInt32();
                     }
 
                     node = variableNode;
@@ -703,7 +692,7 @@ namespace Opc.Ua.Client
                             "VariableType does not support the IsAbstract attribute.");
                     }
 
-                    variableTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
+                    variableTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataType Attribute
                     value = attributes[Attributes.DataType];
@@ -714,7 +703,7 @@ namespace Opc.Ua.Client
                             "VariableType does not support the DataType attribute.");
                     }
 
-                    variableTypeNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
+                    variableTypeNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
                     value = attributes[Attributes.ValueRank];
@@ -725,14 +714,15 @@ namespace Opc.Ua.Client
                             "VariableType does not support the ValueRank attribute.");
                     }
 
-                    variableTypeNode.ValueRank = value.GetValueOrDefault<int>();
+                    variableTypeNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
 
-                    if (value != null && value.Value != null)
+                    if (value != null &&
+                        value.WrappedValue.TryGet(out ArrayOf<uint> arrayDimensions2))
                     {
-                        variableTypeNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                        variableTypeNode.ArrayDimensions = arrayDimensions2;
                     }
 
                     node = variableTypeNode;
@@ -749,7 +739,7 @@ namespace Opc.Ua.Client
                             "Method does not support the Executable attribute.");
                     }
 
-                    methodNode.Executable = value.GetValueOrDefault<bool>();
+                    methodNode.Executable = value.WrappedValue.GetBoolean();
 
                     // UserExecutable Attribute
                     value = attributes[Attributes.UserExecutable];
@@ -760,7 +750,7 @@ namespace Opc.Ua.Client
                             "Method does not support the UserExecutable attribute.");
                     }
 
-                    methodNode.UserExecutable = value.GetValueOrDefault<bool>();
+                    methodNode.UserExecutable = value.WrappedValue.GetBoolean();
 
                     node = methodNode;
                     break;
@@ -776,7 +766,7 @@ namespace Opc.Ua.Client
                             "DataType does not support the IsAbstract attribute.");
                     }
 
-                    dataTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
+                    dataTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataTypeDefinition Attribute
                     value = attributes[Attributes.DataTypeDefinition];
@@ -784,7 +774,7 @@ namespace Opc.Ua.Client
                     if (value != null)
                     {
                         dataTypeNode.DataTypeDefinition =
-                            value.Value is ExtensionObject eo ? eo : default;
+                            value.WrappedValue.TryGet(out ExtensionObject eo) ? eo : default;
                     }
 
                     node = dataTypeNode;
@@ -801,7 +791,7 @@ namespace Opc.Ua.Client
                             "ReferenceType does not support the IsAbstract attribute.");
                     }
 
-                    referenceTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
+                    referenceTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // Symmetric Attribute
                     value = attributes[Attributes.Symmetric];
@@ -812,15 +802,15 @@ namespace Opc.Ua.Client
                             "ReferenceType does not support the Symmetric attribute.");
                     }
 
-                    referenceTypeNode.Symmetric = value.GetValueOrDefault<bool>();
+                    referenceTypeNode.Symmetric = value.WrappedValue.GetBoolean();
 
                     // InverseName Attribute
                     value = attributes[Attributes.InverseName];
 
-                    if (value != null && value.Value != null)
+                    if (value != null &&
+                        value.WrappedValue.TryGet(out LocalizedText inverseName))
                     {
-                        referenceTypeNode.InverseName = (LocalizedText)value.GetValue(
-                            typeof(LocalizedText));
+                        referenceTypeNode.InverseName = inverseName;
                     }
 
                     node = referenceTypeNode;
@@ -837,7 +827,7 @@ namespace Opc.Ua.Client
                             "View does not support the EventNotifier attribute.");
                     }
 
-                    viewNode.EventNotifier = value.GetValueOrDefault<byte>();
+                    viewNode.EventNotifier = value.WrappedValue.GetByte();
 
                     // ContainsNoLoops Attribute
                     value = attributes[Attributes.ContainsNoLoops];
@@ -848,14 +838,14 @@ namespace Opc.Ua.Client
                             "View does not support the ContainsNoLoops attribute.");
                     }
 
-                    viewNode.ContainsNoLoops = value.GetValueOrDefault<bool>();
+                    viewNode.ContainsNoLoops = value.WrappedValue.GetBoolean();
 
                     node = viewNode;
                     break;
                 case NodeClass.Unspecified:
                     throw ServiceResultException.Unexpected(
                         "Node does not have a valid value for NodeClass: {0}.",
-                        nodeClass.Value);
+                        nodeClass);
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass: {nodeClass}.");
@@ -870,8 +860,8 @@ namespace Opc.Ua.Client
                     "Node does not support the NodeId attribute.");
             }
 
-            node.NodeId = (NodeId)value.GetValue(typeof(NodeId));
-            node.NodeClass = nodeClass.Value;
+            node.NodeId = value.WrappedValue.GetNodeId();
+            node.NodeClass = nodeClass;
 
             // BrowseName Attribute
             value = attributes[Attributes.BrowseName];
@@ -882,7 +872,7 @@ namespace Opc.Ua.Client
                     "Node does not support the BrowseName attribute.");
             }
 
-            node.BrowseName = (QualifiedName)value.GetValue(typeof(QualifiedName));
+            node.BrowseName = value.WrappedValue.GetQualifiedName();
 
             // DisplayName Attribute
             value = attributes[Attributes.DisplayName];
@@ -893,62 +883,64 @@ namespace Opc.Ua.Client
                     "Node does not support the DisplayName attribute.");
             }
 
-            node.DisplayName = (LocalizedText)value.GetValue(typeof(LocalizedText));
+            node.DisplayName = value.WrappedValue.GetLocalizedText();
 
             // all optional attributes follow
 
             // Description Attribute
             if (attributes.TryGetValue(Attributes.Description, out value) &&
                 value != null &&
-                value.Value != null)
+                !value.WrappedValue.IsNull)
             {
-                node.Description = (LocalizedText)value.GetValue(typeof(LocalizedText));
+                node.Description = value.WrappedValue.GetLocalizedText();
             }
 
             // WriteMask Attribute
             if (attributes.TryGetValue(Attributes.WriteMask, out value) && value != null)
             {
-                node.WriteMask = value.GetValueOrDefault<uint>();
+                node.WriteMask = value.WrappedValue.GetUInt32();
             }
 
             // UserWriteMask Attribute
             if (attributes.TryGetValue(Attributes.UserWriteMask, out value) && value != null)
             {
-                node.UserWriteMask = value.GetValueOrDefault<uint>();
+                node.UserWriteMask = value.WrappedValue.GetUInt32();
             }
 
             // RolePermissions Attribute
             if (attributes.TryGetValue(Attributes.RolePermissions, out value) && value != null)
             {
-                if (value.Value is ExtensionObject[] rolePermissions)
+                if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> rolePermissions))
                 {
-                    node.RolePermissions = [];
-
+                    var rolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
-                        node.RolePermissions.Add(rolePermission.Body as RolePermissionType);
+                        rolePermissionList.Add(rolePermission.TryGetEncodeable(
+                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
+                    node.RolePermissions = rolePermissionList;
                 }
             }
 
             // UserRolePermissions Attribute
             if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) && value != null)
             {
-                if (value.Value is ExtensionObject[] userRolePermissions)
+                if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
-                    node.UserRolePermissions = [];
-
+                    var userRolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
-                        node.UserRolePermissions.Add(rolePermission.Body as RolePermissionType);
+                        userRolePermissionList.Add(rolePermission.TryGetEncodeable(
+                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
+                    node.UserRolePermissions = userRolePermissionList;
                 }
             }
 
             // AccessRestrictions Attribute
             if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) && value != null)
             {
-                node.AccessRestrictions = value.GetValueOrDefault<ushort>();
+                node.AccessRestrictions = value.WrappedValue.GetUInt16();
             }
 
             return node;
@@ -1053,11 +1045,11 @@ namespace Opc.Ua.Client
         /// Creates a read request with attributes determined by the NodeClass.
         /// </summary>
         private static void CreateNodeClassAttributesReadNodesRequest(
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
-            ReadValueIdCollection attributesToRead,
+            List<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            List<Node> nodeCollection,
             bool skipOptionalAttributes)
         {
             for (int ii = 0; ii < nodeIds.Count; ii++)

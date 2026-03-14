@@ -1143,8 +1143,10 @@ namespace Opc.Ua.Server
                 metadata.ValueRank = valueRank;
             }
 
-            metadata.ArrayDimensions = nodeMetadataValues[4].GetUInt32Array();
-
+            if (nodeMetadataValues[4].TryGet(out ArrayOf<uint> arrayDimensions))
+            {
+                metadata.ArrayDimensions = arrayDimensions;
+            }
             if (nodeMetadataValues[5].TryGet(out byte accessLevel) &&
                 nodeMetadataValues[6].TryGet(out byte userAccessLevel))
             {
@@ -1167,12 +1169,12 @@ namespace Opc.Ua.Server
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictionType;
             }
 
-            if (nodeMetadataValues[11].TryGetStructure(out RolePermissionType[] rolePermissions))
+            if (nodeMetadataValues[11].TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
 
-            if (nodeMetadataValues[12].TryGetStructure(out RolePermissionType[] userRolePermissions))
+            if (nodeMetadataValues[12].TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -1206,11 +1208,11 @@ namespace Opc.Ua.Server
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
-            if (values[1].TryGetStructure(out RolePermissionType[] rolePermissions))
+            if (values[1].TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
-            if (values[2].TryGetStructure(out RolePermissionType[] userRolePermissions))
+            if (values[2].TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -1278,11 +1280,6 @@ namespace Opc.Ua.Server
             if (continuationPoint == null)
             {
                 throw new ArgumentNullException(nameof(continuationPoint));
-            }
-
-            if (references == null)
-            {
-                throw new ArgumentNullException(nameof(references));
             }
 
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -1402,7 +1399,7 @@ namespace Opc.Ua.Server
                 FindPredefinedNode<ViewState>(view.ViewId)
                 ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
-            if (view.Timestamp != DateTime.MinValue)
+            if (view.Timestamp != DateTimeUtc.MinValue)
             {
                 throw new ServiceResultException(StatusCodes.BadViewTimestampInvalid);
             }
@@ -1675,7 +1672,7 @@ namespace Opc.Ua.Server
         public virtual async ValueTask ReadAsync(
             OperationContext context,
             double maxAge,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
@@ -1712,9 +1709,9 @@ namespace Opc.Ua.Server
                 // create an initial value.
                 DataValue value = values[ii] = new DataValue();
 
-                value.Value = null;
-                value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
-                value.SourceTimestamp = DateTime.MinValue;
+                value.WrappedValue = default;
+                value.ServerTimestamp = DateTimeUtc.MinValue; // Will be set after ReadAttribute
+                value.SourceTimestamp = DateTimeUtc.MinValue;
                 value.StatusCode = StatusCodes.Good;
 
                 // check if the node is a area in memory.
@@ -1745,7 +1742,7 @@ namespace Opc.Ua.Server
                 // For other attributes, just ensure ServerTimestamp is set
                 if (nodeToRead.AttributeId == Attributes.Value)
                 {
-                    if (value.SourceTimestamp == DateTime.MinValue)
+                    if (value.SourceTimestamp == DateTimeUtc.MinValue)
                     {
                         value.SourceTimestamp = DateTime.UtcNow;
                     }
@@ -1754,7 +1751,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     // For non-value attributes, only ServerTimestamp is relevant
-                    if (value.ServerTimestamp == DateTime.MinValue)
+                    if (value.ServerTimestamp == DateTimeUtc.MinValue)
                     {
                         value.ServerTimestamp = DateTime.UtcNow;
                     }
@@ -1896,7 +1893,7 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual async ValueTask ReadAsync(
             ServerSystemContext context,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToValidate,
@@ -1936,7 +1933,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask WriteAsync(
             OperationContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
@@ -2021,9 +2018,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = Convert.ToDouble(
-                                    nodeToWrite.Value.Value,
-                                    CultureInfo.InvariantCulture);
+                                double newValue = (double)nodeToWrite.Value.WrappedValue.ConvertToDouble();
 
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)
@@ -2058,7 +2053,7 @@ namespace Opc.Ua.Server
                         // read the old value for the purpose of auditing
                         lock (handle.Node)
                         {
-                            DateTime sourceTimestamp = DateTime.MinValue;
+                            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
                             handle.Node.ReadAttribute(
                                 systemContext,
                                 nodeToWrite.AttributeId,
@@ -2267,7 +2262,7 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual async ValueTask WriteAsync(
             ServerSystemContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToValidate,
             IDictionary<NodeId, NodeState> cache,
@@ -2319,7 +2314,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
@@ -2357,7 +2352,7 @@ namespace Opc.Ua.Server
                 HistoryReadResult result = results[ii] = new HistoryReadResult();
 
                 result.HistoryData = default;
-                result.ContinuationPoint = null;
+                result.ContinuationPoint = default;
                 result.StatusCode = StatusCodes.Good;
 
                 // check if the node is a area in memory.
@@ -2419,7 +2414,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryReleaseContinuationPointsAsync(
             ServerSystemContext context,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
             IDictionary<NodeId, NodeState> cache,
@@ -2448,7 +2443,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2478,7 +2473,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadProcessedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2508,7 +2503,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadAtTimeDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2538,7 +2533,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ReadEventDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2570,7 +2565,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2602,15 +2597,15 @@ namespace Opc.Ua.Server
             if (details is ReadRawModifiedDetails readRawModifiedDetails)
             {
                 // at least one must be provided.
-                if (readRawModifiedDetails.StartTime == DateTime.MinValue &&
-                    readRawModifiedDetails.EndTime == DateTime.MinValue)
+                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
+                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
 
                 // if one is null the num values must be provided.
-                if (readRawModifiedDetails.StartTime == DateTime.MinValue ||
-                    readRawModifiedDetails.EndTime == DateTime.MinValue)
+                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
+                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
                     {
@@ -2637,15 +2632,14 @@ namespace Opc.Ua.Server
             if (details is ReadProcessedDetails readProcessedDetails)
             {
                 // check the list of aggregates.
-                if (readProcessedDetails.AggregateType == null ||
-                    readProcessedDetails.AggregateType.Count != nodesToRead.Count)
+                if (readProcessedDetails.AggregateType.Count != nodesToRead.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
                 }
 
                 // check start/end time.
-                if (readProcessedDetails.StartTime == DateTime.MinValue ||
-                    readProcessedDetails.EndTime == DateTime.MinValue)
+                if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
+                    readProcessedDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
@@ -2689,14 +2683,14 @@ namespace Opc.Ua.Server
                 // check start/end time and max values.
                 if (readEventDetails.NumValuesPerNode == 0)
                 {
-                    if (readEventDetails.StartTime == DateTime.MinValue ||
-                        readEventDetails.EndTime == DateTime.MinValue)
+                    if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                        readEventDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
                 }
-                else if (readEventDetails.StartTime == DateTime.MinValue &&
-                    readEventDetails.EndTime == DateTime.MinValue)
+                else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
+                    readEventDetails.EndTime == DateTimeUtc.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
@@ -2730,7 +2724,7 @@ namespace Opc.Ua.Server
         public virtual async ValueTask HistoryUpdateAsync(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
@@ -2833,7 +2827,7 @@ namespace Opc.Ua.Server
         protected virtual async ValueTask HistoryUpdateAsync(
             ServerSystemContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2971,7 +2965,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryUpdateDataAsync(
             ServerSystemContext context,
-            IList<UpdateDataDetails> nodesToUpdate,
+            ArrayOf<UpdateDataDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -2999,7 +2993,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryUpdateStructureDataAsync(
             ServerSystemContext context,
-            IList<UpdateStructureDataDetails> nodesToUpdate,
+            ArrayOf<UpdateStructureDataDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -3027,7 +3021,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryUpdateEventsAsync(
             ServerSystemContext context,
-            IList<UpdateEventDetails> nodesToUpdate,
+            ArrayOf<UpdateEventDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -3055,7 +3049,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryDeleteRawModifiedAsync(
             ServerSystemContext context,
-            IList<DeleteRawModifiedDetails> nodesToUpdate,
+            ArrayOf<DeleteRawModifiedDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -3083,7 +3077,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryDeleteAtTimeAsync(
             ServerSystemContext context,
-            IList<DeleteAtTimeDetails> nodesToUpdate,
+            ArrayOf<DeleteAtTimeDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -3111,7 +3105,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask HistoryDeleteEventsAsync(
             ServerSystemContext context,
-            IList<DeleteEventDetails> nodesToUpdate,
+            ArrayOf<DeleteEventDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -3139,7 +3133,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask CallAsync(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
@@ -3251,7 +3245,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
             var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new VariantCollection();
+            var outputArguments = new List<Variant>();
 
             ServiceResult callResult = await method.CallAsync(
                context,
@@ -3270,13 +3264,16 @@ namespace Opc.Ua.Server
             // check for argument errors.
             bool argumentsValid = true;
 
+            var inputArgumentResults = new List<StatusCode>();
+            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
+
             for (int jj = 0; jj < argumentErrors.Count; jj++)
             {
                 ServiceResult argumentError = argumentErrors[jj];
 
                 if (argumentError != null)
                 {
-                    result.InputArgumentResults.Add(argumentError.StatusCode);
+                    inputArgumentResults.Add(argumentError.StatusCode);
 
                     if (ServiceResult.IsBad(argumentError))
                     {
@@ -3290,7 +3287,7 @@ namespace Opc.Ua.Server
                     {
                         if (ServiceResult.IsBad(argumentError))
                         {
-                            result.InputArgumentDiagnosticInfos.Add(
+                            inputArgumentDiagnosticInfos.Add(
                                 new DiagnosticInfo(
                                     argumentError,
                                     systemContext.OperationContext.DiagnosticsMask,
@@ -3300,7 +3297,7 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            result.InputArgumentDiagnosticInfos.Add(null);
+                            inputArgumentDiagnosticInfos.Add(null);
                         }
                     }
                 }
@@ -3309,14 +3306,14 @@ namespace Opc.Ua.Server
             // check for validation errors.
             if (!argumentsValid)
             {
+                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
+                // when StatusCode is Good. Therefore set here to the argument results
+                // and return a Bad status code.
+                result.InputArgumentResults = inputArgumentResults;
+                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return result.StatusCode;
             }
-
-            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
-            // Clear diagnostics and argument results if there are no errors.
-            result.InputArgumentDiagnosticInfos.Clear();
-            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;
@@ -3788,7 +3785,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -4036,9 +4033,9 @@ namespace Opc.Ua.Server
         {
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
+                SourceTimestamp = DateTimeUtc.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
             };
 
@@ -4194,7 +4191,7 @@ namespace Opc.Ua.Server
             var result = new ValidateMonitoringFilterResult();
 
             // nothing to do if the filter is not specified.
-            if (ExtensionObject.IsNull(filter))
+            if (filter.IsNull)
             {
                 result.StatusCode = StatusCodes.Good;
                 return result;
@@ -4371,7 +4368,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             CancellationToken cancellationToken = default)
@@ -5038,7 +5035,7 @@ namespace Opc.Ua.Server
             if (namespaceMetadataState != null)
             {
                 Variant value = default;
-                DateTime sourceTimestamp = DateTime.MinValue;
+                DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
 
                 if (namespaceMetadataState.DefaultAccessRestrictions != null)
                 {
@@ -5067,12 +5064,9 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (!value.IsNull && value.TryGetStructure(out RolePermissionType[] rolePermissions))
+                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultRolePermissions =
-                        [
-                            .. rolePermissions
-                        ];
+                        metadata.DefaultRolePermissions = rolePermissions;
                     }
                 }
 
@@ -5086,12 +5080,9 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (!value.IsNull && value.TryGetStructure(out RolePermissionType[] userRolePermissions))
+                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
                     {
-                        metadata.DefaultUserRolePermissions =
-                        [
-                            .. userRolePermissions
-                        ];
+                        metadata.DefaultUserRolePermissions = userRolePermissions;
                     }
                 }
             }

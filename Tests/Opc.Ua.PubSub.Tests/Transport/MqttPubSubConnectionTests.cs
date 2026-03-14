@@ -59,6 +59,24 @@ namespace Opc.Ua.PubSub.Tests.Transport
         internal const string DefaultBrokerProcessName = "mosquitto";
         internal const string MqttUrlFormat = "{0}://{1}:1883";
 
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From((byte)1),
+            Variant.From((ushort)1),
+            Variant.From((uint)1),
+            Variant.From((ulong)1),
+            Variant.From("abc"),
+        ];
+
+        [TearDown]
+        public void MyTestTearDown()
+        {
+            m_uaConfigurationUpdateEvent?.Dispose();
+            m_uaMetaDataShutdownEvent?.Dispose();
+            m_uaDeltaDataShutdownEvent?.Dispose();
+            m_uaDataShutdownEvent?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
@@ -69,7 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithUadp(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             RestartMosquitto();
@@ -222,7 +240,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaUadp(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId,
             [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -407,7 +425,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithJson(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId,
             [Values(0, 10000)] double metaDataUpdateTime)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -588,7 +606,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaJson(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId,
             [Values(2, 3, 4)] int keyFrameCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

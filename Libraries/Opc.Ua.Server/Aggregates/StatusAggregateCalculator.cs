@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.Server
@@ -49,8 +48,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public StatusAggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,

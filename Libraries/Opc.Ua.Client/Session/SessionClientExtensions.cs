@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -47,20 +46,21 @@ namespace Opc.Ua.Client
         /// Reads the values for a set of variables.
         /// </summary>
         public static async ValueTask<(
-            Variant[],
-            IList<ServiceResult>
+            ArrayOf<Variant>,
+            ArrayOf<ServiceResult>
             )> ReadValuesAsync(
                 this ISessionClient session,
-                IList<NodeId> variableIds,
-                IReadOnlyList<TypeInfo> expectedTypes,
+                ArrayOf<NodeId> variableIds,
+                ArrayOf<TypeInfo> expectedTypes,
                 CancellationToken ct = default)
         {
-            (DataValueCollection dataValues, IList<ServiceResult> errors) =
+            (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
                 await session.ReadValuesAsync(
                     variableIds,
                     ct).ConfigureAwait(false);
 
             var values = new Variant[dataValues.Count];
+            var errors = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
                 if (dataValues[ii].WrappedValue.TypeInfo != expectedTypes[ii])
@@ -73,6 +73,7 @@ namespace Opc.Ua.Client
                     continue;
                 }
                 // suitable value found.
+                errors[ii] = errorValues[ii];
                 values[ii] = dataValues[ii].WrappedValue;
             }
             return (values, errors);
@@ -82,19 +83,18 @@ namespace Opc.Ua.Client
         /// Reads the values for a set of variables.
         /// </summary>
         public static async ValueTask<(
-            IList<object>,
-            IList<ServiceResult>
+            ArrayOf<object>,
+            ArrayOf<ServiceResult>
             )> ReadValuesAsync(
                 this ISessionClient session,
-                IList<NodeId> variableIds,
-                IList<Type> expectedTypes,
+                ArrayOf<NodeId> variableIds,
+                ArrayOf<Type> expectedTypes,
                 CancellationToken ct = default)
         {
-            (DataValueCollection dataValues, IList<ServiceResult> errors) =
-                await session.ReadValuesAsync(
-                    variableIds,
-                    ct).ConfigureAwait(false);
+            (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
+                await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
 
+            ServiceResult[] errors = new ServiceResult[errorValues.Count];
             object[] values = new object[dataValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
@@ -102,9 +102,9 @@ namespace Opc.Ua.Client
 
                 // extract the body from extension objects.
                 if (value is ExtensionObject extension &&
-                    extension.Body is IEncodeable)
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 // check expected type.
@@ -120,6 +120,7 @@ namespace Opc.Ua.Client
                 }
 
                 // suitable value found.
+                errors[ii] = errorValues[ii];
                 values[ii] = value;
             }
             return (values, errors);
@@ -131,8 +132,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<(
             ResponseHeader,
-            byte[],
-            ReferenceDescriptionCollection
+            ByteString,
+            ArrayOf<ReferenceDescription>
             )> BrowseAsync(
                 this ISessionClient session,
                 RequestHeader? requestHeader,
@@ -145,11 +146,12 @@ namespace Opc.Ua.Client
                 uint nodeClassMask,
                 CancellationToken ct = default)
         {
-            ResponseHeader responseHeader;
-            IList<ServiceResult> errors;
-            IList<ReferenceDescriptionCollection> referencesList;
-            ByteStringCollection continuationPoints;
-            (responseHeader, continuationPoints, referencesList, errors) =
+            (
+                ResponseHeader? responseHeader,
+                ArrayOf<ByteString> continuationPoints,
+                ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+                ArrayOf<ServiceResult> errors
+            ) =
                 await session.BrowseAsync(
                     requestHeader,
                     view,
@@ -178,21 +180,21 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<(
             ResponseHeader,
-            byte[],
-            ReferenceDescriptionCollection
+            ByteString,
+            ArrayOf<ReferenceDescription>
             )> BrowseNextAsync(
                 this ISessionClient session,
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoint,
-                byte[]? continuationPoint,
+                ByteString continuationPoint,
                 CancellationToken ct = default)
         {
-            ResponseHeader responseHeader;
-            IList<ServiceResult> errors;
-            IList<ReferenceDescriptionCollection> referencesList;
-
-            ByteStringCollection revisedContinuationPoints;
-            (responseHeader, revisedContinuationPoints, referencesList, errors) =
+            (
+                ResponseHeader? responseHeader,
+                ArrayOf<ByteString> revisedContinuationPoints,
+                ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+                ArrayOf<ServiceResult> errors
+            ) =
                 await session.BrowseNextAsync(
                     requestHeader,
                     [continuationPoint],
@@ -213,13 +215,13 @@ namespace Opc.Ua.Client
         /// Managed browsing using browser
         /// </summary>
         public static async Task<(
-            IList<ReferenceDescriptionCollection>,
-            IList<ServiceResult>
+            ArrayOf<ArrayOf<ReferenceDescription>>,
+            ArrayOf<ServiceResult>
             )> ManagedBrowseAsync(
                 this ISessionClient session,
                 RequestHeader? requestHeader,
                 ViewDescription? view,
-                IList<NodeId> nodesToBrowse,
+                ArrayOf<NodeId> nodesToBrowse,
                 uint maxResultsToReturn,
                 BrowseDirection browseDirection,
                 NodeId referenceTypeId,
@@ -237,9 +239,9 @@ namespace Opc.Ua.Client
                 IncludeSubtypes = includeSubtypes,
                 NodeClassMask = (int)nodeClassMask
             });
-            ResultSet<ReferenceDescriptionCollection> result =
-                await browser.BrowseAsync([.. nodesToBrowse], ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            ResultSet<ArrayOf<ReferenceDescription>> result =
+                await browser.BrowseAsync(nodesToBrowse, ct).ConfigureAwait(false);
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -248,12 +250,12 @@ namespace Opc.Ua.Client
         /// <param name="session">session to use</param>
         /// <param name="nodeId">The node id.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        public static async Task<ReferenceDescriptionCollection> FetchReferencesAsync(
+        public static async Task<ArrayOf<ReferenceDescription>> FetchReferencesAsync(
             this ISessionClient session,
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            (IList<ReferenceDescriptionCollection> descriptions, _) =
+            (ArrayOf<ArrayOf<ReferenceDescription>> descriptions, _) =
                 await session.ManagedBrowseAsync(
                     null,
                     null,
@@ -272,16 +274,16 @@ namespace Opc.Ua.Client
         /// Fetches all references for the specified nodes.
         /// </summary>
         /// <param name="session">session to use</param>
-        /// <param name="nodeIds">The node id collection.</param>
+        /// <param name="nodeIds">The node ids to collect references for.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        /// <returns>A list of reference collections and the errors reported
+        /// <returns>A list of reference description lists and the errors reported
         /// by the server.</returns>
         public static Task<(
-            IList<ReferenceDescriptionCollection>,
-            IList<ServiceResult>
+            ArrayOf<ArrayOf<ReferenceDescription>>,
+            ArrayOf<ServiceResult>
             )> FetchReferencesAsync(
                 this ISessionClient session,
-                IList<NodeId> nodeIds,
+                ArrayOf<NodeId> nodeIds,
                 CancellationToken ct = default)
         {
             return session.ManagedBrowseAsync(
@@ -297,24 +299,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
+        /// Reads the values for the node attributes and returns a list of nodes.
         /// </summary>
         /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known
+        /// If the nodeclass for the nodes in the array of NodeId is already known
         /// and passed as nodeClass, reads only values of required attributes.
         /// Otherwise NodeClass.Unspecified should be used.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection.
+        /// <param name="nodeIds">The array of NodeIds to read.</param>
+        /// <param name="nodeClass">The nodeClass of all nodes in the array.
         /// Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes
         /// should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The node collection and associated errors.</returns>
-        public static async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+        /// <returns>The array of nodes and associated errors.</returns>
+        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
             CancellationToken ct = default)
@@ -322,35 +324,35 @@ namespace Opc.Ua.Client
             var nodeCacheContext = new NodeCacheContext(session);
             ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
                 null,
-                [.. nodeIds],
+                nodeIds,
                 nodeClass,
                 !optionalAttributes,
                 ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
+        /// Reads the values for the node attributes and returns a array of nodes.
         /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node collection.
+        /// the values for the node attributes and returns a array of nodes.
         /// </summary>
         /// <param name="session">The session to use</param>
-        /// <param name="nodeIds">The nodeId collection.</param>
+        /// <param name="nodeIds">The array of NodeIds to read.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        public static async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
             var nodeCacheContext = new NodeCacheContext(session);
             ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
                 null,
-                [.. nodeIds],
+                nodeIds,
                 !optionalAttributes,
                 ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -401,29 +403,22 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">node for which to read display name</param>
         /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <returns>Paired list of displaynames and potential errors per node</returns>
-        public static async Task<(IList<string>, IList<ServiceResult>)> ReadDisplayNameAsync(
+        public static async Task<(ArrayOf<string>, ArrayOf<ServiceResult>)> ReadDisplayNameAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             var displayNames = new List<string>();
             var errors = new List<ServiceResult>();
 
             // build list of values to read.
-            var valuesToRead = new ReadValueIdCollection();
-
-            for (int ii = 0; ii < nodeIds.Count; ii++)
+            ArrayOf<ReadValueId> valuesToRead = nodeIds.ConvertAll(n => new ReadValueId
             {
-                var valueToRead = new ReadValueId
-                {
-                    NodeId = nodeIds[ii],
-                    AttributeId = Attributes.DisplayName,
-                    IndexRange = null,
-                    DataEncoding = QualifiedName.Null
-                };
-
-                valuesToRead.Add(valueToRead);
-            }
+                NodeId = n,
+                AttributeId = Attributes.DisplayName,
+                IndexRange = null,
+                DataEncoding = QualifiedName.Null
+            });
 
             // read the values.
 
@@ -434,8 +429,8 @@ namespace Opc.Ua.Client
                 valuesToRead,
                 ct).ConfigureAwait(false);
 
-            DataValueCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<DataValue> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             // verify that the server returned the correct number of results.
@@ -467,7 +462,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return (displayNames, errors);
+            return (displayNames.ToArrayOf(), errors.ToArrayOf());
         }
 
         /// <summary>
@@ -490,7 +485,7 @@ namespace Opc.Ua.Client
                 NodeClassMask = 0
             });
 
-            ReferenceDescriptionCollection references =
+            ArrayOf<ReferenceDescription> references =
                 await browser.BrowseAsync(encodingId, ct).ConfigureAwait(false);
 
             if (references.Count == 0)
@@ -519,9 +514,10 @@ namespace Opc.Ua.Client
             DataValue dataValue = await session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             object value = dataValue.Value;
 
-            if (value is ExtensionObject extension)
+            if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
+                extension.TryGetEncodeable(out IEncodeable encodeable))
             {
-                value = extension.Body;
+                value = encodeable;
             }
 
             if (!typeof(T).IsInstanceOfType(value))
@@ -554,22 +550,22 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
+        /// Reads the values for a array of nodes. Returns diagnostic errors.
         /// </summary>
         /// <param name="session">The session to use</param>
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        public static async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
+        public static async Task<(ArrayOf<DataValue>, ArrayOf<ServiceResult>)> ReadValuesAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             var nodeCacheContext = new NodeCacheContext(session);
             ResultSet<DataValue> result = await nodeCacheContext.FetchValuesAsync(
                 null,
-                [.. nodeIds],
+                nodeIds,
                 ct).ConfigureAwait(false);
-            return (new DataValueCollection(result.Results), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -588,14 +584,14 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public static async Task<(
             ResponseHeader responseHeader,
-            ByteStringCollection continuationPoints,
-            IList<ReferenceDescriptionCollection> referencesList,
-            IList<ServiceResult> errors
+            ArrayOf<ByteString> continuationPoints,
+            ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+            ArrayOf<ServiceResult> errors
         )> BrowseAsync(
             this ISessionClient session,
             RequestHeader? requestHeader,
             ViewDescription? view,
-            IList<NodeId> nodesToBrowse,
+            ArrayOf<NodeId> nodesToBrowse,
             uint maxResultsToReturn,
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
@@ -603,10 +599,8 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             CancellationToken ct = default)
         {
-            var browseDescriptions = new BrowseDescriptionCollection();
-            foreach (NodeId nodeToBrowse in nodesToBrowse)
-            {
-                var description = new BrowseDescription
+            ArrayOf<BrowseDescription> browseDescriptions = nodesToBrowse.
+                ConvertAll(nodeToBrowse => new BrowseDescription
                 {
                     NodeId = nodeToBrowse,
                     BrowseDirection = browseDirection,
@@ -614,10 +608,7 @@ namespace Opc.Ua.Client
                     IncludeSubtypes = includeSubtypes,
                     NodeClassMask = nodeClassMask,
                     ResultMask = (uint)BrowseResultMask.All
-                };
-
-                browseDescriptions.Add(description);
-            }
+                });
 
             BrowseResponse browseResponse = await session.BrowseAsync(
                 requestHeader,
@@ -626,16 +617,16 @@ namespace Opc.Ua.Client
                 browseDescriptions,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = browseResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = browseResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(results, browseDescriptions);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
-            var continuationPoints = new ByteStringCollection();
-            var referencesList = new List<ReferenceDescriptionCollection>();
+            var continuationPoints = new List<ByteString>();
+            var referencesList = new List<ArrayOf<ReferenceDescription>>();
             foreach (BrowseResult result in results)
             {
                 if (StatusCode.IsBad(result.StatusCode))
@@ -656,7 +647,11 @@ namespace Opc.Ua.Client
                 ii++;
             }
 
-            return (browseResponse.ResponseHeader, continuationPoints, referencesList, errors);
+            return (
+                browseResponse.ResponseHeader,
+                continuationPoints.ToArrayOf(),
+                referencesList.ToArrayOf(),
+                errors.ToArrayOf());
         }
 
         /// <summary>
@@ -670,13 +665,13 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public static async Task<(
             ResponseHeader responseHeader,
-            ByteStringCollection revisedContinuationPoints,
-            IList<ReferenceDescriptionCollection> referencesList,
-            IList<ServiceResult> errors
+            ArrayOf<ByteString> revisedContinuationPoints,
+            ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+            ArrayOf<ServiceResult> errors
         )> BrowseNextAsync(
             this ISessionClient session,
             RequestHeader? requestHeader,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             bool releaseContinuationPoint,
             CancellationToken ct = default)
         {
@@ -686,16 +681,16 @@ namespace Opc.Ua.Client
                 continuationPoints,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             ClientBase.ValidateResponse(results, continuationPoints);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
-            var revisedContinuationPoints = new ByteStringCollection();
-            var referencesList = new List<ReferenceDescriptionCollection>();
+            var revisedContinuationPoints = new List<ByteString>();
+            var referencesList = new List<ArrayOf<ReferenceDescription>>();
             foreach (BrowseResult result in results)
             {
                 if (StatusCode.IsBad(result.StatusCode))
@@ -716,7 +711,11 @@ namespace Opc.Ua.Client
                 ii++;
             }
 
-            return (response.ResponseHeader, revisedContinuationPoints, referencesList, errors);
+            return (
+                response.ResponseHeader,
+                revisedContinuationPoints.ToArrayOf(),
+                referencesList.ToArrayOf(),
+                errors.ToArrayOf());
         }
 
         /// <summary>
@@ -732,7 +731,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public static async ValueTask<ReadOnlyMemory<byte>> ReadBytesAsync(
+        public static async ValueTask<ByteString> ReadBytesAsync(
             this ISessionClient session,
             NodeId nodeId,
             int maxByteStringLength,
@@ -766,7 +765,7 @@ namespace Opc.Ua.Client
                             offset + maxByteStringLength - 1).ToString(),
                         DataEncoding = QualifiedName.Null
                     };
-                    var readValueIds = new ReadValueIdCollection { valueToRead };
+                    ArrayOf<ReadValueId> readValueIds = [valueToRead];
 
                     ReadResponse result = await session.ReadAsync(
                         null,
@@ -777,8 +776,8 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false);
 
                     ResponseHeader responseHeader = result.ResponseHeader;
-                    DataValueCollection results = result.Results;
-                    DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+                    ArrayOf<DataValue> results = result.Results;
+                    ArrayOf<DiagnosticInfo> diagnosticInfos = result.DiagnosticInfos;
                     ClientBase.ValidateResponse(results, readValueIds);
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
 
@@ -810,7 +809,7 @@ namespace Opc.Ua.Client
                         throw new ServiceResultException(serviceResult);
                     }
 
-                    if (results[0].Value is not byte[] chunk || chunk.Length == 0)
+                    if (!results[0].WrappedValue.TryGet(out ByteString chunk) || chunk.Length == 0)
                     {
                         // End of stream - fast path (no stream allocated yet)
                         // will return empty array constant.
@@ -823,9 +822,9 @@ namespace Opc.Ua.Client
                     }
                     stream ??= new MemoryStream();
 #if NET8_0_OR_GREATER
-                    await stream.WriteAsync(chunk, ct).ConfigureAwait(false);
+                    await stream.WriteAsync(chunk.Memory, ct).ConfigureAwait(false);
 #else
-                    stream.Write(chunk, 0, chunk.Length);
+                    stream.Write(chunk.ToArray(), 0, chunk.Length);
 #endif
                     if (chunk.Length < maxByteStringLength)
                     {
@@ -833,7 +832,7 @@ namespace Opc.Ua.Client
                     }
                     offset += maxByteStringLength;
                 }
-                return stream?.ToArray() ?? [];
+                return stream != null ? stream.ToArray().ToByteString() : ByteString.Empty;
             }
             finally
             {
@@ -858,7 +857,7 @@ namespace Opc.Ua.Client
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<VariantCollection> CallAsync(
+        public static async Task<ArrayOf<Variant>> CallAsync(
             this ISessionClient session,
             NodeId objectId,
             NodeId methodId,
@@ -869,21 +868,18 @@ namespace Opc.Ua.Client
             {
                 ObjectId = objectId,
                 MethodId = methodId,
-                InputArguments = new VariantCollection(args)
+                InputArguments = args
             };
 
-            var requests = new CallMethodRequestCollection { request };
-
-            CallMethodResultCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
+            ArrayOf<CallMethodRequest> requests = [request];
 
             CallResponse response = await session.CallAsync(
                 null,
                 requests,
                 ct).ConfigureAwait(false);
 
-            results = response.Results;
-            diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             ClientBase.ValidateResponse(results, requests);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
@@ -903,18 +899,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
-        public static async ValueTask<IReadOnlyList<ServiceResult>> ResendDataAsync(
+        public static async ValueTask<ArrayOf<ServiceResult>> ResendDataAsync(
             this ISessionClient session,
-            IEnumerable<uint> subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
-            CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptionIds);
+            ArrayOf<CallMethodRequest> requests = subscriptionIds
+                .ConvertAll(subscriptionId => new CallMethodRequest
+                {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = [Variant.From(subscriptionId)]
+                });
 
             var errors = new List<ServiceResult>(requests.Count);
+
             CallResponse response = await session.CallAsync(null, requests, ct).ConfigureAwait(false);
-            CallMethodResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
+
             ClientBase.ValidateResponse(results, requests);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
 
@@ -929,33 +933,7 @@ namespace Opc.Ua.Client
                 errors.Add(result);
                 ii++;
             }
-
-            return errors;
-        }
-
-        /// <summary>
-        /// Creates resend data call requests for the subscriptions.
-        /// </summary>
-        /// <param name="subscriptionIds">The subscriptions to call resend data.</param>
-        private static CallMethodRequestCollection CreateCallRequestsForResendData(
-            IEnumerable<uint> subscriptionIds)
-        {
-            var requests = new CallMethodRequestCollection();
-
-            foreach (uint subscriptionId in subscriptionIds)
-            {
-                var inputArguments = new VariantCollection { new Variant(subscriptionId) };
-
-                var request = new CallMethodRequest
-                {
-                    ObjectId = ObjectIds.Server,
-                    MethodId = MethodIds.Server_ResendData,
-                    InputArguments = inputArguments
-                };
-
-                requests.Add(request);
-            }
-            return requests;
+            return errors.ToArrayOf();
         }
     }
 }

@@ -67,6 +67,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public const ushort NamespaceIndexAllTypes = 3;
         public const ushort NamespaceIndexMassTest = 4;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_publisherApplication?.Dispose();
+            m_subscriberApplication?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
@@ -87,12 +94,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_publisherConfiguration,
                 "m_publisherConfiguration should not be null");
 
-            //Get first connection
-            Assert.IsNotNull(
-                m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections,
+            // Get first connection
+            Assert.IsFalse(
+                m_publisherConfiguration.Connections.IsEmpty,
                 "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(
@@ -100,8 +104,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections[0].WriterGroups,
+            Assert.IsFalse(
+                m_publisherConfiguration.Connections[0].WriterGroups.IsEmpty,
                 "pubSubConfigConnection.WriterGroups should not be empty");
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
             Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
@@ -127,6 +131,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             m_firstDataSetReadersType = GetFirstDataSetReaders();
         }
+
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From((byte)10),
+            Variant.From((ushort)10),
+            Variant.From((uint)10),
+            Variant.From((ulong)10),
+            Variant.From((sbyte)10),
+            Variant.From((short)10),
+            Variant.From((int)10),
+            Variant.From((long)10),
+            Variant.From("abc"),
+            Variant.From("Test$!#$%^&*87"),
+            Variant.From("Begrüßung")
+        ];
 
         [Test(Description = "Validate PublisherId with supported data types")]
         public void ValidatePublisherId(
@@ -167,14 +186,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(
-                (byte)10,
-                (ushort)10,
-                (uint)10,
-                (ulong)10,
-                "abc",
-                "Test$!#$%^&*87",
-                "Begrüßung")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -189,6 +202,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
             CompareEncodeDecode(uaNetworkMessage, logger);
         }
+
+        private static readonly Variant[] s_invalidPublisherIds =
+        [
+            Variant.From((float)10),
+            Variant.From((double)10),
+            Variant.From(ByteString.From(10, 20))
+        ];
 
         [Test(Description = "Invalidate PublisherId with wrong data type")]
         public void InvalidatePublisherId(
@@ -229,7 +249,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((float)10, (double)10)] object publisherId)
+            [ValueSource(nameof(s_invalidPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -837,11 +858,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Read the first configured ReaderGroup
             Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
-            Assert.IsNotEmpty(
-                m_firstReaderGroup.DataSetReaders,
+            Assert.IsFalse(
+                m_firstReaderGroup.DataSetReaders.IsEmpty,
                 "m_firstReaderGroup.DataSetReaders should not be empty");
 
-            return m_firstReaderGroup.DataSetReaders;
+            return m_firstReaderGroup.DataSetReaders.ToList();
         }
 
         /// <summary>

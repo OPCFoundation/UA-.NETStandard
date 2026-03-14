@@ -28,9 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua
@@ -65,6 +62,14 @@ namespace Opc.Ua
         public Uuid(byte[] bytes)
         {
             Guid = new Guid(bytes);
+        }
+
+        /// <summary>
+        /// Create a new guid from a byte array.
+        /// </summary>
+        public Uuid(ByteString byteString)
+        {
+            Guid = new Guid(byteString.ToArray());
         }
 
         /// <summary>
@@ -111,6 +116,14 @@ namespace Opc.Ua
         public byte[] ToByteArray()
         {
             return Guid.ToByteArray();
+        }
+
+        /// <summary>
+        /// Converts Uuid to a byte string
+        /// </summary>
+        public ByteString ToByteString()
+        {
+            return ToByteArray().ToByteString();
         }
 
         /// <summary>
@@ -250,126 +263,6 @@ namespace Opc.Ua
         public string ToString(string format, IFormatProvider formatProvider)
         {
             return Guid.ToString(format);
-        }
-    }
-
-    /// <summary>
-    /// A collection of Uuids.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfGuid",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Guid")]
-    public class UuidCollection : List<Uuid>, ICloneable
-    {
-        /// <inheritdoc/>
-        public UuidCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public UuidCollection(IEnumerable<Uuid> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public UuidCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator UuidCollection(Guid[] values)
-        {
-            return values != null ? [.. values.Select(g => new Uuid(g))] : [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator Guid[](UuidCollection values)
-        {
-            return values != null ? [.. values.Select(g => g.Guid)] : [];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator UuidCollection(Uuid[] values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator Uuid[](UuidCollection values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            return new UuidCollection(this);
-        }
-    }
-
-    /// <summary>
-    /// A wrapper for a GUID used during object serialization.
-    /// </summary>
-    /// <remarks>
-    /// This class provides a wrapper around the <see cref="Uuid"/>
-    /// object, allowing it to be serialized  and encoded/decoded
-    /// to/from an underlying stream.
-    /// </remarks>x
-    [DataContract(Name = "Guid", Namespace = Namespaces.OpcUaXsd)]
-    public sealed class SerializableUuid :
-        ISurrogateFor<Uuid>
-    {
-        /// <inheritdoc/>
-        public SerializableUuid()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableUuid(Uuid guid)
-        {
-            Value = guid;
-        }
-
-        /// <summary>
-        /// The GUID serialized as a string.
-        /// </summary>
-        /// <remarks>
-        /// The GUID serialized as a string.
-        /// </remarks>
-        [DataMember(Name = "String", Order = 1)]
-        public string GuidString
-        {
-            get => Value.ToString();
-            set
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    Value = Uuid.Empty;
-                }
-                else
-                {
-                    Value = new Uuid(value);
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public Uuid Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
         }
     }
 }

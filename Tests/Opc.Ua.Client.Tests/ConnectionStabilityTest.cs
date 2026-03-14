@@ -241,7 +241,7 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
 
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {

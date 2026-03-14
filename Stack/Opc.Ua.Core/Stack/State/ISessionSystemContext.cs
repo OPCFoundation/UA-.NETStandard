@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -128,7 +127,7 @@ namespace Opc.Ua
         /// The locales to use if available.
         /// </summary>
         /// <value>The preferred locales.</value>
-        public IList<string> PreferredLocales
+        public ArrayOf<string> PreferredLocales
         {
             get
             {
@@ -290,7 +289,7 @@ namespace Opc.Ua
         }
 
         private NodeId m_sessionId;
-        private IList<string> m_preferredLocales;
+        private ArrayOf<string> m_preferredLocales;
         private string m_auditEntryId;
         private IUserIdentity m_userIdentity;
     }

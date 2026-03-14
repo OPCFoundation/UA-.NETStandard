@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,7 +128,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void AddNodesAsyncThrows()
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = new List<AddNodesItem>();
             var addNodesItem = new AddNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -143,8 +144,8 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false);
 
                         Assert.NotNull(response);
-                        AddNodesResultCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<AddNodesResult> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.AreEqual(nodesToAdd.Count, results.Count);
                         Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
@@ -159,7 +160,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void AddReferencesAsyncThrows()
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = new List<AddReferencesItem>();
             var addReferencesItem = new AddReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -178,8 +179,8 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false);
 
                         Assert.NotNull(response);
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.AreEqual(referencesToAdd.Count, results.Count);
                         Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
@@ -193,7 +194,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DeleteNodesAsyncThrows()
         {
-            var nodesTDelete = new DeleteNodesItemCollection();
+            var nodesTDelete = new List<DeleteNodesItem>();
             var deleteNodesItem = new DeleteNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -208,8 +209,8 @@ namespace Opc.Ua.Client.Tests
                             .DeleteNodesAsync(requestHeader, nodesTDelete, CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
                         Assert.AreEqual(nodesTDelete.Count, results.Count);
@@ -224,7 +225,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DeleteReferencesAsyncThrows()
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = new List<DeleteReferencesItem>();
             var deleteReferencesItem = new DeleteReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -242,8 +243,8 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        StatusCodeCollection results = response.Results;
-                        DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> results = response.Results;
+                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
                         Assert.AreEqual(referencesToDelete.Count, results.Count);
@@ -262,7 +263,7 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            var startingNode = ObjectIds.RootFolder;
             var browseTemplate = new BrowseDescription
             {
                 NodeId = startingNode,
@@ -274,16 +275,16 @@ namespace Opc.Ua.Client.Tests
             };
 
             var requestHeader = new RequestHeader();
-            var referenceDescriptions = new ReferenceDescriptionCollection();
+            var referenceDescriptions = new List<ReferenceDescription>();
 
-            BrowseDescriptionCollection browseDescriptionCollection =
+            ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                    [.. new NodeId[] { Objects.RootFolder }],
+                    [ObjectIds.RootFolder],
                     browseTemplate);
             while (browseDescriptionCollection.Count > 0)
             {
                 TestContext.Out.WriteLine("Browse {0} Nodes...", browseDescriptionCollection.Count);
-                var allResults = new BrowseResultCollection();
+                var allResults = new List<BrowseResult>();
                 BrowseResponse response = await Session
                     .BrowseAsync(
                         requestHeader,
@@ -293,12 +294,12 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None)
                     .ConfigureAwait(false);
 
-                BrowseResultCollection results = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<BrowseResult> results = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 allResults.AddRange(results);
 
-                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
+                ArrayOf<ByteString> continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                     results);
                 while (continuationPoints.Count > 0)
                 {
@@ -310,7 +311,7 @@ namespace Opc.Ua.Client.Tests
                             continuationPoints,
                             CancellationToken.None)
                         .ConfigureAwait(false);
-                    BrowseResultCollection browseNextResultCollection = nextResponse.Results;
+                    ArrayOf<BrowseResult> browseNextResultCollection = nextResponse.Results;
                     diagnosticInfos = nextResponse.DiagnosticInfos;
                     ServerFixtureUtils.ValidateResponse(
                         response.ResponseHeader,
@@ -327,7 +328,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 foreach (BrowseResult result in allResults)
                 {
                     referenceDescriptions.AddRange(result.References);
@@ -346,12 +347,12 @@ namespace Opc.Ua.Client.Tests
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             // read values
-            var nodesToRead = new ReadValueIdCollection(
+            var nodesToRead =
                 referenceDescriptions.Select(r => new ReadValueId
                 {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
-                }));
+                }).ToArrayOf();
 
             // test reads
             TestContext.Out.WriteLine("Test Read Nodes...");
@@ -366,7 +367,7 @@ namespace Opc.Ua.Client.Tests
 
             // test register nodes
             TestContext.Out.WriteLine("Test Register Nodes...");
-            var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
+            var nodesToRegister = nodesToRead.ConvertAll(n => n.NodeId).ToList();
             RegisterNodesResponse registerResponse = await Session
                 .RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -378,7 +379,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // test writes
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = new List<WriteValue>();
             int ii = 0;
             foreach (DataValue result in readResponse.Results)
             {
@@ -420,7 +421,7 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
-            var browsePaths = new BrowsePathCollection();
+            var browsePathList = new List<BrowsePath>();
             var browsePath = new BrowsePath
             {
                 StartingNode = ObjectIds.RootFolder,
@@ -429,8 +430,9 @@ namespace Opc.Ua.Client.Tests
 
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                browsePaths.Add(browsePath);
+                browsePathList.Add(browsePath);
             }
+            var browsePaths = browsePathList.ToArrayOf();
 
             var requestHeader = new RequestHeader();
             TranslateBrowsePathsToNodeIdsResponse response = await Session
@@ -439,8 +441,8 @@ namespace Opc.Ua.Client.Tests
                     browsePaths,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            BrowsePathResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             ServerFixtureUtils.ValidateResponse(response.ResponseHeader, results, browsePaths);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -458,15 +460,13 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // there are no historizing nodes, but create some real ones
-            System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
-                Session.NamespaceUris);
-            var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
-
+            var nodesToRead = GetTestSetSimulation(
+                Session.NamespaceUris)
+                .Select(nodeId => new HistoryReadValueId { NodeId = nodeId })
             // add a some real history nodes
-            testSet = GetTestSetHistory(Session.NamespaceUris);
-            nodesToRead.AddRange(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
+                .Concat(GetTestSetHistory(Session.NamespaceUris)
+                    .Select(nodeId => new HistoryReadValueId { NodeId = nodeId }))
+                .ToArrayOf();
 
             HistoryReadResponse response = await Session
                 .HistoryReadAsync(
@@ -501,28 +501,28 @@ namespace Opc.Ua.Client.Tests
 
             // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
             // history update of event, data or annotations should be called individually
-            ExtensionObjectCollection historyUpdateDetails;
+            ArrayOf<ExtensionObject> historyUpdateDetails;
             if (eventDetails)
             {
-                historyUpdateDetails =
-                [
-                    .. testSet.Select(nodeId => new ExtensionObject(
-                        new UpdateEventDetails {
+                historyUpdateDetails = testSet
+                    .Select(nodeId => new ExtensionObject(
+                        new UpdateEventDetails
+                        {
                             NodeId = nodeId,
-                            PerformInsertReplace = PerformUpdateType.Insert }
-                    ))
-                ];
+                            PerformInsertReplace = PerformUpdateType.Insert
+                        }
+                    )).ToArrayOf();
             }
             else
             {
-                historyUpdateDetails =
-                [
-                    .. testSet.Select(nodeId => new ExtensionObject(
-                        new UpdateDataDetails {
+                historyUpdateDetails = testSet
+                    .Select(nodeId => new ExtensionObject(
+                        new UpdateDataDetails
+                        {
                             NodeId = nodeId,
-                            PerformInsertReplace = PerformUpdateType.Replace }
-                    ))
-                ];
+                            PerformInsertReplace = PerformUpdateType.Replace
+                        }
+                    )).ToArrayOf();
             }
 
             HistoryUpdateResponse response = await Session
@@ -569,15 +569,15 @@ namespace Opc.Ua.Client.Tests
         {
             EventFilter filter = _ = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }

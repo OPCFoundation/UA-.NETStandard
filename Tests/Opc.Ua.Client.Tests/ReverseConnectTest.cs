@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Tests
                     connection,
                     endpointConfiguration,
                     ct: cancellationTokenSource.Token).ConfigureAwait(false);
-                Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
+                Endpoints = await client.GetEndpointsAsync(default, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
             }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(),
-                    null)
+                    default)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
@@ -307,7 +307,7 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(),
-                    null)
+                    default)
                 .ConfigureAwait(false);
 
             Assert.NotNull(session);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
@@ -339,7 +339,7 @@ namespace Opc.Ua.Client.Tests
             await m_requiredLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (Endpoints == null)
+                if (Endpoints.IsNull)
                 {
                     await GetEndpointsInternalAsync().ConfigureAwait(false);
                 }

@@ -146,12 +146,7 @@ namespace Opc.Ua
                     endpoint.Description.Server.ApplicationUri = endpoint.Description.EndpointUrl;
                 }
 
-                if (endpoint.Description.Server.DiscoveryUrls == null)
-                {
-                    endpoint.Description.Server.DiscoveryUrls = [];
-                }
-
-                if (endpoint.Description.Server.DiscoveryUrls.Count == 0)
+                if (endpoint.Description.Server.DiscoveryUrls.IsEmpty)
                 {
                     string discoveryUrl = endpoint.Description.EndpointUrl;
 
@@ -160,7 +155,8 @@ namespace Opc.Ua
                         discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                     }
 
-                    endpoint.Description.Server.DiscoveryUrls.Add(discoveryUrl);
+                    endpoint.Description.Server.DiscoveryUrls =
+                        endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl);
                 }
 
                 // normalize transport profile uri.
@@ -696,18 +692,21 @@ namespace Opc.Ua
             if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 description.TransportProfileUri = Profiles.UaTcpTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
             else if (Utils.IsUriHttpsScheme(description.EndpointUrl))
             {
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                    description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
             else if (description.EndpointUrl
                 .StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
             {
                 description.TransportProfileUri = Profiles.UaTcpTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+                description.Server.DiscoveryUrls =
+                    description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
 
             var endpoint = new ConfiguredEndpoint(this, description, null);
@@ -737,7 +736,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the servers that are part of the collection.
         /// </summary>
-        public ApplicationDescriptionCollection GetServers()
+        public ArrayOf<ApplicationDescription> GetServers()
         {
             var servers = new Dictionary<string, ApplicationDescription>();
 
@@ -761,10 +760,10 @@ namespace Opc.Ua
         /// <summary>
         /// A list of well known urls that can be used for discovery.
         /// </summary>
-        public StringCollection DiscoveryUrls
+        public ArrayOf<string> DiscoveryUrls
         {
             get => m_discoveryUrls;
-            set => m_discoveryUrls = value ?? [.. Utils.DiscoveryUrls];
+            set => m_discoveryUrls = value.IsNull ? Utils.DiscoveryUrls : value;
         }
 
         /// <summary>
@@ -842,8 +841,8 @@ namespace Opc.Ua
                     m_description.EndpointUrl = url.ToString();
                     m_description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                     m_description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-                    m_description.UserIdentityTokens
-                        .Add(new UserTokenPolicy(UserTokenType.Anonymous));
+                    m_description.UserIdentityTokens = m_description.UserIdentityTokens
+                        .AddItem(new UserTokenPolicy(UserTokenType.Anonymous));
 
                     if (url.Scheme == Utils.UriSchemeOpcTcp)
                     {
@@ -958,8 +957,7 @@ namespace Opc.Ua
         /// </summary>
         public bool NeedUpdateFromServer()
         {
-            bool hasCertificate = Description.ServerCertificate != null &&
-                Description.ServerCertificate.Length > 0;
+            bool hasCertificate = Description.ServerCertificate.Length > 0;
             bool usingUserTokenSecurity =
                 (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
                 (SelectedUserTokenPolicy.SecurityPolicyUri ??
@@ -1218,12 +1216,12 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client
-                    .GetEndpointsAsync(null, ct)
+                ArrayOf<EndpointDescription> collection = await client
+                    .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
 
                 // find list of matching endpoints.
-                EndpointDescriptionCollection matches = MatchEndpoints(
+                ArrayOf<EndpointDescription> matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1257,15 +1255,10 @@ namespace Opc.Ua
             }
 
             // get the know discovery URLs.
-            StringCollection discoveryUrls = null;
-
-            if (m_description.Server != null)
-            {
-                discoveryUrls = m_description.Server.DiscoveryUrls;
-            }
+            ArrayOf<string> discoveryUrls =  m_description.Server?.DiscoveryUrls ?? default;
 
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
-            if (discoveryUrls == null || discoveryUrls.Count == 0)
+            if (discoveryUrls.IsEmpty)
             {
                 if (Utils.IsUriHttpRelatedScheme(endpointUrl.Scheme))
                 {
@@ -1354,9 +1347,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_description != null && m_description.UserIdentityTokens != null)
+                if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
+                    ArrayOf<UserTokenPolicy> policies = m_description.UserIdentityTokens;
 
                     if (SelectedUserTokenPolicyIndex >= 0 &&
                         policies.Count > SelectedUserTokenPolicyIndex)
@@ -1369,9 +1362,9 @@ namespace Opc.Ua
             }
             set
             {
-                if (m_description != null && m_description.UserIdentityTokens != null)
+                if (m_description != null && !m_description.UserIdentityTokens.IsNull)
                 {
-                    UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
+                    ArrayOf<UserTokenPolicy> policies = m_description.UserIdentityTokens;
 
                     for (int ii = 0; ii < policies.Count; ii++)
                     {
@@ -1387,13 +1380,13 @@ namespace Opc.Ua
             }
         }
 
-        private static EndpointDescriptionCollection MatchEndpoints(
-            EndpointDescriptionCollection collection,
+        private static ArrayOf<EndpointDescription> MatchEndpoints(
+            ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (collection == null || collection.Count == 0)
+            if (collection.IsEmpty)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
@@ -1401,7 +1394,7 @@ namespace Opc.Ua
             }
 
             // find list of matching endpoints.
-            var matches = new EndpointDescriptionCollection();
+            var matches = new List<EndpointDescription>();
 
             // first pass - match on the requested security parameters.
             foreach (EndpointDescription description in collection)
@@ -1456,7 +1449,7 @@ namespace Opc.Ua
                 else
                 {
                     // no specific security parameters were requested, fall back to any endpoint
-                    matches = collection;
+                    matches = collection.ToList();
                 }
             }
 
@@ -1505,7 +1498,7 @@ namespace Opc.Ua
             // no matches (protocol may not be supported).
             if (matches.Count == 0)
             {
-                matches = collection;
+                matches = collection.ToList();
             }
 
             return matches;
@@ -1515,7 +1508,7 @@ namespace Opc.Ua
         /// Select the best match from a security description.
         /// </summary>
         private static EndpointDescription SelectBestMatch(
-            EndpointDescriptionCollection matches,
+            ArrayOf<EndpointDescription> matches,
             Uri discoveryUrl)
         {
             // choose first in list by default.
@@ -1552,8 +1545,7 @@ namespace Opc.Ua
                     match.EndpointUrl = uri.ToString();
 
                     // need to update the discovery urls.
-                    match.Server.DiscoveryUrls.Clear();
-                    match.Server.DiscoveryUrls.Add(discoveryUrl.ToString());
+                    match.Server.DiscoveryUrls = [discoveryUrl.ToString()];
                 }
             }
 

@@ -73,7 +73,6 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                     is PublishedDataItemsDataType publishedDataItems &&
-                publishedDataItems.PublishedData != null &&
                 publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
                     .Count)
             {
@@ -142,8 +141,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                     if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                             is PublishedDataItemsDataType publishedDataItems &&
-                        publishedDataItems.PublishedData != null &&
-                        publishedDataItems.PublishedData.Count > 0)
+                        !publishedDataItems.PublishedData.IsEmpty)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
                         for (int i = 0; i < publishedDataItems.PublishedData.Count; i++)
@@ -189,7 +187,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 }
                                 else
                                 {
-                                    dataValue = Utils.Clone(dataValue);
+                                    dataValue = CoreUtils.Clone(dataValue);
 
                                     //check StatusCode and return SubstituteValue if possible
                                     if (dataValue.StatusCode == StatusCodes.Bad &&
@@ -221,69 +219,65 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 ShouldBringToConstraints(
                                                     (uint)strFieldValue.Length))
                                             {
-                                                dataValue.Value = new Variant(strFieldValue[
-                                                    ..(int)field.FieldMetaData.MaxStringLength
-                                                ]);
+                                                dataValue.WrappedValue = Variant.From(
+                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]);
                                             }
                                         }
-                                        else if (field.FieldMetaData.ValueRank == ValueRanks
-                                            .OneDimension)
+                                        else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
                                         {
-                                            if (variant.TryGet(out string[] valueArray) &&
-                                                valueArray != null)
+                                            if (variant.TryGet(out ArrayOf<string> valueArray))
                                             {
-                                                for (int idx = 0; idx < valueArray.Length; idx++)
+                                                string[] buffer = new string[valueArray.Count];
+                                                for (int idx = 0; idx < valueArray.Count; idx++)
                                                 {
                                                     if (ShouldBringToConstraints(
                                                         (uint)valueArray[idx].Length))
                                                     {
-                                                        valueArray[idx] = valueArray[idx][
-                                                            ..(int)field.FieldMetaData
-                                                                .MaxStringLength
+                                                        buffer[idx] = valueArray[idx][
+                                                            ..(int)field.FieldMetaData.MaxStringLength
                                                         ];
+                                                        continue;
                                                     }
+                                                    buffer[idx] = valueArray[idx];
                                                 }
+                                                valueArray = buffer.ToArrayOf();
                                             }
-                                            dataValue.Value = valueArray;
+                                            dataValue.WrappedValue = Variant.From(valueArray);
                                         }
                                         break;
                                     case BuiltInType.ByteString:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            if (variant.TryGet(out byte[] byteStringFieldValue) &&
-                                                ShouldBringToConstraints(
-                                                    (uint)byteStringFieldValue.Length))
+                                            if (variant.TryGet(out ByteString byteStringFieldValue) &&
+                                                ShouldBringToConstraints((uint)byteStringFieldValue.Length))
                                             {
-                                                byte[] byteArray = (byte[])byteStringFieldValue
-                                                    .Clone();
+                                                byte[] byteArray = byteStringFieldValue.ToArray();
                                                 Array.Resize(
                                                     ref byteArray,
                                                     (int)field.FieldMetaData.MaxStringLength);
-                                                dataValue.Value = new Variant(byteArray);
+                                                dataValue.WrappedValue = Variant.From(ByteString.From(byteArray));
                                             }
                                         }
-                                        else if (field.FieldMetaData.ValueRank == ValueRanks
-                                            .OneDimension)
+                                        else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
                                         {
-                                            if (variant.TryGet(out byte[][] valueArray) &&
-                                                valueArray != null)
+                                            if (variant.TryGet(out ArrayOf<ByteString> valueArray))
                                             {
-                                                for (int idx = 0; idx < valueArray.Length; idx++)
+                                                var buffer = new ByteString[valueArray.Count];
+                                                for (int idx = 0; idx < valueArray.Count; idx++)
                                                 {
-                                                    if (ShouldBringToConstraints(
-                                                        (uint)valueArray[idx].Length))
+                                                    if (ShouldBringToConstraints((uint)valueArray[idx].Length))
                                                     {
-                                                        byte[] byteArray = (byte[])valueArray[idx]
-                                                            .Clone();
+                                                        byte[] byteArray = valueArray[idx].ToArray();
                                                         Array.Resize(
                                                             ref byteArray,
                                                             (int)field.FieldMetaData
                                                                 .MaxStringLength);
-                                                        valueArray[idx] = byteArray;
+                                                        buffer[idx] = ByteString.From(byteArray);
                                                     }
                                                 }
+                                                valueArray = buffer.ToArrayOf();
                                             }
-                                            dataValue.Value = valueArray;
+                                            dataValue.WrappedValue = Variant.From(valueArray);
                                         }
                                         break;
                                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:

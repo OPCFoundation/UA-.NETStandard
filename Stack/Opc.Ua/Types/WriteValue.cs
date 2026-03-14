@@ -95,16 +95,14 @@ namespace Opc.Ua
 
                 if (value.ParsedIndexRange.SubRanges != null)
                 {
-                    if (value.Value.Value is not Matrix)
+                    if (!value.Value.WrappedValue.TypeInfo.IsMatrix)
                     {
                         // Check for String or ByteString arrays. Those DataTypes have special handling
                         // when using sub ranges.
                         bool isArrayWithValidDataType =
-                            (
-                                value.Value.Value is Array &&
-                                value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
-                            ) ||
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
+                            value.Value.WrappedValue.TypeInfo.IsArray &&
+                            (value.Value.WrappedValue.TypeInfo.BuiltInType
+                                is BuiltInType.String or BuiltInType.ByteString);
 
                         if (!isArrayWithValidDataType)
                         {
@@ -112,9 +110,11 @@ namespace Opc.Ua
                         }
                     }
                 }
-                else if (value.Value.Value is Array array)
+                else if (value.Value.WrappedValue.TypeInfo.IsArray)
                 {
                     NumericRange range = value.ParsedIndexRange;
+
+                    Array array = (Array)value.Value.Value;
 
                     // check that the number of elements to write matches the index range.
                     if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
@@ -128,7 +128,7 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeInvalid;
                     }
                 }
-                else if (value.Value.Value is string str)
+                else if (value.Value.WrappedValue.TryGet(out string str))
                 {
                     NumericRange range = value.ParsedIndexRange;
 
@@ -140,6 +140,22 @@ namespace Opc.Ua
 
                     // check for single element.
                     if (range.End < 0 && str.Length != 1)
+                    {
+                        return StatusCodes.BadIndexRangeInvalid;
+                    }
+                }
+                else if (value.Value.WrappedValue.TryGet(out ByteString bs))
+                {
+                    NumericRange range = value.ParsedIndexRange;
+
+                    // check that the number of elements to write matches the index range.
+                    if (range.End >= 0 && (range.End - range.Begin != bs.Length - 1))
+                    {
+                        return StatusCodes.BadIndexRangeNoData;
+                    }
+
+                    // check for single element.
+                    if (range.End < 0 && bs.Length != 1)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }

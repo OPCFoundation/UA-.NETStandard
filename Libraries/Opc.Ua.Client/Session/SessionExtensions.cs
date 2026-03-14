@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             CancellationToken ct = default)
         {
-            return session.OpenAsync(sessionName, 0, identity, null, ct);
+            return session.OpenAsync(sessionName, 0, identity, default, ct);
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return session.OpenAsync(
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             CancellationToken ct = default)
         {
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The node id of a byte string variable</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<byte[]> ReadByteStringInChunksAsync(
+        public static async Task<ByteString> ReadByteStringInChunksAsync(
             this ISession session,
             NodeId nodeId,
             CancellationToken ct = default)
@@ -237,30 +237,26 @@ namespace Opc.Ua.Client
                     StatusCodes.BadIndexRangeNoData,
                     "The MaxByteStringLength is not known or too small for reading data in chunks.");
             }
-
-            ReadOnlyMemory<byte> buffer = await session.ReadBytesAsync(
+            return await session.ReadBytesAsync(
                 nodeId,
                 maxByteStringLength,
                 ct).ConfigureAwait(false);
-
-            return buffer.ToArray();
         }
 
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
-        public static async Task<(NodeIdCollection, IList<ServiceResult>)> FindComponentIdsAsync(
+        public static async Task<(ArrayOf<NodeId>, ArrayOf<ServiceResult>)> FindComponentIdsAsync(
             this ISession session,
             NodeId instanceId,
             IList<string> componentPaths,
             CancellationToken ct = default)
         {
-            var componentIds = new NodeIdCollection();
+            var componentIds = new List<NodeId>();
             var errors = new List<ServiceResult>();
 
             // build list of paths to translate.
-            var pathsToTranslate = new BrowsePathCollection();
-
+            var pathsToTranslateList = new List<BrowsePath>();
             for (int ii = 0; ii < componentPaths.Count; ii++)
             {
                 var pathToTranslate = new BrowsePath
@@ -269,8 +265,9 @@ namespace Opc.Ua.Client
                     RelativePath = RelativePath.Parse(componentPaths[ii], session.TypeTree)
                 };
 
-                pathsToTranslate.Add(pathToTranslate);
+                pathsToTranslateList.Add(pathToTranslate);
             }
+            var pathsToTranslate = pathsToTranslateList.ToArrayOf();
 
             // translate the paths.
 
@@ -279,8 +276,8 @@ namespace Opc.Ua.Client
                 pathsToTranslate,
                 ct).ConfigureAwait(false);
 
-            BrowsePathResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             // verify that the server returned the correct number of results.
@@ -371,7 +368,7 @@ namespace Opc.Ua.Client
         /// <param name="variableId">The variable node.</param>
         /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<ReferenceDescriptionCollection> ReadAvailableEncodingsAsync(
+        public static async Task<ArrayOf<ReferenceDescription>> ReadAvailableEncodingsAsync(
             this ISession session,
             NodeId variableId,
             CancellationToken ct = default)
@@ -401,7 +398,7 @@ namespace Opc.Ua.Client
             }
 
             // look for cached values.
-            IList<INode> encodings = await session.NodeCache.FindAsync(
+            ArrayOf<INode> encodings = await session.NodeCache.FindAsync(
                 variableId,
                 ReferenceTypeIds.HasEncoding,
                 false,
@@ -410,7 +407,7 @@ namespace Opc.Ua.Client
 
             if (encodings.Count > 0)
             {
-                var references = new ReferenceDescriptionCollection();
+                var references = new List<ReferenceDescription>();
 
                 foreach (INode encoding in encodings)
                 {

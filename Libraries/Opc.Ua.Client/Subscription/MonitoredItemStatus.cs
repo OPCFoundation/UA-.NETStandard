@@ -160,9 +160,9 @@ namespace Opc.Ua.Client
             FilterResult = null;
             Error = error;
 
-            if (!request.RequestedParameters.Filter.IsNull)
+            if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
             {
-                Filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
+                Filter = CoreUtils.Clone(filter);
             }
 
             if (ServiceResult.IsGood(error))
@@ -171,9 +171,9 @@ namespace Opc.Ua.Client
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (!result.FilterResult.IsNull)
+                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
                 {
-                    FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client
 
             if (monitoredItem.Filter != null)
             {
-                Filter = Utils.Clone(monitoredItem.Filter);
+                Filter = CoreUtils.Clone(monitoredItem.Filter);
             }
         }
 
@@ -240,18 +240,17 @@ namespace Opc.Ua.Client
                 Filter = null;
                 FilterResult = null;
 
-                if (!request.RequestedParameters.Filter.IsNull)
+                if (!request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
                 {
-                    Filter = Utils.Clone(
-                        request.RequestedParameters.Filter.Body) as MonitoringFilter;
+                    Filter = CoreUtils.Clone(filter);
                 }
 
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (!result.FilterResult.IsNull)
+                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
                 {
-                    FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
         }

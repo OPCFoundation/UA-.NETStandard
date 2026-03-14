@@ -197,7 +197,7 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
                             nodesToWrite.Add(new WriteValue
@@ -325,7 +325,7 @@ namespace Opc.Ua.Client.Tests
 
                 TestContext.Out.WriteLine($"Reading from {nodeIds.Count} nodes.");
 
-                var nodesToRead = new ReadValueIdCollection();
+                var nodesToRead = new List<ReadValueId>();
                 foreach (NodeId nodeId in nodeIds.Keys)
                 {
                     nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
@@ -408,7 +408,7 @@ namespace Opc.Ua.Client.Tests
                     while (!testCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
                             nodesToWrite.Add(new WriteValue

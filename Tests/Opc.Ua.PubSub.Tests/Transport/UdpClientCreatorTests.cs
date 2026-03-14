@@ -87,8 +87,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 ipEndPoint.Address.ToString(),
                 m_urlHostName);
             Assert.AreEqual(
-                ipEndPoint.Port,
                 kDiscoveryPortNo,
+                ipEndPoint.Port,
                 "The url port: {0} is not equal to specified port: {1}",
                 ipEndPoint.Port,
                 kDiscoveryPortNo);
@@ -191,11 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Check publisher connections
-            Assert.IsNotNull(
-                publisherConfiguration.Connections,
-                "publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                publisherConfiguration.Connections,
+            Assert.IsFalse(
+                publisherConfiguration.Connections.IsEmpty,
                 "publisherConfiguration.Connections should not be empty");
 
             PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];

@@ -30,6 +30,7 @@
 using System;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
@@ -61,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
@@ -79,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.NonReversible);
             JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
@@ -99,7 +100,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
-            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -118,7 +119,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
-            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.NonReversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -139,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None); // Variant mode
 
-            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -160,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateStatusCodeField("StatusField", StatusCodes.Good.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -182,7 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateStatusCodeField("StatusField", StatusCodes.Good.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.NonReversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -203,7 +204,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -224,7 +225,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, PubSubJsonEncoding.NonReversible);
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
@@ -277,10 +278,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return message;
         }
 
-        private static string EncodeMessage(PubSubEncoding.JsonDataSetMessage message, JsonEncodingType encodingType)
+        private static string EncodeMessage(PubSubEncoding.JsonDataSetMessage message, PubSubJsonEncoding encodingType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var encoder = new JsonEncoder(
+            var encoder = new PubSubJsonEncoder(
                 new ServiceMessageContext(telemetry),
                 encodingType);
             message.Encode(encoder);

@@ -69,31 +69,30 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         [Category("WriteValue")]
         public void MatrixIndexRangeValidationTest()
         {
-            int[,] int3x3Matrix = new int[,]
+            MatrixOf<int> int3x3Matrix = new int[,]
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
                 { 7, 8, 9 }
             };
 
-            var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
-
             // Positive test
             var writeValue = new WriteValue
             {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue(new Variant(matrix)),
+                Value = new DataValue(Variant.From(int3x3Matrix)),
                 IndexRange = "1,1"
             };
 
+            ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(
-                ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                ServiceResult.IsGood(validateResult),
                 "WriteValue.Validate result was not Good");
 
             // Test that Matrix value is not allowed when IndexRange is for one-dimensional array
             writeValue.IndexRange = "1";
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            validateResult = WriteValue.Validate(writeValue);
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
@@ -164,13 +163,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "0:4"
             };
 
+            ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(
-                ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                ServiceResult.IsGood(validateResult),
                 "WriteValue.Validate result was not Good");
 
             // Test with range that does not match the length of the array
             writeValue.IndexRange = "0:5";
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            validateResult = WriteValue.Validate(writeValue);
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
@@ -205,10 +205,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             // Test with ByteString array
             writeValue.Value = new DataValue(
-                new Variant(
-                    [
-                        [0x22, 0x21]
-                    ]));
+                new Variant([ByteString.From([0x22, 0x21])]));
             Assert.AreEqual(
                 BuiltInType.ByteString,
                 writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
