@@ -310,8 +310,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override global::Opc.Ua.ServiceResult? Call(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::Opc.Ua.VariantCollection _inputArguments,
-                    global::Opc.Ua.VariantCollection _outputArguments)
+                    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
+                    global::System.Collections.Generic.List<global::Opc.Ua.Variant> _outputArguments)
                 {
                     if (OnCall == null)
                     {
@@ -335,8 +335,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?> CallAsync(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::Opc.Ua.VariantCollection _inputArguments,
-                    global::Opc.Ua.VariantCollection _outputArguments,
+                    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
+                    global::System.Collections.Generic.List<global::Opc.Ua.Variant> _outputArguments,
                     global::System.Threading.CancellationToken cancellationToken = default)
                 {
                     if (OnCall == null && OnCallAsync == null)

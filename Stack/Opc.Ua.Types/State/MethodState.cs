@@ -685,7 +685,7 @@ namespace Opc.Ua
             }
 
             // validate input arguments.
-            var inputs = new VariantCollection();
+            var inputs = new List<Variant>();
 
             // check for too few or too many arguments.
             int expectedCount = 0;
@@ -733,7 +733,7 @@ namespace Opc.Ua
             }
 
             // set output arguments to default values.
-            var outputs = new VariantCollection();
+            var outputs = new List<Variant>();
 
             PropertyState<ArrayOf<Argument>> expectedOutputArguments = OutputArguments;
 
@@ -782,8 +782,8 @@ namespace Opc.Ua
         /// </summary>
         protected virtual ServiceResult Call(
             ISystemContext context,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return Call(context, default, inputArguments, outputArguments);
         }
@@ -793,8 +793,8 @@ namespace Opc.Ua
         /// </summary>
         protected virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
             return CallAsync(context, default, inputArguments, outputArguments, cancellationToken);
@@ -810,8 +810,8 @@ namespace Opc.Ua
         protected virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
 
@@ -847,8 +847,8 @@ namespace Opc.Ua
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
             GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
@@ -936,8 +936,8 @@ namespace Opc.Ua
     public delegate ServiceResult GenericMethodCalledEventHandler(
         ISystemContext context,
         MethodState method,
-        VariantCollection inputArguments,
-        VariantCollection outputArguments);
+        ArrayOf<Variant> inputArguments,
+        List<Variant> outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -946,8 +946,8 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         NodeId objectId,
-        VariantCollection inputArguments,
-        VariantCollection outputArguments);
+        ArrayOf<Variant> inputArguments,
+        List<Variant> outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -956,7 +956,7 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         NodeId objectId,
-        VariantCollection inputArguments,
-        VariantCollection outputArguments,
+        ArrayOf<Variant> inputArguments,
+        List<Variant> outputArguments,
         CancellationToken cancellationToken = default);
 }

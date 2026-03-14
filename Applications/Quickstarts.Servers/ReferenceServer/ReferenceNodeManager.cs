@@ -4632,8 +4632,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnVoidCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return ServiceResult.Good;
         }
@@ -4641,8 +4641,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnAddCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4668,8 +4668,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnMultiplyCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4695,8 +4695,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnDivideCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4722,8 +4722,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnSubstractCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4749,8 +4749,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnHelloCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4775,8 +4775,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnInputCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4790,8 +4790,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnOutputCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             try

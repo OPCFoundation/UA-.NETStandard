@@ -3108,7 +3108,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
             var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new VariantCollection();
+            var outputArguments = new List<Variant>();
 
             ServiceResult callResult;
 

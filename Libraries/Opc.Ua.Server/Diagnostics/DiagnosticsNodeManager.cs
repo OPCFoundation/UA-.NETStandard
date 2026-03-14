@@ -248,10 +248,10 @@ namespace Opc.Ua.Server
         protected ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
-            if (inputArguments == null || inputArguments.Count != 1)
+            if (inputArguments.Count != 1)
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -292,10 +292,10 @@ namespace Opc.Ua.Server
         protected ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
-            if (inputArguments == null || inputArguments.Count != 1)
+            if (inputArguments.Count != 1)
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -331,8 +331,8 @@ namespace Opc.Ua.Server
         public ServiceResult OnLockServer(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             var systemContext = context as ServerSystemContext;
 
@@ -352,8 +352,8 @@ namespace Opc.Ua.Server
         protected ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             var systemContext = context as ServerSystemContext;
 
