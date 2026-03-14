@@ -1387,15 +1387,15 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
                     InputArguments = [new Variant(Id)]
                 }
-            };
+            ];
 
             try
             {
@@ -1419,15 +1419,15 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh2,
                     InputArguments = [new Variant(Id), new Variant(monitoredItemId)]
                 }
-            };
+            ];
 
             try
             {

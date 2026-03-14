@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     DataEncoding = default
                 };
 
-                var nodesToRead = new ReadValueIdCollection { readValueId };
+                ArrayOf<ReadValueId> nodesToRead = [readValueId];
 
                 ServiceResultException x = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await theSession.ReadAsync(

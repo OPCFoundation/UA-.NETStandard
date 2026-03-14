@@ -439,15 +439,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
 
             // write value back
-            var writeValues = new WriteValueCollection
-            {
+            ArrayOf<WriteValue> writeValues =
+            [
                 new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = dataWriteValue
                 }
-            };
+            ];
 
             WriteResponse response = await Session
                 .WriteAsync(null, writeValues, CancellationToken.None)

@@ -1188,6 +1188,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            [global::System.ObsoleteAttribute("Use ArrayOf<{{Tokens.BrowseName}}> or List<{{Tokens.BrowseName}}> instead.", false)]
             [global::System.Runtime.Serialization.CollectionDataContractAttribute(
                 Name = "ListOf{{Tokens.BrowseName}}",
                 Namespace = {{Tokens.XmlNamespaceUri}},

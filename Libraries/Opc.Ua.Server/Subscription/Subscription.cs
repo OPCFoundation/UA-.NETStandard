@@ -1554,9 +1554,6 @@ namespace Opc.Ua.Server
 
             int count = itemsToCreate.Count;
 
-            MonitoredItemCreateResultCollection results;
-            List<DiagnosticInfo> diagnosticInfos;
-
             lock (m_lock)
             {
                 // check session.
@@ -1592,9 +1589,8 @@ namespace Opc.Ua.Server
 
             // allocate results.
             bool diagnosticsExist = false;
-            results = new MonitoredItemCreateResultCollection(count);
-            diagnosticInfos = null;
-
+            var results = new List<MonitoredItemCreateResult>(count);
+            List<DiagnosticInfo> diagnosticInfos = null;
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos = new List<DiagnosticInfo>(count);

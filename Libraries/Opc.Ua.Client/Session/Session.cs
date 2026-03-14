@@ -3399,7 +3399,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         var deferredAcknowledgementsToSend
-                            = new SubscriptionAcknowledgementCollection();
+                            = new List<SubscriptionAcknowledgement>();
                         callback(
                             this,
                             new PublishSequenceNumbersToAcknowledgeEventArgs(

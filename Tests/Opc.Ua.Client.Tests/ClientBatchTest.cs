@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void AddNodesAsyncThrows()
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = new List<AddNodesItem>();
             var addNodesItem = new AddNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void AddReferencesAsyncThrows()
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = new List<AddReferencesItem>();
             var addReferencesItem = new AddReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DeleteNodesAsyncThrows()
         {
-            var nodesTDelete = new DeleteNodesItemCollection();
+            var nodesTDelete = new List<DeleteNodesItem>();
             var deleteNodesItem = new DeleteNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DeleteReferencesAsyncThrows()
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = new List<DeleteReferencesItem>();
             var deleteReferencesItem = new DeleteReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Tests
             while (browseDescriptionCollection.Count > 0)
             {
                 TestContext.Out.WriteLine("Browse {0} Nodes...", browseDescriptionCollection.Count);
-                var allResults = new BrowseResultCollection();
+                var allResults = new List<BrowseResult>();
                 BrowseResponse response = await Session
                     .BrowseAsync(
                         requestHeader,
@@ -347,12 +347,12 @@ namespace Opc.Ua.Client.Tests
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             // read values
-            var nodesToRead = new ReadValueIdCollection(
+            var nodesToRead =
                 referenceDescriptions.Select(r => new ReadValueId
                 {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
-                }));
+                }).ToArrayOf();
 
             // test reads
             TestContext.Out.WriteLine("Test Read Nodes...");
@@ -367,7 +367,7 @@ namespace Opc.Ua.Client.Tests
 
             // test register nodes
             TestContext.Out.WriteLine("Test Register Nodes...");
-            var nodesToRegister = nodesToRead.Select(n => n.NodeId).ToList();
+            var nodesToRegister = nodesToRead.ConvertAll(n => n.NodeId).ToList();
             RegisterNodesResponse registerResponse = await Session
                 .RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // test writes
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = new List<WriteValue>();
             int ii = 0;
             foreach (DataValue result in readResponse.Results)
             {
@@ -421,7 +421,7 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
-            var browsePathList = new BrowsePathCollection();
+            var browsePathList = new List<BrowsePath>();
             var browsePath = new BrowsePath
             {
                 StartingNode = ObjectIds.RootFolder,

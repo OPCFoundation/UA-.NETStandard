@@ -435,10 +435,8 @@ namespace Opc.Ua.Server.Tests
             return alarm;
         }
 
-        private static SimpleAttributeOperandCollection GetSelectFields()
+        private static ArrayOf<SimpleAttributeOperand> GetSelectFields()
         {
-            var simpleAttributeOperands = new SimpleAttributeOperandCollection();
-
             int eventIndexCounter = 0;
             var desiredEventFields = new Dictionary<int, ArrayOf<QualifiedName>>
             {
@@ -465,6 +463,7 @@ namespace Opc.Ua.Server.Tests
                 }
             };
 
+            var simpleAttributeOperands = new List<SimpleAttributeOperand>();
             foreach (ArrayOf<QualifiedName> desiredEventField in desiredEventFields.Values)
             {
                 simpleAttributeOperands.Add(

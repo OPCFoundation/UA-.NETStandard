@@ -168,8 +168,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection(
-                [.. Enumerable.Repeat(new AddNodesItem(), 15)]);
+            var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -181,13 +180,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                    [.. Enumerable.Repeat(new AddNodesResult(), 10)])
+                    Results = Enumerable.Repeat(new AddNodesResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                    [.. Enumerable.Repeat(new AddNodesResult(), 5)])
+                    Results = Enumerable.Repeat(new AddNodesResult(), 5).ToArrayOf()
                 });
 
             AddNodesResponse response = await sessionMock.AddNodesAsync(
@@ -209,8 +206,7 @@ namespace Opc.Ua.Client.Tests
         public void AddNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection(
-                [.. Enumerable.Repeat(new AddNodesItem(), 15)]);
+            var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -222,13 +218,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                        [.. Enumerable.Repeat(new AddNodesResult(), 10)])
+                    Results = Enumerable.Repeat(new AddNodesResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                        [.. Enumerable.Repeat(new AddNodesResult(), 5)]),
+                    Results = Enumerable.Repeat(new AddNodesResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -251,7 +245,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -279,7 +273,7 @@ namespace Opc.Ua.Client.Tests
         public void AddNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -308,7 +302,7 @@ namespace Opc.Ua.Client.Tests
         public void AddNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -331,7 +325,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var nodesToAdd = new AddNodesItemCollection();
+            ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -360,8 +354,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection(
-                [.. Enumerable.Repeat(new AddReferencesItem(), 15)]);
+            var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -399,8 +392,7 @@ namespace Opc.Ua.Client.Tests
         public void AddReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection(
-                [.. Enumerable.Repeat(new AddReferencesItem(), 15)]);
+            var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -440,7 +432,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -466,7 +458,7 @@ namespace Opc.Ua.Client.Tests
         public void AddReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -496,7 +488,7 @@ namespace Opc.Ua.Client.Tests
         public void AddReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -521,7 +513,7 @@ namespace Opc.Ua.Client.Tests
         public async Task AddReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var referencesToAdd = new AddReferencesItemCollection();
+            ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -564,13 +556,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                    [.. Enumerable.Repeat(new BrowseResult(), 10)])
+                    Results =  Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                    [.. Enumerable.Repeat(new BrowseResult(), 5)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             BrowseResponse response = await sessionMock.BrowseAsync(
@@ -621,8 +611,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader = r.RequestHeader;
                     return new ValueTask<IServiceResponse>(new BrowseResponse
                     {
-                        Results = new BrowseResultCollection(
-                            [.. Enumerable.Repeat(new BrowseResult(), 5)])
+                        Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                     });
                 });
 
@@ -677,13 +666,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             BrowseResponse response = await sessionMock.BrowseAsync(
@@ -729,13 +716,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -791,14 +776,12 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
                     DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = Enumerable.Repeat(diagnosticInfo2, 5).ToArrayOf()
                 });
 
@@ -841,14 +824,12 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
                     DiagnosticInfos = []
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = []
                 });
 
@@ -895,8 +876,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
                     DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
@@ -905,8 +885,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
@@ -964,14 +943,12 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
                     DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = []
                 });
 
@@ -1386,13 +1363,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             BrowseNextResponse response = await sessionMock.BrowseNextAsync(
@@ -1430,13 +1405,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 10)])
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        [.. Enumerable.Repeat(new BrowseResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -1582,8 +1555,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CallAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection(
-                [.. Enumerable.Repeat(new CallMethodRequest(), 15)]);
+            var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1595,13 +1567,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                    [.. Enumerable.Repeat(new CallMethodResult(), 10)])
+                    Results = Enumerable.Repeat(new CallMethodResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                    [.. Enumerable.Repeat(new CallMethodResult(), 5)])
+                    Results = Enumerable.Repeat(new CallMethodResult(), 5).ToArrayOf()
                 });
 
             CallResponse response = await sessionMock.CallAsync(
@@ -1622,8 +1592,7 @@ namespace Opc.Ua.Client.Tests
         public void CallAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection(
-                [.. Enumerable.Repeat(new CallMethodRequest(), 15)]);
+            var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1635,13 +1604,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                        [.. Enumerable.Repeat(new CallMethodResult(), 10)])
+                    Results = Enumerable.Repeat(new CallMethodResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                        [.. Enumerable.Repeat(new CallMethodResult(), 5)]),
+                    Results = Enumerable.Repeat(new CallMethodResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -1665,7 +1632,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CallAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection();
+            ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1691,7 +1658,7 @@ namespace Opc.Ua.Client.Tests
         public void CallAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection();
+            ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1721,7 +1688,7 @@ namespace Opc.Ua.Client.Tests
         public void CallAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection();
+            ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1746,7 +1713,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CallAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var methodsToCall = new CallMethodRequestCollection();
+            ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1939,8 +1906,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection(
-                [.. Enumerable.Repeat(new MonitoredItemCreateRequest(), 15)]);
+            var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1952,13 +1918,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemCreateResult(), 10)])
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemCreateResult(), 5)])
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToArrayOf()
                 });
 
             CreateMonitoredItemsResponse response = await sessionMock.CreateMonitoredItemsAsync(
@@ -1984,8 +1948,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
 
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection(
-                [.. Enumerable.Repeat(new MonitoredItemCreateRequest(), 15)]);
+            var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1997,13 +1960,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemCreateResult(), 10)])
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemCreateResult(), 5)]),
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -2031,7 +1992,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2063,7 +2024,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2097,7 +2058,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2126,7 +2087,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2440,8 +2401,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection(
-                [.. Enumerable.Repeat(new DeleteNodesItem(), 15)]);
+            var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2478,8 +2438,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection(
-                [.. Enumerable.Repeat(new DeleteNodesItem(), 15)]);
+            var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2519,7 +2478,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection();
+            ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2547,7 +2506,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection();
+            ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2577,7 +2536,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows
             (RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection();
+            ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2602,7 +2561,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var nodesToDelete = new DeleteNodesItemCollection();
+            ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2631,8 +2590,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection(
-                [.. Enumerable.Repeat(new DeleteReferencesItem(), 15)]);
+            var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2670,8 +2628,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection(
-                [.. Enumerable.Repeat(new DeleteReferencesItem(), 15)]);
+            var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2711,7 +2668,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2739,7 +2696,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2769,7 +2726,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2794,7 +2751,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DeleteReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2909,8 +2866,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection(
-                [.. Enumerable.Repeat(new HistoryReadValueId(), 15)]);
+            var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2922,13 +2878,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                    [.. Enumerable.Repeat(new HistoryReadResult(), 10)])
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                    [.. Enumerable.Repeat(new HistoryReadResult(), 5)])
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 5).ToArrayOf()
                 });
 
             HistoryReadResponse response = await sessionMock.HistoryReadAsync(
@@ -2956,8 +2910,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject(new ReadEventDetails());
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection(
-                [.. Enumerable.Repeat(new HistoryReadValueId(), 15)]);
+            var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -2969,13 +2922,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                        [.. Enumerable.Repeat(new HistoryReadResult(), 10)])
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                        [.. Enumerable.Repeat(new HistoryReadResult(), 5)]),
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3005,7 +2956,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3035,7 +2986,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3071,7 +3022,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3102,7 +3053,7 @@ namespace Opc.Ua.Client.Tests
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3141,13 +3092,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(
-                        [.. Enumerable.Repeat(new HistoryUpdateResult(), 10)])
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(
-                        [.. Enumerable.Repeat(new HistoryUpdateResult(), 5)])
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 5).ToArrayOf()
                 });
 
             HistoryUpdateResponse response = await sessionMock.HistoryUpdateAsync(
@@ -3181,11 +3130,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection([.. Enumerable.Repeat(new HistoryUpdateResult(), 10)])
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection([.. Enumerable.Repeat(new HistoryUpdateResult(), 5)]),
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3323,8 +3272,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection(
-                [.. Enumerable.Repeat(new MonitoredItemModifyRequest(), 15)]);
+            var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3336,13 +3284,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemModifyResult(), 10)])
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemModifyResult(), 5)])
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToArrayOf()
                 });
 
             ModifyMonitoredItemsResponse response = await sessionMock.ModifyMonitoredItemsAsync(
@@ -3368,8 +3314,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection(
-                [.. Enumerable.Repeat(new MonitoredItemModifyRequest(), 15)]);
+            var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3381,13 +3326,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemModifyResult(), 10)])
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        [.. Enumerable.Repeat(new MonitoredItemModifyResult(), 5)]),
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3415,7 +3358,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3447,7 +3390,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3481,7 +3424,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3510,7 +3453,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3653,7 +3596,7 @@ namespace Opc.Ua.Client.Tests
         public async Task PublishAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3681,7 +3624,7 @@ namespace Opc.Ua.Client.Tests
         public void PublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3711,7 +3654,7 @@ namespace Opc.Ua.Client.Tests
         public void PublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3737,7 +3680,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            ArrayOf<NodeTypeDescription> nodeTypes = [];
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3773,7 +3716,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            ArrayOf<NodeTypeDescription> nodeTypes = [];
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3811,7 +3754,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            ArrayOf<NodeTypeDescription> nodeTypes = [];
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3934,8 +3877,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection(
-                [.. Enumerable.Repeat(new ReadValueId(), 15)]);
+            var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3976,8 +3918,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection(
-                [.. Enumerable.Repeat(new ReadValueId(), 15)]);
+            var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -4020,7 +3961,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -4052,7 +3993,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -4086,7 +4027,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -4115,7 +4056,7 @@ namespace Opc.Ua.Client.Tests
         {
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5052,7 +4993,7 @@ namespace Opc.Ua.Client.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var browsePaths = new BrowsePathCollection([.. Enumerable.Repeat(new BrowsePath(), 15)]);
+            var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5064,13 +5005,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(
-                        [.. Enumerable.Repeat(new BrowsePathResult(), 10)])
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(
-                        [.. Enumerable.Repeat(new BrowsePathResult(), 5)])
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 5).ToArrayOf()
                 });
 
             TranslateBrowsePathsToNodeIdsResponse response = await sessionMock.TranslateBrowsePathsToNodeIdsAsync(
@@ -5091,7 +5030,7 @@ namespace Opc.Ua.Client.Tests
         public void TranslateBrowsePathsToNodeIdsAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var browsePaths = new BrowsePathCollection([.. Enumerable.Repeat(new BrowsePath(), 15)]);
+            var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5103,13 +5042,11 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(
-                        [.. Enumerable.Repeat(new BrowsePathResult(), 10)])
+                    Results =Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(
-                        [.. Enumerable.Repeat(new BrowsePathResult(), 5)]),
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -5133,7 +5070,7 @@ namespace Opc.Ua.Client.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var browsePaths = new BrowsePathCollection();
+            ArrayOf<BrowsePath> browsePaths = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5156,7 +5093,7 @@ namespace Opc.Ua.Client.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var browsePaths = new BrowsePathCollection();
+            ArrayOf<BrowsePath> browsePaths = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5335,7 +5272,7 @@ namespace Opc.Ua.Client.Tests
         public async Task WriteAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection([.. Enumerable.Repeat(new WriteValue(), 15)]);
+            var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5373,8 +5310,7 @@ namespace Opc.Ua.Client.Tests
         public void WriteAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection(
-                [.. Enumerable.Repeat(new WriteValue(), 15)]);
+            var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5414,7 +5350,7 @@ namespace Opc.Ua.Client.Tests
         public async Task WriteAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection();
+            ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5440,7 +5376,7 @@ namespace Opc.Ua.Client.Tests
         public void WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection();
+            ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5470,7 +5406,7 @@ namespace Opc.Ua.Client.Tests
         public void WriteAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection();
+            ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -5495,7 +5431,7 @@ namespace Opc.Ua.Client.Tests
         public async Task WriteAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             RequestHeader requestHeader)
         {
-            var nodesToWrite = new WriteValueCollection();
+            ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 

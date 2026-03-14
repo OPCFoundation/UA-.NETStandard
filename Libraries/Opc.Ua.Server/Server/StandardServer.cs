@@ -93,7 +93,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> serverUris,
             CancellationToken ct)
         {
-            ApplicationDescriptionCollection servers = [];
+            List<ApplicationDescription> servers = [];
 
             ValidateRequest(requestHeader);
 
@@ -113,7 +113,6 @@ namespace Opc.Ua.Server
                 // check if nothing to do.
                 if (baseAddresses.Count == 0)
                 {
-                    servers = [];
                     return new FindServersResponse
                     {
                         ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
@@ -592,33 +591,35 @@ namespace Opc.Ua.Server
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-                    if (ii.Key == "ECDHPolicyUri")
+                    if (ii.Key != "ECDHPolicyUri")
                     {
-                        string policyUri = ii.Value.ToString();
-
-                        if (EccUtils.IsEccPolicy(policyUri))
-                        {
-                            session.SetEccUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEccKey();
-                            parameterList.Add(
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From("ECDHKey"),
-                                    Value = new ExtensionObject(key)
-                                });
-                        }
-                        else
-                        {
-                            parameterList.Add(
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From("ECDHKey"),
-                                    Value = StatusCodes.BadSecurityPolicyRejected
-                                });
-                        }
+                        // Keep original parameters
+                        parameterList.Add(ii);
                         continue;
                     }
-                    // TODO: parameterList.Add(ii); // Should we not pass original params too?
+
+                    string policyUri = ii.Value.GetString();
+
+                    if (EccUtils.IsEccPolicy(policyUri))
+                    {
+                        session.SetEccUserTokenSecurityPolicy(policyUri);
+                        EphemeralKeyType key = session.GetNewEccKey();
+                        parameterList.Add(
+                            new KeyValuePair
+                            {
+                                Key = QualifiedName.From("ECDHKey"),
+                                Value = new ExtensionObject(key)
+                            });
+                    }
+                    else
+                    {
+                        parameterList.Add(
+                            new KeyValuePair
+                            {
+                                Key = QualifiedName.From("ECDHKey"),
+                                Value = StatusCodes.BadSecurityPolicyRejected
+                            });
+                    }
                 }
             }
             return new AdditionalParametersType

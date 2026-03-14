@@ -2157,6 +2157,10 @@ namespace Opc.Ua.Server
             // verify that all extension objects in the list have the same type.
             foreach (ExtensionObject details in historyUpdateDetails)
             {
+                if (details.IsNull)
+                {
+                    continue;
+                }
                 if (!details.TryGetEncodeable(out HistoryUpdateDetails historyUpdateDetail))
                 {
                     nodesToUpdate.Add(null); // Retain old behavior

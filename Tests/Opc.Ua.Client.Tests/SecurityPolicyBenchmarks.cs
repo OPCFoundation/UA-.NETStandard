@@ -143,9 +143,9 @@ namespace Opc.Ua.Client.Tests
         private IList<NodeId> m_smallTestSet;
         private IList<NodeId> m_mediumTestSet;
         private IList<NodeId> m_largeTestSet;
-        private ReadValueIdCollection m_smallReadValueIds;
-        private ReadValueIdCollection m_mediumReadValueIds;
-        private ReadValueIdCollection m_largeReadValueIds;
+        private ArrayOf<ReadValueId> m_smallReadValueIds;
+        private ArrayOf<ReadValueId> m_mediumReadValueIds;
+        private ArrayOf<ReadValueId> m_largeReadValueIds;
 
         public SecurityPolicyBenchmarks()
             : base(Utils.UriSchemeOpcTcp)
@@ -416,14 +416,13 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Write 10 nodes")]
         public async Task WriteSmallMessageAsync()
         {
-            var writeValues = new WriteValueCollection(
+            var writeValues =
                 m_smallTestSet.Select(nodeId => new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(UnsecureRandom.Shared.Next()))
-                })
-            );
+                }).ToArrayOf();
 
             WriteResponse response = await Session.WriteAsync(
                 null,
@@ -445,14 +444,13 @@ namespace Opc.Ua.Client.Tests
         {
             for (int i = 0; i < kMessageCount; i++)
             {
-                var writeValues = new WriteValueCollection(
+                var writeValues =
                     m_smallTestSet.Select(nodeId => new WriteValue
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(i))
-                    })
-                );
+                    }).ToArrayOf();
 
                 await Session.WriteAsync(
                     null,
@@ -543,15 +541,15 @@ namespace Opc.Ua.Client.Tests
                 new Variant((uint)0) // subscriptionId
             };
 
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             CallResponse response = await Session.CallAsync(
                 null,
@@ -631,14 +629,13 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Write
-            var writeValues = new WriteValueCollection(
+            var writeValues =
                 m_smallTestSet.Take(5).Select(nodeId => new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(UnsecureRandom.Shared.Next()))
-                })
-            );
+                }).ToArrayOf();
 
             await Session.WriteAsync(
                 null,
@@ -670,15 +667,15 @@ namespace Opc.Ua.Client.Tests
 
             // Call
             var inputArguments = new VariantCollection { new Variant((uint)0) };
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             await Session.CallAsync(
                 null,
@@ -725,14 +722,13 @@ namespace Opc.Ua.Client.Tests
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)
             {
-                var writeValues = new WriteValueCollection(
+                var writeValues =
                     m_smallTestSet.Select(nodeId => new WriteValue
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(i))
-                    })
-                );
+                    }).ToArrayOf();
 
                 await Session.WriteAsync(
                     null,
@@ -791,15 +787,15 @@ namespace Opc.Ua.Client.Tests
         public async Task CallThroughputAsync()
         {
             var inputArguments = new VariantCollection { new Variant((uint)0) };
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)

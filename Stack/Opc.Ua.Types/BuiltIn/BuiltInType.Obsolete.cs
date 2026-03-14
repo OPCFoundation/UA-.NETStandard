@@ -1175,7 +1175,7 @@ namespace Opc.Ua
         Name = "ListOfVariant",
         Namespace = Namespaces.OpcUaXsd,
         ItemName = "Variant")]
-    //[Obsolete("Use ArrayOf<T> or List<T>")]
+    // [Obsolete("Use ArrayOf<T> or List<T>")]
     public class VariantCollection : List<Variant>, ICloneable
     {
         /// <inheritdoc/>

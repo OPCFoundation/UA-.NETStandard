@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests
 
             while (browseDescriptionCollection.Count > 0)
             {
-                var allResults = new BrowseResultCollection();
+                var allResults = new List<BrowseResult>();
                 if (verifyMaxNodesPerBrowse &&
                     browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
                 {
@@ -420,7 +420,7 @@ namespace Opc.Ua.Server.Tests
                 RelativePath = new RelativePath(r.BrowseName),
                 StartingNode = startingNode
             });
-            var allBrowsePaths = new BrowsePathResultCollection();
+            var allBrowsePaths = new List<BrowsePathResult>();
             while (browsePaths.Count > 0)
             {
                 if (verifyMaxNodesPerBrowse &&

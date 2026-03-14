@@ -736,7 +736,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the servers that are part of the collection.
         /// </summary>
-        public ApplicationDescriptionCollection GetServers()
+        public ArrayOf<ApplicationDescription> GetServers()
         {
             var servers = new Dictionary<string, ApplicationDescription>();
 

@@ -1143,7 +1143,6 @@ namespace Opc.Ua.Server
                 metadata.ValueRank = valueRank;
             }
 
-            metadata.ArrayDimensions = nodeMetadataValues[4].GetUInt32Array();
             if (nodeMetadataValues[4].TryGet(out ArrayOf<uint> arrayDimensions))
             {
                 metadata.ArrayDimensions = arrayDimensions;

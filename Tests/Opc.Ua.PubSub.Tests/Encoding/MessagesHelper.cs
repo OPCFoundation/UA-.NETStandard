@@ -779,7 +779,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PublishedDataSetDataType CreatePublishedDataSet(
             string dataSetName,
             ushort namespaceIndex,
-            FieldMetaDataCollection fieldMetaDatas)
+            ArrayOf<FieldMetaData> fieldMetaDatas)
         {
             var publishedDataSet = new PublishedDataSetDataType
             {

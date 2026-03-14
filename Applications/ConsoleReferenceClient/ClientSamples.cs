@@ -499,7 +499,7 @@ namespace Quickstarts
 
                 var filter = new EventFilter();
 
-                var simpleAttributeOperands = new SimpleAttributeOperandCollection();
+                var simpleAttributeOperands = new List<SimpleAttributeOperand>();
 
                 foreach (ArrayOf<QualifiedName> desiredEventField in m_desiredEventFields.Values)
                 {

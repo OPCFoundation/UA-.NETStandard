@@ -407,10 +407,14 @@ namespace Opc.Ua.Server.Tests
 
             // Read a variable from the ReferenceNodeManager (namespace index 2)
             var nodeId = new NodeId("Scalar_Static_Byte", 2);
-            var nodesToRead = new ReadValueIdCollection
-            {
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
-            };
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
 
             // First read
             RequestHeader requestHeader = m_requestHeader;
@@ -481,10 +485,14 @@ namespace Opc.Ua.Server.Tests
 
             // Read an array variable from the ReferenceNodeManager (namespace index 2)
             var nodeId = new NodeId("Scalar_Static_Arrays_Byte", 2);
-            var nodesToRead = new ReadValueIdCollection
-            {
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
-            };
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
 
             // First read
             RequestHeader requestHeader = m_requestHeader;

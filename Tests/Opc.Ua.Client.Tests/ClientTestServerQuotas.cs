@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests
                 Value = new DataValue { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            var writeValues = new WriteValueCollection { writeValue };
+            ArrayOf<WriteValue> writeValues = [writeValue];
 
             WriteResponse result = await theSession.WriteAsync(null, writeValues, default)
                 .ConfigureAwait(false);

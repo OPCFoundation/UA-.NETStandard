@@ -1777,9 +1777,10 @@ namespace Opc.Ua.Server
                         }
                         return false;
                     case BuiltInType.XmlElement:
-                        if (value1.TryGet(out XmlElement xml1) && value2.TryGet(out XmlElement xml2))
+                        if (value1.TryGet(out XmlElement xml1) &&
+                            value2.TryGet(out XmlElement xml2))
                         {
-                            return xml1 == xml2.OuterXml;
+                            return xml1 == xml2;
                         }
                         return false;
                     case BuiltInType.Integer:

@@ -291,7 +291,7 @@ namespace Opc.Ua.Client.Tests
                 AttributeId = Attributes.Value
             };
 
-            var readValues = new ReadValueIdCollection();
+            var readValues = new List<ReadValueId>();
             for (int i = 0; i < readCount; i++)
             {
                 readValues.Add(readValueId);
