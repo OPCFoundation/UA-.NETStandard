@@ -2038,15 +2038,6 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Template for modelling rule assignment
-        /// </summary>
-        public static readonly TemplateString ModellingRuleId = TemplateString.Parse(
-            $$"""
-            state.ModellingRuleId = {{Tokens.ModellingRuleId}};
-
-            """);
-
-        /// <summary>
         /// Template for method declaration id assignment
         /// </summary>
         public static readonly TemplateString MethodDeclarationId = TemplateString.Parse(

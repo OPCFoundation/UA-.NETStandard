@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            var startingNode = ObjectIds.RootFolder;
             var browseTemplate = new BrowseDescription
             {
                 NodeId = startingNode,
@@ -279,7 +279,7 @@ namespace Opc.Ua.Client.Tests
 
             ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                    [.. new NodeId[] { Objects.RootFolder }],
+                    [ObjectIds.RootFolder],
                     browseTemplate);
             while (browseDescriptionCollection.Count > 0)
             {
@@ -569,15 +569,15 @@ namespace Opc.Ua.Client.Tests
         {
             EventFilter filter = _ = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }

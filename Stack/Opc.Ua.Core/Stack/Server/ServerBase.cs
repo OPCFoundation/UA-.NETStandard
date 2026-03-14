@@ -904,7 +904,20 @@ namespace Opc.Ua
                     }
                 }
 
-                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
+                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(
+                    o => o.TokenType == clone.TokenType &&
+                    string.Equals(
+                        o.SecurityPolicyUri,
+                        clone.SecurityPolicyUri,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        o.IssuedTokenType,
+                        clone.IssuedTokenType,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        o.IssuerEndpointUrl,
+                        clone.IssuerEndpointUrl,
+                        StringComparison.Ordinal));
 
                 // Ensure each policy has a unique ID within the context of the Server
                 if (existingPolicy == null)

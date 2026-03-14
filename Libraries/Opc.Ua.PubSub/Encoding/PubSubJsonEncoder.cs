@@ -3082,7 +3082,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (dv.WrappedValue == Variant.Null)
             {
-                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
+                value = TypeInfo.GetDefaultValue((BuiltInType)field.BuiltInType, field.ValueRank);
                 typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
 
                 if (value != null)

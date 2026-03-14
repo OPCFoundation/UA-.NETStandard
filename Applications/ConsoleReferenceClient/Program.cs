@@ -503,7 +503,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             {
                                 Console.WriteLine("Browse the full address space.");
                                 referenceDescriptions = await samples
-                                    .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder, ct: ct)
+                                    .BrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder, ct: ct)
                                     .ConfigureAwait(false);
                                 variableIds =
                                 [
@@ -524,7 +524,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 referenceDescriptionsFromManagedBrowse = await samples
                                     .ManagedBrowseFullAddressSpaceAsync(
                                         uaClient,
-                                        Objects.RootFolder,
+                                        ObjectIds.RootFolder,
                                         ct: ct)
                                     .ConfigureAwait(false);
                                 variableIdsManagedBrowse =
@@ -553,7 +553,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 allNodes = await samples
                                     .FetchAllNodesNodeCacheAsync(
                                         uaClient,
-                                        Objects.RootFolder,
+                                        ObjectIds.RootFolder,
                                         true,
                                         true,
                                         false,

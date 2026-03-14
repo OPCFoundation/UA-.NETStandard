@@ -2782,11 +2782,11 @@ namespace Opc.Ua.SourceGeneration
         {
             string constant = modellingRule switch
             {
-                ModellingRule.Mandatory => "global::Opc.Ua.Objects.ModellingRule_Mandatory",
-                ModellingRule.Optional => "global::Opc.Ua.Objects.ModellingRule_Optional",
-                ModellingRule.MandatoryPlaceholder => "global::Opc.Ua.Objects.ModellingRule_MandatoryPlaceholder",
-                ModellingRule.OptionalPlaceholder => "global::Opc.Ua.Objects.ModellingRule_OptionalPlaceholder",
-                ModellingRule.ExposesItsArray => "global::Opc.Ua.Objects.ModellingRule_ExposesItsArray",
+                ModellingRule.Mandatory => "global::Opc.Ua.ObjectIds.ModellingRule_Mandatory",
+                ModellingRule.Optional => "global::Opc.Ua.ObjectIds.ModellingRule_Optional",
+                ModellingRule.MandatoryPlaceholder => "global::Opc.Ua.ObjectIds.ModellingRule_MandatoryPlaceholder",
+                ModellingRule.OptionalPlaceholder => "global::Opc.Ua.ObjectIds.ModellingRule_OptionalPlaceholder",
+                ModellingRule.ExposesItsArray => "global::Opc.Ua.ObjectIds.ModellingRule_ExposesItsArray",
                 _ => null
             };
 

@@ -2230,6 +2230,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the default value for the specified built-in type.
+        /// </summary>
+        /// <param name="type">The Built-in type.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <returns>The default value.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static object GetDefaultValue(BuiltInType type, int valueRank)
+        {
+            return GetDefaultValue((NodeId)(uint)type, valueRank);
+        }
+
+        /// <summary>
         /// Returns the default value for the specified data type and value rank.
         /// </summary>
         /// <param name="dataType">The data type.</param>

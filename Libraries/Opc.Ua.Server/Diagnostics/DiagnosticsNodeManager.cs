@@ -1103,11 +1103,11 @@ namespace Opc.Ua.Server
                     if (parent != null)
                     {
                         parent.AddReference(
-                            ReferenceTypes.HasComponent,
+                            ReferenceTypeIds.HasComponent,
                             false,
                             historyServerCapabilitiesNode.NodeId);
                         historyServerCapabilitiesNode.AddReference(
-                            ReferenceTypes.HasComponent,
+                            ReferenceTypeIds.HasComponent,
                             true,
                             parent.NodeId);
                     }
@@ -1190,7 +1190,7 @@ namespace Opc.Ua.Server
                 var state = new FolderState(null)
                 {
                     SymbolicName = aggregateName,
-                    ReferenceTypeId = ReferenceTypes.HasComponent,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
                     TypeDefinitionId = ObjectTypeIds.AggregateFunctionType,
                     NodeId = aggregateId,
                     BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
@@ -1205,8 +1205,8 @@ namespace Opc.Ua.Server
 
                 if (folder != null)
                 {
-                    folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
-                    state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
+                    folder.AddReference(ReferenceTypeIds.Organizes, false, state.NodeId);
+                    state.AddReference(ReferenceTypeIds.Organizes, true, folder.NodeId);
                 }
 
                 if (isHistorical)
@@ -1216,8 +1216,8 @@ namespace Opc.Ua.Server
 
                     if (folder != null)
                     {
-                        folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
-                        state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
+                        folder.AddReference(ReferenceTypeIds.Organizes, false, state.NodeId);
+                        state.AddReference(ReferenceTypeIds.Organizes, true, folder.NodeId);
                     }
                 }
 
@@ -1241,7 +1241,7 @@ namespace Opc.Ua.Server
                 var state = new FolderState(null)
                 {
                     SymbolicName = modellingRuleName,
-                    ReferenceTypeId = ReferenceTypes.HasComponent,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
                     TypeDefinitionId = ObjectTypeIds.ModellingRuleType,
                     NodeId = modellingRuleId,
                     BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
@@ -1256,8 +1256,8 @@ namespace Opc.Ua.Server
 
                 if (folder != null)
                 {
-                    folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
-                    state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
+                    folder.AddReference(ReferenceTypeIds.Organizes, false, state.NodeId);
+                    state.AddReference(ReferenceTypeIds.Organizes, true, folder.NodeId);
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, state, cancellationToken).ConfigureAwait(false);

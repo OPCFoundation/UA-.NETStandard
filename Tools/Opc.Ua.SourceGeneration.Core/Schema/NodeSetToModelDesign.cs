@@ -1350,7 +1350,7 @@ namespace Opc.Ua.Schema.Model
         {
             XmlQualifiedName name = ImportSymbolicName(input);
 
-            NodeId typeDefinitionId = FindTarget(input, ReferenceTypes.HasTypeDefinition, false);
+            NodeId typeDefinitionId = FindTarget(input, ReferenceTypeIds.HasTypeDefinition, false);
 
             if (typeDefinitionId == ObjectTypeIds.DataTypeEncodingType)
             {
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Schema.Model
                         $"{input.SymbolicName} is not a valid symbolic name for a DataTypeEncoding node (should be 'DefaultXml').");
                 }
 
-                NodeId dataTypeId = FindTarget(input, ReferenceTypes.HasEncoding, true);
+                NodeId dataTypeId = FindTarget(input, ReferenceTypeIds.HasEncoding, true);
 
                 if (dataTypeId.IsNull)
                 {
@@ -1370,7 +1370,7 @@ namespace Opc.Ua.Schema.Model
 
                     foreach (UANode dataType in m_nodeset.Items.Where(x => x is UADataType))
                     {
-                        NodeId result = FindTarget(dataType, ReferenceTypes.HasEncoding, false, encodingId);
+                        NodeId result = FindTarget(dataType, ReferenceTypeIds.HasEncoding, false, encodingId);
 
                         if (!result.IsNull)
                         {

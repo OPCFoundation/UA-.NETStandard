@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id1 = Guid.NewGuid();
             var nodeId1 = new NodeId(id1);
             // implicit conversion;
-            NodeId inodeId1 = id1;
+            NodeId inodeId1 = (NodeId)id1;
             Assert.That(inodeId1, Is.EqualTo(nodeId1));
 
             ByteString id2 = [65, 66, 67, 68, 69];
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeIds = new List<NodeId>
             {
                 // Null NodeIds
-                0,
+                (NodeId)0,
                 NodeId.Null,
                 new(0),
                 new(Guid.Empty),
@@ -1820,7 +1820,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitConversionFromUint()
         {
-            NodeId nodeId = 42u;
+            NodeId nodeId = (NodeId)42u;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(nodeId, Is.EqualTo(new NodeId(42u)));
         }
@@ -1829,7 +1829,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitConversionFromGuid()
         {
             var guid = Guid.NewGuid();
-            NodeId nodeId = guid;
+            NodeId nodeId = (NodeId)guid;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Guid));
         }
 
