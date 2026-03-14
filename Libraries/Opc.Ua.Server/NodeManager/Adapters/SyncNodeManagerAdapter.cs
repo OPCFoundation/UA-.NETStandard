@@ -284,29 +284,9 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
-            Dictionary<NodeId, Variant[]> asyncUniqueNodesServiceAttributesCache = null;
-
-            if (targetHandle is NodeHandle nodeHandle &&
-                uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out Variant[] attributes) == true)
-            {
-                asyncUniqueNodesServiceAttributesCache = new Dictionary<NodeId, Variant[]>
-                {
-                    { nodeHandle.NodeId, [..attributes] }
-                };
-            }
-
-            NodeMetadata result = m_nodeManager.GetPermissionMetadataAsync(
-                context, targetHandle, resultMask, asyncUniqueNodesServiceAttributesCache, permissionsOnly)
+            return m_nodeManager.GetPermissionMetadataAsync(
+                context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
                 .AsTask().GetAwaiter().GetResult();
-
-            // Write back: convert async Variant[] back to sync List<object> raw values.
-            if (targetHandle is NodeHandle nodeHandleAfter &&
-                asyncUniqueNodesServiceAttributesCache?.TryGetValue(nodeHandleAfter.NodeId, out Variant[] attributesAfter) == true)
-            {
-                uniqueNodesServiceAttributesCache[nodeHandleAfter.NodeId] = attributesAfter;
-            }
-
-            return result;
         }
 
         /// <inheritdoc/>
