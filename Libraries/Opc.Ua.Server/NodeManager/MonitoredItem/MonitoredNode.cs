@@ -137,10 +137,7 @@ namespace Opc.Ua.Server
                 Node.OnStateChanged = null;
 
                 // Unsubscribe from namespace default permission changes when the last item is removed.
-                if (m_server.ConfigurationNodeManager != null)
-                {
-                    m_server.ConfigurationNodeManager.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
-                }
+                m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
             }
         }
 

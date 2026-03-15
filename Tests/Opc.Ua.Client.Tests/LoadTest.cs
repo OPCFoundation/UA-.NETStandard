@@ -517,8 +517,8 @@ namespace Opc.Ua.Client.Tests
         [Order(120)]
         public async Task ServerEventSubscribeLoadTestAsync()
         {
-            const int sessionCount = 10;
-            const int subscriptionsPerSession = 5;
+            const int sessionCount = 50;
+            const int subscriptionsPerSession = 15;
             const int publishingInterval = 100;
             const int testDurationSeconds = 30;
 
