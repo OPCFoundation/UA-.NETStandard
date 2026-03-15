@@ -958,6 +958,18 @@ namespace Opc.Ua
         /// <returns>The reason for the failure if the range could not be applied.</returns>
         public readonly StatusCode ApplyRange(ref Variant value)
         {
+            // check for empty range.
+            if (m_begin == -1 && m_end == -1)
+            {
+                return StatusCodes.Good;
+            }
+
+            // nothing to do for null values.
+            if (value.IsNull)
+            {
+                return StatusCodes.Good;
+            }
+
             // TODO: Make it work on array types without boxing.
             var boxed = value.AsBoxedObject();
             StatusCode result = ApplyRange(ref boxed);
