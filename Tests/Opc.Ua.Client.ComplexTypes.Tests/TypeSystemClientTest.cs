@@ -212,7 +212,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             ArrayOf<ReferenceDescription> referenceDescriptions = await samples
-                .BrowseFullAddressSpaceAsync(this, Objects.RootFolder)
+                .BrowseFullAddressSpaceAsync(this, ObjectIds.RootFolder)
                 .ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
-                .FetchAllNodesNodeCacheAsync(this, Objects.RootFolder, true, false, false)
+                .FetchAllNodesNodeCacheAsync(this, ObjectIds.RootFolder, true, false, false)
                 .ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", allNodes.Count);

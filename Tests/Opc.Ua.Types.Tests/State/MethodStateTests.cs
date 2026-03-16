@@ -294,9 +294,9 @@ namespace Opc.Ua.Types.Tests.State
                 UserExecutable = true
             };
 
-            var inputArgs = new VariantCollection();
+            ArrayOf<Variant> inputArgs = [];
             var argumentErrors = new List<ServiceResult>();
-            var outputArgs = new VariantCollection();
+            var outputArgs = new List<Variant>();
 
             ServiceResult result = method.Call(
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
@@ -321,9 +321,9 @@ namespace Opc.Ua.Types.Tests.State
                 return ServiceResult.Good;
             };
 
-            var inputArgs = new VariantCollection();
+            ArrayOf<Variant> inputArgs = [];
             var argumentErrors = new List<ServiceResult>();
-            var outputArgs = new VariantCollection();
+            var outputArgs = new List<Variant>();
 
             ServiceResult result = method.Call(
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
@@ -342,9 +342,9 @@ namespace Opc.Ua.Types.Tests.State
                 UserExecutable = true
             };
 
-            var inputArgs = new VariantCollection();
+            ArrayOf<Variant> inputArgs = [];
             var argumentErrors = new List<ServiceResult>();
-            var outputArgs = new VariantCollection();
+            var outputArgs = new List<Variant>();
 
             ServiceResult result = method.Call(
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
@@ -362,9 +362,9 @@ namespace Opc.Ua.Types.Tests.State
                 UserExecutable = false
             };
 
-            var inputArgs = new VariantCollection();
+            ArrayOf<Variant> inputArgs = [];
             var argumentErrors = new List<ServiceResult>();
-            var outputArgs = new VariantCollection();
+            var outputArgs = new List<Variant>();
 
             ServiceResult result = method.Call(
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);

@@ -402,8 +402,6 @@ namespace Opc.Ua.SourceGeneration
                 };
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -581,8 +579,6 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfEncodingMaskFieldNames}}
                 };
             }
-
-            {{Tokens.CollectionClass}}
 
             """);
 
@@ -765,8 +761,6 @@ namespace Opc.Ua.SourceGeneration
                 };
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -921,8 +915,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfFields}}
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -1076,8 +1068,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfFields}}
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -1094,8 +1084,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 {{Tokens.ListOfProperties}}
             }
-
-            {{Tokens.CollectionClass}}
 
             """);
 
@@ -1176,100 +1164,6 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Runtime.Serialization.EnumMember(Value = "{{Tokens.XmlIdentifier}}")]
             {{Tokens.EnumerationName}} = {{Tokens.Identifier}},
 
-            """);
-
-        /// <summary>
-        /// Collection class for data types
-        /// </summary>
-        public static readonly TemplateString CollectionClass = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// A collection of {{Tokens.ClassName}} objects.
-            /// </summary>
-            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.ObsoleteAttribute("Use ArrayOf<{{Tokens.BrowseName}}> or List<{{Tokens.BrowseName}}> instead.", false)]
-            [global::System.Runtime.Serialization.CollectionDataContractAttribute(
-                Name = "ListOf{{Tokens.BrowseName}}",
-                Namespace = {{Tokens.XmlNamespaceUri}},
-                ItemName = "{{Tokens.BrowseName}}")]
-            public partial class {{Tokens.ClassName}}Collection :
-                global::System.Collections.Generic.List<{{Tokens.ClassName}}>,
-                global::System.ICloneable
-            {
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection()
-                {
-                }
-
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection(int capacity)
-                    : base(capacity)
-                {
-                }
-
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection(
-                    global::System.Collections.Generic.IEnumerable<{{Tokens.ClassName}}> collection)
-                    : base(collection)
-                {
-                }
-
-                /// <inheritdoc/>
-                private {{Tokens.ClassName}}Collection(
-                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
-                    : base(values.ToList())
-                {
-                }
-
-                /// <inheritdoc/>
-                public static {{Tokens.ClassName}}Collection To{{Tokens.ClassName}}Collection(
-                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
-                {
-                    return new {{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static explicit operator {{Tokens.ClassName}}Collection(
-                    {{Tokens.ClassName}}[]? values)
-                {
-                    return To{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static explicit operator {{Tokens.ClassName}}Collection(
-                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
-                {
-                    return To{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static explicit operator {{Tokens.ClassName}}[](
-                    {{Tokens.ClassName}}Collection? values)
-                {
-                    return values == null ? global::System.Array.Empty<{{Tokens.ClassName}}>() : values.ToArray();
-                }
-
-                /// <inheritdoc/>
-                public object Clone()
-                {
-                    return ({{Tokens.ClassName}}Collection)this.MemberwiseClone();
-                }
-
-                /// <inheritdoc/>
-                public new object MemberwiseClone()
-                {
-                    {{Tokens.ClassName}}Collection clone =
-                        new {{Tokens.ClassName}}Collection(this.Count);
-
-                    for (int ii = 0; ii < this.Count; ii++)
-                    {
-                        clone.Add(({{Tokens.ClassName}})global::Opc.Ua.CoreUtils.Clone(this[ii]));
-                    }
-
-                    return clone;
-                }
-            }
             """);
     }
 }

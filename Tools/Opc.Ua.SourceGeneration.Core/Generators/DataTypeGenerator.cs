@@ -621,13 +621,6 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ListOfEncodingMaskFields);
 
             context.Template.AddReplacement(
-                Tokens.CollectionClass,
-                DataTypeTemplates.CollectionClass,
-                [dataType],
-                LoadTemplate_CollectionClass,
-                WriteTemplate_CollectionClass);
-
-            context.Template.AddReplacement(
                 Tokens.ListOfFieldInitializers,
                 fields,
                 LoadTemplate_ListOfFieldInitializers);
@@ -642,37 +635,6 @@ namespace Opc.Ua.SourceGeneration
                 fields,
                 LoadTemplate_ListOfProperties,
                 WriteTemplate_ListOfProperties);
-
-            return context.Template.Render();
-        }
-
-        private TemplateString LoadTemplate_CollectionClass(ILoadContext context)
-        {
-            if (context.Target is not DataTypeDesign dataType)
-            {
-                return null;
-            }
-
-            if (dataType.NoArraysAllowed)
-            {
-                return null;
-            }
-
-            return context.TemplateString;
-        }
-
-        private bool WriteTemplate_CollectionClass(IWriteContext context)
-        {
-            if (context.Target is not DataTypeDesign dataType)
-            {
-                return false;
-            }
-
-            context.Template.AddReplacement(
-                Tokens.XmlNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
-                    dataType.SymbolicId.Namespace));
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
 
             return context.Template.Render();
         }

@@ -1872,7 +1872,7 @@ namespace Opc.Ua.Sample
         {
             var systemContext = context as ServerSystemContext;
             var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new VariantCollection();
+            var outputArguments = new List<Variant>();
 
             ServiceResult error = method.Call(
                 context,

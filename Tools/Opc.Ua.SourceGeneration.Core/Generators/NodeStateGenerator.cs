@@ -2791,7 +2791,7 @@ namespace Opc.Ua.SourceGeneration
             };
 
             return constant != null
-                ? CoreUtils.Format("state.ModellingRuleId = {0};", constant)
+                ? CoreUtils.Format("state.ModellingRuleId = new global::Opc.Ua.NodeId({0});", constant)
                 : null;
         }
 

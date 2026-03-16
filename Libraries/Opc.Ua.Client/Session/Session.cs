@@ -2713,7 +2713,7 @@ namespace Opc.Ua.Client
                 // read the server state.
                 new ReadValueId
                 {
-                    NodeId = Variables.Server_ServerStatus_State,
+                    NodeId = VariableIds.Server_ServerStatus_State,
                     AttributeId = Attributes.Value,
                     DataEncoding = QualifiedName.Null,
                     IndexRange = null
@@ -3282,13 +3282,13 @@ namespace Opc.Ua.Client
                 // request namespace array.
                 new ReadValueId
                 {
-                    NodeId = Variables.Server_NamespaceArray,
+                    NodeId = VariableIds.Server_NamespaceArray,
                     AttributeId = Attributes.Value
                 },
                 // request server array.
                 new ReadValueId
                 {
-                    NodeId = Variables.Server_ServerArray,
+                    NodeId = VariableIds.Server_ServerArray,
                     AttributeId = Attributes.Value
                 }
             ];

@@ -50,7 +50,7 @@ namespace Alarms
             var folder = new FolderState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
                 NodeId = new NodeId(path, nameSpaceIndex),
                 BrowseName = new QualifiedName(path, nameSpaceIndex),
@@ -96,7 +96,7 @@ namespace Alarms
             var variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                 NodeId = new NodeId(path, nameSpaceIndex),
                 BrowseName = new QualifiedName(name, nameSpaceIndex),

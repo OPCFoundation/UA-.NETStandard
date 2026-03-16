@@ -145,12 +145,12 @@ namespace Alarms
 
                     FolderState alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
                     alarmsFolder.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         true,
                         ObjectIds.ObjectsFolder);
                     references.Add(
                         new NodeStateReference(
-                            ReferenceTypes.Organizes,
+                            ReferenceTypeIds.Organizes,
                             false,
                             alarmsFolder.NodeId));
                     alarmsFolder.EventNotifier = EventNotifiers.SubscribeToEvents;
@@ -284,7 +284,7 @@ namespace Alarms
             var folder = new FolderState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -318,7 +318,7 @@ namespace Alarms
                             controller.Source.GetReferences(
                                 SystemContext,
                                 references,
-                                ReferenceTypes.HasCondition,
+                                ReferenceTypeIds.HasCondition,
                                 false);
                             foreach (IReference reference in references)
                             {
@@ -347,8 +347,8 @@ namespace Alarms
         public ServiceResult OnStart(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -386,7 +386,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -409,8 +409,8 @@ namespace Alarms
         public ServiceResult OnStartBranch(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -450,7 +450,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -473,8 +473,8 @@ namespace Alarms
         public ServiceResult OnEnd(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult result = ServiceResult.Good;
 
@@ -496,7 +496,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -549,7 +549,7 @@ namespace Alarms
                 sourceController.Source.GetReferences(
                     SystemContext,
                     references,
-                    ReferenceTypes.HasCondition,
+                    ReferenceTypeIds.HasCondition,
                     false);
                 foreach (IReference reference in references)
                 {

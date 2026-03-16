@@ -549,8 +549,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnEnableCalled(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult error = ProcessBeforeEnableDisable(context, true);
 
@@ -607,8 +607,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnDisableCalled(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // check that method can be called.
             ServiceResult error = ProcessBeforeEnableDisable(context, false);

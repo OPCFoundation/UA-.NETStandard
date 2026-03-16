@@ -331,29 +331,12 @@ namespace Opc.Ua.Server
             }
             if (SyncNodeManager is INodeManager2 nodeManager2)
             {
-                Dictionary<NodeId, Variant[]> syncuniqueNodesServiceAttributesCache = null;
-
-                if (targetHandle is NodeHandle nodeHandle &&
-                    uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out Variant[] attributes) == true)
-                {
-                    syncuniqueNodesServiceAttributesCache = new Dictionary<NodeId, Variant[]>
-                    {
-                        { nodeHandle.NodeId, attributes }
-                    };
-                }
-
                 NodeMetadata nodeMetadata = nodeManager2.GetPermissionMetadata(
                     context,
                     targetHandle,
                     resultMask,
-                    syncuniqueNodesServiceAttributesCache,
+                    uniqueNodesServiceAttributesCache,
                     permissionsOnly);
-
-                if (targetHandle is NodeHandle nodeHandleAfter &&
-                    syncuniqueNodesServiceAttributesCache?.TryGetValue(nodeHandleAfter.NodeId, out Variant[] attributesAfter) == true)
-                {
-                    uniqueNodesServiceAttributesCache[nodeHandleAfter.NodeId] = attributesAfter;
-                }
                 return new ValueTask<NodeMetadata>(nodeMetadata);
             }
 

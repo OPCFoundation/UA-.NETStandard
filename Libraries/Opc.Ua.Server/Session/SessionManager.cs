@@ -161,7 +161,7 @@ namespace Opc.Ua.Server
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default)
         {
-            NodeId sessionId = 0;
+            NodeId sessionId = default;
             NodeId authenticationToken;
             ByteString serverNonce;
             double revisedSessionTimeout = requestedSessionTimeout;

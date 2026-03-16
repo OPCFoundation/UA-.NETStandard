@@ -536,10 +536,10 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Call GetMonitoredItems method")]
         public async Task CallMethodAsync()
         {
-            var inputArguments = new VariantCollection
-            {
-                new Variant((uint)0) // subscriptionId
-            };
+            ArrayOf<Variant> inputArguments =
+            [
+                new Variant(0u) // subscriptionId
+            ];
 
             ArrayOf<CallMethodRequest> requests =
             [
@@ -666,7 +666,7 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Call
-            var inputArguments = new VariantCollection { new Variant((uint)0) };
+            ArrayOf<Variant> inputArguments = [new Variant(0u)];
             ArrayOf<CallMethodRequest> requests =
             [
                 new CallMethodRequest
@@ -786,7 +786,7 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Call 100 ops (for throughput)")]
         public async Task CallThroughputAsync()
         {
-            var inputArguments = new VariantCollection { new Variant((uint)0) };
+            ArrayOf<Variant> inputArguments = [new Variant(0u)];
             ArrayOf<CallMethodRequest> requests =
             [
                 new CallMethodRequest

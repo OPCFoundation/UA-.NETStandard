@@ -582,7 +582,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an integer to a numeric node identifier.
         /// </summary>
-        public static implicit operator NodeId(uint value)
+        public static explicit operator NodeId(uint value)
         {
             return new NodeId(value);
         }
@@ -590,7 +590,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a guid to a guid node identifier.
         /// </summary>
-        public static implicit operator NodeId(Guid value)
+        public static explicit operator NodeId(Guid value)
         {
             return new NodeId(value);
         }

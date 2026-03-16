@@ -51,7 +51,6 @@ namespace Opc.Ua.SourceGeneration
         public static string ClientApi => nameof(ClientApi);
         public static string ClientMethod => nameof(ClientMethod);
         public static string CodeName => nameof(CodeName);
-        public static string CollectionClass => nameof(CollectionClass);
         public static string CollectionType => nameof(CollectionType);
         public static string DataType => nameof(DataType);
         public static string StructureType => nameof(StructureType);

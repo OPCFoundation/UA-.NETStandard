@@ -112,7 +112,7 @@ namespace Alarms
                     oneShot: false,
                     shelvingTime: double.MaxValue);
                 alarm.ShelvingState.LastTransition.Value = new LocalizedText(string.Empty);
-                alarm.ShelvingState.LastTransition.Id.Value = 0;
+                alarm.ShelvingState.LastTransition.Id.Value = default;
 
                 alarm.OnShelve = OnShelve;
                 alarm.OnTimedUnshelve = OnTimedUnshelve;

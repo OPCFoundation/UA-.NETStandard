@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            var startingNode = ObjectIds.RootFolder;
             BrowseDescription browseTemplate =
                 browseDescription
                 ?? new BrowseDescription
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests
                 };
             ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                    [.. new NodeId[] { Objects.RootFolder }],
+                    [.. new NodeId[] { ObjectIds.RootFolder }],
                     browseTemplate);
 
             // Browse
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server.Tests
             OperationLimits operationLimits)
         {
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            var startingNode = ObjectIds.RootFolder;
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath

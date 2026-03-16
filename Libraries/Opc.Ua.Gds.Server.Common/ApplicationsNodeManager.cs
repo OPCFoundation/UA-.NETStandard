@@ -654,7 +654,7 @@ namespace Opc.Ua.Gds.Server
 
             if (!applicationId.IsNull)
             {
-                VariantCollection inputArguments = [Variant.FromStructure(application), applicationId];
+                ArrayOf<Variant> inputArguments = [Variant.FromStructure(application), applicationId];
                 Server.ReportApplicationRegistrationChangedAuditEvent(
                     context,
                     objectId,
@@ -687,7 +687,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.RegisterApplication(application);
 
-            VariantCollection inputArguments = [Variant.FromStructure(application)];
+            ArrayOf<Variant> inputArguments = [Variant.FromStructure(application)];
             Server.ReportApplicationRegistrationChangedAuditEvent(
                 context,
                 objectId,
@@ -731,7 +731,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
-            VariantCollection inputArguments = [applicationId];
+            ArrayOf<Variant> inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(
                 context,
                 objectId,
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.Gds.Server
 
             m_request.AcceptRequest(requestId, result.Certificate);
 
-            VariantCollection inputArguments =
+            ArrayOf<Variant> inputArguments =
             [
                 applicationId,
                 requestId,

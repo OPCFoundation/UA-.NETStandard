@@ -115,18 +115,18 @@ namespace Quickstarts
                 [
                     // Value of ServerStatus
                     new ReadValueId {
-                        NodeId = Variables.Server_ServerStatus,
+                        NodeId = VariableIds.Server_ServerStatus,
                         AttributeId = Attributes.Value },
                     // BrowseName of ServerStatus_StartTime
                     new ReadValueId
                     {
-                        NodeId = Variables.Server_ServerStatus_StartTime,
+                        NodeId = VariableIds.Server_ServerStatus_StartTime,
                         AttributeId = Attributes.BrowseName
                     },
                     // Value of ServerStatus_StartTime
                     new ReadValueId
                     {
-                        NodeId = Variables.Server_ServerStatus_StartTime,
+                        NodeId = VariableIds.Server_ServerStatus_StartTime,
                         AttributeId = Attributes.Value
                     }
                 ];
@@ -156,7 +156,7 @@ namespace Quickstarts
 
                 // Read Server NamespaceArray
                 Console.WriteLine("Reading Value of NamespaceArray node...");
-                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
+                DataValue namespaceArray = await session.ReadValueAsync(VariableIds.Server_NamespaceArray, ct)
                     .ConfigureAwait(false);
                 // Display the result
                 Console.WriteLine($"NamespaceArray Value = {namespaceArray}");

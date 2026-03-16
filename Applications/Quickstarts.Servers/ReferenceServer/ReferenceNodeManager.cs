@@ -177,9 +177,9 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 FolderState root = CreateFolder(null, "CTT", "CTT");
-                root.AddReference(ReferenceTypes.Organizes, true, ObjectIds.ObjectsFolder);
+                root.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
                 references.Add(
-                    new NodeStateReference(ReferenceTypes.Organizes, false, root.NodeId));
+                    new NodeStateReference(ReferenceTypeIds.Organizes, false, root.NodeId));
                 root.EventNotifier = EventNotifiers.SubscribeToEvents;
                 await AddRootNotifierAsync(root, cancellationToken).ConfigureAwait(false);
 
@@ -2124,7 +2124,7 @@ namespace Quickstarts.ReferenceServer
                         referencesPrefix + "HasForwardReference",
                         "HasForwardReference");
                     hasForwardReference.AddReference(
-                        ReferenceTypes.HasCause,
+                        ReferenceTypeIds.HasCause,
                         false,
                         variables[0].NodeId);
                     variables.Add(hasForwardReference);
@@ -2134,7 +2134,7 @@ namespace Quickstarts.ReferenceServer
                         referencesPrefix + "HasInverseReference",
                         "HasInverseReference");
                     hasInverseReference.AddReference(
-                        ReferenceTypes.HasCause,
+                        ReferenceTypeIds.HasCause,
                         true,
                         variables[0].NodeId);
                     variables.Add(hasInverseReference);
@@ -2152,15 +2152,15 @@ namespace Quickstarts.ReferenceServer
                             referencesPrefix + referenceString,
                             referenceString);
                         has3ForwardReferences.AddReference(
-                            ReferenceTypes.HasCause,
+                            ReferenceTypeIds.HasCause,
                             false,
                             variables[0].NodeId);
                         has3ForwardReferences.AddReference(
-                            ReferenceTypes.HasCause,
+                            ReferenceTypeIds.HasCause,
                             false,
                             variables[1].NodeId);
                         has3ForwardReferences.AddReference(
-                            ReferenceTypes.HasCause,
+                            ReferenceTypeIds.HasCause,
                             false,
                             variables[2].NodeId);
                         if (i == 1)
@@ -2175,15 +2175,15 @@ namespace Quickstarts.ReferenceServer
                         referencesPrefix + "Has3InverseReferences",
                         "Has3InverseReferences");
                     has3InverseReferences.AddReference(
-                        ReferenceTypes.HasEffect,
+                        ReferenceTypeIds.HasEffect,
                         true,
                         variables[0].NodeId);
                     has3InverseReferences.AddReference(
-                        ReferenceTypes.HasEffect,
+                        ReferenceTypeIds.HasEffect,
                         true,
                         variables[1].NodeId);
                     has3InverseReferences.AddReference(
-                        ReferenceTypes.HasEffect,
+                        ReferenceTypeIds.HasEffect,
                         true,
                         variables[2].NodeId);
                     variables.Add(has3InverseReferences);
@@ -2970,11 +2970,11 @@ namespace Quickstarts.ReferenceServer
                         "Operations",
                         cancellationToken).ConfigureAwait(false);
                     viewStateOperations.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         false,
                         massFolder.NodeId);
                     massFolder.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         true,
                         viewStateOperations.NodeId);
 
@@ -2985,11 +2985,11 @@ namespace Quickstarts.ReferenceServer
                         "Engineering",
                         cancellationToken).ConfigureAwait(false);
                     viewStateEngineering.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         false,
                         simulationFolder.NodeId);
                     simulationFolder.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         true,
                         viewStateEngineering.NodeId);
 
@@ -3794,7 +3794,7 @@ namespace Quickstarts.ReferenceServer
             var folder = new FolderState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -3829,10 +3829,10 @@ namespace Quickstarts.ReferenceServer
             {
                 foreach (NodeState peer in peers)
                 {
-                    peer.AddReference(ReferenceTypes.HasCause, false, variable.NodeId);
-                    variable.AddReference(ReferenceTypes.HasCause, true, peer.NodeId);
-                    peer.AddReference(ReferenceTypes.HasEffect, true, variable.NodeId);
-                    variable.AddReference(ReferenceTypes.HasEffect, false, peer.NodeId);
+                    peer.AddReference(ReferenceTypeIds.HasCause, false, variable.NodeId);
+                    variable.AddReference(ReferenceTypeIds.HasCause, true, peer.NodeId);
+                    peer.AddReference(ReferenceTypeIds.HasEffect, true, variable.NodeId);
+                    variable.AddReference(ReferenceTypeIds.HasEffect, false, peer.NodeId);
                 }
             }
 
@@ -3856,18 +3856,18 @@ namespace Quickstarts.ReferenceServer
             variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
             variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
             variable.NodeId = new NodeId(path, NamespaceIndex);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
             variable.DisplayName = new LocalizedText("en", name);
             variable.WriteMask = AttributeWriteMask.None;
             variable.UserWriteMask = AttributeWriteMask.None;
-            variable.DataType = (uint)dataType;
+            variable.DataType = (NodeId)(uint)dataType;
             variable.ValueRank = valueRank;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.Historizing = false;
-            variable.Value = TypeInfo.GetDefaultVariantValue((uint)dataType, valueRank, Server.TypeTree);
+            variable.Value = TypeInfo.GetDefaultVariantValue((NodeId)(uint)dataType, valueRank, Server.TypeTree);
             variable.StatusCode = StatusCodes.Good;
 
             if (valueRank == ValueRanks.OneDimension)
@@ -3935,7 +3935,7 @@ namespace Quickstarts.ReferenceServer
                 parent,
                 path,
                 name,
-                (uint)dataType,
+                (NodeId)(uint)dataType,
                 valueRank,
                 initialValues,
                 customRange);
@@ -3969,7 +3969,7 @@ namespace Quickstarts.ReferenceServer
             variable.DisplayName = new LocalizedText("en", name);
             variable.WriteMask = AttributeWriteMask.None;
             variable.UserWriteMask = AttributeWriteMask.None;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
             variable.DataType = dataType;
             variable.ValueRank = valueRank;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4056,7 +4056,7 @@ namespace Quickstarts.ReferenceServer
             variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
             variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
             variable.DataType = DataTypeIds.Boolean;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4099,7 +4099,7 @@ namespace Quickstarts.ReferenceServer
             variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
             variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
             variable.DataType = DataTypeIds.UInt32;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4159,7 +4159,7 @@ namespace Quickstarts.ReferenceServer
             variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
             variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
             variable.DataType = nodeId.IsNull ? DataTypeIds.UInt32 : nodeId;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4395,7 +4395,7 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            return CreateVariable(parent, path, name, (uint)dataType, valueRank);
+            return CreateVariable(parent, path, name, (NodeId)(uint)dataType, valueRank);
         }
 
         /// <summary>
@@ -4411,7 +4411,7 @@ namespace Quickstarts.ReferenceServer
             var variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4450,7 +4450,7 @@ namespace Quickstarts.ReferenceServer
             int valueRank,
             ushort numVariables)
         {
-            return CreateVariables(parent, path, name, (uint)dataType, valueRank, numVariables);
+            return CreateVariables(parent, path, name, (NodeId)(uint)dataType, valueRank, numVariables);
         }
 
         private BaseDataVariableState[] CreateVariables(
@@ -4494,7 +4494,7 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            return CreateDynamicVariable(parent, path, name, (uint)dataType, valueRank);
+            return CreateDynamicVariable(parent, path, name, (NodeId)(uint)dataType, valueRank);
         }
 
         /// <summary>
@@ -4529,7 +4529,7 @@ namespace Quickstarts.ReferenceServer
                 parent,
                 path,
                 name,
-                (uint)dataType,
+                (NodeId)(uint)dataType,
                 valueRank,
                 numVariables);
         }
@@ -4598,8 +4598,8 @@ namespace Quickstarts.ReferenceServer
 
             if (parent != null)
             {
-                parent.AddReference(ReferenceTypes.Organizes, false, type.NodeId);
-                type.AddReference(ReferenceTypes.Organizes, true, parent.NodeId);
+                parent.AddReference(ReferenceTypeIds.Organizes, false, type.NodeId);
+                type.AddReference(ReferenceTypeIds.Organizes, true, parent.NodeId);
             }
 
             await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
@@ -4632,8 +4632,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnVoidCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return ServiceResult.Good;
         }
@@ -4641,8 +4641,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnAddCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4668,8 +4668,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnMultiplyCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4695,8 +4695,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnDivideCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4722,8 +4722,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnSubstractCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4749,8 +4749,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnHelloCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4775,8 +4775,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnInputCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4790,8 +4790,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnOutputCall(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             try
