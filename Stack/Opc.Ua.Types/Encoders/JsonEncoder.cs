@@ -1196,7 +1196,11 @@ namespace Opc.Ua
                 m_writer.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
                 return;
             }
+#if NET8_0_OR_GREATER
             m_writer.WriteNumberValue(value);
+#else
+            m_writer.WriteRawValue(value.ToString("R", CultureInfo.InvariantCulture));
+#endif
         }
 
         /// <summary>
@@ -1375,7 +1379,11 @@ namespace Opc.Ua
                 m_writer.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
                 return;
             }
+#if NET8_0_OR_GREATER
             m_writer.WriteNumberValue(value);
+#else
+            m_writer.WriteRawValue(value.ToString("R", CultureInfo.InvariantCulture));
+#endif
         }
 
         /// <summary>

@@ -30,9 +30,8 @@
 using System;
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
-#else
-using System.Globalization;
 #endif
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -53,9 +52,29 @@ namespace Opc.Ua
                 int i32 = value;
                 return Unsafe.As<int, T>(ref i32);
             }
+#else
+            switch (typeof(T).GetEnumUnderlyingType())
+            {
+                case Type t when t == typeof(byte):
+                    return (T)(object)unchecked((byte)value);
+                case Type t when t == typeof(sbyte):
+                    return (T)(object)unchecked((sbyte)value);
+                case Type t when t == typeof(short):
+                    return (T)(object)unchecked((short)value);
+                case Type t when t == typeof(ushort):
+                    return (T)(object)unchecked((ushort)value);
+                case Type t when t == typeof(int):
+                    return (T)(object)unchecked(value);
+                case Type t when t == typeof(uint):
+                    return (T)(object)unchecked((uint)value);
+                case Type t when t == typeof(long):
+                    return (T)(object)unchecked((long)value);
+                case Type t when t == typeof(ulong):
+                    return (T)(object)unchecked((ulong)value);
+            }
 #endif
-            return (T)(object)value;
-        }
+            return default;
+       }
 
         /// <summary>
         /// Cast to enum array
@@ -94,24 +113,26 @@ namespace Opc.Ua
                     return Unsafe.As<T, int>(ref value);
             }
 #else
-            // Use reflection to cast to underlying type to int
-            Type enumValueType = typeof(T).GetEnumUnderlyingType();
-            return (int)typeof(EnumHelper).GetMethod(nameof(Cast),
-                System.Reflection.BindingFlags.Static |
-                System.Reflection.BindingFlags.NonPublic)
-                .MakeGenericMethod([enumValueType])
-                .Invoke(null, [value]);
-        }
-
-        internal static int Cast<T>(object enumValue)
-        {
-            // unchecked cast to int from long
-            unchecked
+            switch (typeof(T).GetEnumUnderlyingType())
             {
-                return (int)Convert.ToInt64(
-                    (T)enumValue,
-                    CultureInfo.InvariantCulture);
+                case Type t when t == typeof(byte):
+                    return unchecked((byte)(object)value);
+                case Type t when t == typeof(sbyte):
+                    return unchecked((sbyte)(object)value);
+                case Type t when t == typeof(short):
+                    return unchecked((short)(object)value);
+                case Type t when t == typeof(ushort):
+                    return unchecked((ushort)(object)value);
+                case Type t when t == typeof(int):
+                    return unchecked((int)(object)value);
+                case Type t when t == typeof(uint):
+                    return unchecked((int)(uint)(object)value);
+                case Type t when t == typeof(long):
+                    return unchecked((int)(long)(object)value);
+                case Type t when t == typeof(ulong):
+                    return unchecked((int)(ulong)(object)value);
             }
+            return 0;
 #endif
         }
 
@@ -154,7 +175,7 @@ namespace Opc.Ua
             // Convert array of enum values to array of int values
             for (int i = 0; i < values.Length; i++)
             {
-                array[i] = (int)(object)values.GetValue(i);
+                array[i] = (int)values.GetValue(i);
             }
             return array;
         }

@@ -1027,9 +1027,7 @@ namespace Opc.Ua
                     BuiltInType.DateTime or
                     BuiltInType.StatusCode or
                     BuiltInType.Float => m_union.Int32,
-#if NET8_0_OR_GREATER
                     BuiltInType.Enumeration or
-#endif
                     BuiltInType.Int64 or
                     BuiltInType.UInt64 or
                     BuiltInType.Double => m_union.UInt64.GetHashCode(),
@@ -1802,11 +1800,7 @@ namespace Opc.Ua
         {
             return
                 TryGetScalar(in m_union.Int32, out value, BuiltInType.Int32) ||
-#if NET8_0_OR_GREATER
                 TryGetScalar(in m_union.Int32, out value, BuiltInType.Enumeration);
-#else
-                TryGetScalar(out value, BuiltInType.Enumeration);
-#endif
         }
 
         /// <summary>
@@ -1852,7 +1846,7 @@ namespace Opc.Ua
         public bool TryGet<T>(out T value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
-            // On .net we convert between the base type of the
+            // On .net core we convert between the base type of the
             // enum and the enum type using reinterpret casting
             if (TypeInfo.IsScalar &&
                 TypeInfo.BuiltInType is
@@ -1879,23 +1873,38 @@ namespace Opc.Ua
                         return true;
                 }
             }
-            value = default;
-            return false;
 #else
-            // On net framework we always box. However, we still need
-            // to account for variant being initialized via int32.
-            if (TryGetScalar(out value, BuiltInType.Enumeration))
+            // On net framework we cast via boxing
+            switch (typeof(T).GetEnumUnderlyingType())
             {
-                return true;
+                case Type t when t == typeof(byte):
+                    value = (T)(object)unchecked(m_union.Byte);
+                    return true;
+                case Type t when t == typeof(sbyte):
+                    value = (T)(object)unchecked(m_union.SByte);
+                    return true;
+                case Type t when t == typeof(short):
+                    value = (T)(object)unchecked(m_union.Int16);
+                    return true;
+                case Type t when t == typeof(ushort):
+                    value = (T)(object)unchecked(m_union.UInt16);
+                    return true;
+                case Type t when t == typeof(int):
+                    value = (T)(object)unchecked(m_union.Int32);
+                    return true;
+                case Type t when t == typeof(uint):
+                    value = (T)(object)unchecked(m_union.UInt32);
+                    return true;
+                case Type t when t == typeof(long):
+                    value = (T)(object)unchecked(m_union.Int64);
+                    return true;
+                case Type t when t == typeof(ulong):
+                    value = (T)(object)unchecked(m_union.UInt64);
+                    return true;
             }
-            if (TryGet(out int int32Value))
-            {
-                value = EnumHelper.Int32ToEnum<T>(int32Value);
-                return true;
-            }
+#endif
             value = default;
             return false;
-#endif
         }
 
         /// <summary>
@@ -2881,8 +2890,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static Variant From<T>(T value) where T : struct, Enum
         {
-#if NET8_0_OR_GREATER
             Union data = default;
+#if NET8_0_OR_GREATER
             switch (Unsafe.SizeOf<T>())
             {
                 case sizeof(byte):
@@ -2902,10 +2911,40 @@ namespace Opc.Ua
                         "Bad enum type {0} with size: {1}",
                         typeof(T).Name, Unsafe.SizeOf<T>());
             }
-            return new Variant(data, TypeInfo.Scalars.Enumeration, typeof(T));
 #else
-            return new Variant(default, TypeInfo.Scalars.Enumeration, value);
+            switch (Enum.GetUnderlyingType(typeof(T)))
+            {
+                case Type t when t == typeof(int):
+                    data.Int32 = (int)(object)value;
+                    break;
+                case Type t when t == typeof(sbyte):
+                    data.SByte = (sbyte)(object)value;
+                    break;
+                case Type t when t == typeof(short):
+                    data.Int16 = (short)(object)value;
+                    break;
+                case Type t when t == typeof(long):
+                    data.Int64 = (long)(object)value;
+                    break;
+                case Type t when t == typeof(byte):
+                    data.Byte = (byte)(object)value;
+                    break;
+                case Type t when t == typeof(ushort):
+                    data.UInt16 = (ushort)(object)value;
+                    break;
+                case Type t when t == typeof(ulong):
+                    data.UInt64 = (ulong)(object)value;
+                    break;
+                case Type t when t == typeof(uint):
+                    data.UInt32 = (uint)(object)value;
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        "Bad enum type {0}",
+                        typeof(T).Name);
+            }
 #endif
+            return new Variant(data, TypeInfo.Scalars.Enumeration, typeof(T));
         }
 
         /// <summary>
@@ -7314,7 +7353,6 @@ namespace Opc.Ua
                         case BuiltInType.Byte:
                         case BuiltInType.Int16:
                         case BuiltInType.UInt16:
-                        case BuiltInType.Enumeration:
                         case BuiltInType.Int32:
                         case BuiltInType.UInt32:
                         case BuiltInType.Int64:
@@ -7323,6 +7361,7 @@ namespace Opc.Ua
                         case BuiltInType.DateTime:
                         case BuiltInType.Double:
                         case BuiltInType.StatusCode:
+                        case BuiltInType.Enumeration:
                             return m_union.UInt64 == 0;
                         case BuiltInType.Guid:
                             return GetGuid() == Uuid.Empty;
@@ -7585,7 +7624,6 @@ namespace Opc.Ua
                         return (m_value is string s ?
                             new StatusCode(m_union.UInt32, s) :
                             new StatusCode(m_union.UInt32)).ToString(null, provider);
-#if NET8_0_OR_GREATER
                     case BuiltInType.Enumeration:
                         if (m_value is Type enumType && enumType.IsEnum)
                         {
@@ -7608,7 +7646,6 @@ namespace Opc.Ua
                             }
                         }
                         return m_union.Int32.ToString(provider);
-#endif
                 }
             }
             if (m_value is IFormattable f)
@@ -7627,7 +7664,6 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(object value, Type enumType)
         {
-#if NET8_0_OR_GREATER
             Union data = default;
             switch (enumType.IsEnum ? Enum.GetUnderlyingType(enumType) : enumType)
             {
@@ -7661,9 +7697,6 @@ namespace Opc.Ua
                         enumType.Name);
             }
             return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
-#else
-            return new Variant(default, TypeInfo.Scalars.Enumeration, value);
-#endif
         }
 
         /// <summary>
@@ -7672,13 +7705,9 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(int value, Type enumType = null)
         {
-#if NET8_0_OR_GREATER
             Union data = default;
             data.Int32 = value;
             return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
-#else
-            return new Variant(default, TypeInfo.Scalars.Enumeration, value);
-#endif
         }
 
         /// <summary>
@@ -7763,7 +7792,6 @@ namespace Opc.Ua
                         return m_value is string s ?
                             new StatusCode(m_union.UInt32, s) :
                             new StatusCode(m_union.UInt32);
-#if NET8_0_OR_GREATER
                     case BuiltInType.Enumeration:
                         if (m_value is Type enumType)
                         {
@@ -7786,7 +7814,6 @@ namespace Opc.Ua
                             }
                         }
                         return m_union.Int32;
-#endif
                 }
             }
             if (returnLegacyTypes && m_value is IConvertableToArray convertible)
