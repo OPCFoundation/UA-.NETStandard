@@ -426,6 +426,56 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task PublishAsync_RequeueTrue_AddsToFrontOfQueue()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, MaxPublishRequests);
+
+            var subMock = new Mock<ISubscription>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            var taskA = queue.PublishAsync("channel1", DateTime.MaxValue, false, CancellationToken.None);
+            var taskB = queue.PublishAsync("channel1", DateTime.MaxValue, true, CancellationToken.None);
+            var taskC = queue.PublishAsync("channel1", DateTime.MaxValue, false, CancellationToken.None);
+
+            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+
+            // First expiration should complete taskB because it was requeued (added to front)
+            queue.PublishTimerExpired();
+            var resultB = await taskB.ConfigureAwait(false);
+            Assert.That(resultB, Is.SameAs(subMock.Object));
+            Assert.That(taskA.IsCompleted, Is.False);
+            Assert.That(taskC.IsCompleted, Is.False);
+
+            queue.Remove(subMock.Object, false);
+
+            // Need another subscription to fulfill the next request
+            var subMock2 = new Mock<ISubscription>();
+            subMock2.Setup(s => s.Id).Returns(2);
+            subMock2.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            queue.Add(subMock2.Object);
+
+            // Second expiration should complete taskA (it was the first added with requeue=false)
+            queue.PublishTimerExpired();
+            var resultA = await taskA.ConfigureAwait(false);
+            Assert.That(resultA, Is.SameAs(subMock2.Object));
+            Assert.That(taskC.IsCompleted, Is.False);
+
+            queue.Remove(subMock2.Object, false);
+
+            // Need a third subscription to fulfill the last request
+            var subMock3 = new Mock<ISubscription>();
+            subMock3.Setup(s => s.Id).Returns(3);
+            subMock3.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            queue.Add(subMock3.Object);
+
+            // Third expiration should complete taskC
+            queue.PublishTimerExpired();
+            var resultC = await taskC.ConfigureAwait(false);
+            Assert.That(resultC, Is.SameAs(subMock3.Object));
+        }
+
+        [Test]
         public async Task Concurrency_MultipleRequestsAndSubscriptions()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 100);
