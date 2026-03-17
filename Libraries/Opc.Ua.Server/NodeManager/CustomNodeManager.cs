@@ -1918,14 +1918,13 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            if (nodeToWrite.Value.Value is Array array)
+                            Variant doubleVariant = nodeToWrite.Value.WrappedValue
+                               .ConvertTo(BuiltInType.Double);
+                            if (doubleVariant.TypeInfo.IsArray)
                             {
                                 bool isOutOfRange = false;
-                                foreach (object arrayValue in array)
+                                foreach (double newValue in doubleVariant.GetDoubleArray())
                                 {
-                                    double newValue = Convert.ToDouble(
-                                        arrayValue,
-                                        CultureInfo.InvariantCulture);
                                     if (newValue > analogItemState.InstrumentRange.Value.High ||
                                         newValue < analogItemState.InstrumentRange.Value.Low)
                                     {
@@ -1941,7 +1940,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = (double)nodeToWrite.Value.WrappedValue.ConvertToDouble();
+                                double newValue = doubleVariant.GetDouble();
 
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)

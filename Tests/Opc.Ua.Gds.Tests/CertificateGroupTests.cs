@@ -161,7 +161,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
-                if(crls != null)
+                if (crls != null)
                 {
                     foreach (X509CRL crl in crls)
                     {

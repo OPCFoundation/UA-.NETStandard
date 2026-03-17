@@ -157,11 +157,6 @@ namespace Opc.Ua
             set
             {
                 m_rolePermissions = value;
-
-                if (value.IsNull)
-                {
-                    m_rolePermissions = [];
-                }
             }
         }
 

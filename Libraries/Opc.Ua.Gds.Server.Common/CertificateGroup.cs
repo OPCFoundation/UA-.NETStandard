@@ -587,7 +587,7 @@ namespace Opc.Ua.Gds.Server
             CancellationToken ct = default)
         {
             bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
-            if(!isCACert)
+            if (!isCACert)
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
@@ -608,7 +608,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 else
                 {
-                    if(certCACrl.Count > 1)
+                    if (certCACrl.Count > 1)
                     {
                         telemetry?.CreateLogger<CertificateGroup>().LogWarning(
                             "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.",

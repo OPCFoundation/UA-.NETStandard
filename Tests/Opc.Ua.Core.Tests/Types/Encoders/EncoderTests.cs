@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue)
             {
                 Assert.That(expected, Is.Not.EqualTo(result), encodeInfo);
-                Assert.IsFalse(Utils.IsEqual(expected, result),"Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+                Assert.IsFalse(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             else
             {

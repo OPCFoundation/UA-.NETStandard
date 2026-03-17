@@ -54,6 +54,6 @@ namespace Opc.Ua
         /// is not compliant with the specification and implies
         /// ParseStrict to be set to false.
         /// </summary>
-        public bool CaseInsensivePropertyMatching { get; set; }
+        public bool CaseInsensitivePropertyMatching { get; set; }
     }
 }

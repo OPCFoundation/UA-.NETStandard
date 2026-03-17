@@ -1316,8 +1316,8 @@ namespace Opc.Ua.Types.Tests.State
 
             ServiceResult result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
                 context,
-                NumericRange.Empty,
-                QualifiedName.Null,
+                default,
+                default,
                 ref value);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));

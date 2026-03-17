@@ -58,20 +58,24 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var nodeId = NodeId.Parse("ns=1;i=1");
 
             //Act
+#pragma warning disable CS0618 // Type or member is obsolete
             dataStore.WritePublishedDataItem(
                 nodeId,
                 Attributes.Value,
                 new DataValue(new Variant(value)));
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
             Assert.IsNotNull(
                 readDataValue,
                 "Returned DataValue for written nodeId and attribute is null");
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 readDataValue.Value,
                 value,
                 "Read after write returned different value");
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with null NodeId")]

@@ -209,7 +209,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (NumericRange.Empty != indexRange)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -260,7 +260,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (NumericRange.Empty != indexRange)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }

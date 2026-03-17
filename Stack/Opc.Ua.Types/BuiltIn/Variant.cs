@@ -61,6 +61,7 @@ namespace Opc.Ua
         INullable,
         IFormattable,
         IEquatable<Variant>,
+        IComparable<Variant>,
         IEquatable<bool>,
         IEquatable<sbyte>,
         IEquatable<byte>,
@@ -937,7 +938,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The value to encode within the variant</param>
         [OverloadResolutionPriority(0)]
-        //[Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
+        [Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
         public Variant(object value)
         {
             VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant);
@@ -948,7 +949,7 @@ namespace Opc.Ua
         /// Creates a new variant instance from legacy Matrix
         /// </summary>
         /// <param name="value"></param>
-        //[Obsolete("Use MatrixOf<T> instead of Matrix.")]
+        [Obsolete("Use MatrixOf<T> instead of Matrix.")]
         public Variant(Matrix value)
         {
             VariantHelper.TryCastFrom(value, out Variant variant);
@@ -966,15 +967,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Box the value stored in the Variant as object
-        /// </summary>
-        /// <returns></returns>
-        public object AsBoxedObject()
-        {
-            return AsBoxedObject(false);
-        }
-
-        /// <summary>
         /// An constant containing a null Variant structure.
         /// </summary>
         public static readonly Variant Null;
@@ -989,10 +981,13 @@ namespace Opc.Ua
         /// The value stored -as <see cref="object"/>- within the
         /// Variant object. All arrays and matrices are returned
         /// as <see cref="Array"/>.
+        /// Use <see cref="AsBoxedObject(BoxingBehavior)"/> if you
+        /// need slightly different behavior (e.g. return a
+        /// <see cref="Matrix"/>)
         /// </summary>
         [JsonIgnore]
-        //[Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
-        public object Value => AsBoxedObject(returnLegacyTypes: true);
+        [Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
+        public object Value => AsBoxedObject(BoxingBehavior.Legacy);
 
         /// <summary>
         /// The type information for the matrix.
@@ -1003,7 +998,7 @@ namespace Opc.Ua
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         [JsonPropertyName("Value")]
-        internal object Raw => AsBoxedObject(returnLegacyTypes: true);
+        internal object Raw => AsBoxedObject(BoxingBehavior.None);
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -1034,63 +1029,6 @@ namespace Opc.Ua
                     _ => m_value?.GetHashCode() ?? 0
                 };
             }
-            if (TypeInfo.IsArray)
-            {
-                return TypeInfo.BuiltInType switch
-                {
-                    BuiltInType.Boolean => SequenceEqualityComparer<bool>.Default
-                        .GetHashCode(m_value as bool[]),
-                    BuiltInType.SByte => SequenceEqualityComparer<sbyte>.Default
-                        .GetHashCode(m_value as sbyte[]),
-                    BuiltInType.Byte => SequenceEqualityComparer<byte>.Default
-                        .GetHashCode(m_value as byte[]),
-                    BuiltInType.Int16 => SequenceEqualityComparer<short>.Default
-                        .GetHashCode(m_value as short[]),
-                    BuiltInType.UInt16 => SequenceEqualityComparer<ushort>.Default
-                        .GetHashCode(m_value as ushort[]),
-                    BuiltInType.Int32 => SequenceEqualityComparer<int>.Default
-                        .GetHashCode(m_value as int[]),
-                    BuiltInType.UInt32 => SequenceEqualityComparer<uint>.Default
-                        .GetHashCode(m_value as uint[]),
-                    BuiltInType.Int64 => SequenceEqualityComparer<long>.Default
-                        .GetHashCode(m_value as long[]),
-                    BuiltInType.UInt64 => SequenceEqualityComparer<ulong>.Default
-                        .GetHashCode(m_value as ulong[]),
-                    BuiltInType.Float => SequenceEqualityComparer<float>.Default
-                        .GetHashCode(m_value as float[]),
-                    BuiltInType.Double => SequenceEqualityComparer<double>.Default
-                        .GetHashCode(m_value as double[]),
-                    BuiltInType.DateTime => ArrayEqualityComparer<DateTimeUtc>.Default
-                        .GetHashCode(m_value as DateTimeUtc[]),
-                    BuiltInType.StatusCode => ArrayEqualityComparer<StatusCode>.Default
-                        .GetHashCode(m_value as StatusCode[]),
-                    BuiltInType.Guid => SequenceEqualityComparer<Uuid>.Default
-                        .GetHashCode(m_value as Uuid[]),
-                    BuiltInType.XmlElement => ArrayEqualityComparer<XmlElement>.Default
-                        .GetHashCode(m_value as XmlElement[]),
-                    BuiltInType.String => ArrayEqualityComparer<string>.Default
-                        .GetHashCode(m_value as string[]),
-                    BuiltInType.NodeId => ArrayEqualityComparer<NodeId>.Default
-                        .GetHashCode(m_value as NodeId[]),
-                    BuiltInType.ExpandedNodeId => ArrayEqualityComparer<ExpandedNodeId>.Default
-                        .GetHashCode(m_value as ExpandedNodeId[]),
-                    BuiltInType.QualifiedName => ArrayEqualityComparer<QualifiedName>.Default
-                        .GetHashCode(m_value as QualifiedName[]),
-                    BuiltInType.LocalizedText => ArrayEqualityComparer<LocalizedText>.Default
-                        .GetHashCode(m_value as LocalizedText[]),
-                    BuiltInType.ExtensionObject => ArrayEqualityComparer<ExtensionObject>.Default
-                        .GetHashCode(m_value as ExtensionObject[]),
-                    BuiltInType.DataValue => ArrayEqualityComparer<DataValue>.Default
-                        .GetHashCode(m_value as DataValue[]),
-                    BuiltInType.DiagnosticInfo => ArrayEqualityComparer<DiagnosticInfo>
-                        .Default.GetHashCode(m_value as DiagnosticInfo[]),
-                    BuiltInType.Variant => ArrayEqualityComparer<Variant>.Default
-                        .GetHashCode(m_value as Variant[]),
-                    BuiltInType.ByteString => ArrayEqualityComparer<ByteString>.Default
-                        .GetHashCode(m_value as ByteString[]),
-                    _ => 0
-                };
-            }
             return m_value?.GetHashCode() ?? 0;
         }
 
@@ -1110,6 +1048,19 @@ namespace Opc.Ua
 
             throw new FormatException(
                 CoreUtils.Format("Invalid format string: '{0}'.", format));
+        }
+
+        /// <summary>
+        /// Copy and while cloneing the inner value
+        /// </summary>
+        /// <returns></returns>
+        public Variant Copy()
+        {
+            if (m_value is null)
+            {
+                return this;
+            }
+            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(m_value));
         }
 
         /// <summary>
@@ -1218,6 +1169,14 @@ namespace Opc.Ua
         public double GetDouble(double defaultValue = default)
         {
             return TryGet(out double v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Converts the variant to a decimal value or returns the default.
+        /// </summary>
+        public decimal GetDecimal(decimal defaultValue = default)
+        {
+            return TryGetDecimal(out decimal v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -2000,6 +1959,10 @@ namespace Opc.Ua
             {
                 return true;
             }
+            // https://reference.opcfoundation.org/Core/Part4/v105/docs/5.11.4
+            // A ByteString is structurally the same as a one dimensional array
+            // of Byte. A Server shall accept a ByteString if an array of Byte
+            // is expected.
             if (TryGetArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
             {
                 value = byteArray.ToByteString();
@@ -2192,6 +2155,10 @@ namespace Opc.Ua
             {
                 return true;
             }
+            // https://reference.opcfoundation.org/Core/Part4/v105/docs/5.11.4
+            // A ByteString is structurally the same as a one dimensional array
+            // of Byte. A Server shall accept a ByteString if an array of Byte
+            // is expected.
             if (TryGetScalar(out ByteString byteString, BuiltInType.ByteString))
             {
                 value = byteString.ToArray();
@@ -2815,6 +2782,54 @@ namespace Opc.Ua
                 {
                     value = array.ToMatrix();
                     return true;
+                }
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Try convert the variant to a <see cref="decimal"/> value.
+        /// </summary>
+        /// <param name="value">The <see cref="decimal"/> value to get
+        /// </param>
+        public bool TryGetDecimal(out decimal value)
+        {
+            if (TypeInfo.IsScalar)
+            {
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.SByte:
+                    case BuiltInType.Byte:
+                    case BuiltInType.Int16:
+                    case BuiltInType.UInt16:
+                    case BuiltInType.Int32:
+                        value = new decimal(m_union.Int32);
+                        return true;
+                    case BuiltInType.UInt32:
+                        value = new decimal(m_union.UInt32);
+                        return true;
+                    case BuiltInType.Int64:
+                        value = new decimal(m_union.Int64);
+                        return true;
+                    case BuiltInType.UInt64:
+                        value = new decimal(m_union.UInt64);
+                        return true;
+                    case BuiltInType.Float:
+                        value = new decimal(m_union.Float);
+                        return true;
+                    case BuiltInType.Double:
+                        value = new decimal(m_union.Double);
+                        return true;
+                }
+            }
+            else if (TypeInfo.IsArray)
+            {
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Int32 when TryGet(out ArrayOf<int> bits):
+                        value = new decimal(bits.ToArray());
+                        return true;
                 }
             }
             value = default;
@@ -7041,6 +7056,168 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public static Variant operator &(Variant lhs, Variant rhs)
+        {
+            if (!lhs.TypeInfo.IsScalar ||
+                !rhs.TypeInfo.IsScalar)
+            {
+                return default;
+            }
+            switch (lhs.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return lhs.m_union.Boolean & rhs.m_union.Boolean;
+                case BuiltInType.Byte:
+                    return lhs.m_union.Byte & rhs.m_union.Byte;
+                case BuiltInType.SByte:
+                    return lhs.m_union.SByte & rhs.m_union.SByte;
+                case BuiltInType.Int16:
+                    return lhs.m_union.Int16 & rhs.m_union.Int16;
+                case BuiltInType.UInt16:
+                    return lhs.m_union.UInt16 & rhs.m_union.UInt16;
+                case BuiltInType.Enumeration:
+                    return Variant.FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
+                case BuiltInType.Int32:
+                    return lhs.m_union.Int32 & rhs.m_union.Int32;
+                case BuiltInType.UInt32:
+                    return lhs.m_union.UInt32 & rhs.m_union.UInt32;
+                case BuiltInType.Int64:
+                    return lhs.m_union.Int64 & rhs.m_union.Int64;
+                case BuiltInType.UInt64:
+                    return lhs.m_union.UInt64 & rhs.m_union.UInt64;
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public static Variant operator |(Variant lhs, Variant rhs)
+        {
+            if (!lhs.TypeInfo.IsScalar ||
+                !rhs.TypeInfo.IsScalar)
+            {
+                return default;
+            }
+            switch (lhs.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return lhs.m_union.Boolean | rhs.m_union.Boolean;
+                case BuiltInType.Byte:
+                    return lhs.m_union.Byte | rhs.m_union.Byte;
+                case BuiltInType.SByte:
+                    return lhs.m_union.SByte | rhs.m_union.SByte;
+                case BuiltInType.Int16:
+                    return lhs.m_union.Int16 | rhs.m_union.Int16;
+                case BuiltInType.UInt16:
+                    return lhs.m_union.UInt16 | rhs.m_union.UInt16;
+                case BuiltInType.Enumeration:
+                    return Variant.FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
+                case BuiltInType.Int32:
+                    return lhs.m_union.Int32 | rhs.m_union.Int32;
+                case BuiltInType.UInt32:
+                    return lhs.m_union.UInt32 | rhs.m_union.UInt32;
+                case BuiltInType.Int64:
+                    return lhs.m_union.Int64 | rhs.m_union.Int64;
+                case BuiltInType.UInt64:
+                    return lhs.m_union.UInt64 | rhs.m_union.UInt64;
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(Variant other)
+        {
+            if (IsNull && other.IsNull)
+            {
+                return 0;
+            }
+            TypeInfo ourTypeInfo = IsNull ? other.TypeInfo : TypeInfo;
+            if (ourTypeInfo.IsScalar)
+            {
+                switch (ourTypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Null:
+                        return other.TypeInfo.BuiltInType == TypeInfo.BuiltInType ? 0 : int.MinValue;
+                    case BuiltInType.Boolean:
+                        return m_union.Boolean.CompareTo(other.m_union.Boolean);
+                    case BuiltInType.Enumeration:
+                        return m_union.UInt64.CompareTo(other.m_union.UInt64);
+                    case BuiltInType.Int64:
+                    case BuiltInType.DateTime:
+                        return m_union.Int64.CompareTo(other.m_union.Int64);
+                    case BuiltInType.Float:
+                        return m_union.Float.CompareTo(other.m_union.Float);
+                    case BuiltInType.Double:
+                        return m_union.Double.CompareTo(other.m_union.Double);
+                    case BuiltInType.SByte:
+                        return m_union.SByte.CompareTo(other.m_union.SByte);
+                    case BuiltInType.Byte:
+                        return m_union.Byte.CompareTo(other.m_union.Byte);
+                    case BuiltInType.Int16:
+                        return m_union.Int16.CompareTo(other.m_union.Int16);
+                    case BuiltInType.Int32:
+                        return m_union.Int32.CompareTo(other.m_union.Int32);
+                    case BuiltInType.UInt16:
+                        return m_union.UInt16.CompareTo(other.m_union.UInt16);
+                    case BuiltInType.UInt32:
+                        return m_union.UInt32.CompareTo(other.m_union.UInt32);
+                    case BuiltInType.UInt64:
+                        return m_union.UInt64.CompareTo(other.m_union.UInt64);
+                }
+            }
+            if (m_value is IComparable lhs && other.m_value is IComparable rhs)
+            {
+                return lhs.CompareTo(rhs);
+            }
+            return int.MinValue;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(Variant left, Variant right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(Variant left, Variant right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(Variant left, Variant right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(Variant left, Variant right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <summary>
+        /// Tests equality of the Variant value instead of the
+        /// <see cref="Equals(Variant)"/> equality operator which
+        /// tests for strict equality of Variant.
+        /// </summary>
+        public bool ValueEquals(Variant other)
+        {
+            if (IsNull && other.IsNull)
+            {
+                return true;
+            }
+            if (ValueIsValueType && other.ValueIsValueType)
+            {
+                return m_union.UInt64 == other.m_union.UInt64;
+            }
+            if (m_value is null)
+            {
+                return other.m_value is null;
+            }
+            return m_value.Equals(other.m_value);
+        }
+
+        /// <inheritdoc/>
         public bool Equals(Variant other)
         {
             if (IsNull && other.IsNull)
@@ -7063,7 +7240,7 @@ namespace Opc.Ua
                 switch (ourTypeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
-                        return otherTypeInfo.BuiltInType == BuiltInType.Null;
+                        return other.TypeInfo.BuiltInType == TypeInfo.BuiltInType;
                     case BuiltInType.Boolean:
                         return Equals(other.GetBoolean());
                     case BuiltInType.SByte:
@@ -7121,7 +7298,7 @@ namespace Opc.Ua
                 switch (ourTypeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
-                        return otherTypeInfo.BuiltInType == BuiltInType.Null;
+                        return other.TypeInfo.BuiltInType == TypeInfo.BuiltInType;
                     case BuiltInType.Boolean:
                         return Equals(other.GetBooleanArray());
                     case BuiltInType.SByte:
@@ -7184,7 +7361,7 @@ namespace Opc.Ua
                 switch (ourTypeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
-                        return otherTypeInfo.BuiltInType == BuiltInType.Null;
+                        return other.TypeInfo.BuiltInType == TypeInfo.BuiltInType;
                     case BuiltInType.Boolean:
                         return Equals(other.GetBooleanMatrix());
                     case BuiltInType.SByte:
@@ -7335,6 +7512,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the inner value is not boxed.
+        /// </summary>
+        internal bool ValueIsValueType
+        {
+            get
+            {
+                if (!TypeInfo.IsScalar)
+                {
+                    return false;
+                }
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                    case BuiltInType.Float:
+                    case BuiltInType.Double:
+                    case BuiltInType.SByte:
+                    case BuiltInType.Byte:
+                    case BuiltInType.Int16:
+                    case BuiltInType.UInt16:
+                    case BuiltInType.Int32:
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.UInt32:
+                    case BuiltInType.UInt64:
+                    case BuiltInType.Int64:
+                    case BuiltInType.DateTime:
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Returns true if the inner value is default or null
         /// </summary>
         /// <returns></returns>
@@ -7376,11 +7585,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the inner value is default or null
+        /// Returns a variant with a default value of the provided type info.
         /// </summary>
         /// <returns></returns>
         public static Variant CreateDefault(TypeInfo typeInfo)
         {
+            if (typeInfo == TypeInfo.Scalars.Variant)
+            {
+                return default;
+            }
             return new Variant(default, typeInfo, null);
         }
 
@@ -7743,7 +7956,7 @@ namespace Opc.Ua
         /// Box the value stored in the Variant as object
         /// </summary>
         /// <returns></returns>
-        public object AsBoxedObject(bool returnLegacyTypes) // TODO: Make private
+        public object AsBoxedObject(BoxingBehavior boxingBehavior = BoxingBehavior.None)
         {
             if (TypeInfo.IsUnknown)
             {
@@ -7816,7 +8029,13 @@ namespace Opc.Ua
                         return m_union.Int32;
                 }
             }
-            if (returnLegacyTypes && m_value is IConvertableToArray convertible)
+            if (boxingBehavior == BoxingBehavior.LegacyWithMatrix &&
+                m_value is IConvertableToMatrix convertibleToMatrix)
+            {
+                return convertibleToMatrix.ToMatrix(TypeInfo.BuiltInType);
+            }
+            if (boxingBehavior == BoxingBehavior.Legacy &&
+                m_value is IConvertableToArray convertible)
             {
                 return convertible.ToArray();
             }
@@ -7928,5 +8147,36 @@ namespace Opc.Ua
         private readonly Union m_union;
         private readonly TypeInfo m_typeInfo;
 #pragma warning restore IDE0032 // Use auto property
+
+        /// <summary>
+        /// Specify boxing behavior when calling AsBoxedObject on
+        /// the Variant.
+        /// </summary>
+        public enum BoxingBehavior
+        {
+            /// <summary>
+            /// No legacy boxing behavior. Arrays and Matrices are
+            /// returned as ArrayOf and MatrixOf respectively.
+            /// </summary>
+            None,
+
+            /// <summary>
+            /// Returns <see cref="Array"/> instead of ArrayOf or
+            /// MatrixOf or null.
+            /// This used to be the normal behavior of the Value
+            /// Property in the past as arrays were stored internally
+            /// as Array, including matrices.
+            /// </summary>
+            Legacy,
+
+            /// <summary>
+            /// Return <see cref="Array"/> instead of  ArrayOf and
+            /// <see cref="Matrix"/> for MatrixOf.
+            /// As the past implementation allowed to store a
+            /// <see cref="Matrix"/> object as-is too the PubSub
+            /// library still uses this behavior.
+            /// </summary>
+            LegacyWithMatrix,
+        }
     }
 }

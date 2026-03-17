@@ -312,22 +312,30 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 publishedDataItems.PublishedData.Count,
                 "collectedDataSet and published data fields count do not match.");
             // validate collected values
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 true,
                 collectedDataSet.Fields[0].Value.Value,
                 "collectedDataSet.Fields[0].Value.Value does not match.");
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 100,
                 collectedDataSet.Fields[1].Value.Value,
                 "collectedDataSet.Fields[1].Value.Value does not match.");
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 50,
                 collectedDataSet.Fields[2].Value.Value,
                 "collectedDataSet.Fields[2].Value.Value does not match.");
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 collectedDataSet.Fields[3].Value.Value,
                 new DateTimeUtc(DateTime.Today),
                 "collectedDataSet.Fields[3].Value.Value does not match.");
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test(Description = "Validate CollectData unknown dataset name.")]

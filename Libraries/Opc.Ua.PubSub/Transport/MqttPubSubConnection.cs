@@ -1158,7 +1158,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     // Network message header
                     jsonNetworkMessage.PublisherId =
-                        MqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString();
+                        MqttConnection.PubSubConnectionConfiguration.PublisherId.ConvertToString().GetString();
                     jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                     if (((int)jsonNetworkMessage.NetworkMessageContentMask &

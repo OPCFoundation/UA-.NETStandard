@@ -370,7 +370,9 @@ namespace Opc.Ua.Test
             }
 
             // return array value.
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Variant(output);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -516,7 +518,7 @@ namespace Opc.Ua.Test
 
                 if (!element.IsNull)
                 {
-                    value[ii] = (T)element.AsBoxedObject(true);
+                    value[ii] = (T)element.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 }
             }
 

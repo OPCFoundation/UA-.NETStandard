@@ -504,7 +504,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
 
             // parse the index range.
             if (!string.IsNullOrEmpty(m_indexRange))

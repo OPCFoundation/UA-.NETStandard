@@ -176,16 +176,16 @@ namespace Opc.Ua.Server
             PropertyState getMonitoredItemsOutputArguments = FindPredefinedNode<PropertyState>(
                 VariableIds.Server_GetMonitoredItems_OutputArguments);
 
-                if (getMonitoredItemsOutputArguments != null &&
-                    getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
+            if (getMonitoredItemsOutputArguments != null &&
+                getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
+            {
+                foreach (Argument argument in outputArgumentsValue)
                 {
-                    foreach (Argument argument in outputArgumentsValue)
-                    {
-                        argument.ArrayDimensions = [0];
-                    }
-
-                    getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
+                    argument.ArrayDimensions = [0];
                 }
+
+                getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
+            }
 
             if (m_durableSubscriptionsEnabled)
             {

@@ -245,6 +245,7 @@ namespace Opc.Ua.Client.Tests
 
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -255,6 +256,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
 
                         try

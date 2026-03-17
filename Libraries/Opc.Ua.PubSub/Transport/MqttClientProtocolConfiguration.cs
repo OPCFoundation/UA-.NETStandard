@@ -195,41 +195,40 @@ namespace Opc.Ua.PubSub.Transport
             var qSslProtocolVersion = QualifiedName.From(
                 nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion));
 #pragma warning disable CA5397 // TODO: Use None as default fallback
-            SslProtocolVersion = (SslProtocols)
-                Convert.ToInt32(
-                    kvpMqttOptions
-                        .Find(kvp => kvp.Key.Name
-                            .Equals(qSslProtocolVersion.Name, StringComparison.Ordinal))?
-                        .Value.Value,
-                    CultureInfo.InvariantCulture);
+            SslProtocolVersion =
+                (SslProtocols)(kvpMqttOptions
+                    .Find(kvp => kvp.Key.Name
+                        .Equals(qSslProtocolVersion.Name, StringComparison.Ordinal))?
+                    .Value.ConvertToInt32().GetInt32() ??
+                    default);
 #pragma warning restore CA5397
 
             var qAllowUntrustedCertificates = QualifiedName.From(
                 nameof(EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates));
-            AllowUntrustedCertificates = Convert.ToBoolean(
+            AllowUntrustedCertificates =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qAllowUntrustedCertificates.Name, StringComparison.Ordinal))?
-                    .Value.Value,
-                CultureInfo.InvariantCulture);
+                    .Value.ConvertToBoolean().GetBoolean() ??
+                false;
 
             var qIgnoreCertificateChainErrors = QualifiedName.From(
                 nameof(EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors));
-            IgnoreCertificateChainErrors = Convert.ToBoolean(
+            IgnoreCertificateChainErrors =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qIgnoreCertificateChainErrors.Name, StringComparison.Ordinal))?
-                    .Value.Value,
-                CultureInfo.InvariantCulture);
+                    .Value.ConvertToBoolean().GetBoolean() ??
+                false;
 
             var qIgnoreRevocationListErrors = QualifiedName.From(
                 nameof(EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors));
-            IgnoreRevocationListErrors = Convert.ToBoolean(
+            IgnoreRevocationListErrors =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qIgnoreRevocationListErrors.Name, StringComparison.Ordinal))?
-                    .Value.Value,
-                CultureInfo.InvariantCulture);
+                    .Value.ConvertToBoolean().GetBoolean() ??
+                false;
 
             var qTrustedIssuerCertificatesStoreType = QualifiedName.From(
                 nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType));
@@ -536,30 +535,28 @@ namespace Opc.Ua.PubSub.Transport
 
             var qAzureClientId =
                 QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.AzureClientId));
-            AzureClientId = Convert.ToString(
+            AzureClientId =
                 connectionProperties
                     .Find(
                         kvp => kvp.Key.Name.Equals(qAzureClientId.Name, StringComparison.Ordinal))?
-                    .Value.Value,
-                CultureInfo.InvariantCulture);
+                    .Value.ConvertToString().GetString();
 
             var qCleanSession =
                 QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.CleanSession));
-            CleanSession = Convert.ToBoolean(
+            CleanSession =
                 connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qCleanSession.Name, StringComparison.Ordinal))?
-                    .Value.Value,
-                CultureInfo.InvariantCulture);
+                    .Value.ConvertToBoolean().GetBoolean() ??
+                false;
 
             var qProtocolVersion =
                 QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.ProtocolVersion));
-            ProtocolVersion = (EnumMqttProtocolVersion)
-                Convert.ToInt32(
-                    connectionProperties
-                        .Find(kvp => kvp.Key.Name
-                            .Equals(qProtocolVersion.Name, StringComparison.Ordinal))?
-                        .Value.Value,
-                    CultureInfo.InvariantCulture);
+            ProtocolVersion =
+                (EnumMqttProtocolVersion)(connectionProperties
+                    .Find(kvp => kvp.Key.Name
+                        .Equals(qProtocolVersion.Name, StringComparison.Ordinal))?
+                    .Value.ConvertToInt32().GetInt32() ??
+                    default);
             if (ProtocolVersion == EnumMqttProtocolVersion.Unknown)
             {
                 logger.LogInformation(

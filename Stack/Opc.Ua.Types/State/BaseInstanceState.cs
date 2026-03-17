@@ -332,7 +332,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual object GetAttributeValue(
+        public virtual Variant GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
             ArrayOf<QualifiedName> relativePath,
@@ -344,7 +344,7 @@ namespace Opc.Ua
                 typeDefinitionId != ObjectTypeIds.BaseEventType &&
                 !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
-                return null;
+                return default;
             }
 
             // read the child attribute.
@@ -359,7 +359,7 @@ namespace Opc.Ua
 
             if (ServiceResult.IsBad(result))
             {
-                return null;
+                return default;
             }
 
             // apply any index range.
@@ -371,7 +371,7 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(result))
                 {
-                    return null;
+                    return default;
                 }
             }
 

@@ -3104,7 +3104,7 @@ namespace Opc.Ua.Client
                     // validate value returned.
                     ServiceResult error = ValidateDataValue(
                         values[0],
-                        typeof(int),
+                        TypeInfo.Scalars.Int32,
                         0,
                         diagnosticInfos,
                         responseHeader);
@@ -3309,7 +3309,7 @@ namespace Opc.Ua.Client
             // validate namespace array.
             ServiceResult result = ValidateDataValue(
                 values[0],
-                typeof(string[]),
+                TypeInfo.Arrays.String,
                 0,
                 diagnosticInfos,
                 responseHeader);
@@ -3345,7 +3345,7 @@ namespace Opc.Ua.Client
             // validate server array.
             result = ValidateDataValue(
                 values[1],
-                typeof(string[]),
+                TypeInfo.Arrays.String,
                 1,
                 diagnosticInfos,
                 responseHeader);

@@ -222,7 +222,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant variant = builder.WithValue(input);
             DataValue result = builder.GetValue(variant);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Value, Is.EqualTo(input.Value));
+            Assert.That(result, Is.EqualTo(input));
         }
 
         [Test]

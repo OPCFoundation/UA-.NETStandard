@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Transport
                     .ToList()
                     .IndexOf(writerGroup);
                 m_udpConnection.PubSubConnectionConfiguration.WriterGroups =
-                    m_udpConnection.PubSubConnectionConfiguration.WriterGroups.AddItem(writerConfig, index);
+                    m_udpConnection.PubSubConnectionConfiguration.WriterGroups.ReplaceItem(writerConfig, index);
             }
         }
 

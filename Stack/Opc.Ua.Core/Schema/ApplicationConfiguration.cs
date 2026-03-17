@@ -2172,7 +2172,7 @@ namespace Opc.Ua
         public ArrayOf<LocalizedText> ServerNames
         {
             get => m_serverNames;
-            set => m_serverNames = value ;
+            set => m_serverNames = value;
         }
 
         /// <summary>

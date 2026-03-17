@@ -233,16 +233,20 @@ namespace Opc.Ua.PubSub.PublishedData
                                                     if (ShouldBringToConstraints(
                                                         (uint)valueArray[idx].Length))
                                                     {
-                                                        buffer[idx] = valueArray[idx][
-                                                            ..(int)field.FieldMetaData.MaxStringLength
-                                                        ];
-                                                        continue;
+                                                        buffer[idx] = valueArray[idx]
+                                                            [..(int)field.FieldMetaData.MaxStringLength];
                                                     }
-                                                    buffer[idx] = valueArray[idx];
+                                                    else
+                                                    {
+                                                        buffer[idx] = valueArray[idx];
+                                                    }
                                                 }
-                                                valueArray = buffer.ToArrayOf();
+                                                dataValue.WrappedValue = Variant.From(buffer.ToArrayOf());
                                             }
-                                            dataValue.WrappedValue = Variant.From(valueArray);
+                                            else
+                                            {
+                                                dataValue.WrappedValue = default;
+                                            }
                                         }
                                         break;
                                     case BuiltInType.ByteString:
@@ -274,10 +278,18 @@ namespace Opc.Ua.PubSub.PublishedData
                                                                 .MaxStringLength);
                                                         buffer[idx] = ByteString.From(byteArray);
                                                     }
+                                                    else
+                                                    {
+                                                        buffer[idx] = valueArray[idx];
+                                                    }
                                                 }
                                                 valueArray = buffer.ToArrayOf();
+                                                dataValue.WrappedValue = Variant.From(valueArray);
                                             }
-                                            dataValue.WrappedValue = Variant.From(valueArray);
+                                            else
+                                            {
+                                                dataValue.WrappedValue = default;
+                                            }
                                         }
                                         break;
                                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:

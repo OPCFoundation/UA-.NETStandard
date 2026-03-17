@@ -3744,7 +3744,7 @@ namespace Opc.Ua.Schema.Model
 
                     if (!variant.TypeInfo.IsUnknown)
                     {
-                        variableType.DecodedValue = variant.AsBoxedObject(true);
+                        variableType.DecodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                         variableType.ValueRank = variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
                             ValueRank.Scalar :
                             ValueRank.Array;
@@ -4029,7 +4029,7 @@ namespace Opc.Ua.Schema.Model
                         variable.ValueRank =
                             variant.TypeInfo.ValueRank == ValueRanks.Scalar ? ValueRank.Scalar : ValueRank.Array;
                         variable.ValueRankSpecified = true;
-                        variable.DecodedValue = variant.AsBoxedObject(true);
+                        variable.DecodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
                     decoder.Close();

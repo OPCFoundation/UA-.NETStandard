@@ -565,7 +565,7 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces,
                     nullable: NullableAnnotation.NonNullable));
 
-            AddVariantAccesssor(context, field.Value.DataTypeNode);
+            AddVariantAccessor(context, field.Value.DataTypeNode);
 
             return context.Template.Render();
         }
@@ -1690,7 +1690,7 @@ namespace Opc.Ua.SourceGeneration
                         Tokens.BaseT,
                         CoreUtils.Format("{0}.Implementation<{1}>", parameter, variantBuilder));
                 }
-           }
+            }
 
             string valueRank = variableType.ValueRank.GetValueRankAsCode(
                 variableType.ArrayDimensions);
@@ -1709,7 +1709,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            AddVariantAccesssor(context, variableType.DataTypeNode);
+            AddVariantAccessor(context, variableType.DataTypeNode);
 
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
@@ -2965,7 +2965,7 @@ namespace Opc.Ua.SourceGeneration
             throw new InvalidOperationException("Unexpected duplicate resource names");
         }
 
-        private static void AddVariantAccesssor(IWriteContext context, DataTypeDesign dataType)
+        private static void AddVariantAccessor(IWriteContext context, DataTypeDesign dataType)
         {
             switch (dataType.BasicDataType)
             {

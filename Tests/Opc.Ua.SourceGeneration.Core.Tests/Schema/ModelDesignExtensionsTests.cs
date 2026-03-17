@@ -11633,7 +11633,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.False);
         }
 
-         [Test]
+        [Test]
         public void IsDotNetReferenceType_ValueRankScalarOrOneDimension_ReturnsFalse()
         {
             // Arrange

@@ -729,7 +729,9 @@ namespace TestData
             var variantValue = new List<Variant>();
             for (int ii = 0; values != null && ii < values.Length; ii++)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 variantValue.Add(new Variant(values[ii]));
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             value.VariantValue = variantValue;
             return value;

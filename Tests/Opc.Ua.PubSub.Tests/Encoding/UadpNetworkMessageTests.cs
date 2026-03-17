@@ -1131,23 +1131,31 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             uadpDataSetMessage.DataSetWriterId);
 
                         // check dataValues values
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.IsNotNull(
                             fieldEncoded.Value.Value,
                             "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                             index,
                             uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.IsNotNull(
                             fieldDecoded.Value.Value,
                             "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                             index,
                             uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
 
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             dataValueEncoded.Value,
                             dataValueDecoded.Value,
                             "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                             index,
                             uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
 
                         // Checks just for DataValue type only
                         if ((uadpDataSetMessage.FieldContentMask &

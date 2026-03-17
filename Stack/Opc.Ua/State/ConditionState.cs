@@ -400,7 +400,7 @@ namespace Opc.Ua
             {
                 // create a new event instance.
                 EventId.Value = Uuid.NewUuid().ToByteString();
-                Time.Value = DateTime.UtcNow;
+                Time.Value = DateTimeUtc.Now;
                 ReceiveTime.Value = Time.Value;
 
                 ClearChangeMasks(context, includeChildren: true);

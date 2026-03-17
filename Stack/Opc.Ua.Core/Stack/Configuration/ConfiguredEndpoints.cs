@@ -1255,7 +1255,7 @@ namespace Opc.Ua
             }
 
             // get the know discovery URLs.
-            ArrayOf<string> discoveryUrls =  m_description.Server?.DiscoveryUrls ?? default;
+            ArrayOf<string> discoveryUrls = m_description.Server?.DiscoveryUrls ?? default;
 
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls.IsEmpty)

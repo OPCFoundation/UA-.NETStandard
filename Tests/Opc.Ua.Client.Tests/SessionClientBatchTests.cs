@@ -556,7 +556,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results =  Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
@@ -2602,7 +2602,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
-                    Results =Enumerable.Repeat(StatusCodes.Good, 10).ToArrayOf()
+                    Results = Enumerable.Repeat(StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
@@ -5042,7 +5042,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results =Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {

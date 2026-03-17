@@ -145,8 +145,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (pubSubConfiguration != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 return pubSubConfiguration.Connections
                     .Find(x => x.PublisherId.Value.Equals(publisherId));
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             return null;
         }
@@ -3225,98 +3227,140 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("BoolToggle", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (boolToggle.Value is bool)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 bool boolVal = Convert.ToBoolean(boolToggle.Value, CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 boolToggle.Value = !boolVal;
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("BoolToggle", namespaceIndexAllTypes),
                     Attributes.Value,
                     boolToggle);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Byte", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (byteValue.Value is byte)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 byte byteVal = Convert.ToByte(byteValue.Value, CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 byteValue.Value = ++byteVal;
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Byte", namespaceIndexAllTypes),
                     Attributes.Value,
                     byteValue);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Int16", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (int16Value.Value is short)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 int intIdentifier = Convert.ToInt16(int16Value.Value, CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
+#pragma warning disable CS0618 // Type or member is obsolete
                 int16Value.Value = (short)Interlocked.Increment(ref intIdentifier);
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int16", namespaceIndexAllTypes),
                     Attributes.Value,
                     int16Value);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Int32", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (int32Value.Value is int)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 int intIdentifier = Convert.ToInt32(int16Value.Value, CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, int.MaxValue);
+#pragma warning disable CS0618 // Type or member is obsolete
                 int32Value.Value = Interlocked.Increment(ref intIdentifier);
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int32", namespaceIndexAllTypes),
                     Attributes.Value,
                     int32Value);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("UInt16", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (uInt16Value.Value is ushort)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 int intIdentifier = Convert.ToUInt16(
                     uInt16Value.Value,
                     CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
+#pragma warning disable CS0618 // Type or member is obsolete
                 uInt16Value.Value = (ushort)Interlocked.Increment(ref intIdentifier);
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt16", namespaceIndexAllTypes),
                     Attributes.Value,
                     uInt16Value);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("UInt32", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (uInt32Value.Value is uint)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 long longIdentifier = Convert.ToUInt32(
                     uInt32Value.Value,
                     CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
+#pragma warning disable CS0618 // Type or member is obsolete
                 uInt32Value.Value = (uint)Interlocked.Increment(ref longIdentifier);
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt32", namespaceIndexAllTypes),
                     Attributes.Value,
                     uInt32Value);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Double", namespaceIndexAllTypes),
                 Attributes.Value);
+#pragma warning disable CS0618 // Type or member is obsolete
             if (doubleValue.Value is double)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 double doubleVal = Convert.ToDouble(
                     doubleValue.Value,
                     CultureInfo.InvariantCulture);
+#pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref doubleVal, 0, double.MaxValue);
+#pragma warning disable CS0618 // Type or member is obsolete
                 doubleValue.Value = ++doubleVal;
+#pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Double", namespaceIndexAllTypes),
                     Attributes.Value,
                     doubleValue);
             }
+#pragma warning restore CS0618 // Type or member is obsolete
             var dateTimeValue = new DataValue(Variant.From(DateTime.UtcNow));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", namespaceIndexAllTypes),

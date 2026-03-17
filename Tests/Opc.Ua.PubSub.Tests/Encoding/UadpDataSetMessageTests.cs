@@ -964,8 +964,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                 Assert.IsNotNull(dataSetFieldEncoded.Value, "DataSetFieldEncoded.Value is null");
                 Assert.IsNotNull(dataSetFieldDecoded.Value, "DataSetFieldDecoded.Value is null");
+#pragma warning disable CS0618 // Type or member is obsolete
                 object encodedValue = dataSetFieldEncoded.Value.Value;
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 object decodedValue = dataSetFieldDecoded.Value.Value;
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 Assert.AreEqual(
                     encodedValue,

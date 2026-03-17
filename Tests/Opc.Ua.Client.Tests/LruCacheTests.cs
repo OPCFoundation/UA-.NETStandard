@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var id = new NodeId("test", 0);
-            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("invalid") ];
+            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("invalid")];
             var context = new Mock<INodeCacheContext>();
 
             context

@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// <returns>
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
-        public object GetAttributeValue(
+        public Variant GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
             ArrayOf<QualifiedName> relativePath,
@@ -100,18 +100,18 @@ namespace Opc.Ua
             if (!typeDefinitionId.IsNull &&
                 !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
             {
-                return null;
+                return default;
             }
 
-            object value = GetAttributeValue(m_snapshot, relativePath, 0, attributeId);
+            Variant value = GetAttributeValue(m_snapshot, relativePath, 0, attributeId);
 
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 StatusCode error = indexRange.ApplyRange(ref value);
 
                 if (StatusCode.IsBad(error))
                 {
-                    value = null;
+                    value = default;
                 }
             }
 

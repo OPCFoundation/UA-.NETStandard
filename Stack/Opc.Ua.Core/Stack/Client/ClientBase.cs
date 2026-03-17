@@ -708,7 +708,7 @@ namespace Opc.Ua
         /// <returns>Result of the vaidation</returns>
         public static ServiceResult ValidateDataValue(
             DataValue value,
-            Type expectedType,
+            TypeInfo expectedType,
             int index,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
@@ -728,13 +728,13 @@ namespace Opc.Ua
             }
 
             // check data type.
-            if (expectedType != null && !expectedType.IsInstanceOfType(value.Value))
+            if (value.WrappedValue.TypeInfo != expectedType)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadTypeMismatch,
                     "The server returned data value of type {0} when a value of type {1} was expected.",
-                    value.Value != null ? value.Value.GetType().Name : "(null)",
-                    expectedType.Name);
+                    value.WrappedValue.TypeInfo,
+                    expectedType);
             }
 
             return ServiceResult.Good;

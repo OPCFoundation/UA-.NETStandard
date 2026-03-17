@@ -1060,6 +1060,7 @@ dotnet_diagnostic.NUnit2005.severity = suggestion
 dotnet_diagnostic.NUnit2006.severity = suggestion
 dotnet_diagnostic.NUnit2015.severity = suggestion
 dotnet_diagnostic.NUnit2031.severity = suggestion
+dotnet_diagnostic.NUnit2045.severity = silent
 
 # exclude generated code
 

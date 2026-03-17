@@ -54,7 +54,7 @@ namespace Opc.Ua
         {
             if (source is BaseVariableTypeState type)
             {
-                m_value = CoreUtils.Clone(type.m_value);
+                m_value = m_value.Copy();
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
                 m_arrayDimensions = type.m_arrayDimensions;
@@ -102,7 +102,7 @@ namespace Opc.Ua
             }
             return
                 base.DeepEquals(state) &&
-                EqualityComparer<object>.Default.Equals(state.Value, Value) &&
+                state.Value == Value &&
                 state.DataType == DataType &&
                 state.ValueRank == ValueRank &&
                 state.ArrayDimensions == ArrayDimensions
@@ -126,7 +126,7 @@ namespace Opc.Ua
         {
             if (target is BaseVariableTypeState state)
             {
-                state.Value = Value;
+                state.Value = Value.Copy();
                 state.DataType = DataType;
                 state.ValueRank = ValueRank;
                 state.ArrayDimensions = ArrayDimensions;
@@ -262,7 +262,7 @@ namespace Opc.Ua
 
             if (node is VariableTypeNode variableTypeNode)
             {
-                variableTypeNode.Value = CoreUtils.Clone(Value); // TODO: revisit
+                variableTypeNode.Value = Value.Copy();
                 variableTypeNode.DataType = DataType;
                 variableTypeNode.ValueRank = ValueRank;
                 variableTypeNode.ArrayDimensions = ArrayDimensions;
@@ -681,7 +681,7 @@ namespace Opc.Ua
             }
 
             // index range writes not supported.
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }

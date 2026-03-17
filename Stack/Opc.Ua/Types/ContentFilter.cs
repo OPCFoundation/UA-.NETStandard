@@ -144,7 +144,7 @@ namespace Opc.Ua
         /// <param name="op">The filter operator.</param>
         /// <param name="operands">The operands.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public ContentFilterElement Push(FilterOperator op, params object[] operands)
+        public ContentFilterElement Push(FilterOperator op, params Variant[] operands)
         {
             // check if nothing more to do.
             if (operands == null || operands.Length == 0)
@@ -161,17 +161,14 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
-                if (operands[ii] is FilterOperand filterOperand)
+                if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
                         element.FilterOperands.AddItem(new ExtensionObject(filterOperand));
-                    continue;
                 }
-
-                // check for reference to another ContentFilterElement.
-
-                if (operands[ii] is ContentFilterElement existingElement)
+                else if (operands[ii].TryGetStructure(out ContentFilterElement existingElement))
                 {
+                    // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);
 
                     if (index == -1)
@@ -185,13 +182,14 @@ namespace Opc.Ua
 
                     element.FilterOperands =
                         element.FilterOperands.AddItem(new ExtensionObject(operand));
-                    continue;
                 }
-
-                // assume a literal operand.
-                var literalOperand = new LiteralOperand { Value = new Variant(operands[ii]) };
-                element.FilterOperands =
-                    element.FilterOperands.AddItem(new ExtensionObject(literalOperand));
+                else
+                {
+                    // assume a literal operand.
+                    var literalOperand = new LiteralOperand(operands[ii]);
+                    element.FilterOperands =
+                        element.FilterOperands.AddItem(new ExtensionObject(literalOperand));
+                }
             }
 
             // insert the new element at the begining of the list.
@@ -962,7 +960,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
 
             // parse the index range.
             if (!string.IsNullOrEmpty(m_indexRange))
@@ -1127,9 +1125,9 @@ namespace Opc.Ua
         /// Constructs an operand from a value.
         /// </summary>
         /// <param name="value">The value.</param>
-        public LiteralOperand(object value)
+        public LiteralOperand(Variant value)
         {
-            m_value = new Variant(value);
+            m_value = value;
         }
 
         /// <summary>

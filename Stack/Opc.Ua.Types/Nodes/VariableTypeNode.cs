@@ -50,7 +50,7 @@ namespace Opc.Ua
             if (source is IVariableType node)
             {
                 IsAbstract = node.IsAbstract;
-                Value = new Variant(node.Value);
+                Value = node.Value.Copy();
                 DataType = node.DataType;
                 ValueRank = node.ValueRank;
                 ArrayDimensions = node.ArrayDimensions;
@@ -292,7 +292,7 @@ namespace Opc.Ua
             {
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                    Value = new Variant(CoreUtils.Clone(value));
+                    Value = value.Copy();
                     return ServiceResult.Good;
                 case Attributes.DataType:
                     var dataType = (NodeId)value;

@@ -397,7 +397,8 @@ namespace Opc.Ua.Bindings
                     var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
                     ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
-                    if (tlsClientCertificate != opcUaClientCertificate)
+                    if (context.Connection.ClientCertificate?.RawData == null ||
+                        tlsClientCertificate != opcUaClientCertificate)
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";

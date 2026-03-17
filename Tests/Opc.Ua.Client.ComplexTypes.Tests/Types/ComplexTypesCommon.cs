@@ -253,7 +253,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
                 Variant newObj = randomValues
                     ? DataGenerator.GetRandomVariant(property.TypeInfo.BuiltInType, !property.TypeInfo.IsScalar)
-                    : new Variant(TypeInfo.GetDefaultValue(builtInType));
+                    : Variant.CreateDefault(TypeInfo.Create(builtInType, property.TypeInfo.ValueRank));
                 if (newObj.IsNull)
                 {
                     // fill known missing default values (by design)

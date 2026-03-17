@@ -2647,7 +2647,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariant(null);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(value));
+            Assert.That(result.GetInt32(), Is.EqualTo(value));
         }
 
         [Test]
@@ -2669,7 +2669,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariant(null);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(value));
+            Assert.That(result.GetString(), Is.EqualTo(value));
         }
 
         [Test]
@@ -2688,7 +2688,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariant(null);
 
             // Assert
-            Assert.That(result.Value, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -2711,7 +2711,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.WrappedValue.Value, Is.EqualTo(value));
+            Assert.That(result.WrappedValue.GetInt32(), Is.EqualTo(value));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
             Assert.That(result.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
@@ -2811,9 +2811,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
-            Assert.That(result[0].Value, Is.EqualTo(42));
-            Assert.That(result[1].Value, Is.EqualTo("Test"));
-            Assert.That(result[2].Value, Is.Null);
+            Assert.That(result[0].GetInt32(), Is.EqualTo(42));
+            Assert.That(result[1].GetString(), Is.EqualTo("Test"));
+            Assert.That(result[2].IsNull, Is.True);
         }
 
         [Test]
@@ -2846,8 +2846,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0].WrappedValue.Value, Is.EqualTo(100));
-            Assert.That(result[1].WrappedValue.Value, Is.EqualTo("OK"));
+            Assert.That(result[0].WrappedValue.GetInt32(), Is.EqualTo(100));
+            Assert.That(result[1].WrappedValue.GetString(), Is.EqualTo("OK"));
             Assert.That(result[1].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -4537,12 +4537,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariant(null);
 
             // Assert
-            Assert.That(result.Value, Is.Not.Null);
-            var resultArray = (Array)result.Value;
-            Assert.That(resultArray.Length, Is.EqualTo(3));
-            Assert.That(resultArray.GetValue(0), Is.EqualTo(1));
-            Assert.That(resultArray.GetValue(1), Is.EqualTo(2));
-            Assert.That(resultArray.GetValue(2), Is.EqualTo(3));
+            Assert.That(result.IsNull, Is.False);
+            var resultArray = result.GetInt32Array();
+            Assert.That(resultArray.Count, Is.EqualTo(3));
+            Assert.That(resultArray[0], Is.EqualTo(1));
+            Assert.That(resultArray[1], Is.EqualTo(2));
+            Assert.That(resultArray[2], Is.EqualTo(3));
         }
 
         [Test]
@@ -4555,7 +4555,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var serverTime = new DateTimeUtc(2024, 6, 15, 12, 0, 1);
             var dataValue = new DataValue
             {
-                Value = new Variant(42),
+                WrappedValue = new Variant(42),
                 StatusCode = StatusCodes.Good,
                 SourceTimestamp = sourceTime,
                 SourcePicoseconds = 100,
@@ -4574,7 +4574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Value, Is.EqualTo(new Variant(42)));
+            Assert.That(result.WrappedValue, Is.EqualTo(new Variant(42)));
             Assert.That(result.SourceTimestamp, Is.EqualTo(sourceTime));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(100));
             Assert.That(result.ServerTimestamp, Is.EqualTo(serverTime));

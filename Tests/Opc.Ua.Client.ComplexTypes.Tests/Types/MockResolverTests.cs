@@ -690,8 +690,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             case BuiltInType.DataValue:
                                 value = new DataValue();
                                 break;
-                             default:
-                                value = new Variant(TypeInfo.GetDefaultValue(builtInType));
+                            default:
+                                value = Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
                                 break;
                         }
                     }
@@ -948,7 +948,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         public static Variant CreateVariantForMatrixOfT<T>(Array array)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Variant(MatrixOf.From<T>(array));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
     }
 

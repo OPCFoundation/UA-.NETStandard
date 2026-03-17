@@ -1532,7 +1532,7 @@ namespace Opc.Ua.Server
                 }
             }
             addResults = addResultList;
-            removeResults =  removeResultList;
+            removeResults = removeResultList;
             addDiagnosticInfos = addDiagnosticInfoList;
             removeDiagnosticInfos = removeDiagnosticInfoList;
         }

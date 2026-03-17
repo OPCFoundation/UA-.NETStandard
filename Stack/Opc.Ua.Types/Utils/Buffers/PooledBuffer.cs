@@ -250,14 +250,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Grow the buffer by one byte
-        /// </summary>
-        public void Grow()
-        {
-            EnsureAvailableSpaceCore(Free + 1);
-        }
-
-        /// <summary>
         /// Ensure at least [byteCount] bytes to write to.
         /// </summary>
         /// <param name="byteCount"></param>

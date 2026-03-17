@@ -1750,38 +1750,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant array to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
-        {
-            if (BeginField(fieldName, values.IsNull, true, true))
-            {
-                // check the length.
-                if (!values.IsNull &&
-                    Context.MaxArrayLength > 0 &&
-                    Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                if (!values.IsNull)
-                {
-                    for (int ii = 0; ii < values.Count; ii++)
-                    {
-                        WriteVariant("Variant", new Variant(values[ii]));
-                    }
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-            }
-        }
-
-        /// <summary>
         /// Write a variant value in raw mode (content as it would be encoded
         /// if each encoder call would be called) or as variant encoding
         /// </summary>

@@ -504,7 +504,7 @@ namespace Opc.Ua.PubSub.Encoding
                         JsonNetworkMessageContentMask.PublisherId) != 0 &&
                         PublisherId != null &&
                         PublisherId.Equals(
-                            dataSetReader.PublisherId.Value.ToString(),
+                            dataSetReader.PublisherId.ConvertToString().GetString(),
                             StringComparison.Ordinal))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);

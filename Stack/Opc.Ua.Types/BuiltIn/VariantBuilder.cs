@@ -129,7 +129,7 @@ namespace Opc.Ua
         IVariantBuilder<MatrixOf<ExtensionObject>>,
         IVariantBuilder<MatrixOf<DataValue>>,
         IVariantBuilder<MatrixOf<Variant>>
-   {
+    {
         /// <inheritdoc/>
         Variant IVariantBuilder<bool>.WithValue(bool value)
         {

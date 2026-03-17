@@ -240,7 +240,7 @@ namespace Opc.Ua.Client
                 Filter = null;
                 FilterResult = null;
 
-                if (!request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
+                if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
                 {
                     Filter = CoreUtils.Clone(filter);
                 }

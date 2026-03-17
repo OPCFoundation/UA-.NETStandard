@@ -1921,7 +1921,7 @@ namespace Opc.Ua
             LocalizedText displayName = default;
             LocalizedText description = default;
             AttributeWriteMask writeMask = AttributeWriteMask.None;
-            const AttributeWriteMask userWriteMask = AttributeWriteMask.None;
+            AttributeWriteMask userWriteMask = AttributeWriteMask.None;
             NodeId referenceTypeId = default;
             NodeId typeDefinitionId = default;
 
@@ -1956,7 +1956,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
+                userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.UserWriteMask;
             }
 
@@ -3452,7 +3452,7 @@ namespace Opc.Ua
                 ServiceResult result = ReadAttribute(
                     context,
                     attributeIds[ii],
-                    NumericRange.Empty,
+                    default,
                     default,
                     scratch);
 
@@ -3941,7 +3941,7 @@ namespace Opc.Ua
             }
 
             // cannot use index range for non-value attributes.
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadIndexRangeInvalid,
@@ -4730,7 +4730,7 @@ namespace Opc.Ua
             // check if reading attributes of current node.
             if (index >= relativePath.Count)
             {
-                return ReadAttribute(context, attributeId, NumericRange.Empty, default, dataValue);
+                return ReadAttribute(context, attributeId, default, default, dataValue);
             }
 
             // find the child at the current level.
@@ -4779,7 +4779,7 @@ namespace Opc.Ua
         {
             if (componentPath.Count >= index)
             {
-                return WriteAttribute(context, attributeId, NumericRange.Empty, value);
+                return WriteAttribute(context, attributeId, default, value);
             }
 
             List<BaseInstanceState> children = null;

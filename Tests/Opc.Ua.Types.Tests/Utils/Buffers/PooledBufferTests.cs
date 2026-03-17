@@ -170,22 +170,6 @@ namespace Opc.Ua.Types.Buffers.Tests
         }
 
         [Test]
-        public void GrowShouldIncreaseCapacity()
-        {
-            // Arrange
-            var buffer = new PooledBuffer(1);
-            buffer.Commit(1); // Fill the buffer
-            int initialCapacity = buffer.Capacity;
-
-            // Act
-            buffer.Grow();
-
-            // Assert
-            Assert.That(buffer.Capacity, Is.GreaterThan(initialCapacity));
-            Assert.That(buffer.Free, Is.GreaterThan(0));
-        }
-
-        [Test]
         public void EnsureFreeWhenEnoughSpaceShouldNotChangeCapacity()
         {
             // Arrange

@@ -4225,7 +4225,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadTypeMismatch;
             }
 
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -4258,7 +4258,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadTypeMismatch;
             }
 
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -4311,9 +4311,9 @@ namespace Quickstarts.ReferenceServer
             // check index range.
             if (variable.ValueRank >= 0)
             {
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
-                    object target = variable.Value.AsBoxedObject(); // TODO: Rewrite ranges
+                    Variant target = variable.Value;
                     ServiceResult result = indexRange.UpdateRange(ref target, value);
 
                     if (ServiceResult.IsBad(result))
@@ -4321,13 +4321,13 @@ namespace Quickstarts.ReferenceServer
                         return result;
                     }
 
-                    value = new Variant(target);
+                    value = target;
                 }
             }
             // check instrument range.
             else
             {
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -4368,7 +4368,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadTypeMismatch;
             }
 
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }

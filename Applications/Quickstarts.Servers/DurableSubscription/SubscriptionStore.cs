@@ -170,6 +170,10 @@ namespace Quickstarts.Servers
                 var jo = JObject.Load(reader);
                 int begin = jo["Begin"].ToObject<int>(serializer);
                 int end = jo["End"].ToObject<int>(serializer);
+                if (begin == -1)
+                {
+                    return NumericRange.Null;
+                }
                 return new NumericRange(begin, end);
             }
 

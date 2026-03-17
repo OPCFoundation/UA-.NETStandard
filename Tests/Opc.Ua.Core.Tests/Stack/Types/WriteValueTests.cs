@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Types
 {
@@ -42,31 +41,11 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     [Parallelizable]
     public class WriteValueTests
     {
-        [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
-
-        [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
-
-        [SetUp]
-        protected void SetUp()
-        {
-        }
-
-        [TearDown]
-        protected void TearDown()
-        {
-        }
-
         /// <summary>
-        /// Test that WriteValue.Validate() accepts Matrix value when IndexRange has SubRanges assigned
+        /// Test that WriteValue.Validate() accepts Matrix value when
+        /// IndexRange has SubRanges assigned
         /// </summary>
         [Test]
-        [Category("WriteValue")]
         public void MatrixIndexRangeValidationTest()
         {
             MatrixOf<int> int3x3Matrix = new int[,]
@@ -86,39 +65,23 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             ServiceResult validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(validateResult),
+                Is.True,
                 "WriteValue.Validate result was not Good");
-
-            // Test that Matrix value is not allowed when IndexRange is for one-dimensional array
-            writeValue.IndexRange = "1";
-            validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
-                ServiceResult.IsBad(validateResult),
-                "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
 
             // Test that Matrix value is allowed when IndexRange is not specified
             writeValue.IndexRange = null;
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                Is.True,
                 "WriteValue.Validate result was not Good");
-
-            // Test that multidimensional IndexRange is not allowed for scalar variable
-            writeValue.Value = new DataValue(new Variant(1));
-            writeValue.IndexRange = "1,1";
-            validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
-                ServiceResult.IsBad(validateResult),
-                "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
         }
 
         /// <summary>
         /// Test that WriteValue.Validate() accepts IndexRange for string values
         /// </summary>
         [Test]
-        [Category("WriteValue")]
         public void StringIndexRangeValidationTest()
         {
             // Positive test
@@ -130,28 +93,16 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "0:10"
             };
 
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                Is.True,
                 "WriteValue.Validate result was not Good");
-
-            // Test with range that does not match the length of the value
-            writeValue.IndexRange = "0:9";
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
-                ServiceResult.IsBad(validateResult),
-                "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(
-                StatusCodes.BadIndexRangeNoData,
-                validateResult.StatusCode);
         }
-
-        private static readonly int[] s_intValue = [1, 2, 3, 4, 5];
 
         /// <summary>
         /// Test that WriteValue.Validate() accepts IndexRange for Array values
         /// </summary>
         [Test]
-        [Category("WriteValue")]
         public void ArrayIndexRangeValidationTest()
         {
             // Positive test
@@ -164,29 +115,17 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             ServiceResult validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(validateResult),
+                Is.True,
                 "WriteValue.Validate result was not Good");
-
-            // Test with range that does not match the length of the array
-            writeValue.IndexRange = "0:5";
-            validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
-                ServiceResult.IsBad(validateResult),
-                "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(
-                StatusCodes.BadIndexRangeNoData,
-                validateResult.StatusCode);
         }
 
-        private static readonly string[] s_stringValue = ["ha"];
-        private static readonly int[] s_value = [1, 2];
-
         /// <summary>
-        /// Test that WriteValue.Validate() accepts String and ByteString array when IndexRange has sub ranges defined
+        /// Test that WriteValue.Validate() accepts String and ByteString array
+        /// when IndexRange has sub ranges defined
         /// </summary>
         [Test]
-        [Category("WriteValue")]
         public void ArraySubRangeIndexRangeValidationTest()
         {
             // Test with String array
@@ -199,8 +138,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             Assert.AreEqual(BuiltInType.String, writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                Is.True,
                 "WriteValue.Validate result was not Good");
 
             // Test with ByteString array
@@ -209,18 +149,13 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.AreEqual(
                 BuiltInType.ByteString,
                 writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
-            Assert.True(
+            Assert.That(
                 ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                Is.True,
                 "WriteValue.Validate result was not Good");
-
-            // Negative test with Int32 array
-            writeValue.Value = new DataValue(new Variant(s_value));
-            Assert.AreEqual(BuiltInType.Int32, writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
-            Assert.True(
-                ServiceResult.IsBad(validateResult),
-                "WriteValue.Validate result was not Good");
-            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
         }
+
+        private static readonly string[] s_stringValue = ["ha"];
+        private static readonly int[] s_intValue = [1, 2, 3, 4, 5];
     }
 }

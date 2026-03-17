@@ -43,10 +43,12 @@ namespace Opc.Ua.Client.Tests
             }
             for (int i = 0; i < argTypes.Length; i++)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (requests[0].InputArguments[i].Value.GetType() != argTypes[i])
                 {
                     return false;
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             return true;
         }

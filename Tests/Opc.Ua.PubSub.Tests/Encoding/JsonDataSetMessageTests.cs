@@ -239,6 +239,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         private static Field CreateField(string name, BuiltInType builtInType, object value)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -252,6 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     SourceTimestamp = DateTime.UtcNow
                 }
             };
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private static Field CreateStatusCodeField(string name, uint statusCode)

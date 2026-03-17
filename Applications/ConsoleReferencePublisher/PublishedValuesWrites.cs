@@ -354,7 +354,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 new NodeId(variable.Name, namespaceIndex),
                 Attributes.Value
             );
-            if (dataValue.Value == null)
+            if (dataValue.WrappedValue.IsNull)
             {
                 return;
             }
@@ -417,9 +417,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToUInt16(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        int intIdentifier = dataValue.WrappedValue.ConvertToUInt16().GetUInt16();
                         Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
                         dataValue.WrappedValue = (ushort)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
@@ -428,9 +426,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        long longIdentifier = Convert.ToUInt32(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        long longIdentifier = dataValue.WrappedValue.ConvertToUInt32().GetUInt32();
                         Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
                         dataValue.WrappedValue = (uint)Interlocked.Increment(ref longIdentifier);
                         valueUpdated = true;

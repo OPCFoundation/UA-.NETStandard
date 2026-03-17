@@ -319,7 +319,7 @@ namespace Quickstarts
 
                 foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
+                    Console.WriteLine($"     OutputValue = {outputArgument}");
                 }
             }
             catch (Exception ex)
@@ -365,7 +365,7 @@ namespace Quickstarts
 
                 foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
+                    Console.WriteLine($"     OutputValue = {outputArgument}");
                 }
             }
             catch (Exception ex)
@@ -525,7 +525,10 @@ namespace Quickstarts
                     Value = Variant.From(ObjectTypeIds.ExclusiveLevelAlarmType)
                 };
 
-                whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
+                whereClause.Push(
+                    FilterOperator.Equals,
+                    Variant.FromStructure(existingEventType),
+                    Variant.FromStructure(desiredEventType));
 
                 filter.WhereClause = whereClause;
 
@@ -935,7 +938,7 @@ namespace Quickstarts
                         m_logger.LogInformation("Browse aborted.");
                         break;
                     }
-					if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
+                    if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
                     {
                         maxNodesPerBrowse = 0; // Do not slice, take all
                     }

@@ -283,10 +283,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 networkMessage0.GroupVersion,
                 messageSettings.GroupVersion,
                 "UadpNetworkMessage.GroupVersion is not valid.");
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.AreEqual(
                 networkMessage0.PublisherId,
                 m_udpPublisherConnection.PubSubConnectionConfiguration.PublisherId.Value,
                 "UadpNetworkMessage.PublisherId is not valid.");
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.IsNotNull(
                 networkMessage0.DataSetMessages,
                 "UadpNetworkMessage.UadpDataSetMessages is null.");

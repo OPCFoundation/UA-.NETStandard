@@ -393,7 +393,7 @@ namespace Opc.Ua
                     return ServiceResult.Good;
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                    Value = new Variant(CoreUtils.Clone(value));
+                    Value = value.Copy();
                     return ServiceResult.Good;
                 case Attributes.DataType:
                     var dataType = (NodeId)value;

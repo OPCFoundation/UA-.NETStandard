@@ -3077,7 +3077,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         private void WriteRawValueContents(FieldMetaData field, DataValue dv, bool dimensionsInline)
         {
-            object value = dv.Value;
+            object value = dv.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.LegacyWithMatrix);
             TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
 
             if (dv.WrappedValue == Variant.Null)
@@ -3201,7 +3201,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (EncodingToUse == PubSubJsonEncoding.Reversible)
             {
-                if (dv.Value is Matrix matrix)
+                if (dv.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.LegacyWithMatrix) is Matrix matrix)
                 {
                     WriteInt32Array("Dimensions", matrix.Dimensions);
                 }

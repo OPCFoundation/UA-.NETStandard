@@ -199,10 +199,10 @@ namespace TestData
             // check if the index range or data encoding can be applied.
             if (StatusCode.IsGood(value.StatusCode))
             {
-                object valueToReturn = value.Value;
+                Variant valueToReturn = value.WrappedValue;
 
                 // apply the index range.
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
                     StatusCode error = indexRange.ApplyRange(ref valueToReturn);
 
@@ -213,7 +213,7 @@ namespace TestData
                     }
                     else
                     {
-                        value.Value = valueToReturn;
+                        value.WrappedValue = valueToReturn;
                     }
                 }
 

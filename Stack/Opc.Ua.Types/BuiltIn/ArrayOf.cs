@@ -181,7 +181,7 @@ namespace Opc.Ua
             {
                 return m_memory.IsEmpty;
             }
-            IEnumerator<T> enumerator = other.GetEnumerator();
+            using IEnumerator<T> enumerator = other.GetEnumerator();
             for (int i = 0; i < m_memory.Length; i++)
             {
                 if (!enumerator.MoveNext() ||
@@ -540,16 +540,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Filter out the value and return an array without it.
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ArrayOf<T> RemoveItem(T value)
-        {
-            return Filter(item => !EqualityComparer<T>.Default.Equals(item, value));
-        }
-
-        /// <summary>
         /// Add an item to this array to produce a new array. The item
         /// is added at the specific index moving the existing items at
         /// and after the index one position. If index is equal to count,
@@ -581,6 +571,53 @@ namespace Opc.Ua
                 Span[index..].CopyTo(target[(index + 1)..]);
             }
             return buffer.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Replace an item in this array to produce a new array. The item
+        /// is replace at the specific index without moving the existing
+        /// items.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Pure]
+        public ArrayOf<T> ReplaceItem(T value, int index)
+        {
+            if (index < 0 || index > Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            T[] buffer = new T[Count];
+            Span.CopyTo(buffer);
+            buffer[index] = value;
+            return buffer.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Replace items in this array to produce a new array. The
+        /// items are added from the provided offset
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Pure]
+        public ArrayOf<T> ReplaceItems(ArrayOf<T> value, int index)
+        {
+            if (index < 0 || index + value.Count > Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            T[] buffer = new T[Count];
+            Span.CopyTo(buffer);
+            value.Span.CopyTo(buffer.AsSpan(index));
+            return buffer.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Filter out the value and return an array without it.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public ArrayOf<T> RemoveItem(T value)
+        {
+            return Filter(item => !EqualityComparer<T>.Default.Equals(item, value));
         }
 
         /// <summary>
@@ -668,7 +705,7 @@ namespace Opc.Ua
                     segment.Count,
                     predicate);
             }
-            for (int i = 0 ; i < m_memory.Length; i++)
+            for (int i = 0; i < m_memory.Length; i++)
             {
                 if (predicate(m_memory.Span[i]))
                 {
@@ -852,6 +889,28 @@ namespace Opc.Ua
             this System.Collections.IEnumerable? values)
         {
             return (values?.Cast<T>()).ToArrayOf();
+        }
+
+        /// <summary>
+        /// Create array of chars
+        /// </summary>
+        public static ArrayOf<char> ToArrayOf(this string? values)
+        {
+            return (values?.ToCharArray().ToArrayOf()) ?? default;
+        }
+
+        /// <summary>
+        /// Create array of chars
+        /// </summary>
+        public static string? ToString(this ArrayOf<char> values)
+        {
+            return values.IsNull ? null : new string(
+#if NET8_0_OR_GREATER
+                values.Span
+#else
+                values.ToArray()
+#endif
+                );
         }
 
         /// <summary>

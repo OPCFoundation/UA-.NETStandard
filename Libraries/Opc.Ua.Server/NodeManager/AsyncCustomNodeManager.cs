@@ -1995,14 +1995,13 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            if (nodeToWrite.Value.Value is Array array)
+                            Variant doubleVariant = nodeToWrite.Value.WrappedValue
+                               .ConvertTo(BuiltInType.Double);
+                            if (doubleVariant.TypeInfo.IsArray)
                             {
                                 bool isOutOfRange = false;
-                                foreach (object arrayValue in array)
+                                foreach (double newValue in doubleVariant.GetDoubleArray())
                                 {
-                                    double newValue = Convert.ToDouble(
-                                        arrayValue,
-                                        CultureInfo.InvariantCulture);
                                     if (newValue > analogItemState.InstrumentRange.Value.High ||
                                         newValue < analogItemState.InstrumentRange.Value.Low)
                                     {
@@ -2018,8 +2017,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = (double)nodeToWrite.Value.WrappedValue.ConvertToDouble();
-
+                                double newValue = doubleVariant.GetDouble();
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)
                                 {
@@ -2044,7 +2042,6 @@ namespace Opc.Ua.Server
 #endif
                     var propertyState = handle.Node as PropertyState;
                     Variant previousPropertyValue = propertyState?.Value ?? default;
-
                     Variant oldValue = default;
 
                     if (Server?.Auditing == true)
@@ -2115,7 +2112,13 @@ namespace Opc.Ua.Server
             }
 
             // validates the nodes and writes the value to the underlying system.
-            await WriteAsync(systemContext, nodesToWrite, errors, nodesToValidate, operationCache, cancellationToken).ConfigureAwait(false);
+            await WriteAsync(
+                systemContext,
+                nodesToWrite,
+                errors,
+                nodesToValidate,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
         }
 
         private void CheckIfSemanticsHaveChanged(

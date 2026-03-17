@@ -10044,10 +10044,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Theory]
         public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly(bool raw)
         {
-            var dt = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            var dt = new DateTimeUtc(2024, 1, 15, 10, 30, 0);
             Variant decoded = RoundTripVariantValue(Variant.From(dt), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(dt));
+            Assert.That(decoded.GetDateTime(), Is.EqualTo(dt));
         }
 
         [Theory]
@@ -10056,7 +10056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var guid = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
             Variant decoded = RoundTripVariantValue(Variant.From(guid), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(guid));
+            Assert.That(decoded.GetGuid(), Is.EqualTo(guid));
         }
 
         [Theory]
@@ -10074,7 +10074,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nodeId = new NodeId(123, 1);
             Variant decoded = RoundTripVariantValue(Variant.From(nodeId), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(nodeId));
+            Assert.That(decoded.GetNodeId(), Is.EqualTo(nodeId));
         }
 
         [Theory]
@@ -10083,7 +10083,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(456, 1);
             Variant decoded = RoundTripVariantValue(Variant.From(expandedNodeId), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(expandedNodeId));
+            Assert.That(decoded.GetExpandedNodeId(), Is.EqualTo(expandedNodeId));
         }
 
         [Theory]
@@ -10092,7 +10092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qname = new QualifiedName("qname", 1);
             Variant decoded = RoundTripVariantValue(Variant.From(qname), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(qname));
+            Assert.That(decoded.GetQualifiedName(), Is.EqualTo(qname));
         }
 
         [Theory]
@@ -10101,7 +10101,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var lt = new LocalizedText("en", "loctext");
             Variant decoded = RoundTripVariantValue(Variant.From(lt), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(lt));
+            Assert.That(decoded.GetLocalizedText(), Is.EqualTo(lt));
         }
 
         [Theory]
@@ -10110,7 +10110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extObj = new ExtensionObject(ExpandedNodeId.Null);
             Variant decoded = RoundTripVariantValue(Variant.From(extObj), raw);
 
-            Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
+            Assert.That(decoded.GetExtensionObject(), Is.EqualTo(extObj));
         }
 
         [Theory]
@@ -10119,7 +10119,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dv = new DataValue(Variant.From(99));
             Variant decoded = RoundTripVariantValue(Variant.From(dv), raw);
 
-            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(Variant.From(99)));
+            Assert.That(decoded.GetDataValue().WrappedValue, Is.EqualTo(Variant.From(99)));
         }
 
         [Test]
@@ -10135,7 +10135,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             Variant decoded = RoundTripVariantValue(Variant.From(TestEnum.Value1), raw);
 
-            Assert.That(decoded.Value, Is.EqualTo(1));
+            Assert.That(decoded.GetInt32(), Is.EqualTo(1));
         }
 
         [Theory]
@@ -10147,7 +10147,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(sysElement);
             Variant decoded = RoundTripVariantValue(Variant.From(xmlElement), raw);
 
-            Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
+            Assert.That(decoded.GetXmlElement().IsEmpty, Is.False);
         }
 
         [Test]

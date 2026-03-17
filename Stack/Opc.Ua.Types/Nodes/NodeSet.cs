@@ -187,20 +187,26 @@ namespace Opc.Ua
                 {
                     if (elementType == BuiltInType.Variant)
                     {
-                        element = ((Variant)element).Value;
+                        element = ((Variant)element).AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     element = TranslateValue(new Variant(element), namespaceUris, serverUris);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     if (elementType == BuiltInType.Variant)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         element = new Variant(element);
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
                     array.SetValue(element, indexes);
                 }
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Variant(array);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -487,10 +493,14 @@ namespace Opc.Ua
                     namespaceUris,
                     m_namespaceUris);
 
-                if (variableToImport.Value.Value != null)
+                if (!variableToImport.Value.IsNull)
                 {
-                    variable.Value = new Variant(
-                        ImportValue(variableToImport.Value.Value, namespaceUris, serverUris));
+#pragma warning disable CS0618 // Type or member is obsolete
+                    variable.Value = new Variant(ImportValue(
+                        variableToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                        namespaceUris,
+                        serverUris));
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 
@@ -503,10 +513,14 @@ namespace Opc.Ua
                     namespaceUris,
                     m_namespaceUris);
 
-                if (variableTypeToImport.Value.Value != null)
+                if (!variableTypeToImport.Value.IsNull)
                 {
-                    variableType.Value = new Variant(
-                        ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris));
+#pragma warning disable CS0618 // Type or member is obsolete
+                    variableType.Value = new Variant(ImportValue(
+                        variableTypeToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                        namespaceUris,
+                        serverUris));
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 

@@ -1170,7 +1170,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
             Assert.That(results[0].OutputArguments.Count, Is.EqualTo(1));
-            Assert.That(results[0].OutputArguments[0].Value, Is.EqualTo(321));
+            Assert.That(results[0].OutputArguments[0].GetInt32(), Is.EqualTo(321));
 
             var syncManager = (INodeManager3)manager.SyncNodeManager;
             var syncRequests = new List<CallMethodRequest>

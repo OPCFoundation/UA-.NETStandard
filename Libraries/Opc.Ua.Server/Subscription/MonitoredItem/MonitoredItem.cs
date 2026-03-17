@@ -243,7 +243,7 @@ namespace Opc.Ua.Server
             NodeId = default;
             AttributeId = 0;
             m_indexRange = null;
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
             DataEncoding = default;
             ClientHandle = 0;
             MonitoringMode = MonitoringMode.Disabled;
@@ -985,7 +985,7 @@ namespace Opc.Ua.Server
             foreach (SimpleAttributeOperand clause in filter.SelectClauses)
             {
                 // get the value of the attribute (apply localization).
-                object value = instance.GetAttributeValue(
+                Variant value = instance.GetAttributeValue(
                     context,
                     clause.TypeDefinitionId,
                     clause.BrowsePath,
@@ -993,16 +993,16 @@ namespace Opc.Ua.Server
                     clause.ParsedIndexRange);
 
                 // add the value to the list of event fields.
-                if (value != null)
+                if (!value.IsNull)
                 {
                     // translate any localized text.
-                    if (value is LocalizedText text)
+                    if (value.TryGet(out LocalizedText text))
                     {
                         value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }
 
                     // add value.
-                    eventFieldValues.Add(new Variant(value));
+                    eventFieldValues.Add(value);
                 }
                 // add a dummy entry for missing values.
                 else
@@ -1796,7 +1796,7 @@ namespace Opc.Ua.Server
                         // Other numeric types check deadband if applicable
                         if (deadbandType != DeadbandType.None)
                         {
-                            return !ExceedsDeadband(value1.Value, value2.Value, deadbandType, deadband, range);
+                            return !ExceedsDeadband(value1, value2, deadbandType, deadband, range);
                         }
                         return false;
                 }
@@ -1809,7 +1809,8 @@ namespace Opc.Ua.Server
             {
                 case BuiltInType.Double:
                 {
-                    if (value1.TryGet(out ArrayOf<double> dArray1) && value2.TryGet(out ArrayOf<double> dArray2))
+                    if (value1.TryGet(out ArrayOf<double> dArray1) &&
+                        value2.TryGet(out ArrayOf<double> dArray2))
                     {
                         if (dArray1.Count != dArray2.Count)
                         {
@@ -1841,7 +1842,8 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.Float:
                 {
-                    if (value1.TryGet(out ArrayOf<float> fArray1) && value2.TryGet(out ArrayOf<float> fArray2))
+                    if (value1.TryGet(out ArrayOf<float> fArray1) &&
+                        value2.TryGet(out ArrayOf<float> fArray2))
                     {
                         if (fArray1.Count != fArray2.Count)
                         {
@@ -1873,7 +1875,8 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.Variant:
                 {
-                    if (value1.TryGet(out ArrayOf<Variant> vArray1) && value2.TryGet(out ArrayOf<Variant> vArray2))
+                    if (value1.TryGet(out ArrayOf<Variant> vArray1) &&
+                        value2.TryGet(out ArrayOf<Variant> vArray2))
                     {
                         if (vArray1.Count != vArray2.Count)
                         {
@@ -1893,7 +1896,8 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.XmlElement:
                 {
-                    if (value1.TryGet(out ArrayOf<XmlElement> xArray1) && value2.TryGet(out ArrayOf<XmlElement> xArray2))
+                    if (value1.TryGet(out ArrayOf<XmlElement> xArray1) &&
+                        value2.TryGet(out ArrayOf<XmlElement> xArray2))
                     {
                         if (xArray1.Count != xArray2.Count)
                         {
@@ -1923,22 +1927,22 @@ namespace Opc.Ua.Server
         /// Returns true if the deadband was exceeded.
         /// </summary>
         protected static bool ExceedsDeadband(
-            object value1,
-            object value2,
+            Variant value1,
+            Variant value2,
             DeadbandType deadbandType,
             double deadband,
             double range)
         {
             // cannot convert doubles safely to decimals.
-            if (value1 is double x)
+            if (value1.TryGet(out double x))
             {
-                return ExceedsDeadband((double)x, (double)value2, deadbandType, deadband, range);
+                return ExceedsDeadband(x, value2.GetDouble(), deadbandType, deadband, range);
             }
 
             try
             {
-                decimal decimal1 = Convert.ToDecimal(value1, CultureInfo.InvariantCulture);
-                decimal decimal2 = Convert.ToDecimal(value2, CultureInfo.InvariantCulture);
+                decimal decimal1 = value1.GetDecimal();
+                decimal decimal2 = value2.GetDecimal();
                 decimal baseline = 1;
 
                 if (deadbandType == DeadbandType.Percent)

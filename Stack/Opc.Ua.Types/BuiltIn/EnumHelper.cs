@@ -74,7 +74,7 @@ namespace Opc.Ua
             }
 #endif
             return default;
-       }
+        }
 
         /// <summary>
         /// Cast to enum array

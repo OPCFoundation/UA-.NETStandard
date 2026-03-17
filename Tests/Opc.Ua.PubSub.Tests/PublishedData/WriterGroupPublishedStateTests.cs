@@ -357,6 +357,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData[targetNodeId],
                             "field: '{0}' should not be null",
                             field.FieldMetaData.Name);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             field.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -364,6 +367,12 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             field.FieldMetaData.Name,
                             field.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             lastDataSetField.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -371,6 +380,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             lastDataSetField.FieldMetaData.Name,
                             lastDataSetField.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
                 }
                 else
@@ -393,6 +405,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData[targetNodeId],
                             "field {0}: should not be null",
                             field.FieldMetaData.Name);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             field.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -400,6 +415,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             field.FieldMetaData.Name,
                             field.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
                 }
             }

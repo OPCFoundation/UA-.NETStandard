@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests
             var monitoredItemMock = new Mock<IDataChangeMonitoredItem2>();
             monitoredItemMock.Setup(m => m.Id).Returns(id);
             monitoredItemMock.Setup(m => m.AttributeId).Returns(attributeId);
-            monitoredItemMock.Setup(m => m.IndexRange).Returns(NumericRange.Empty);
+            monitoredItemMock.Setup(m => m.IndexRange).Returns(NumericRange.Null);
             monitoredItemMock.Setup(m => m.DataEncoding).Returns(QualifiedName.Null);
             monitoredItemMock.Setup(m => m.Session).Returns(sessionMock.Object);
             monitoredItemMock.Setup(m => m.EffectiveIdentity).Returns(identityMock.Object);

@@ -194,6 +194,54 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reads the values for a set of variables.
+        /// </summary>
+        [Obsolete("Use ReadValuesAsync returning Variant Array")]
+        public static async ValueTask<(
+            ArrayOf<object>,
+            ArrayOf<ServiceResult>
+            )> ReadValuesAsync(
+                this ISessionClient session,
+                ArrayOf<NodeId> variableIds,
+                ArrayOf<Type> expectedTypes,
+                CancellationToken ct = default)
+        {
+            (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
+                await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
+
+            ServiceResult[] errors = new ServiceResult[errorValues.Count];
+            object[] values = new object[dataValues.Count];
+            for (int ii = 0; ii < variableIds.Count; ii++)
+            {
+                object value = dataValues[ii].Value;
+
+                // extract the body from extension objects.
+                if (value is ExtensionObject extension &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                {
+                    value = encodeable;
+                }
+
+                // check expected type.
+                if (expectedTypes[ii] != null &&
+                    !expectedTypes[ii].IsInstanceOfType(value))
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "Value {0} does not have expected type: {1}.",
+                        value,
+                        expectedTypes[ii].Name);
+                    continue;
+                }
+
+                // suitable value found.
+                errors[ii] = errorValues[ii];
+                values[ii] = value;
+            }
+            return (values, errors);
+        }
+
+        /// <summary>
         /// Reads the value for a node an checks that it is the specified type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>

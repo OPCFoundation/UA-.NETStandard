@@ -501,7 +501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -518,7 +518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(true));
+            Assert.That(result.GetBoolean(), Is.EqualTo(true));
         }
 
         [Test]
@@ -535,7 +535,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo((sbyte)-128));
+            Assert.That(result.GetSByte(), Is.EqualTo((sbyte)-128));
         }
 
         [Test]
@@ -552,7 +552,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo((byte)255));
+            Assert.That(result.GetByte(), Is.EqualTo((byte)255));
         }
 
         [Test]
@@ -569,7 +569,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo((short)-32768));
+            Assert.That(result.GetInt16(), Is.EqualTo((short)-32768));
         }
 
         [Test]
@@ -586,7 +586,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo((ushort)65535));
+            Assert.That(result.GetUInt16(), Is.EqualTo((ushort)65535));
         }
 
         [Test]
@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(-2147483648));
+            Assert.That(result.GetInt32(), Is.EqualTo(-2147483648));
         }
 
         [Test]
@@ -620,7 +620,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(4294967295u));
+            Assert.That(result.GetUInt32(), Is.EqualTo(4294967295u));
         }
 
         [Test]
@@ -637,7 +637,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(-9223372036854775808));
+            Assert.That(result.GetInt64(), Is.EqualTo(-9223372036854775808));
         }
 
         [Test]
@@ -654,7 +654,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(18446744073709551615ul));
+            Assert.That(result.GetUInt64(), Is.EqualTo(18446744073709551615ul));
         }
 
         [Test]
@@ -671,7 +671,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(3.14159f).Within(0.00001f));
+            Assert.That(result.GetFloat(), Is.EqualTo(3.14159f).Within(0.00001f));
         }
 
         [Test]
@@ -688,7 +688,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(3.141592653589793).Within(0.000000000000001));
+            Assert.That(result.GetDouble(), Is.EqualTo(3.141592653589793).Within(0.000000000000001));
         }
 
         [Test]
@@ -705,7 +705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo("Hello World"));
+            Assert.That(result.GetString(), Is.EqualTo("Hello World"));
         }
 
         [Test]
@@ -722,7 +722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new DateTime(2024, 1, 15, 12, 30, 45, DateTimeKind.Utc)));
+            Assert.That(result.GetDateTime(), Is.EqualTo(new DateTimeUtc(2024, 1, 15, 12, 30, 45)));
         }
 
         [Test]
@@ -741,7 +741,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new Uuid("12345678-1234-1234-1234-123456789012")));
+            Assert.That(result.GetGuid(), Is.EqualTo(new Uuid("12345678-1234-1234-1234-123456789012")));
         }
 
         [Test]
@@ -758,7 +758,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(s_expectedByteArray));
+            Assert.That(result.GetByteString(), Is.EqualTo(s_expectedByteArray));
         }
 
         [Test]
@@ -777,7 +777,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.InstanceOf<XmlElement>());
+            Assert.That(result.GetXmlElement().IsEmpty, Is.False);
         }
 
         [Test]
@@ -796,7 +796,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new NodeId(123)));
+            Assert.That(result.GetNodeId(), Is.EqualTo(new NodeId(123)));
         }
 
         [Test]
@@ -815,7 +815,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new ExpandedNodeId(456)));
+            Assert.That(result.GetExpandedNodeId(), Is.EqualTo(new ExpandedNodeId(456)));
         }
 
         [Test]
@@ -834,7 +834,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new StatusCode(0x80000000)));
+            Assert.That(result.GetStatusCode(), Is.EqualTo(new StatusCode(0x80000000)));
         }
 
         [Test]
@@ -854,7 +854,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new QualifiedName("TestName", 1)));
+            Assert.That(result.GetQualifiedName(), Is.EqualTo(new QualifiedName("TestName", 1)));
         }
 
         [Test]
@@ -874,7 +874,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(new LocalizedText("en-US", "Hello")));
+            Assert.That(result.GetLocalizedText(), Is.EqualTo(new LocalizedText("en-US", "Hello")));
         }
 
         [Test]
@@ -895,7 +895,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(s_expectedBoolArray));
+            Assert.That(result.GetBooleanArray(), Is.EqualTo(s_expectedBoolArray.ToArrayOf()));
         }
 
         [Test]
@@ -916,7 +916,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(s_expectedInt32Array));
+            Assert.That(result.GetInt32Array(), Is.EqualTo(s_expectedInt32Array.ToArrayOf()));
         }
 
         [Test]
@@ -937,7 +937,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.Value, Is.EqualTo(s_expectedStringArray));
+            Assert.That(result.GetStringArray(), Is.EqualTo(s_expectedStringArray.ToArrayOf()));
         }
 
         [Test]
@@ -951,7 +951,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(xml, messageContext);
 
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
+            ServiceResultException ex =
+                Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("not allowed in a Variant"));
         }
@@ -2009,7 +2010,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariant("Variant");
 
-            Assert.That(result.Value, Is.EqualTo(42));
+            Assert.That(result.GetInt32(), Is.EqualTo(42));
         }
 
         [Test]
@@ -2069,7 +2070,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             DataValue result = decoder.ReadDataValue("DataValue");
 
-            Assert.That(result.WrappedValue.Value, Is.EqualTo(100));
+            Assert.That(result.WrappedValue.GetInt32(), Is.EqualTo(100));
             Assert.That(result.StatusCode, Is.EqualTo(new StatusCode(0)));
             Assert.That(result.SourceTimestamp, Is.EqualTo(new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc)));
             Assert.That(result.SourcePicoseconds, Is.EqualTo((ushort)500));
@@ -2109,7 +2110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             DataValue result = decoder.ReadDataValue("DataValue");
 
-            Assert.That(result.WrappedValue.Value, Is.EqualTo("Hello"));
+            Assert.That(result.WrappedValue.GetString(), Is.EqualTo("Hello"));
             Assert.That(result.SourcePicoseconds, Is.EqualTo((ushort)0));
             Assert.That(result.ServerPicoseconds, Is.EqualTo((ushort)0));
         }
@@ -2136,9 +2137,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<DataValue>());
-            var dv = (DataValue)result.Value;
-            Assert.That(dv.WrappedValue.Value, Is.EqualTo(77));
+            var dv = result.GetDataValue();
+            Assert.That(dv, Is.Not.Null);
+            Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo(77));
         }
 
         [Test]
@@ -2596,8 +2597,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<Variant> result = decoder.ReadVariantArray("ListOfVariant");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0].Value, Is.EqualTo(1));
-            Assert.That(result[1].Value, Is.EqualTo("text"));
+            Assert.That(result[0].GetInt32(), Is.EqualTo(1));
+            Assert.That(result[1].GetString(), Is.EqualTo("text"));
         }
 
         [Test]
@@ -2628,8 +2629,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<DataValue> result = decoder.ReadDataValueArray("ListOfDataValue");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0].WrappedValue.Value, Is.EqualTo(10));
-            Assert.That(result[1].WrappedValue.Value, Is.EqualTo(20));
+            Assert.That(result[0].WrappedValue.GetInt32(), Is.EqualTo(10));
+            Assert.That(result[1].WrappedValue.GetInt32(), Is.EqualTo(20));
         }
 
         [Test]
@@ -2647,8 +2648,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<sbyte[]>());
-            Assert.That((sbyte[])result.Value, Is.EqualTo(new sbyte[] { -1, 0, 1 }));
+            Assert.That(result.TryGet(out ArrayOf<sbyte> array), Is.True);
+            Assert.That(array, Is.EqualTo(new sbyte[] { -1, 0, 1 }));
         }
 
         [Test]
@@ -2665,8 +2666,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<byte[]>());
-            Assert.That((byte[])result.Value, Is.EqualTo(new byte[] { 10, 20 }));
+            Assert.That(result.TryGet(out ArrayOf<byte> array), Is.True);
+            Assert.That(array, Is.EqualTo(new byte[] { 10, 20 }));
         }
 
         [Test]
@@ -2683,7 +2684,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<short[]>());
+            Assert.That(result.TryGet(out ArrayOf<short> array), Is.True);
+            Assert.That(array, Is.EqualTo(new short[] { 100, 200 }));
         }
 
         [Test]
@@ -2700,7 +2702,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<ushort[]>());
+            Assert.That(result.TryGet(out ArrayOf<ushort> array), Is.True);
+            Assert.That(array, Is.EqualTo(new ushort[] { 100, 200 }));
         }
 
         [Test]
@@ -2717,7 +2720,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<uint[]>());
+            Assert.That(result.TryGet(out ArrayOf<uint> array), Is.True);
+            Assert.That(array, Is.EqualTo(new uint[] { 1, 2 }));
         }
 
         [Test]
@@ -2734,7 +2738,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<long[]>());
+            Assert.That(result.TryGet(out ArrayOf<long> array), Is.True);
+            Assert.That(array, Is.EqualTo(new long[] { 1000, 2000 }));
         }
 
         [Test]
@@ -2751,7 +2756,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<ulong[]>());
+            Assert.That(result.TryGet(out ArrayOf<ulong> array), Is.True);
+            Assert.That(array, Is.EqualTo(new ulong[] { 1, 2 }));
         }
 
         [Test]
@@ -2768,7 +2774,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<float[]>());
+            Assert.That(result.TryGet(out ArrayOf<float> array), Is.True);
+            Assert.That(array, Is.EqualTo([1.5f, 2.5f]));
         }
 
         [Test]
@@ -2785,7 +2792,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.InstanceOf<double[]>());
+            Assert.That(result.TryGet(out ArrayOf<double> array), Is.True);
+            Assert.That(array, Is.EqualTo([1.1, 2.2]));
         }
 
         [Test]
@@ -2801,7 +2809,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<DateTimeUtc> array), Is.True);
         }
 
         [Test]
@@ -2819,7 +2828,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<Uuid> array), Is.True);
         }
 
         [Test]
@@ -2835,7 +2845,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<ByteString> array), Is.True);
         }
 
         [Test]
@@ -2851,7 +2862,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<XmlElement> array), Is.True);
         }
 
         [Test]
@@ -2869,7 +2881,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<NodeId> array), Is.True);
         }
 
         [Test]
@@ -2887,7 +2900,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<ExpandedNodeId> array), Is.True);
         }
 
         [Test]
@@ -2905,7 +2919,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<StatusCode> array), Is.True);
         }
 
         [Test]
@@ -2924,7 +2939,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<QualifiedName> array), Is.True);
         }
 
         [Test]
@@ -2943,7 +2959,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<LocalizedText> array), Is.True);
         }
 
         [Test]
@@ -2963,7 +2980,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<ExtensionObject> array), Is.True);
         }
 
         [Test]
@@ -2985,7 +3003,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<DataValue> array), Is.True);
         }
 
         [Test]
@@ -3005,7 +3024,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out ArrayOf<Variant> array), Is.True);
         }
 
         [Test]
@@ -3516,7 +3536,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<int> array), Is.True);
         }
 
         [Test]
@@ -3541,7 +3562,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<bool> array), Is.True);
         }
 
         [Test]
@@ -3564,7 +3586,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<string> array), Is.True);
         }
 
         [Test]
@@ -3589,7 +3612,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<double> array), Is.True);
         }
 
         [Test]
@@ -3612,7 +3636,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<float> array), Is.True);
         }
 
         [Test]
@@ -3632,7 +3657,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<sbyte> array), Is.True);
         }
 
         [Test]
@@ -3652,7 +3678,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<byte> array), Is.True);
         }
 
         [Test]
@@ -3672,7 +3699,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<short> array), Is.True);
         }
 
         [Test]
@@ -3692,7 +3720,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<ushort> array), Is.True);
         }
 
         [Test]
@@ -3712,7 +3741,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<uint> array), Is.True);
         }
 
         [Test]
@@ -3732,7 +3762,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<long> array), Is.True);
         }
 
         [Test]
@@ -3752,7 +3783,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<ulong> array), Is.True);
         }
 
         [Test]
@@ -3772,7 +3804,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<DateTimeUtc> array), Is.True);
         }
 
         [Test]
@@ -3792,7 +3825,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<Uuid> array), Is.True);
         }
 
         [Test]
@@ -3812,7 +3846,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<ByteString> array), Is.True);
         }
 
         [Test]
@@ -3832,7 +3867,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<XmlElement> array), Is.True);
         }
 
         [Test]
@@ -3852,7 +3888,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<NodeId> array), Is.True);
         }
 
         [Test]
@@ -3872,7 +3909,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<ExpandedNodeId> array), Is.True);
         }
 
         [Test]
@@ -3892,7 +3930,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<StatusCode> array), Is.True);
         }
 
         [Test]
@@ -3912,7 +3951,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<QualifiedName> array), Is.True);
         }
 
         [Test]
@@ -3932,7 +3972,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<LocalizedText> array), Is.True);
         }
 
         [Test]
@@ -3952,7 +3993,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<ExtensionObject> array), Is.True);
         }
 
         [Test]
@@ -3972,7 +4014,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<DataValue> array), Is.True);
         }
 
         [Test]
@@ -3992,7 +4035,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TryGet(out MatrixOf<Variant> array), Is.True);
         }
 
         [Test]
@@ -4336,7 +4380,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue("Value", int32TypeInfo);
 
-            Assert.That(result.Value, Is.EqualTo(42));
+            Assert.That(result.GetInt32(), Is.EqualTo(42));
         }
 
         [DataContract(Name = "TestEncodeable", Namespace = Namespaces.OpcUaXsd)]

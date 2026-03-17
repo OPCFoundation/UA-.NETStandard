@@ -2336,26 +2336,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     ExpandedNodeId encodedExpandedNodeId =
                         dataValueEncoded.Value is ExpandedNodeId ee ? ee : default;
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     ExpandedNodeId decodedExpandedNodeId =
                         dataValueDecoded.Value is ExpandedNodeId de ? de : default;
+#pragma warning restore CS0618 // Type or member is obsolete
                     if (!encodedExpandedNodeId.IsNull &&
                         !encodedExpandedNodeId.IsAbsolute &&
                         !decodedExpandedNodeId.IsNull &&
                         decodedExpandedNodeId.IsAbsolute)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         dataValueDecoded.Value = ExpandedNodeId.ToNodeId(
                             decodedExpandedNodeId,
                             m_messageContext.NamespaceUris);
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     Assert.AreEqual(
                         dataValueEncoded.Value,
                         dataValueDecoded.Value,
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName,
                         jsonDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // Checks just for DataValue type only
                     if ((jsonDataSetMessage.FieldContentMask &
@@ -2898,6 +2906,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.WrappedValue,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
@@ -2907,6 +2918,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.Value,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 break;
                                             case FieldTypeEncodingMask.RawData:
                                                 decodedFieldValue = DecodeFieldData(
@@ -2952,6 +2966,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     decodedFieldValue = ExpandedNodeId.Parse(
                                                         stringBuilder.ToString());
                                                 }
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
@@ -2960,6 +2976,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.Value,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 break;
                                             case FieldTypeEncodingMask.DataValue:
                                                 bool wasPushed2 = jsonDecoder.PushStructure(
@@ -2975,8 +2993,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             jsonDecoder,
                                                             field.FieldMetaData,
                                                             "Value");
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         dataValue = new DataValue(
                                                             new Variant(token));
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     }
                                                     else
                                                     {
@@ -3046,11 +3066,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             .ReadUInt16(
                                                                 "ServerPicoseconds");
                                                     }
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.IsNotNull(
                                                         dataValue.Value,
                                                         "Decoded Field: {0} value should not be null",
                                                         field.FieldMetaData.Name);
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     // ExtendedNodeId namespaceIndex workaround issue
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     if (dataValue
                                                         .Value is ExpandedNodeId expandedNodeId2 &&
                                                         !string.IsNullOrEmpty(
@@ -3067,6 +3090,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty",
                                                             field.FieldMetaData.Name);
 
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         ushort namespaceIndex = Convert.ToUInt16(
                                                             new ServiceMessageContext(jsonDecoder.Context.Telemetry)
                                                                 .NamespaceUris
@@ -3074,6 +3098,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                                     ((ExpandedNodeId)dataValue
                                                                         .Value)
                                                                     .NamespaceUri));
+#pragma warning restore CS0618 // Type or member is obsolete
 
                                                         var stringBuilder = new StringBuilder();
                                                         ExpandedNodeId.Format(
@@ -3084,9 +3109,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             namespaceIndex,
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         dataValue.Value = ExpandedNodeId.Parse(
                                                             stringBuilder.ToString());
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     }
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.IsTrue(
                                                         Utils.IsEqual(
                                                             field.Value.Value,
@@ -3095,6 +3126,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         field.FieldMetaData.Name,
                                                         field.Value.Value,
                                                         dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 }
                                                 finally
                                                 {

@@ -5509,114 +5509,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteObjectArrayWithNullArrayWritesEmpty()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
-            {
-                MaxArrayLength = 0,
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
-            var sb = new StringBuilder();
-            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
-            using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-
-            ArrayOf<object> values = default;
-
-            // Act
-            encoder.WriteObjectArray("TestArray", values);
-            encoder.Close();
-
-            // Assert
-            string result = sb.ToString();
-            Assert.That(result, Does.Contain("Root"));
-        }
-
-        [Test]
-        public void WriteObjectArrayWithEmptyArrayWritesArray()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
-            {
-                MaxArrayLength = 0,
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
-            var sb = new StringBuilder();
-            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
-            using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-
-            var values = ArrayOf.Wrapped(Array.Empty<object>());
-
-            // Act
-            encoder.WriteObjectArray("TestArray", values);
-            encoder.Close();
-
-            // Assert
-            string result = sb.ToString();
-            Assert.That(result, Does.Contain("TestArray"));
-        }
-
-        [Test]
-        public void WriteObjectArrayWithValuesWritesVariants()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
-            {
-                MaxArrayLength = 0,
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
-            var sb = new StringBuilder();
-            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
-            using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-
-            object[] objectValues = [42, "test", true];
-            var values = ArrayOf.Wrapped(objectValues);
-
-            // Act
-            encoder.WriteObjectArray("TestArray", values);
-            encoder.Close();
-
-            // Assert
-            string result = sb.ToString();
-            Assert.That(result, Does.Contain("TestArray"));
-            Assert.That(result, Does.Contain("Variant"));
-        }
-
-        [Test]
-        public void WriteObjectArrayWithMaxArrayLengthExceededThrowsException()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
-            {
-                MaxArrayLength = 2,
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
-            var sb = new StringBuilder();
-            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
-            using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-
-            object[] objectValues = [1, 2, 3];
-            var values = ArrayOf.Wrapped(objectValues);
-
-            // Act & Assert
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(() => encoder.WriteObjectArray("TestArray", values));
-            Assert.That(exception, Is.Not.Null);
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        [Test]
         [TestCaseSource(nameof(ScalarVariantValueTestCases))]
         public void WriteVariantValueWithScalarWritesExpectedContent(
             Variant variant, string expectedTypeName, string expectedContent)
@@ -6010,10 +5902,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly()
         {
-            var value = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            var value = new DateTimeUtc(2024, 1, 15, 10, 30, 0);
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetDateTime(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6022,7 +5914,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetGuid(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6040,7 +5932,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new NodeId(123, 1);
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetNodeId(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6049,7 +5941,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new ExpandedNodeId(456, 1);
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetExpandedNodeId(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6058,7 +5950,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new QualifiedName("qname", 1);
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetQualifiedName(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6067,7 +5959,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new LocalizedText("en", "loctext");
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.EqualTo(value));
+            Assert.That(decoded.GetLocalizedText(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6078,7 +5970,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new ByteString(new byte[] { 1 }));
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
+            Assert.That(decoded.GetExtensionObject(), Is.EqualTo(value));
         }
 
         [Test]
@@ -6087,7 +5979,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new DataValue(Variant.From(99));
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(Variant.From(99)));
+            Assert.That(decoded.GetDataValue().WrappedValue.GetInt32(), Is.EqualTo(Variant.From(99)));
         }
 
         [Test]
@@ -6095,7 +5987,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(TestEnum.Value1));
 
-            Assert.That(decoded.Value, Is.EqualTo(1));
+            Assert.That(decoded.GetInt32(), Is.EqualTo(1));
         }
 
         [Test]
@@ -6107,7 +5999,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = XmlElement.From(sysElement);
             Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
 
-            Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
+            Assert.That(decoded.GetXmlElement().IsEmpty, Is.False);
         }
 
         [Test]

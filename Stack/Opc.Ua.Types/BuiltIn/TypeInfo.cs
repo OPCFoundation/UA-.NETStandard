@@ -1445,12 +1445,14 @@ namespace Opc.Ua
                         element = ((Variant)element).AsBoxedObject(); // TODO: optimize boxing
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     TypeInfo elementInfo = IsInstanceOfDataType(
                         new Variant(element),
                         expectedDataTypeId,
                         ValueRanks.Scalar,
                         namespaceUris,
                         typeTree);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // give up at the first invalid element.
                     if (elementInfo.IsUnknown)

@@ -870,7 +870,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        ValueTask <ServiceResult> ValidateEventRolePermissionsAsync(
+        ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default);

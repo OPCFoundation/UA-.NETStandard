@@ -311,10 +311,10 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
-        //[Obsolete("Use WrappedValue to access The value.")]
+        [Obsolete("Use WrappedValue to access The value.")]
         public object Value
         {
-            get => m_value.AsBoxedObject(true);
+            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             set => VariantHelper.TryCastFrom(value, out m_value);
         }
 
@@ -322,9 +322,7 @@ namespace Opc.Ua
         /// The value of data value.
         /// </summary>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
-#pragma warning disable RCS1085 // Use auto-implemented property
         public Variant WrappedValue
-#pragma warning restore RCS1085 // Use auto-implemented property
         {
             get => m_value;
             set => m_value = value;

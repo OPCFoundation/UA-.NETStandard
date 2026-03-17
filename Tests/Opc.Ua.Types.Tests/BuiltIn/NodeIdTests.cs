@@ -299,8 +299,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int comparisonResult2 = nodeId.CompareTo(dataValue);
             Assert.That(comparisonResult2 == 0, Is.False); // assert fails - this is the root cause for the previous assertion failures
 
-            Assert.That(nodeIdBasedDataValue.Value, Is.EqualTo(nodeId));
-            Assert.That(nodeIdBasedDataValue.Value.GetHashCode(), Is.EqualTo(nodeId.GetHashCode()));
+            Assert.That(nodeIdBasedDataValue.WrappedValue.GetNodeId(), Is.EqualTo(nodeId));
         }
 
         [Test]

@@ -544,7 +544,9 @@ namespace Opc.Ua.PubSub.Encoding
                                     object decodedValue = DecodeRawData(
                                         binaryDecoder,
                                         fieldMetaData);
+#pragma warning disable CS0618 // Type or member is obsolete
                                     dataValues.Add(new DataValue(new Variant(decodedValue)));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 }
                             }
                         }
@@ -662,8 +664,10 @@ namespace Opc.Ua.PubSub.Encoding
                                     object decodedValue = DecodeRawData(
                                         binaryDecoder,
                                         fieldMetaData);
+#pragma warning disable CS0618 // Type or member is obsolete
                                     dataFields[fieldIndex].Value
                                         = new DataValue(new Variant(decodedValue));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 }
                                 break;
                             case FieldTypeEncodingMask.Reserved:

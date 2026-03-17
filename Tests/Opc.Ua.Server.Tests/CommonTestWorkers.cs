@@ -975,14 +975,16 @@ namespace Opc.Ua.Server.Tests
             whereClause.Push(
                 FilterOperator.Equals,
                 [
-                    new SimpleAttributeOperand
+                    Variant.FromStructure(new SimpleAttributeOperand
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
-                    },
-                    new LiteralOperand {
-                        Value = Variant.From(ObjectTypeIds.BaseEventType) }
+                    }),
+                    Variant.FromStructure(new LiteralOperand
+                    {
+                        Value = Variant.From(ObjectTypeIds.BaseEventType)
+                    })
                 ]);
 
             return new MonitoredItemCreateRequest

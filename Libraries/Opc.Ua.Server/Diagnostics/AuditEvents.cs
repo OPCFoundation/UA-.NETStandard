@@ -211,13 +211,20 @@ namespace Opc.Ua.Server
                     writeValue.IndexRange,
                     false);
 
-                object newValue = writeValue.Value?.Value;
-                if (writeValue.ParsedIndexRange != NumericRange.Empty)
+                Variant newValue;
+                if (!writeValue.ParsedIndexRange.IsNull)
                 {
-                    writeValue.ParsedIndexRange.UpdateRange(ref newValue, writeValue.Value?.Value);
+                    newValue = oldValue;
+                    writeValue.ParsedIndexRange.UpdateRange(
+                        ref newValue,
+                        writeValue.Value?.WrappedValue ?? default);
+                }
+                else
+                {
+                    newValue = writeValue.Value?.WrappedValue ?? default;
                 }
 
-                e.SetChildValue(systemContext, BrowseNames.NewValue, new Variant(newValue), false);
+                e.SetChildValue(systemContext, BrowseNames.NewValue, newValue, false);
                 e.SetChildValue(systemContext, BrowseNames.OldValue, oldValue, false);
 
                 server.ReportAuditEvent(systemContext, e);

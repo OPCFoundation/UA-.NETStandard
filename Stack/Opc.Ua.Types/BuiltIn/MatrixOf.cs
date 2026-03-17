@@ -653,7 +653,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 3-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,] array)
@@ -662,7 +662,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 4-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,] array)
@@ -671,7 +671,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 5d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,] array)
@@ -680,7 +680,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 6-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,] array)
@@ -689,7 +689,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 7-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,] array)
@@ -698,7 +698,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 8-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,] array)
@@ -707,7 +707,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 9-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,,] array)
@@ -716,7 +716,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert 2-d array to matrix of T
+        /// Convert 10-d array to matrix of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,,,] array)

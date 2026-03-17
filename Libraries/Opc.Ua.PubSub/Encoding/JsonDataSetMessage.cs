@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // check also the field names from reader, if any extra field names then the payload is not matching
                 foreach (string key in payload.Keys)
                 {
-                    FieldMetaData field = dataSetReader.DataSetMetaData.Fields.ToList().FirstOrDefault(f => f.Name == key);
+                    FieldMetaData field = dataSetReader.DataSetMetaData.Fields.Find(f => f.Name == key);
                     if (field == null)
                     {
                         // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
@@ -278,7 +278,9 @@ namespace Opc.Ua.PubSub.Encoding
                                 jsonDecoder,
                                 dataSetMetaData?.Fields[index],
                                 dataSetMetaData?.Fields[index].Name);
+#pragma warning disable CS0618 // Type or member is obsolete
                             dataValues.Add(new DataValue(new Variant(value)));
+#pragma warning restore CS0618 // Type or member is obsolete
                             break;
                         case FieldTypeEncodingMask.DataValue:
                             bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
@@ -292,7 +294,9 @@ namespace Opc.Ua.PubSub.Encoding
                                         jsonDecoder,
                                         dataSetMetaData?.Fields[index],
                                         "Value");
+#pragma warning disable CS0618 // Type or member is obsolete
                                     dataValue = new DataValue(new Variant(token));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 }
                                 else
                                 {
@@ -494,11 +498,9 @@ namespace Opc.Ua.PubSub.Encoding
             Variant valueToEncode = field.Value.WrappedValue;
 
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
-            bool isStatusCodeValue =
-                valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode ||
-                valueToEncode.Value is StatusCode;
-            if (isStatusCodeValue &&
-                valueToEncode == StatusCodes.Good &&
+            if (valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode &&
+                valueToEncode.TryGet(out StatusCode statusCode) &&
+                statusCode == StatusCodes.Good &&
                 m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;

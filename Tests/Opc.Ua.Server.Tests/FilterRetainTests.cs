@@ -522,7 +522,10 @@ namespace Opc.Ua.Server.Tests
                 Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High))
             };
 
-            whereClause.Push(FilterOperator.Equals, [eventLevel, desiredEventLevel]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(eventLevel),
+                Variant.FromStructure(desiredEventLevel));
 
             return whereClause;
         }
@@ -542,7 +545,8 @@ namespace Opc.Ua.Server.Tests
 
             whereClause.Push(
                 FilterOperator.Equals,
-                [notOutOfServiceState, desiredOutOfServiceValue]);
+                Variant.FromStructure(notOutOfServiceState),
+                Variant.FromStructure(desiredOutOfServiceValue));
 
             var notSuppressed = new SimpleAttributeOperand
             {
@@ -553,10 +557,12 @@ namespace Opc.Ua.Server.Tests
 
             var desiredSuppressedValue = new LiteralOperand { Value = new Variant(Unsuppressed) };
 
-            whereClause.Push(FilterOperator.Equals, [notSuppressed, desiredSuppressedValue]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(notSuppressed),
+                Variant.FromStructure(desiredSuppressedValue));
 
 #if AddActiveState
-
             var activeState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
@@ -566,13 +572,21 @@ namespace Opc.Ua.Server.Tests
 
             var activeValue = new LiteralOperand { Value = new Variant(Active) };
 
-            whereClause.Push(FilterOperator.Equals, [activeState, activeValue]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(activeState),
+                Variant.FromStructure(activeValue));
 
-            whereClause.Push(FilterOperator.And, [new ElementOperand(1), new ElementOperand(2)]);
+            whereClause.Push(
+                FilterOperator.And,
+                Variant.FromStructure(new ElementOperand(1)),
+                Variant.FromStructure(new ElementOperand(2)));
 
 #endif
-
-            whereClause.Push(FilterOperator.And, [new ElementOperand(0), new ElementOperand(1)]);
+            whereClause.Push(
+                FilterOperator.And,
+                Variant.FromStructure(new ElementOperand(0)),
+                Variant.FromStructure(new ElementOperand(1)));
 
             return whereClause;
         }

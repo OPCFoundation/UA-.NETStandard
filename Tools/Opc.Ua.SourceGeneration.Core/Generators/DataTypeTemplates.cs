@@ -341,6 +341,18 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
                 public bool Equals({{Tokens.ClassName}}? other)
                 {
                     return IsEqual((global::Opc.Ua.IEncodeable)other);
@@ -355,7 +367,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override int GetHashCode()
                 {
-                    int hashCode = base.GetHashCode();
+                    int hashCode = 43624234;
                     {{Tokens.ListOfChildHashes}}
                     return hashCode;
                 }
@@ -724,7 +736,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override int GetHashCode()
                 {
-                    int hashCode = base.GetHashCode();
+                    int hashCode = 43624234;
                     {{Tokens.ListOfChildHashes}}
                     return hashCode;
                 }
@@ -884,7 +896,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override int GetHashCode()
                 {
-                    int hashCode = base.GetHashCode();
+                    int hashCode = 43624234;
                     {{Tokens.ListOfChildHashes}}
                     return hashCode;
                 }

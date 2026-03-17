@@ -754,10 +754,10 @@ namespace Opc.Ua.Schema.Model
                 //   <uax:Boolean>true</uax:Boolean>
                 // </opc:DefaultValue >
 
-              using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
+                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
                 Variant variant = decoder.ReadVariantValue(null, default);
                 decodedValueType = variant.TypeInfo;
-                decodedValue = variant.AsBoxedObject(true);
+                decodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             }
 
             if (valueRank == ValueRank.Array)

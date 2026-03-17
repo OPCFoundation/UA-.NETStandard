@@ -247,7 +247,7 @@ namespace Opc.Ua
                 base.DeepEquals(state) &&
                 state.Timestamp == Timestamp &&
                 state.StatusCode == StatusCode &&
-                EqualityComparer<object>.Default.Equals(state.Value, Value) &&
+                state.Value == Value &&
                 state.DataType == DataType &&
                 state.ValueRank == ValueRank &&
                 state.ArrayDimensions == ArrayDimensions &&
@@ -281,7 +281,7 @@ namespace Opc.Ua
         {
             if (target is BaseVariableState state)
             {
-                state.Value = Value;
+                state.Value = Value.Copy();
                 state.Timestamp = Timestamp;
                 state.StatusCode = StatusCode;
                 state.m_valueTouched = m_valueTouched;
@@ -663,8 +663,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    variableNode.Value = CoreUtils.Clone(Value); // TODO: Clone correctly
-
+                    variableNode.Value = Value.Copy();
                     variableNode.DataType = DataType;
                     variableNode.ValueRank = ValueRank;
                     variableNode.ArrayDimensions = ArrayDimensions;
@@ -1356,7 +1355,7 @@ namespace Opc.Ua
             ServiceResult result;
 
             // apply index range.
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 result = indexRange.ApplyRange(ref value);
 
@@ -1706,7 +1705,7 @@ namespace Opc.Ua
             if (onSimpleWriteValue != null)
             {
                 // index range writes not supported.
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -1721,9 +1720,9 @@ namespace Opc.Ua
             else
             {
                 // apply the index range.
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
-                    object target = m_value;
+                    Variant target = m_value;
                     result = indexRange.UpdateRange(ref target, value);
 
                     if (ServiceResult.IsBad(result))
@@ -1731,7 +1730,7 @@ namespace Opc.Ua
                         return result;
                     }
 
-                    value = VariantHelper.CastFrom(target);
+                    value = target;
                 }
             }
 

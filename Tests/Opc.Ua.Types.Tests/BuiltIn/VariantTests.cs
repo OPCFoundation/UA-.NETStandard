@@ -3744,7 +3744,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForScalarBoolReturnsBoxedBool()
         {
             var v = new Variant(true);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(true));
         }
 
@@ -3752,7 +3752,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForScalarInt32ReturnsBoxedInt()
         {
             var v = new Variant(42);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(42));
         }
 
@@ -3760,7 +3760,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForNullVariantReturnsNull()
         {
             Variant v = default;
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Null);
         }
 
@@ -3769,7 +3769,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nid = new NodeId(10, 1);
             var v = new Variant(nid);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(nid));
         }
 
@@ -3778,7 +3778,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
             var v = new Variant(eni);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(eni));
         }
 
@@ -3787,7 +3787,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en", "t");
             var v = new Variant(lt);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(lt));
         }
 
@@ -3796,7 +3796,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("q", 1);
             var v = new Variant(qn);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(qn));
         }
 
@@ -3805,22 +3805,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eo = new ExtensionObject(new Argument());
             var v = new Variant(eo);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
 
         [Test]
         public void AsBoxedObjectForAllPrimitiveTypes()
         {
-            Assert.That(new Variant((sbyte)-1).AsBoxedObject(false), Is.EqualTo((sbyte)-1));
-            Assert.That(new Variant((byte)1).AsBoxedObject(false), Is.EqualTo((byte)1));
-            Assert.That(new Variant((short)-1).AsBoxedObject(false), Is.EqualTo((short)-1));
-            Assert.That(new Variant((ushort)1).AsBoxedObject(false), Is.EqualTo((ushort)1));
-            Assert.That(new Variant(1u).AsBoxedObject(false), Is.EqualTo(1u));
-            Assert.That(new Variant(1L).AsBoxedObject(false), Is.EqualTo(1L));
-            Assert.That(new Variant(1UL).AsBoxedObject(false), Is.EqualTo(1UL));
-            Assert.That(new Variant(1.5f).AsBoxedObject(false), Is.EqualTo(1.5f));
-            Assert.That(new Variant(2.5d).AsBoxedObject(false), Is.EqualTo(2.5d));
+            Assert.That(new Variant((sbyte)-1).AsBoxedObject(), Is.EqualTo((sbyte)-1));
+            Assert.That(new Variant((byte)1).AsBoxedObject(), Is.EqualTo((byte)1));
+            Assert.That(new Variant((short)-1).AsBoxedObject(), Is.EqualTo((short)-1));
+            Assert.That(new Variant((ushort)1).AsBoxedObject(), Is.EqualTo((ushort)1));
+            Assert.That(new Variant(1u).AsBoxedObject(), Is.EqualTo(1u));
+            Assert.That(new Variant(1L).AsBoxedObject(), Is.EqualTo(1L));
+            Assert.That(new Variant(1UL).AsBoxedObject(), Is.EqualTo(1UL));
+            Assert.That(new Variant(1.5f).AsBoxedObject(), Is.EqualTo(1.5f));
+            Assert.That(new Variant(2.5d).AsBoxedObject(), Is.EqualTo(2.5d));
         }
 
         [Test]
@@ -3828,7 +3828,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
             var v = new Variant(dt);
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.EqualTo(dt));
         }
 
@@ -3836,7 +3836,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForStatusCodeReturnsStatusCode()
         {
             var v = new Variant(new StatusCode(123u));
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.InstanceOf<StatusCode>());
         }
 
@@ -3844,7 +3844,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForEnumerationReturnsEnumValue()
         {
             var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3852,7 +3852,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForByteEnumerationReturnsEnumValue()
         {
             var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3860,7 +3860,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForShortEnumerationReturnsEnumValue()
         {
             var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3868,7 +3868,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForLongEnumerationReturnsEnumValue()
         {
             var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
-            object boxed = v.AsBoxedObject(false);
+            object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3877,7 +3877,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [1, 2, 3];
             var v = new Variant(arr);
-            object boxed = v.AsBoxedObject(returnLegacyTypes: true);
+            object boxed = v.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             Assert.That(boxed, Is.InstanceOf<int[]>());
         }
 
