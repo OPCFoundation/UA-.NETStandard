@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void GetEndpoints()
         {
-            var endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             Assert.NotNull(endpoints);
         }
 
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.Server.Tests
             Assert.IsTrue(server.ProvisioningMode, "Server should be in provisioning mode");
 
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
-            var endpoints = server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
             Assert.IsNotNull(endpoints);
             Assert.IsTrue(endpoints.Count > 0, "Server should have endpoints");
 

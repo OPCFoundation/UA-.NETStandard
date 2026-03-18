@@ -270,7 +270,7 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out var endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
@@ -337,7 +337,7 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out var endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;

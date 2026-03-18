@@ -407,7 +407,7 @@ namespace Opc.Ua.Client
                 }
 
                 // extract the name.
-                LocalizedText displayName = results[ii].GetValue(LocalizedText.Null);
+                LocalizedText displayName = results[ii].WrappedValue.GetLocalizedText();
 
                 if (!displayName.IsNullOrEmpty)
                 {

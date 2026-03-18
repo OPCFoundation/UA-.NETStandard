@@ -4538,7 +4538,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            var resultArray = result.GetInt32Array();
+            ArrayOf<int> resultArray = result.GetInt32Array();
             Assert.That(resultArray.Count, Is.EqualTo(3));
             Assert.That(resultArray[0], Is.EqualTo(1));
             Assert.That(resultArray[1], Is.EqualTo(2));

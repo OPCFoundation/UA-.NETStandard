@@ -239,8 +239,8 @@ namespace Opc.Ua.Gds.Tests
         public async Task GetSupportedKeyFormatsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
-            Assert.IsNotNull(keyFormats);
+            ArrayOf<string> keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
+            Assert.IsFalse(keyFormats.IsNull);
         }
 
         [Test]
@@ -755,7 +755,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task UpdateCertificateSelfSignedAsync(string keyFormat)
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
+            ArrayOf<string> keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             if (!keyFormats.Contains(keyFormat))
             {
                 NUnit.Framework.Assert
@@ -835,7 +835,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task UpdateCertificateWithNewKeyPairAsync(string keyFormat)
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
+            ArrayOf<string> keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             if (!keyFormats.Contains(keyFormat))
             {
                 NUnit.Framework.Assert

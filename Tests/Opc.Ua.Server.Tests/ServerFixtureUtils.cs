@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
-            var endpoints = server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
             EndpointDescription endpoint =
                 endpoints.Find(e =>
                     e.TransportProfileUri

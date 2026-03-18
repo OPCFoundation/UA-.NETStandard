@@ -2589,7 +2589,7 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            var dst = value.ToArray().AsSpan();
+            Span<byte> dst = value.ToArray().AsSpan();
             slice.Span.CopyTo(dst[start..]);
             value = ByteString.From(dst);
             return StatusCodes.Good;
@@ -2663,7 +2663,7 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            var dst = value.ToCharArray().AsSpan();
+            Span<char> dst = value.ToCharArray().AsSpan();
             slice.AsSpan().CopyTo(dst[start..]);
 #if NET8_0_OR_GREATER
             value = new string(dst);

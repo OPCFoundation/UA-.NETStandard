@@ -948,7 +948,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void InternedStatusCodesReturnsCollection()
         {
-            var collection = StatusCode.InternedStatusCodes;
+            ArrayOf<StatusCode> collection = StatusCode.InternedStatusCodes;
             Assert.That(collection.IsNull, Is.False);
             Assert.That(collection.Count, Is.GreaterThan(0));
         }

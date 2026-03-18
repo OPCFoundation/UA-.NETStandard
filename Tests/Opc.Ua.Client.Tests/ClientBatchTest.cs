@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // Browse template
-            var startingNode = ObjectIds.RootFolder;
+            NodeId startingNode = ObjectIds.RootFolder;
             var browseTemplate = new BrowseDescription
             {
                 NodeId = startingNode,

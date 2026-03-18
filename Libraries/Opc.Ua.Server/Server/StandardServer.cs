@@ -2748,7 +2748,7 @@ namespace Opc.Ua.Server
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
-                    var endpointsForHost = binding.CreateServiceHost(
+                    List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
                         this,
                         hosts,
                         configuration,

@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests
         public async Task FailedAuthenticationAttemptsAreTrackedAsync()
         {
             const string sessionName = nameof(FailedAuthenticationAttemptsAreTrackedAsync);
-            var endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ClientIsLockedOutAfterFiveFailedAttemptsAsync()
         {
             const string sessionName = nameof(ClientIsLockedOutAfterFiveFailedAttemptsAsync);
-            var endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SuccessfulAuthenticationClearsFailedAttemptsAsync()
         {
             const string sessionName = nameof(SuccessfulAuthenticationClearsFailedAttemptsAsync);
-            var endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(

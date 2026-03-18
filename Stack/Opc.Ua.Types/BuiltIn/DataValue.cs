@@ -102,7 +102,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_value = value.m_value;
+            m_value = value.m_value.Copy();
             StatusCode = value.StatusCode;
             SourceTimestamp = value.SourceTimestamp;
             SourcePicoseconds = value.SourcePicoseconds;
@@ -489,6 +489,7 @@ namespace Opc.Ua
         /// Throws exception only if there is a type mismatch;
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use WrappedValue and Variant API")]
         public T GetValueOrDefault<T>()
         {
             // return default for a DataValue with bad status code.

@@ -571,7 +571,7 @@ namespace Opc.Ua.Client
                             "Object does not support the EventNotifier attribute.");
                     }
 
-                    objectNode.EventNotifier = value.GetValueOrDefault<byte>();
+                    objectNode.EventNotifier = value.WrappedValue.GetByte();
                     node = objectNode;
                     break;
                 case NodeClass.ObjectType:
@@ -585,7 +585,7 @@ namespace Opc.Ua.Client
                             "ObjectType does not support the IsAbstract attribute.");
                     }
 
-                    objectTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
+                    objectTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
                     node = objectTypeNode;
                     break;
                 case NodeClass.Variable:
@@ -611,7 +611,7 @@ namespace Opc.Ua.Client
                             "Variable does not support the ValueRank attribute.");
                     }
 
-                    variableNode.ValueRank = value.GetValueOrDefault<int>();
+                    variableNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];

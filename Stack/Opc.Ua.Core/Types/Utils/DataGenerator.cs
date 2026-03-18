@@ -779,7 +779,7 @@ namespace Opc.Ua.Test
         /// <inheritdoc/>
         public StatusCode GetRandomStatusCode()
         {
-            var interned = StatusCode.InternedStatusCodes;
+            ArrayOf<StatusCode> interned = StatusCode.InternedStatusCodes;
             int index = GetRandomRange(0, interned.Count - 1);
             return interned[index];
         }

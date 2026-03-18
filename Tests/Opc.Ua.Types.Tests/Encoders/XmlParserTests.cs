@@ -2137,7 +2137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant result = decoder.ReadVariantValue(null, default);
 
-            var dv = result.GetDataValue();
+            DataValue dv = result.GetDataValue();
             Assert.That(dv, Is.Not.Null);
             Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo(77));
         }

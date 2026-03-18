@@ -3929,7 +3929,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            var currentRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
+            ArrayOf<NodeId> currentRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
             if (currentRoleIds.IsEmpty)
             {
                 return ServiceResult.Create(

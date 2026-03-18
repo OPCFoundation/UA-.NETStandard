@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
-            var startingNode = ObjectIds.RootFolder;
+            NodeId startingNode = ObjectIds.RootFolder;
             BrowseDescription browseTemplate =
                 browseDescription
                 ?? new BrowseDescription
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server.Tests
             OperationLimits operationLimits)
         {
             // Browse template
-            var startingNode = ObjectIds.RootFolder;
+            NodeId startingNode = ObjectIds.RootFolder;
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath

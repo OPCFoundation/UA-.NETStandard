@@ -409,7 +409,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <exception cref="InvalidOperationException">Connection to server is not active.</exception>
         [Obsolete("Use GetSupportedKeyFormatsAsync instead.")]
-        public string[] GetSupportedKeyFormats()
+        public ArrayOf<string> GetSupportedKeyFormats()
         {
             return GetSupportedKeyFormatsAsync().GetAwaiter().GetResult();
         }
@@ -418,11 +418,11 @@ namespace Opc.Ua.Gds.Client
         /// Gets the supported key formats.
         /// </summary>
         /// <exception cref="InvalidOperationException">Connection to server is not active.</exception>
-        public async Task<string[]> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
+        public async Task<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
             if (AdminCredentials == null || Endpoint == null)
             {
-                return null;
+                return default;
             }
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -451,7 +451,7 @@ namespace Opc.Ua.Gds.Client
 
                 ClientBase.ValidateResponse(result.Results, nodesToRead);
                 ClientBase.ValidateDiagnosticInfos(result.DiagnosticInfos, nodesToRead);
-                return result.Results[0].GetValue<string[]>(null);
+                return result.Results[0].WrappedValue.GetStringArray();
             }
             finally
             {
