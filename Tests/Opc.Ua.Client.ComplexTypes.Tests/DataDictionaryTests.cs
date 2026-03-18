@@ -36,7 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -180,7 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
                 ArrayOf<ReadValueId> nodesToRead = [readValueId];
 
-                ServiceResultException x = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException x = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await theSession.ReadAsync(
                         null,
                         0,
@@ -188,7 +187,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         nodesToRead,
                         default).ConfigureAwait(false));
 
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
+                Assert.That(x.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
 
                 // now ensure we get the dictionary in chunks
                 DataDictionary dictionary = await LoadDataDictionaryAsync(
@@ -202,17 +201,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 if (dataDictionaryId == dictionaryIds[0])
                 {
                     Assert.That(dictionary.DataTypes.Count, Is.GreaterThan(160));
-                    Assert.IsTrue(
-                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
-                    Assert.IsTrue(
-                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
+                    Assert.That(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union),
+                        Is.True);
+                    Assert.That(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet),
+                        Is.True);
                     Assert.That(
                         dictionary.TypeDictionary.TargetNamespace,
                         Is.EqualTo("http://opcfoundation.org/UA/"));
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
-                    Assert.IsTrue(dictionary.DataTypes.Count >= 10);
+                    Assert.That(dictionary.DataTypes.Count >= 10, Is.True);
                     Assert.That(
                         dictionary.TypeDictionary.TargetNamespace,
                         Is.EqualTo("http://test.org/UA/Data/"));

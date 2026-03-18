@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {
@@ -102,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     ReferenceTypeIds.HasComponent,
                     false,
                     target);
-                Assert.IsTrue(removeReferenceSuccess);
+                Assert.That(removeReferenceSuccess, Is.True);
             }
 
             task.Wait(cancellationToken);

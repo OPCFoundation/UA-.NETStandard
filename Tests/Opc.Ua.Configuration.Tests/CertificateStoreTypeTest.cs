@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Configuration.Tests
 {
@@ -116,13 +115,15 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(
-                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            Assert.That(
+                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore,
+                Is.True);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + trustedUserStorePath);
             using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-            Assert.IsTrue(
-                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            Assert.That(
+                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated,
+                Is.True);
         }
 
         private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)

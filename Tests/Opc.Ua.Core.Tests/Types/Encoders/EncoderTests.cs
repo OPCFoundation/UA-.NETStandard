@@ -38,7 +38,6 @@ using System.Xml;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -186,8 +185,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             else
             {
                 Assert.That(expected, Is.EqualTo(result), encodeInfo);
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(expected, result),
+                    Is.True,
                     "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
         }
@@ -465,20 +465,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var nullspan = new ReadOnlySpan<byte>(null);
             encoder.WriteByteString("ByteString5", nullspan);
-            Assert.IsTrue(nullspan.IsEmpty);
-            Assert.IsTrue(nullspan == ReadOnlySpan<byte>.Empty);
+            Assert.That(nullspan.IsEmpty, Is.True);
+            Assert.That(nullspan == ReadOnlySpan<byte>.Empty, Is.True);
 
             ReadOnlySpan<byte> defaultspan = default;
             encoder.WriteByteString("ByteString6", defaultspan);
-            Assert.IsTrue(defaultspan.IsEmpty);
+            Assert.That(defaultspan.IsEmpty, Is.True);
 #pragma warning disable CA1508 // Actually true
-            Assert.IsTrue(defaultspan == ReadOnlySpan<byte>.Empty);
+            Assert.That(defaultspan == ReadOnlySpan<byte>.Empty, Is.True);
 #pragma warning restore CA1508
 
             var emptyspan = new ReadOnlySpan<byte>([]);
             encoder.WriteByteString("ByteString7", emptyspan);
-            Assert.IsTrue(emptyspan.IsEmpty);
-            Assert.IsTrue(emptyspan != ReadOnlySpan<byte>.Empty);
+            Assert.That(emptyspan.IsEmpty, Is.True);
+            Assert.That(emptyspan != ReadOnlySpan<byte>.Empty, Is.True);
 #endif
             return encoder.CloseAndReturnText();
         }
@@ -527,7 +527,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var writer = XmlWriter.Create(stream, settings))
             using (
                 var encoder = new XmlEncoder(
-                    new XmlQualifiedName("ByteStrings", Opc.Ua.Types.Namespaces.OpcUaXsd),
+                    new XmlQualifiedName("ByteStrings", Ua.Types.Namespaces.OpcUaXsd),
                     writer,
                     new ServiceMessageContext(Telemetry)))
             {

@@ -7077,7 +7077,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 & rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
+                    return FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 & rhs.m_union.Int32;
                 case BuiltInType.UInt32:
@@ -7111,7 +7111,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 | rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
+                    return FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 | rhs.m_union.Int32;
                 case BuiltInType.UInt32:

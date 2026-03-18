@@ -67,8 +67,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ToStringReturnsReferenceCount()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             string result = collection.ToString();
 
@@ -99,9 +101,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddForwardReferenceIncrementsCount()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(1));
         }
@@ -109,9 +112,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddInverseReferenceIncrementsCount()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, true, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, Target1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(1));
         }
@@ -119,10 +123,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddMultipleForwardReferencesWithDifferentTargets()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType1, false, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType1, false, Target2 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(2));
         }
@@ -130,10 +135,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddReferencesWithDifferentTypes()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, false, Target1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(2));
         }
@@ -141,10 +147,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddForwardAndInverseReferencesWithSameTypeAndTarget()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType1, true, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType1, true, Target1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(2));
         }
@@ -152,11 +159,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddDuplicateReferenceReplacesExisting()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, Target1);
-            // Adding same reference again via typed Add uses dictionary indexer (replace)
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                // Adding same reference again via typed Add uses dictionary indexer (replace)
+                { RefType1, false, Target1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(1));
         }
@@ -164,9 +172,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddAbsoluteTargetReference()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, false, AbsoluteTarget1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, AbsoluteTarget1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(1));
         }
@@ -174,9 +183,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddAbsoluteTargetInverseReference()
         {
-            var collection = new ReferenceCollection();
-
-            collection.Add(RefType1, true, AbsoluteTarget1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, AbsoluteTarget1 }
+            };
 
             Assert.That(collection, Has.Count.EqualTo(1));
         }
@@ -195,8 +205,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveExistingReferenceReturnsTrue()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Remove(RefType1, false, Target1);
 
@@ -207,8 +219,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveNonExistentReferenceReturnsFalse()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Remove(RefType1, false, Target2);
 
@@ -219,8 +233,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReferenceWithWrongDirectionReturnsFalse()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Remove(RefType1, true, Target1);
 
@@ -230,8 +246,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveIReferenceExistingReturnsTrue()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Remove(new ReferenceNode(RefType1, false, Target1));
 
@@ -252,10 +270,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardReferencesOfType()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType1, false, Target2);
-            collection.Add(RefType1, true, Target3);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType1, false, Target2 },
+                { RefType1, true, Target3 }
+            };
 
             bool result = collection.RemoveAll(RefType1, false);
 
@@ -266,10 +286,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllInverseReferencesOfType()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, true, Target1);
-            collection.Add(RefType1, true, Target2);
-            collection.Add(RefType1, false, Target3);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, Target1 },
+                { RefType1, true, Target2 },
+                { RefType1, false, Target3 }
+            };
 
             bool result = collection.RemoveAll(RefType1, true);
 
@@ -280,8 +302,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllWithNonExistentTypeReturnsFalse()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.RemoveAll(RefType2, false);
 
@@ -291,8 +315,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllWithNullReferenceTypeReturnsFalse()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.RemoveAll(NodeId.Null, false);
 
@@ -302,8 +328,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllRemovesEntryWhenEmpty()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             collection.RemoveAll(RefType1, false);
 
@@ -316,10 +344,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardWithAbsoluteTargets()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, AbsoluteTarget1);
-            collection.Add(RefType1, false, AbsoluteTarget2);
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, AbsoluteTarget1 },
+                { RefType1, false, AbsoluteTarget2 },
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.RemoveAll(RefType1, false);
 
@@ -330,10 +360,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllInverseWithAbsoluteTargets()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, true, AbsoluteTarget1);
-            collection.Add(RefType1, true, AbsoluteTarget2);
-            collection.Add(RefType1, true, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, AbsoluteTarget1 },
+                { RefType1, true, AbsoluteTarget2 },
+                { RefType1, true, Target1 }
+            };
 
             bool result = collection.RemoveAll(RefType1, true);
 
@@ -344,9 +376,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ClearRemovesAllReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, true, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, true, Target2 }
+            };
 
             collection.Clear();
 
@@ -356,8 +390,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsReturnsTrueForExistingReference()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Contains(new ReferenceNode(RefType1, false, Target1));
 
@@ -367,8 +403,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsReturnsFalseForNonExistentReference()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Contains(new ReferenceNode(RefType1, false, Target2));
 
@@ -378,8 +416,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsReturnsFalseForNullReference()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Contains(null);
 
@@ -389,8 +429,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ExistsReturnsTrueForExactMatch()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Exists(RefType1, false, Target1, false, null);
 
@@ -400,8 +442,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ExistsReturnsFalseForNonExistentReference()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Exists(RefType1, false, Target2, false, null);
 
@@ -411,8 +455,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ExistsReturnsFalseWhenSubtypesRequestedButNoTypeTree()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             bool result = collection.Exists(RefType2, false, Target1, true, null);
 
@@ -422,8 +468,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ExistsWithSubtypesAndTypeTreeSearchesSubtypes()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -438,8 +486,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ExistsWithSubtypesReturnsFalseWhenNoMatch()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(It.IsAny<NodeId>(), It.IsAny<NodeId>())).Returns(false);
@@ -452,10 +502,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsMatchingForwardReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType1, false, Target2);
-            collection.Add(RefType1, true, Target3);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType1, false, Target2 },
+                { RefType1, true, Target3 }
+            };
 
             IList<IReference> result = collection.Find(RefType1, false, false, null);
 
@@ -466,10 +518,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsMatchingInverseReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, true, Target1);
-            collection.Add(RefType1, true, Target2);
-            collection.Add(RefType1, false, Target3);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, Target1 },
+                { RefType1, true, Target2 },
+                { RefType1, false, Target3 }
+            };
 
             IList<IReference> result = collection.Find(RefType1, true, false, null);
 
@@ -480,8 +534,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsEmptyForNonExistentType()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IList<IReference> result = collection.Find(RefType2, false, false, null);
 
@@ -491,8 +547,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsEmptyForNullReferenceType()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IList<IReference> result = collection.Find(NodeId.Null, false, false, null);
 
@@ -502,9 +560,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithSubtypesSearchesTypeTree()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, false, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, false, Target2 }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType3)).Returns(true);
@@ -518,8 +578,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithSubtypesAndNullTypeTreeDoesNotSearchSubtypes()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IList<IReference> result = collection.Find(RefType1, false, true, null);
 
@@ -529,9 +591,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithAbsoluteTargets()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType1, false, AbsoluteTarget1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType1, false, AbsoluteTarget1 }
+            };
 
             IList<IReference> result = collection.Find(RefType1, false, false, null);
 
@@ -541,9 +605,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindInverseWithAbsoluteTargets()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, true, Target1);
-            collection.Add(RefType1, true, AbsoluteTarget1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, true, Target1 },
+                { RefType1, true, AbsoluteTarget1 }
+            };
 
             IList<IReference> result = collection.Find(RefType1, true, false, null);
 
@@ -553,8 +619,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindTargetReturnsTargetAtIndex()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             ExpandedNodeId result = collection.FindTarget(RefType1, false, false, null, 0);
 
@@ -564,8 +632,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindTargetReturnsNullForOutOfRangeIndex()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             ExpandedNodeId result = collection.FindTarget(RefType1, false, false, null, 5);
 
@@ -575,8 +645,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindTargetReturnsNullForNegativeIndex()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             ExpandedNodeId result = collection.FindTarget(RefType1, false, false, null, -1);
 
@@ -596,8 +668,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindTargetWithSubtypesUsesTypeTree()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -610,10 +684,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsAllMatchingReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, true, Target1);
-            collection.Add(RefType1, false, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, true, Target1 },
+                { RefType1, false, Target2 }
+            };
 
             IList<IReference> result = collection.FindReferencesToTarget(Target1);
 
@@ -623,8 +699,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsEmptyForNullTarget()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IList<IReference> result = collection.FindReferencesToTarget(ExpandedNodeId.Null);
 
@@ -634,8 +712,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsEmptyForNonExistentTarget()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IList<IReference> result = collection.FindReferencesToTarget(Target3);
 
@@ -645,9 +725,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyToCopiesReferencesToArray()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, true, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, true, Target2 }
+            };
             var array = new IReference[2];
 
             collection.CopyTo(array, 0);
@@ -659,8 +741,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyToWithOffsetCopiesAtCorrectPosition()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
             var array = new IReference[3];
 
             collection.CopyTo(array, 1);
@@ -704,9 +788,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void GetEnumeratorIteratesAllReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
-            collection.Add(RefType2, true, Target2);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 },
+                { RefType2, true, Target2 }
+            };
 
             var references = new List<IReference>();
             references.AddRange(collection);
@@ -717,8 +803,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NonGenericGetEnumeratorIteratesAllReferences()
         {
-            var collection = new ReferenceCollection();
-            collection.Add(RefType1, false, Target1);
+            var collection = new ReferenceCollection
+            {
+                { RefType1, false, Target1 }
+            };
 
             IEnumerable enumerable = collection;
             int count = 0;
@@ -769,9 +857,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddForwardReferenceIncrementsCount()
         {
-            var dict = new ReferenceDictionary<string>();
-
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(1));
         }
@@ -779,9 +868,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddInverseReferenceIncrementsCount()
         {
-            var dict = new ReferenceDictionary<string>();
-
-            dict.Add(MakeRef(RefType1, true, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "value1" }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(1));
         }
@@ -789,9 +879,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddAbsoluteForwardTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "value1" }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(1));
         }
@@ -799,9 +890,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddAbsoluteInverseTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, AbsoluteTarget1), "value1" }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(1));
         }
@@ -809,11 +901,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddMultipleReferencesIncrementsCount()
         {
-            var dict = new ReferenceDictionary<int>();
-
-            dict.Add(MakeRef(RefType1, false, Target1), 1);
-            dict.Add(MakeRef(RefType1, false, Target2), 2);
-            dict.Add(MakeRef(RefType2, true, Target1), 3);
+            var dict = new ReferenceDictionary<int>
+            {
+                { MakeRef(RefType1, false, Target1), 1 },
+                { MakeRef(RefType1, false, Target2), 2 },
+                { MakeRef(RefType2, true, Target1), 3 }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(3));
         }
@@ -821,8 +914,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddDuplicateKeyThrowsArgumentException()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             Assert.That(
                 () => dict.Add(MakeRef(RefType1, false, Target1), "value2"),
@@ -832,8 +927,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddDuplicateAbsoluteKeyThrowsArgumentException()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "value1" }
+            };
 
             Assert.That(
                 () => dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value2"),
@@ -943,8 +1040,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void IndexerGetThrowsKeyNotFoundForMissingReference()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             Assert.That(
                 () => _ = dict[MakeRef(RefType1, false, Target2)],
@@ -1001,8 +1100,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyReturnsTrueForExistingForwardReference()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             bool result = dict.ContainsKey(MakeRef(RefType1, false, Target1));
 
@@ -1012,8 +1113,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyReturnsTrueForExistingInverseReference()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "value1" }
+            };
 
             bool result = dict.ContainsKey(MakeRef(RefType1, true, Target1));
 
@@ -1043,9 +1146,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyReturnsFalseWhenTargetsNullForDirection()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add a forward reference so the reference type entry exists
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add a forward reference so the reference type entry exists
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Searching for inverse should return false since InverseTargets is null
             bool result = dict.ContainsKey(MakeRef(RefType1, true, Target1));
@@ -1056,9 +1161,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyReturnsFalseWhenAbsoluteTargetsNullForDirection()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add a forward reference (internal) so the reference type entry exists
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add a forward reference (internal) so the reference type entry exists
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Searching for absolute target in inverse should return false
             bool result = dict.ContainsKey(MakeRef(RefType1, true, AbsoluteTarget1));
@@ -1069,9 +1176,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyReturnsFalseWhenForwardExternalTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add a forward internal reference so entry exists but ForwardExternalTargets is null
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add a forward internal reference so entry exists but ForwardExternalTargets is null
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Searching for absolute forward target should return false
             bool result = dict.ContainsKey(MakeRef(RefType1, false, AbsoluteTarget1));
@@ -1102,8 +1211,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeSearchesSubtypes()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1116,8 +1227,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeReturnsFalseWhenNotSubtype()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(It.IsAny<NodeId>(), It.IsAny<NodeId>())).Returns(false);
@@ -1129,8 +1242,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueReturnsTrueAndValueForExistingKey()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             bool result = dict.TryGetValue(MakeRef(RefType1, false, Target1), out string value);
 
@@ -1163,8 +1278,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueWithAbsoluteTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "abs-value");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "abs-value" }
+            };
 
             bool result = dict.TryGetValue(MakeRef(RefType1, false, AbsoluteTarget1), out string value);
 
@@ -1175,8 +1292,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueWithInverseAbsoluteTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "inv-abs");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, AbsoluteTarget1), "inv-abs" }
+            };
 
             bool result = dict.TryGetValue(MakeRef(RefType1, true, AbsoluteTarget1), out string value);
 
@@ -1186,8 +1305,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveExistingForwardReferenceReturnsTrue()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             bool result = dict.Remove(MakeRef(RefType1, false, Target1));
 
@@ -1198,8 +1319,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveExistingInverseReferenceReturnsTrue()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "value1" }
+            };
 
             bool result = dict.Remove(MakeRef(RefType1, true, Target1));
 
@@ -1210,8 +1333,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAbsoluteForwardReferenceReturnsTrue()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "value1" }
+            };
 
             bool result = dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
 
@@ -1222,8 +1347,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAbsoluteInverseReferenceReturnsTrue()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, AbsoluteTarget1), "value1" }
+            };
 
             bool result = dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
 
@@ -1254,8 +1381,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveIncrementsVersion()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
             ulong versionAfterAdd = dict.Version;
 
             dict.Remove(MakeRef(RefType1, false, Target1));
@@ -1266,8 +1395,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveLastReferenceOfTypeRemovesEntry()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             dict.Remove(MakeRef(RefType1, false, Target1));
 
@@ -1291,9 +1422,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReturnsFalseWhenInternalTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add forward reference to create entry
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add forward reference to create entry
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Try to remove inverse reference with same type (InverseTargets is null)
             bool result = dict.Remove(MakeRef(RefType1, true, Target1));
@@ -1304,9 +1437,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReturnsFalseWhenExternalTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add forward internal reference to create entry
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add forward internal reference to create entry
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Try to remove forward absolute reference (ForwardExternalTargets is null)
             bool result = dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
@@ -1317,9 +1452,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReturnsFalseWhenInverseExternalTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add forward internal reference to create entry
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add forward internal reference to create entry
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Try to remove inverse absolute reference (InverseExternalTargets is null)
             bool result = dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
@@ -1330,8 +1467,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReturnsFalseWhenTargetNotFoundInInternalTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "value1" }
+            };
 
             // Try to remove a different target of the same type/direction
             bool result = dict.Remove(MakeRef(RefType1, false, Target2));
@@ -1342,8 +1481,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReturnsFalseWhenTargetNotFoundInExternalTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "value1" }
+            };
 
             // Try to remove a different absolute target
             bool result = dict.Remove(MakeRef(RefType1, false, AbsoluteTarget2));
@@ -1353,10 +1494,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardReferencesOfType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType1, false, Target2), "v2");
-            dict.Add(MakeRef(RefType1, true, Target3), "v3");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType1, false, Target2), "v2" },
+                { MakeRef(RefType1, true, Target3), "v3" }
+            };
 
             bool result = dict.RemoveAll(RefType1, false);
 
@@ -1367,10 +1510,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllInverseReferencesOfType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "v1");
-            dict.Add(MakeRef(RefType1, true, Target2), "v2");
-            dict.Add(MakeRef(RefType1, false, Target3), "v3");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "v1" },
+                { MakeRef(RefType1, true, Target2), "v2" },
+                { MakeRef(RefType1, false, Target3), "v3" }
+            };
 
             bool result = dict.RemoveAll(RefType1, true);
 
@@ -1391,8 +1536,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllReturnsFalseForNonExistentType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             bool result = dict.RemoveAll(RefType2, false);
 
@@ -1402,9 +1549,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardWithAbsoluteAndInternalTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "v2" }
+            };
 
             bool result = dict.RemoveAll(RefType1, false);
 
@@ -1415,9 +1564,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllInverseWithAbsoluteAndInternalTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "v1");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "v1" },
+                { MakeRef(RefType1, true, AbsoluteTarget1), "v2" }
+            };
 
             bool result = dict.RemoveAll(RefType1, true);
 
@@ -1428,8 +1579,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllRemovesEntryWhenCompletelyEmpty()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             dict.RemoveAll(RefType1, false);
 
@@ -1441,9 +1594,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllKeepsEntryWhenOtherDirectionHasReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "forward");
-            dict.Add(MakeRef(RefType1, true, Target2), "inverse");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "forward" },
+                { MakeRef(RefType1, true, Target2), "inverse" }
+            };
 
             dict.RemoveAll(RefType1, false);
 
@@ -1454,10 +1609,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsForwardReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType1, false, Target2), "v2");
-            dict.Add(MakeRef(RefType1, true, Target3), "v3");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType1, false, Target2), "v2" },
+                { MakeRef(RefType1, true, Target3), "v3" }
+            };
 
             IList<IReference> result = dict.Find(RefType1, false);
 
@@ -1468,10 +1625,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsInverseReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "v1");
-            dict.Add(MakeRef(RefType1, true, Target2), "v2");
-            dict.Add(MakeRef(RefType1, false, Target3), "v3");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "v1" },
+                { MakeRef(RefType1, true, Target2), "v2" },
+                { MakeRef(RefType1, false, Target3), "v3" }
+            };
 
             IList<IReference> result = dict.Find(RefType1, true);
 
@@ -1482,8 +1641,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsEmptyForNullType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             IList<IReference> result = dict.Find(NodeId.Null, false);
 
@@ -1493,8 +1654,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReturnsEmptyForNonExistentType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             IList<IReference> result = dict.Find(RefType2, false);
 
@@ -1504,9 +1667,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindIncludesAbsoluteTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "v2" }
+            };
 
             IList<IReference> result = dict.Find(RefType1, false);
 
@@ -1516,9 +1681,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindInverseIncludesAbsoluteTargets()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "v1");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "v1" },
+                { MakeRef(RefType1, true, AbsoluteTarget1), "v2" }
+            };
 
             IList<IReference> result = dict.Find(RefType1, true);
 
@@ -1537,9 +1704,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithTypeTreeSearchesSubtypes()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, false, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, false, Target2), "v2" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType3)).Returns(true);
@@ -1553,8 +1722,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithTypeTreeReturnsEmptyForNullType()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
 
@@ -1566,8 +1737,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithTypeTreeReturnsEmptyWhenNoMatch()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(It.IsAny<NodeId>(), It.IsAny<NodeId>())).Returns(false);
@@ -1579,10 +1752,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsMatchingReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target1), "v2");
-            dict.Add(MakeRef(RefType1, false, Target2), "v3");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target1), "v2" },
+                { MakeRef(RefType1, false, Target2), "v3" }
+            };
 
             IList<IReference> result = dict.FindReferencesToTarget(Target1);
 
@@ -1592,8 +1767,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsEmptyForNullTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             IList<IReference> result = dict.FindReferencesToTarget(ExpandedNodeId.Null);
 
@@ -1603,8 +1780,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindReferencesToTargetReturnsEmptyForNonExistentTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             IList<IReference> result = dict.FindReferencesToTarget(Target3);
 
@@ -1613,9 +1792,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ClearRemovesAllEntries()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target2), "v2" }
+            };
 
             dict.Clear();
 
@@ -1625,8 +1806,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ClearIncrementsVersion()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
             ulong versionBeforeClear = dict.Version;
 
             dict.Clear();
@@ -1672,9 +1855,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void KeysReturnsAllReferenceKeys()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target2), "v2" }
+            };
 
             ICollection<IReference> keys = dict.Keys;
 
@@ -1684,9 +1869,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ValuesReturnsAllValues()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target2), "v2" }
+            };
 
             ICollection<string> values = dict.Values;
 
@@ -1717,9 +1904,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyToCopiesAllEntries()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target2), "v2" }
+            };
 
             var array = new KeyValuePair<IReference, string>[2];
             dict.CopyTo(array, 0);
@@ -1730,9 +1919,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void GetEnumeratorIteratesAllEntries()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
-            dict.Add(MakeRef(RefType2, true, Target2), "v2");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" },
+                { MakeRef(RefType2, true, Target2), "v2" }
+            };
 
             var entries = new List<KeyValuePair<IReference, string>>();
             entries.AddRange(dict);
@@ -1743,8 +1934,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NonGenericEnumeratorIteratesAllEntries()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             IEnumerable enumerable = dict;
             int count = 0;
@@ -1758,13 +1951,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void MixedReferencesAllDirectionsAndTargetTypes()
         {
-            var dict = new ReferenceDictionary<string>();
-
-            // Add all four combinations
-            dict.Add(MakeRef(RefType1, false, Target1), "forward-internal");
-            dict.Add(MakeRef(RefType1, true, Target2), "inverse-internal");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "forward-external");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add all four combinations
+                { MakeRef(RefType1, false, Target1), "forward-internal" },
+                { MakeRef(RefType1, true, Target2), "inverse-internal" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "forward-external" },
+                { MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external" }
+            };
 
             Assert.That(dict, Has.Count.EqualTo(4));
 
@@ -1780,11 +1974,13 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardKeepsInverseReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "forward-internal");
-            dict.Add(MakeRef(RefType1, true, Target2), "inverse-internal");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "forward-external");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "forward-internal" },
+                { MakeRef(RefType1, true, Target2), "inverse-internal" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "forward-external" },
+                { MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external" }
+            };
 
             dict.RemoveAll(RefType1, false);
 
@@ -1796,11 +1992,13 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllInverseKeepsForwardReferences()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "forward-internal");
-            dict.Add(MakeRef(RefType1, true, Target2), "inverse-internal");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "forward-external");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "forward-internal" },
+                { MakeRef(RefType1, true, Target2), "inverse-internal" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "forward-external" },
+                { MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external" }
+            };
 
             dict.RemoveAll(RefType1, true);
 
@@ -1811,8 +2009,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReferenceWithNullTypeIdReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             // A reference with IsNull ReferenceTypeId should return false (not throw)
             bool result = dict.Remove(MakeRef(NodeId.Null, false, Target1));
@@ -1823,8 +2023,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveReferenceWithNullTargetIdReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             bool result = dict.Remove(MakeRef(RefType1, false, ExpandedNodeId.Null));
 
@@ -1834,8 +2036,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithNullTypeIdReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             bool result = dict.ContainsKey(MakeRef(NodeId.Null, false, Target1));
 
@@ -1845,8 +2049,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithNullTargetIdReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             bool result = dict.ContainsKey(MakeRef(RefType1, false, ExpandedNodeId.Null));
 
@@ -1856,9 +2062,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueForAbsoluteTargetNotFoundReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add one absolute target so the external targets dictionary exists
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add one absolute target so the external targets dictionary exists
+                { MakeRef(RefType1, false, AbsoluteTarget1), "v1" }
+            };
 
             // Look for a different absolute target (same type, same direction)
             bool result = dict.TryGetValue(MakeRef(RefType1, false, AbsoluteTarget2), out string value);
@@ -1870,8 +2078,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueForInverseAbsoluteTargetNotFoundReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, AbsoluteTarget1), "v1" }
+            };
 
             bool result = dict.TryGetValue(MakeRef(RefType1, true, AbsoluteTarget2), out string value);
 
@@ -1882,8 +2092,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void TryGetValueForInternalTargetNotFoundReturnsFalse()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             bool result = dict.TryGetValue(MakeRef(RefType1, false, Target2), out string value);
 
@@ -1893,8 +2105,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeFindsAbsoluteForwardTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, false, AbsoluteTarget1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1908,8 +2122,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeFindsAbsoluteInverseTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, AbsoluteTarget1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1922,8 +2138,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeFindsInternalInverseTarget()
         {
-            var dict = new ReferenceDictionary<string>();
-            dict.Add(MakeRef(RefType1, true, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                { MakeRef(RefType1, true, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1936,9 +2154,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeReturnsFalseWhenAbsoluteTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Only add internal forward target
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Only add internal forward target
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1952,9 +2172,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeReturnsFalseWhenInverseTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Only add forward target
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Only add forward target
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1968,9 +2190,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ContainsKeyWithTypeTreeReturnsFalseWhenInverseExternalTargetsNull()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Only add forward target
-            dict.Add(MakeRef(RefType1, false, Target1), "v1");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Only add forward target
+                { MakeRef(RefType1, false, Target1), "v1" }
+            };
 
             var typeTree = new Mock<ITypeTable>();
             typeTree.Setup(t => t.IsTypeOf(RefType1, RefType2)).Returns(true);
@@ -1983,11 +2207,13 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveAllForwardKeepsForwardExternalTargetsInEntry()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add forward internal + forward external + inverse
-            dict.Add(MakeRef(RefType1, false, Target1), "internal-fwd");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "external-fwd");
-            dict.Add(MakeRef(RefType1, true, Target2), "inv");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add forward internal + forward external + inverse
+                { MakeRef(RefType1, false, Target1), "internal-fwd" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "external-fwd" },
+                { MakeRef(RefType1, true, Target2), "inv" }
+            };
 
             // RemoveAll forward removes both internal and external forward
             dict.RemoveAll(RefType1, false);
@@ -1999,10 +2225,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveLastAbsoluteInverseChecksIsEmpty()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add only inverse external targets so that IsEmpty checks
-            // InverseExternalTargets (line 897-899)
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "inv-ext");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add only inverse external targets so that IsEmpty checks
+                // InverseExternalTargets (line 897-899)
+                { MakeRef(RefType1, true, AbsoluteTarget1), "inv-ext" }
+            };
 
             // Remove the inverse external target
             dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
@@ -2015,10 +2243,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveLastAbsoluteForwardChecksIsEmpty()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add only forward external target so that IsEmpty checks
-            // ForwardExternalTargets (line 887-889)
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "fwd-ext");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add only forward external target so that IsEmpty checks
+                // ForwardExternalTargets (line 887-889)
+                { MakeRef(RefType1, false, AbsoluteTarget1), "fwd-ext" }
+            };
 
             // Remove the forward external target
             dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
@@ -2030,10 +2260,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EntryNotRemovedWhenOnlyExternalForwardRemains()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add internal forward + external forward
-            dict.Add(MakeRef(RefType1, false, Target1), "internal");
-            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "external");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add internal forward + external forward
+                { MakeRef(RefType1, false, Target1), "internal" },
+                { MakeRef(RefType1, false, AbsoluteTarget1), "external" }
+            };
 
             // Remove only the internal forward
             dict.Remove(MakeRef(RefType1, false, Target1));
@@ -2046,10 +2278,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EntryNotRemovedWhenOnlyExternalInverseRemains()
         {
-            var dict = new ReferenceDictionary<string>();
-            // Add internal inverse + external inverse
-            dict.Add(MakeRef(RefType1, true, Target1), "internal");
-            dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "external");
+            var dict = new ReferenceDictionary<string>
+            {
+                // Add internal inverse + external inverse
+                { MakeRef(RefType1, true, Target1), "internal" },
+                { MakeRef(RefType1, true, AbsoluteTarget1), "external" }
+            };
 
             // Remove only the internal inverse
             dict.Remove(MakeRef(RefType1, true, Target1));

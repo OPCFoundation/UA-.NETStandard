@@ -38,7 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -885,7 +884,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 };
             }
 
-            NUnit.Framework.Assert.Fail($"Unexpected ValueType {valueType}");
+            Assert.Fail($"Unexpected ValueType {valueType}");
             return null;
         }
 
@@ -928,20 +927,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         private static Variant CreateVariantForStructureMatrix(Type type, Array array)
         {
             return (Variant)typeof(MockResolverTests)
-                .GetMethod(nameof(CreateVariantForStructureMatrixT))
+                .GetMethod(
+                    nameof(CreateVariantForStructureMatrixT),
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic)
                 .MakeGenericMethod([type])
                 .Invoke(null, [array]);
         }
 
         private static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
         {
-            return Variant.FromStructure<T>(MatrixOf.From<T>(array));
+            return Variant.FromStructure(MatrixOf.From<T>(array));
         }
 
         private static Variant CreateVariantForMatrixOf(Type type, Array array)
         {
             return (Variant)typeof(MockResolverTests)
-                .GetMethod(nameof(CreateVariantForMatrixOfT))
+                .GetMethod(
+                    nameof(CreateVariantForMatrixOfT),
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic)
                 .MakeGenericMethod([type])
                 .Invoke(null, [array]);
         }

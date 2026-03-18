@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -938,18 +937,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) ==
                 UadpDataSetMessageContentMask.MajorVersion)
             {
-                Assert.AreEqual(
-                    uadpDataSetMessageEncode.MetaDataVersion.MajorVersion,
+                Assert.That(
                     uadpDataSetMessageDecoded.MetaDataVersion.MajorVersion,
+                    Is.EqualTo(uadpDataSetMessageEncode.MetaDataVersion.MajorVersion),
                     "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) ==
                 UadpDataSetMessageContentMask.MinorVersion)
             {
-                Assert.AreEqual(
-                    uadpDataSetMessageEncode.MetaDataVersion.MinorVersion,
+                Assert.That(
                     uadpDataSetMessageDecoded.MetaDataVersion.MinorVersion,
+                    Is.EqualTo(uadpDataSetMessageEncode.MetaDataVersion.MinorVersion),
                     "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 

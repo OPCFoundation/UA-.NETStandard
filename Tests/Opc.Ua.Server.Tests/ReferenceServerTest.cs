@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -430,9 +429,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(firstReadResponse);
             Assert.IsNotNull(firstReadResponse.Results);
-            Assert.AreEqual(1, firstReadResponse.Results.Count);
+            Assert.That(firstReadResponse.Results.Count, Is.EqualTo(1));
             DataValue firstValue = firstReadResponse.Results[0];
-            Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
+            Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
@@ -457,9 +456,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(secondReadResponse);
             Assert.IsNotNull(secondReadResponse.Results);
-            Assert.AreEqual(1, secondReadResponse.Results.Count);
+            Assert.That(secondReadResponse.Results.Count, Is.EqualTo(1));
             DataValue secondValue = secondReadResponse.Results[0];
-            Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
+            Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
@@ -507,9 +506,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(firstReadResponse);
             Assert.IsNotNull(firstReadResponse.Results);
-            Assert.AreEqual(1, firstReadResponse.Results.Count);
+            Assert.That(firstReadResponse.Results.Count, Is.EqualTo(1));
             DataValue firstValue = firstReadResponse.Results[0];
-            Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
+            Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
@@ -534,9 +533,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(secondReadResponse);
             Assert.IsNotNull(secondReadResponse.Results);
-            Assert.AreEqual(1, secondReadResponse.Results.Count);
+            Assert.That(secondReadResponse.Results.Count, Is.EqualTo(1));
             DataValue secondValue = secondReadResponse.Results[0];
-            Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
+            Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
@@ -671,7 +670,7 @@ namespace Opc.Ua.Server.Tests
             if (useSecurity)
             {
                 // subscription was deleted, expect 'BadNoSubscription'
-                ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     m_requestHeader.Timestamp = DateTimeUtc.Now;
                     await CommonTestWorkers.VerifySubscriptionTransferredAsync(
@@ -680,9 +679,9 @@ namespace Opc.Ua.Server.Tests
                         subscriptionIds,
                         true).ConfigureAwait(false);
                 });
-                Assert.AreEqual(
-                    StatusCodes.BadNoSubscription,
-                    sre.StatusCode);
+                Assert.That(
+                    sre.StatusCode,
+                    Is.EqualTo(StatusCodes.BadNoSubscription));
             }
         }
 
@@ -791,15 +790,15 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
 
             // Validate nothing to publish a few times
             const int timesToCallPublish = 3;
@@ -810,15 +809,15 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     publishResponse.DiagnosticInfos,
                     acknowledgements,
                     publishResponse.ResponseHeader.StringTable,
                     serverTestServices.Logger);
-                Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-                Assert.AreEqual(0, publishResponse.NotificationMessage.NotificationData.Count);
+                Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
             }
 
             // Validate ResendData method call returns error from different session contexts
@@ -832,7 +831,7 @@ namespace Opc.Ua.Server.Tests
 
             serverTestServices.SecureChannelContext = m_secureChannelContext;
 
-            Assert.AreEqual(StatusCodes.BadUserAccessDenied, callResponse.Results[0].StatusCode);
+            Assert.That(callResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -846,15 +845,15 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(0, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
 
             if (updateValues)
             {
@@ -916,15 +915,15 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(0, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
 
             resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
@@ -946,9 +945,9 @@ namespace Opc.Ua.Server.Tests
                     requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
-                Assert.AreEqual(subscriptionId, publishResponse.SubscriptionId);
+                Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionId));
 
                 if (publishResponse.NotificationMessage.NotificationData.Count > 0)
                 {
@@ -1008,7 +1007,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 nodesToCall, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.AreEqual(expectedStatus, callResponse.Results[0].StatusCode);
+            Assert.That(callResponse.Results[0].StatusCode, Is.EqualTo(expectedStatus));
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -1051,7 +1050,7 @@ namespace Opc.Ua.Server.Tests
                 readResponse.Results,
                 readResponse.ResponseHeader.StringTable,
                 logger);
-            Assert.AreEqual(testSet.Length, readResponse.Results.Count);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(testSet.Length));
 
             var modifiedValues = new List<DataValue>();
             foreach (DataValue dataValue in readResponse.Results)
@@ -1114,7 +1113,7 @@ namespace Opc.Ua.Server.Tests
                 readIdCollection, CancellationToken.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
-            Assert.AreEqual(1, readResponse.Results.Count);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
             Assert.IsFalse(readResponse.Results[0].WrappedValue.IsNull);
 
             byte eventNotifier = (byte)readResponse.Results[0].WrappedValue;
@@ -1141,7 +1140,7 @@ namespace Opc.Ua.Server.Tests
                 historyCapabilitiesReadIds, CancellationToken.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, historyCapabilitiesReadIds);
-            Assert.AreEqual(2, readResponse.Results.Count);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
 
             bool accessHistoryEventsCapability =
                 !readResponse.Results[0].WrappedValue.IsNull &&
@@ -1157,12 +1156,14 @@ namespace Opc.Ua.Server.Tests
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
-                Assert.IsTrue((eventNotifier & EventNotifiers.HistoryRead) != 0,
+                Assert.That((eventNotifier & EventNotifiers.HistoryRead) != 0,
+                    Is.True,
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
-            Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+            Assert.That((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                Is.True,
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
 
@@ -1192,7 +1193,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
-            Assert.AreEqual(3, readResponse.Results.Count);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(3));
 
             // Verify that SourceTimestamp and ServerTimestamp are equal for all ServerStatus children
             for (int i = 0; i < readResponse.Results.Count; i++)
@@ -1252,15 +1253,16 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
-            Assert.AreEqual(2, readResponse.Results.Count);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
 
             bool historizing = (bool)readResponse.Results[0].WrappedValue;
             byte accessLevel = (byte)readResponse.Results[1].WrappedValue;
 
             logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
 
-            Assert.IsTrue(historizing, "Int32Value node should have Historizing=true");
-            Assert.IsTrue((accessLevel & AccessLevels.HistoryRead) != 0,
+            Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
+            Assert.That((accessLevel & AccessLevels.HistoryRead) != 0,
+                Is.True,
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
@@ -1292,14 +1294,15 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
-            Assert.AreEqual(1, historyReadResponse.Results.Count);
+            Assert.That(historyReadResponse.Results.Count, Is.EqualTo(1));
 
             HistoryReadResult result = historyReadResponse.Results[0];
 
             logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
 
             // The result should be Good or GoodMoreData (if there are more values)
-            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
+            Assert.That(StatusCode.IsGood(result.StatusCode),
+                Is.True,
                 $"History read should succeed, but got: {result.StatusCode}");
             Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
 
@@ -1314,13 +1317,14 @@ namespace Opc.Ua.Server.Tests
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
                     Assert.That(dataValue, Is.Not.Null, "DataValue should not be null");
-                    Assert.IsTrue(dataValue.ServerTimestamp != DateTimeUtc.MinValue,
+                    Assert.That(dataValue.ServerTimestamp != DateTimeUtc.MinValue,
+                        Is.True,
                         "DataValue should have a valid ServerTimestamp");
                 }
             }
             else
             {
-                NUnit.Framework.Assert.Fail("HistoryData body should be of type HistoryData");
+                Assert.Fail("HistoryData body should be of type HistoryData");
             }
         }
 
@@ -1345,7 +1349,7 @@ namespace Opc.Ua.Server.Tests
             ReferenceServer server = await fixture.StartAsync().ConfigureAwait(false);
 
             // Verify provisioning mode is enabled
-            Assert.IsTrue(server.ProvisioningMode, "Server should be in provisioning mode");
+            Assert.That(server.ProvisioningMode, Is.True, "Server should be in provisioning mode");
 
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
@@ -1364,7 +1368,8 @@ namespace Opc.Ua.Server.Tests
                     break;
                 }
             }
-            Assert.IsTrue(hasEndpointWithoutAnonymous,
+            Assert.That(hasEndpointWithoutAnonymous,
+                Is.True,
                 "At least one endpoint should not allow anonymous authentication in provisioning mode");
 
             // Clean up

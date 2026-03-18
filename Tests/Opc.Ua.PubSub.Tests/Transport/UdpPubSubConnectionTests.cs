@@ -41,7 +41,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -163,25 +162,25 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(
                 connectionConfiguration,
                 "The UADP connection configuration from UADP connection object is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Name,
+            Assert.That(
                 connectionConfiguration.Name,
+                Is.EqualTo(originalConnectionConfiguration.Name),
                 "The connection configuration Name is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.PublisherId,
+            Assert.That(
                 connectionConfiguration.PublisherId,
+                Is.EqualTo(originalConnectionConfiguration.PublisherId),
                 "The connection configuration PublisherId is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Address,
+            Assert.That(
                 connectionConfiguration.Address,
+                Is.EqualTo(originalConnectionConfiguration.Address),
                 "The connection configuration Address is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Enabled,
+            Assert.That(
                 connectionConfiguration.Enabled,
+                Is.EqualTo(originalConnectionConfiguration.Enabled),
                 "The connection configuration Enabled is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.TransportProfileUri,
+            Assert.That(
                 connectionConfiguration.TransportProfileUri,
+                Is.EqualTo(originalConnectionConfiguration.TransportProfileUri),
                 "The connection configuration TransportProfileUri is invalid.");
         }
 
@@ -284,9 +283,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Uuid.Empty,
                 Is.EqualTo(networkMessage0.DataSetClassId),
                 "UadpNetworkMessage.DataSetClassId is invalid.");
-            Assert.AreEqual(
-                networkMessage0.WriterGroupId,
+            Assert.That(
                 writerGroup0.WriterGroupId,
+                Is.EqualTo(networkMessage0.WriterGroupId),
                 "UadpNetworkMessage.WriterGroupId is invalid.");
             Assert.That(
                 networkMessage0.UADPVersion,
@@ -296,14 +295,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 networkMessage0.SequenceNumber,
                 Is.EqualTo(1),
                 "UadpNetworkMessage.SequenceNumber is not 1.");
-            Assert.AreEqual(
-                networkMessage0.GroupVersion,
+            Assert.That(
                 messageSettings.GroupVersion,
+                Is.EqualTo(networkMessage0.GroupVersion),
                 "UadpNetworkMessage.GroupVersion is not valid.");
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                networkMessage0.PublisherId,
+            Assert.That(
                 m_udpPublisherConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                Is.EqualTo(networkMessage0.PublisherId),
                 "UadpNetworkMessage.PublisherId is not valid.");
 #pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(
@@ -315,9 +314,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Is.EqualTo(3),
                 "UadpNetworkMessage.UadpDataSetMessages.Count is not 3.");
             //validate flags
-            Assert.AreEqual(
-                (uint)networkMessage0.NetworkMessageContentMask,
+            Assert.That(
                 messageSettings.NetworkMessageContentMask,
+                Is.EqualTo((uint)networkMessage0.NetworkMessageContentMask),
                 "UadpNetworkMessage.messageSettings.NetworkMessageContentMask is not valid.");
         }
 
@@ -541,7 +540,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch
             {
             }
-            NUnit.Framework.Assert.Inconclusive("First active NIC was not found.");
+            Assert.Inconclusive("First active NIC was not found.");
 
             return null;
         }

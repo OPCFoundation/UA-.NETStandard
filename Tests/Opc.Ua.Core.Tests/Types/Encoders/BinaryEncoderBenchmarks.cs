@@ -33,7 +33,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {

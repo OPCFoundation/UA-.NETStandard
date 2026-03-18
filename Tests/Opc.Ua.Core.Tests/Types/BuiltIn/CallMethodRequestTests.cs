@@ -30,7 +30,6 @@
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
@@ -50,8 +49,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void InputArgumentsInitializedAfterConstruction()
         {
             var request = new CallMethodRequest();
-            Assert.IsNotNull(request.InputArguments);
-            Assert.AreEqual(0, request.InputArguments.Count);
+            Assert.That(request.InputArguments.IsNull, Is.False);
+            Assert.That(request.InputArguments.Count, Is.EqualTo(0));
         }
 
         /// <summary>
@@ -85,8 +84,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             decodedRequest.Decode(decoder);
 
             // InputArguments should not be null
-            Assert.IsNotNull(decodedRequest.InputArguments);
-            Assert.AreEqual(0, decodedRequest.InputArguments.Count);
+            Assert.That(decodedRequest.InputArguments.IsNull, Is.False);
+            Assert.That(decodedRequest.InputArguments.Count, Is.EqualTo(0));
         }
 
         /// <summary>
@@ -117,10 +116,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var decodedRequest = new CallMethodRequest();
             decodedRequest.Decode(decoder);
 
-            Assert.IsNotNull(decodedRequest.InputArguments);
-            Assert.AreEqual(2, decodedRequest.InputArguments.Count);
-            Assert.AreEqual(42, decodedRequest.InputArguments[0].GetInt32());
-            Assert.AreEqual("test", decodedRequest.InputArguments[1].GetString());
+            Assert.That(decodedRequest.InputArguments.IsNull, Is.False);
+            Assert.That(decodedRequest.InputArguments.Count, Is.EqualTo(2));
+            Assert.That(decodedRequest.InputArguments[0].GetInt32(), Is.EqualTo(42));
+            Assert.That(decodedRequest.InputArguments[1].GetString(), Is.EqualTo("test"));
         }
     }
 }

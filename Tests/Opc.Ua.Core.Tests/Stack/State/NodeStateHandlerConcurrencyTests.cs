@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {
@@ -658,13 +657,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     Attributes.AccessLevel,
                     default,
                     new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
-                Assert.IsTrue(ServiceResult.IsGood(result));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
                 result = baseVariableState.WriteAttribute(
                     systemContext,
                     Attributes.UserAccessLevel,
                     default,
                     new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
-                Assert.IsTrue(ServiceResult.IsGood(result));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
             }
 
             bool running = true;
@@ -689,10 +688,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     default,
                     new DataValue(variant));
 
-                Assert.IsTrue(
+                Assert.That(
                     ServiceResult.IsGood(writeResult),
-                    "Expected Good ServiceResult but was: {0}",
-                    writeResult);
+                    Is.True,
+                    $"Expected Good ServiceResult but was: {writeResult}");
             }
 
             running = false;

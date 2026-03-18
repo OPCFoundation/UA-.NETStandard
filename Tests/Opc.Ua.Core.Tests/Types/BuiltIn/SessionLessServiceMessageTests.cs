@@ -1,7 +1,6 @@
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
@@ -42,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 };
 
                 //act and validate it does not throw
-                NUnit.Framework.Assert.DoesNotThrow(() => envelope.Encode(jsonEncoder));
+                Assert.DoesNotThrow(() => envelope.Encode(jsonEncoder));
 
                 result = jsonEncoder.CloseAndReturnText();
             }

@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -154,7 +153,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
+                Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
             }
 
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
@@ -214,8 +213,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotEmpty(udpClients1, "udpClients1 is empty");
 
             UdpClient udpClient1 = udpClients1[0];
-            Assert.IsTrue(
+            Assert.That(
                 udpClient1 is UdpClientMulticast,
+                Is.True,
                 "udpClient1 was configured as UdpClientMulticast");
             Assert.That(udpClient1.Client, Is.Not.Null, "udpClient1 client socket should not be null");
             Assert.That(udpClient1.Client.LocalEndPoint, Is.Not.Null, "udpClient1 IP address is empty");
@@ -243,8 +243,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotEmpty(udpClients2, "udpClients2 is empty");
 
             UdpClient udpClient2 = udpClients2[0];
-            Assert.IsTrue(
+            Assert.That(
                 udpClient2 is UdpClientBroadcast,
+                Is.True,
                 "udpClient2 was configured as UdpClientBroadcast");
             Assert.That(udpClient2.Client, Is.Not.Null, "udpClient1 client socket should not be null");
             Assert.That(udpClient2.Client.LocalEndPoint, Is.Not.Null, "udpClient2 IP address is empty");

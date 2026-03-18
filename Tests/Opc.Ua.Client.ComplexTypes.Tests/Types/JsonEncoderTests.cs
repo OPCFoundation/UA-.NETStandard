@@ -36,7 +36,6 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -248,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var resultParsed = JObject.Parse(result, jsonLoadSettings);
                 var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
                 bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
-                Assert.IsTrue(areEqual, encodeInfo);
+                Assert.That(areEqual, Is.True, encodeInfo);
             }
             catch
             {

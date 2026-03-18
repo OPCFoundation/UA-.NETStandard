@@ -39,7 +39,6 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -1558,10 +1557,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1693,10 +1693,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1771,10 +1772,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "After MetaDataVersion change - Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1870,14 +1872,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
 
-            Assert.IsTrue(
+            Assert.That(
                 faultIndex < 0,
-                "publishingInterval={0}, maxDeviation={1}, publishTimeInSeconds={2}, deviation[{3}] = {4} has maximum deviation",
-                metaDataUpdateTime,
-                maxDeviation,
-                publishTimeInSeconds,
-                faultIndex,
-                faultDeviation);
+                Is.True,
+                $"publishingInterval={metaDataUpdateTime}, maxDeviation={maxDeviation}, publishTimeInSeconds={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} has maximum deviation");
         }
 
         /// <summary>
@@ -1886,8 +1884,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpNetworkMessage">the message to encode</param>
         private static void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage, ITelemetryContext telemetry)
         {
-            Assert.IsTrue(
+            Assert.That(
                 uadpNetworkMessage.IsMetaDataMessage,
+                Is.True,
                 "The received message is not a metadata message");
 
             byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
@@ -1896,8 +1895,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(telemetry), bytes, null);
 
-            Assert.IsTrue(
+            Assert.That(
                 uaNetworkMessageDecoded.IsMetaDataMessage,
+                Is.True,
                 "The Decode message is not a metadata message");
 
             Assert.That(
@@ -1905,10 +1905,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Is.EqualTo(uadpNetworkMessage.WriterGroupId),
                 "The Decoded WriterId does not match encoded value");
 
-            Assert.IsTrue(
+            Assert.That(
                 Utils.IsEqual(
                     uadpNetworkMessage.DataSetMetaData,
                     uaNetworkMessageDecoded.DataSetMetaData),
+                Is.True,
                 uadpNetworkMessage.DataSetMetaData.Name + " Decoded metadata is not equal ");
         }
 

@@ -542,7 +542,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="nextUpdate">Time until the crl will be valid to (defaults to UtcNow + 12 Months)</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public static async Task<X509CRL> CreateEmptyCrlAsync(X509Certificate2 caCertificate, DateTime? thisUpdate = null, DateTime? nextUpdate = null)
+        public static Task<X509CRL> CreateEmptyCrlAsync(X509Certificate2 caCertificate, DateTime? thisUpdate = null, DateTime? nextUpdate = null)
         {
             bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
             if (!isCACert)
@@ -550,16 +550,16 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
             CrlBuilder crlBuilder = CrlBuilder
-                    .Create(caCertificate.SubjectName)
-                    .SetThisUpdate(thisUpdate ?? DateTime.UtcNow)
-                    .SetNextUpdate(nextUpdate ?? DateTime.UtcNow.AddMonths(12))
-                    .AddCRLExtension(caCertificate.BuildAuthorityKeyIdentifier())
-                    .AddCRLExtension(X509Extensions.BuildCRLNumber(1));
+                .Create(caCertificate.SubjectName)
+                .SetThisUpdate(thisUpdate ?? DateTime.UtcNow)
+                .SetNextUpdate(nextUpdate ?? DateTime.UtcNow.AddMonths(12))
+                .AddCRLExtension(caCertificate.BuildAuthorityKeyIdentifier())
+                .AddCRLExtension(X509Extensions.BuildCRLNumber(1));
             if (X509PfxUtils.IsECDsaSignature(caCertificate))
             {
-                return new X509CRL(crlBuilder.CreateForECDsa(caCertificate));
+                return Task.FromResult(new X509CRL(crlBuilder.CreateForECDsa(caCertificate)));
             }
-            return new X509CRL(crlBuilder.CreateForRSA(caCertificate));
+            return Task.FromResult(new X509CRL(crlBuilder.CreateForRSA(caCertificate)));
         }
 
         /// <summary>
@@ -713,8 +713,10 @@ namespace Opc.Ua.Gds.Server
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false, ct)
                     .ConfigureAwait(false);
 
-                var certificateCollection = new X509Certificate2Collection();
-                certificateCollection.Add(certificate);
+                var certificateCollection = new X509Certificate2Collection
+                {
+                    certificate
+                };
                 updatedCRL = CertificateFactory.RevokeCertificate(
                     certCAWithPrivateKey,
                     certCACrl,

@@ -7,7 +7,6 @@ using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -49,12 +48,12 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(
                     "This is not the ValidSubjectName for my CertificateGroup",
                     certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, default),
                 Throws.TypeOf<ArgumentNullException>());
         }
@@ -173,14 +172,14 @@ namespace Opc.Ua.Gds.Tests
                         configuration.SubjectName,
                         certificateGroup.CertificateTypes[0])
                     .ConfigureAwait(false);
-                Assert.NotNull(certificate);
+                Assert.That(certificate, Is.Not.Null);
                 crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
-                Assert.IsNotNull(crls);
+                Assert.That(crls, Is.Not.Null);
                 Assert.That(crls.Count, Is.EqualTo(1));
                 X509CRL crl2 = await CertificateGroup
                     .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
                     .ConfigureAwait(false);
-                Assert.IsNotNull(crl2);
+                Assert.That(crl2, Is.Not.Null);
                 Assert.That(crls[0].RawData.SequenceEqual(crl2.RawData));
                 var id = new CertificateIdentifier
                 {

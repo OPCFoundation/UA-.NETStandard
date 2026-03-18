@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -84,7 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     Assert.That(unionType.SwitchField, Is.EqualTo(0));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyTypes().Count));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyCount()));
-                    Assert.IsTrue(unionType.Value.IsNull);
+                    Assert.That(unionType.Value.IsNull, Is.True);
                     break;
             }
             var encodeable = emittedType as IEncodeable;
@@ -130,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     else
                     {
-                        Assert.IsTrue(obj.IsNull);
+                        Assert.That(obj.IsNull, Is.True);
                     }
                 }
                 else

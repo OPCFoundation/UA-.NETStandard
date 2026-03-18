@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -144,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber unicast error ... published data not received");
             }
 
@@ -249,7 +248,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber broadcast error ... published data not received");
             }
 
@@ -356,7 +355,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -503,7 +502,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -620,7 +619,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -725,7 +724,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -831,7 +830,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -949,7 +948,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -1045,7 +1044,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 m_logger.LogInformation("Metadata received:");
                 bool isNetworkMessage = e.NetworkMessage is UadpNetworkMessage;
-                Assert.IsTrue(isNetworkMessage);
+                Assert.That(isNetworkMessage, Is.True);
                 if (isNetworkMessage && e.NetworkMessage.IsMetaDataMessage)
                 {
                     var message = (UadpNetworkMessage)e.NetworkMessage;
@@ -1143,7 +1142,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }
@@ -1175,7 +1174,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }
@@ -1264,7 +1263,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }

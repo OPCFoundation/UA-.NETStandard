@@ -33,7 +33,6 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -182,7 +181,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var testMemberwiseClone = new TestMemberwiseClone(2);
             Assert.That(CoreUtils.Clone(testMemberwiseClone), Is.Not.Null);
             var testNoClone = new TestNoClone(3);
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
+            Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
         }
 
         [Test]
@@ -337,11 +336,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var targetTable = new NamespaceTable([.. targetNamespaces]);
 
             var typeTable = new TypeTable(new NamespaceTable());
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
-            Assert.AreEqual(
-                StatusCodes.BadIndexRangeInvalid,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
         /// <summary>
@@ -368,7 +367,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
-            XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            XmlException ex = Assert.Throws<XmlException>(() =>
             {
                 var document = new XmlDocument();
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -383,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the InnerXml default (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
-            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            ex = Assert.Throws<XmlException>(() =>
             {
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA3075 // Insecure DTD processing in XML
@@ -400,7 +399,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             using (var stream = new StringReader(xmlEEXX.ToString()))
             using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
-                ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+                ex = Assert.Throws<XmlException>(() =>
                 {
                     var document = new XmlDocument();
                     document.Load(reader);
@@ -410,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
-            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            ex = Assert.Throws<XmlException>(() =>
             {
                 var document = new XmlDocument();
                 document.LoadInnerXml(xmlEEXX.ToString());
@@ -507,7 +506,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc#def";
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -531,7 +530,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&#!def";
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -543,7 +542,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "<abc&#!def>";
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -555,7 +554,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&$!def";
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(str, typeTable).Format(typeTable));
         }
     }

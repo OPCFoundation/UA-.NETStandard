@@ -32,7 +32,6 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.State
 {

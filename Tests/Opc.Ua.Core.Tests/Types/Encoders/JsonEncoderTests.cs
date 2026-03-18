@@ -38,7 +38,6 @@ using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -1359,7 +1358,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1385,7 +1384,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1421,7 +1420,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1487,7 +1486,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 encodedXml = PrettifyAndValidateXml(ms.ToArray());
             }
-            NUnit.Framework.Assert.That(encodedXml, Is.EqualTo(expectedXml));
+            Assert.That(encodedXml, Is.EqualTo(expectedXml));
 
             // Decode from XML
             ExtensionObject extensionObjectFromXml;
@@ -1504,9 +1503,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
                 decoder.PopNamespace();
             }
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 extensionObjectFromXml.TryGetEncodeable(out IEncodeable resultEncodeable), Is.True);
-            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
 
             // Encode to JSON
             string encodedJson;
@@ -1525,7 +1524,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded Json:");
                 _ = PrettifyAndValidateJson(encodedJson);
             }
-            NUnit.Framework.Assert.That(encodedJson, Is.EqualTo(expectedJson));
+            Assert.That(encodedJson, Is.EqualTo(expectedJson));
 
             // Decode from JSON: requires custom context
             ExtensionObject extensionObjectFromJson;
@@ -1533,9 +1532,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 extensionObjectFromJson = decoder.ReadExtensionObject("Test");
             }
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 extensionObjectFromJson.TryGetEncodeable(out resultEncodeable), Is.True);
-            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
         }
 
         /// <summary>
@@ -1566,7 +1565,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {
@@ -1625,7 +1624,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1657,7 +1656,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1689,7 +1688,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1904,7 +1903,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {

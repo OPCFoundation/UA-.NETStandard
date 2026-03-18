@@ -34,7 +34,6 @@ using System.Reflection;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -485,7 +484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null types gracefully rather than throwing
-            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType((Type)null));
+            Assert.DoesNotThrow(() => builder.AddEncodeableType((Type)null));
         }
 
         [Test]
@@ -496,7 +495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null NodeIds gracefully rather than throwing
-            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
+            Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
         }
 
         [Test]
@@ -526,7 +525,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - Should not throw
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableTypes(Assembly.GetExecutingAssembly());
                 builder.Commit();
@@ -610,7 +609,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert
-            NUnit.Framework.Assert.DoesNotThrow(builder.Commit);
+            Assert.DoesNotThrow(builder.Commit);
             Assert.Greater(factory.KnownTypeIds.Count(), 0); // Should have pre-loaded types
         }
 
@@ -950,7 +949,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType((IEncodeableType)null));
         }
 
@@ -963,7 +962,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeable));
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType(default, encodeableType));
         }
 
@@ -976,7 +975,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(50002);
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType(typeId, (IEncodeableType)null));
         }
 
@@ -989,7 +988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var faultyType = new FaultyEncodeableType();
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<InvalidOperationException>(
+            Assert.Throws<InvalidOperationException>(
                 () => builder.AddEncodeableType(faultyType));
         }
 
@@ -1002,7 +1001,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullReturningType = new NullReturningEncodeableType();
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<InvalidOperationException>(
+            Assert.Throws<InvalidOperationException>(
                 () => builder.AddEncodeableType(nullReturningType));
         }
 
@@ -1015,7 +1014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithoutXml));
 
             // Act & Assert - Should not throw even if XmlEncodingId throws NotSupportedException
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();
@@ -1036,7 +1035,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithoutJson));
 
             // Act & Assert - Should not throw even if JsonEncodingId throws NotSupportedException
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();
@@ -1291,7 +1290,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithNullIds));
 
             // Act & Assert - Should not throw
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();

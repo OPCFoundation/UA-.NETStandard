@@ -38,7 +38,7 @@ using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NET6_0_OR_GREATER
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -349,18 +349,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EscapeStringSystemTextJson(s_testString);
             byte[] resultSystemTextJson = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSystemTextJson));
+            Assert.That(Utils.IsEqual(resultLegacy, resultSystemTextJson), Is.True);
 #endif
 
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultNewtonSoft));
+            Assert.That(Utils.IsEqual(resultLegacy, result), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultLegacyPlus), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpan), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanChars), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInline), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanIndex), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanDict), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultNewtonSoft), Is.True);
         }
 
         [OneTimeSetUp]

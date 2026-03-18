@@ -31,7 +31,6 @@ using System.IO;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {

@@ -33,7 +33,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -245,13 +244,13 @@ namespace Opc.Ua.Server.Tests
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     _ = await services.BrowseAsync(
                         requestHeader,
                         null,
                         0,
                         ArrayOf<BrowseDescription>.Empty).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
             while (browseDescriptionCollection.Count > 0)
@@ -262,28 +261,28 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.BrowseAsync(
                                 requestHeader,
                                 null,
                                 0,
                                 browseDescriptionCollection).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
 
                     // Test if server responds with BadTooManyOperations
                     ArrayOf<BrowseDescription> tempBrowsePath =
                         browseDescriptionCollection[..((int)operationLimits.MaxNodesPerBrowse + 1)];
-                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         _ = await services.BrowseAsync(
                             requestHeader,
                             null,
                             0,
                             tempBrowsePath).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
 
                 bool repeatBrowse;
@@ -428,13 +427,13 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.TranslateBrowsePathsToNodeIdsAsync(
                                 requestHeader,
                                 browsePaths).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
                 ArrayOf<BrowsePath> browsePathSnippet =
                     operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
@@ -496,21 +495,21 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationPerPublish,
                 enabled,
                 priority).ConfigureAwait(false);
-            Assert.AreEqual(publishingInterval, createSubscriptionResponse.RevisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, createSubscriptionResponse.RevisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, createSubscriptionResponse.RevisedMaxKeepAliveCount);
+            Assert.That(createSubscriptionResponse.RevisedPublishingInterval, Is.EqualTo(publishingInterval));
+            Assert.That(createSubscriptionResponse.RevisedLifetimeCount, Is.EqualTo(lifetimeCount));
+            Assert.That(createSubscriptionResponse.RevisedMaxKeepAliveCount, Is.EqualTo(maxKeepAliveCount));
             ServerFixtureUtils.ValidateResponse(createSubscriptionResponse.ResponseHeader);
             uint id = createSubscriptionResponse.SubscriptionId;
 
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = default;
             // check badnothingtodo
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await services.CreateMonitoredItemsAsync(
                     requestHeader,
                     id,
                     TimestampsToReturn.Neither,
                     itemsToCreate).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
 
             // add item
             uint handleCounter = 1;
@@ -558,9 +557,9 @@ namespace Opc.Ua.Server.Tests
                 maxKeepAliveCount,
                 maxNotificationPerPublish,
                 priority).ConfigureAwait(false);
-            Assert.AreEqual(publishingInterval, modifySubscriptionResponse.RevisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, modifySubscriptionResponse.RevisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, modifySubscriptionResponse.RevisedMaxKeepAliveCount);
+            Assert.That(modifySubscriptionResponse.RevisedPublishingInterval, Is.EqualTo(publishingInterval));
+            Assert.That(modifySubscriptionResponse.RevisedLifetimeCount, Is.EqualTo(lifetimeCount));
+            Assert.That(modifySubscriptionResponse.RevisedMaxKeepAliveCount, Is.EqualTo(maxKeepAliveCount));
             ServerFixtureUtils.ValidateResponse(modifySubscriptionResponse.ResponseHeader);
 
             // modify monitored item, just timestamps to return
@@ -592,8 +591,8 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(id, publishResponse.SubscriptionId);
-            Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
 
             // enable publishing
             enabled = true;
@@ -626,7 +625,7 @@ namespace Opc.Ua.Server.Tests
                     acknowledgements,
                     publishResponse.ResponseHeader.StringTable,
                     services.Logger);
-                Assert.AreEqual(id, publishResponse.SubscriptionId);
+                Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
 
                 if (publishResponse.NotificationMessage.NotificationData.Count == 0)
                 {
@@ -763,10 +762,10 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionId, publishResponse.SubscriptionId);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionId));
 
             // static node, do not acknowledge
-            Assert.AreEqual(1, publishResponse.AvailableSequenceNumbers.Count);
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(1));
 
             return subscriptionIds;
         }
@@ -788,8 +787,8 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 subscriptionIds,
                 sendInitialData).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, transferResponse.ResponseHeader.ServiceResult);
-            Assert.AreEqual(subscriptionIds.Count, transferResponse.Results.Count);
+            Assert.That(transferResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(transferResponse.Results.Count, Is.EqualTo(subscriptionIds.Count));
             ServerFixtureUtils.ValidateResponse(transferResponse.ResponseHeader, transferResponse.Results, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 transferResponse.DiagnosticInfos,
@@ -802,14 +801,14 @@ namespace Opc.Ua.Server.Tests
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
                 if (expectAccessDenied)
                 {
-                    Assert.AreEqual(
-                        StatusCodes.BadUserAccessDenied,
-                        transferResult.StatusCode);
+                    Assert.That(
+                        transferResult.StatusCode,
+                        Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 }
                 else
                 {
-                    Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-                    Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+                    Assert.That(StatusCode.IsGood(transferResult.StatusCode), Is.True);
+                    Assert.That(transferResult.AvailableSequenceNumbers.Count, Is.EqualTo(1));
                 }
             }
 
@@ -823,19 +822,19 @@ namespace Opc.Ua.Server.Tests
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(sendInitialData ? 1 : 0, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(sendInitialData ? 1 : 0));
             if (sendInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
-                Assert.IsTrue(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification));
+                Assert.That(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification), Is.True);
                 ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.IsFalse(monitoredItemsCollection.IsEmpty);
             }
@@ -843,7 +842,7 @@ namespace Opc.Ua.Server.Tests
 
             requestHeader.Timestamp = DateTime.UtcNow;
             DeleteSubscriptionsResponse deleteResponse = await services.DeleteSubscriptionsAsync(requestHeader, subscriptionIds).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, deleteResponse.ResponseHeader.ServiceResult);
+            Assert.That(deleteResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -873,14 +872,14 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.IsFalse(publishResponse.MoreNotifications);
-            Assert.IsTrue(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId));
-            Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId), Is.True);
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
             Assert.That(statusMessage, Is.EqualTo("{GoodSubscriptionTransferred [0x002D0000] | }"));
 
             // static node, do not acknowledge
-            Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
 
             if (deleteSubscriptions)
             {

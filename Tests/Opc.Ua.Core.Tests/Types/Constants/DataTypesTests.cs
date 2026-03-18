@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
 {
@@ -131,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_BooleanName_ReturnsBooleanId()
         {
             uint id = DataTypes.GetIdentifier("Boolean");
-            Assert.AreEqual(DataTypes.Boolean, id);
+            Assert.That(id, Is.EqualTo(DataTypes.Boolean));
         }
 
         /// <summary>
@@ -176,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             NodeId dataTypeId = TypeInfo.GetDataTypeId(typeof(EUInformation));
 
             Assert.That(dataTypeId.IsNull, Is.False);
-            Assert.AreEqual(DataTypes.EUInformation, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0);
+            Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
             Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0));
             Assert.AreNotEqual(DataTypes.Structure, dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0,
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");

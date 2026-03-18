@@ -34,7 +34,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -146,7 +145,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
-                Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
+                Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
                 Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
 
                 // Try to read it back
@@ -508,7 +507,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
-                Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
+                Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
                 Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
             }
             finally

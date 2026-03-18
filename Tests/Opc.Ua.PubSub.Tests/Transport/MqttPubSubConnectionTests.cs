@@ -38,7 +38,7 @@ using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Tests.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Transport
@@ -231,7 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Assert
             if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert.Fail("The UADP message was not received");
+                Assert.Fail("The UADP message was not received");
             }
 
             subscriberConnection.Stop();
@@ -394,14 +394,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 kNamespaceIndexAllTypes);
             if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert.Fail("The UADP message was not received");
+                Assert.Fail("The UADP message was not received");
             }
             if (keyFrameCount > 1)
             {
                 MessagesHelper.UpdateSnapshotData(publisherApplication, kNamespaceIndexAllTypes);
                 if (!m_uaDeltaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
                 {
-                    NUnit.Framework.Assert.Fail("The UADP delta message was not received");
+                    Assert.Fail("The UADP delta message was not received");
                 }
             }
             if (keyFrameCount > 2)
@@ -417,7 +417,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         kNamespaceIndexAllTypes);
                     if (!m_uaDeltaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
                     {
-                        NUnit.Framework.Assert.Fail("The UADP delta message was not received");
+                        Assert.Fail("The UADP delta message was not received");
                     }
                 }
             }
@@ -601,11 +601,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Assert
             if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert.Fail("The JSON message was not received");
+                Assert.Fail("The JSON message was not received");
             }
             if (!m_uaMetaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert.Fail("The JSON metadata message was not received");
+                Assert.Fail("The JSON metadata message was not received");
             }
 
             subscriberConnection.Stop();
@@ -786,14 +786,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(m_snapshotData, Is.Not.Null, "snapshot data should not be null");
             if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert.Fail("The JSON message was not received");
+                Assert.Fail("The JSON message was not received");
             }
             if (keyFrameCount > 1)
             {
                 MessagesHelper.UpdateSnapshotData(publisherApplication, kNamespaceIndexAllTypes);
                 if (!m_uaDeltaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
                 {
-                    NUnit.Framework.Assert.Fail("The JSON delta message was not received");
+                    Assert.Fail("The JSON delta message was not received");
                 }
             }
             if (keyFrameCount > 2)
@@ -809,7 +809,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         kNamespaceIndexAllTypes);
                     if (!m_uaDeltaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
                     {
-                        NUnit.Framework.Assert.Fail("The JSON delta message was not received");
+                        Assert.Fail("The JSON delta message was not received");
                     }
                 }
             }
@@ -907,7 +907,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception)
             {
-                NUnit.Framework.Assert.Fail("The mosquitto could not be restarted!");
+                Assert.Fail("The mosquitto could not be restarted!");
             }
         }
     }

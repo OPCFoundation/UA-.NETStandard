@@ -32,7 +32,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using StatusCodeConstants = Opc.Ua.Types.StatusCodes;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
@@ -418,18 +418,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.IsTrue(CoreUtils.IsEqual(expected.NodeId, actual.NodeId), "NodeId mismatch");
-                Assert.IsTrue(
+                Assert.That(CoreUtils.IsEqual(expected.NodeId, actual.NodeId), Is.True, "NodeId mismatch");
+                Assert.That(
                     CoreUtils.IsEqual(expected.ExpandedNodeId, actual.ExpandedNodeId),
+                    Is.True,
                     "ExpandedNodeId mismatch");
                 Assert.That(actual.Uuid, Is.EqualTo(expected.Uuid), "Uuid mismatch");
                 Assert.That(actual.StatusCode, Is.EqualTo(expected.StatusCode), "StatusCode mismatch");
-                Assert.IsTrue(
+                Assert.That(
                     CoreUtils.IsEqual(expected.QualifiedName, actual.QualifiedName),
+                    Is.True,
                     "QualifiedName mismatch");
-                Assert.IsTrue(CoreUtils.IsEqual(expected.Variant, actual.Variant), "Variant mismatch");
-                Assert.IsTrue(
+                Assert.That(CoreUtils.IsEqual(expected.Variant, actual.Variant), Is.True, "Variant mismatch");
+                Assert.That(
                     CoreUtils.IsEqual(expected.LocalizedText, actual.LocalizedText),
+                    Is.True,
                     "LocalizedText mismatch");
             }
         }

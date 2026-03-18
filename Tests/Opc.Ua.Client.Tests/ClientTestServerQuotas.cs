@@ -32,7 +32,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -172,7 +171,7 @@ namespace Opc.Ua.Client.Tests
 
             if (results[0] != StatusCodes.Good)
             {
-                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
+                Assert.Fail($"Write failed with status code {results[0]}");
             }
 
             ByteString readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)

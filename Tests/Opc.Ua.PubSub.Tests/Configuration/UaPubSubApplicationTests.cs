@@ -32,7 +32,6 @@ using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -62,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => UaPubSubApplication.Create((string)null, telemetry),
                 "Calling Create with null parameter shall throw error");
         }
@@ -71,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPubSubApplicationCreateNullPubSubConfigurationDataType()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            NUnit.Framework.Assert.DoesNotThrow(
+            Assert.DoesNotThrow(
                 () => UaPubSubApplication.Create((PubSubConfigurationDataType)null, telemetry),
                 "Calling Create with null parameter shall not throw error");
         }
@@ -84,15 +83,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
 
             // Assert
-            Assert.IsTrue(
+            Assert.That(
                 !uaPubSubApplication.PubSubConnections.IsNull,
+                Is.True,
                 "uaPubSubApplication.PubSubConnections collection is null");
             Assert.That(
                 uaPubSubApplication.PubSubConnections.Count,
                 Is.EqualTo(3),
                 "uaPubSubApplication.PubSubConnections count");
             var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
-            Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
+            Assert.That(connection.Publishers != null, Is.True, "connection.Publishers is null");
             Assert.That(connection.Publishers.Count, Is.EqualTo(1), "connection.Publishers count is not 2");
             int index = 0;
             foreach (IUaPublisher publisher in connection.Publishers)

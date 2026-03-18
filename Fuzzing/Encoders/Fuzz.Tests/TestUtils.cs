@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using NUnit.Framework;
 
 namespace Opc.Ua.Tests
 {

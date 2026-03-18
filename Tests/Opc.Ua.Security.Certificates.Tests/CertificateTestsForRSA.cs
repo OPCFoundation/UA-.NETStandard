@@ -33,7 +33,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -282,9 +281,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateRSADefaultWithSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                 .CreateForRSA());
@@ -310,9 +309,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateRSAManualSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                 .CreateForRSA());
@@ -383,7 +382,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Cng provider only available on windows");
+                Assert.Ignore("Cng provider only available on windows");
             }
             X509Certificate2 issuer = null;
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -504,7 +503,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            Assert.Throws<NotSupportedException>(() =>
             {
                 using RSA rsaPrivateKey = signingCert.GetRSAPrivateKey();
                 var generator = X509SignatureGenerator.CreateForRSA(

@@ -101,7 +101,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseResponse? response = null;
-                InitResponseCollections<BrowseResult>(
+                InitResponseCollections(
                     out List<BrowseResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -174,7 +174,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseNextResponse? response = null;
-                InitResponseCollections<BrowseResult>(
+                InitResponseCollections(
                     out List<BrowseResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -237,7 +237,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 TranslateBrowsePathsToNodeIdsResponse? response = null;
-                InitResponseCollections<BrowsePathResult>(
+                InitResponseCollections(
                     out List<BrowsePathResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -394,7 +394,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ReadResponse? response = null;
-                InitResponseCollections<DataValue>(
+                InitResponseCollections(
                     out List<DataValue>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -481,7 +481,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryReadResponse? response = null;
-                InitResponseCollections<HistoryReadResult>(
+                InitResponseCollections(
                     out List<HistoryReadResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -547,7 +547,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 WriteResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -616,7 +616,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryUpdateResponse? response = null;
-                InitResponseCollections<HistoryUpdateResult>(
+                InitResponseCollections(
                     out List<HistoryUpdateResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -679,7 +679,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CallResponse? response = null;
-                InitResponseCollections<CallMethodResult>(
+                InitResponseCollections(
                     out List<CallMethodResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -755,7 +755,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CreateMonitoredItemsResponse? response = null;
-                InitResponseCollections<MonitoredItemCreateResult>(
+                InitResponseCollections(
                     out List<MonitoredItemCreateResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -831,7 +831,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ModifyMonitoredItemsResponse? response = null;
-                InitResponseCollections<MonitoredItemModifyResult>(
+                InitResponseCollections(
                     out List<MonitoredItemModifyResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -908,7 +908,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetMonitoringModeResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -990,13 +990,13 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetTriggeringResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? addResults,
                     out List<DiagnosticInfo>? addDiagnosticInfos,
                     out List<string> stringTable,
                     linksToAdd.Count,
                     operationLimit);
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? removeResults,
                     out List<DiagnosticInfo>? removeDiagnosticInfos,
                     out _,
@@ -1143,7 +1143,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteMonitoredItemsResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -1207,7 +1207,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddNodesResponse? response = null;
-                InitResponseCollections<AddNodesResult>(
+                InitResponseCollections(
                     out List<AddNodesResult>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -1267,7 +1267,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddReferencesResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -1330,7 +1330,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteNodesResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,
@@ -1393,7 +1393,7 @@ namespace Opc.Ua
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteReferencesResponse? response = null;
-                InitResponseCollections<StatusCode>(
+                InitResponseCollections(
                     out List<StatusCode>? results,
                     out List<DiagnosticInfo>? diagnosticInfos,
                     out List<string> stringTable,

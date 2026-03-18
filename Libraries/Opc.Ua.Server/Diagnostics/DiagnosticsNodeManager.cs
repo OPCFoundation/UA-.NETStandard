@@ -365,11 +365,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
-        protected override async ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new NodeStateCollection().AddOpcUa(context);
+            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUa(context));
         }
 
         /// <summary>
@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Server
         /// <param name="previousMode">The previous monitoring mode.</param>
         /// <param name="monitoringMode">The current monitoring mode.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected override async ValueTask OnMonitoringModeChangedAsync(
+        protected override ValueTask OnMonitoringModeChangedAsync(
             ServerSystemContext context,
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -1970,6 +1970,7 @@ namespace Opc.Ua.Server
             {
                 m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
             }
+            return default;
         }
 
         /// <summary>

@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToIntFromNullVariantReturnsDefault()
         {
             Variant v = Variant.Null;
-            bool result = v.TryCastTo<int>(out int value);
+            bool result = v.TryCastTo(out int value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.Zero);
         }
@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToStringFromNullVariantReturnsNull()
         {
             Variant v = Variant.Null;
-            bool result = v.TryCastTo<string>(out string value);
+            bool result = v.TryCastTo(out string value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.Null);
         }
@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToVariantReturnsVariant()
         {
             Variant v = Variant.From(42);
-            bool result = v.TryCastTo<Variant>(out Variant value);
+            bool result = v.TryCastTo(out Variant value);
             Assert.That(result, Is.True);
             Assert.That(value.GetInt32(), Is.EqualTo(42));
         }
@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToBoolReturnsBoolean()
         {
             Variant v = Variant.From(true);
-            bool result = v.TryCastTo<bool>(out bool value);
+            bool result = v.TryCastTo(out bool value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.True);
         }
@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToByteReturnsByte()
         {
             Variant v = Variant.From((byte)42);
-            bool result = v.TryCastTo<byte>(out byte value);
+            bool result = v.TryCastTo(out byte value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((byte)42));
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToSByteReturnsSByte()
         {
             Variant v = Variant.From((sbyte)-5);
-            bool result = v.TryCastTo<sbyte>(out sbyte value);
+            bool result = v.TryCastTo(out sbyte value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((sbyte)-5));
         }
@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt16ReturnsUShort()
         {
             Variant v = Variant.From((ushort)1000);
-            bool result = v.TryCastTo<ushort>(out ushort value);
+            bool result = v.TryCastTo(out ushort value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((ushort)1000));
         }
@@ -118,7 +118,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToInt16ReturnsShort()
         {
             Variant v = Variant.From((short)-100);
-            bool result = v.TryCastTo<short>(out short value);
+            bool result = v.TryCastTo(out short value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((short)-100));
         }
@@ -127,7 +127,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt32ReturnsUInt()
         {
             Variant v = Variant.From((uint)999);
-            bool result = v.TryCastTo<uint>(out uint value);
+            bool result = v.TryCastTo(out uint value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((uint)999));
         }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToInt32ReturnsInt()
         {
             Variant v = Variant.From(42);
-            bool result = v.TryCastTo<int>(out int value);
+            bool result = v.TryCastTo(out int value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(42));
         }
@@ -145,7 +145,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt64ReturnsULong()
         {
             Variant v = Variant.From((ulong)123456);
-            bool result = v.TryCastTo<ulong>(out ulong value);
+            bool result = v.TryCastTo(out ulong value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((ulong)123456));
         }
@@ -154,7 +154,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToInt64ReturnsLong()
         {
             Variant v = Variant.From((long)-123456);
-            bool result = v.TryCastTo<long>(out long value);
+            bool result = v.TryCastTo(out long value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo((long)-123456));
         }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToDoubleReturnsDouble()
         {
             Variant v = Variant.From(3.14);
-            bool result = v.TryCastTo<double>(out double value);
+            bool result = v.TryCastTo(out double value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(3.14));
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToFloatReturnsFloat()
         {
             Variant v = Variant.From(2.5f);
-            bool result = v.TryCastTo<float>(out float value);
+            bool result = v.TryCastTo(out float value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(2.5f));
         }
@@ -181,7 +181,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToStringReturnsString()
         {
             Variant v = Variant.From("hello");
-            bool result = v.TryCastTo<string>(out string value);
+            bool result = v.TryCastTo(out string value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo("hello"));
         }
@@ -191,7 +191,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.UtcNow;
             Variant v = Variant.From(dt);
-            bool result = v.TryCastTo<DateTimeUtc>(out DateTimeUtc value);
+            bool result = v.TryCastTo(out DateTimeUtc value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(dt));
         }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var uuid = new Uuid(Guid.NewGuid());
             Variant v = Variant.From(uuid);
-            bool result = v.TryCastTo<Uuid>(out Uuid value);
+            bool result = v.TryCastTo(out Uuid value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(uuid));
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bs = new ByteString(new byte[] { 1, 2, 3 });
             Variant v = Variant.From(bs);
-            bool result = v.TryCastTo<ByteString>(out ByteString value);
+            bool result = v.TryCastTo(out ByteString value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(bs));
         }
@@ -225,7 +225,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var xml = new XmlElement("<test/>");
             Variant v = Variant.From(xml);
-            bool result = v.TryCastTo<XmlElement>(out XmlElement value);
+            bool result = v.TryCastTo(out XmlElement value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(xml));
         }
@@ -235,7 +235,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42);
             Variant v = Variant.From(nodeId);
-            bool result = v.TryCastTo<NodeId>(out NodeId value);
+            bool result = v.TryCastTo(out NodeId value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(nodeId));
         }
@@ -245,7 +245,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eNodeId = new ExpandedNodeId(42);
             Variant v = Variant.From(eNodeId);
-            bool result = v.TryCastTo<ExpandedNodeId>(out ExpandedNodeId value);
+            bool result = v.TryCastTo(out ExpandedNodeId value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(eNodeId));
         }
@@ -255,7 +255,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en-US", "Hello");
             Variant v = Variant.From(lt);
-            bool result = v.TryCastTo<LocalizedText>(out LocalizedText value);
+            bool result = v.TryCastTo(out LocalizedText value);
             Assert.That(result, Is.True);
             Assert.That(value.Text, Is.EqualTo("Hello"));
         }
@@ -265,7 +265,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Test", 1);
             Variant v = Variant.From(qn);
-            bool result = v.TryCastTo<QualifiedName>(out QualifiedName value);
+            bool result = v.TryCastTo(out QualifiedName value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(qn));
         }
@@ -275,7 +275,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             StatusCode sc = StatusCodes.Good;
             Variant v = Variant.From(sc);
-            bool result = v.TryCastTo<StatusCode>(out StatusCode value);
+            bool result = v.TryCastTo(out StatusCode value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(sc));
         }
@@ -285,7 +285,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(Variant.From(42));
             Variant v = Variant.From(dv);
-            bool result = v.TryCastTo<DataValue>(out DataValue value);
+            bool result = v.TryCastTo(out DataValue value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.Not.Null);
         }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arg = new Argument("Test", new NodeId(1), 0, "Desc");
             var eo = new ExtensionObject(arg, true);
             Variant v = Variant.From(eo);
-            bool result = v.TryCastTo<ExtensionObject>(out ExtensionObject value);
+            bool result = v.TryCastTo(out ExtensionObject value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -307,7 +307,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arg = new Argument("Param", new NodeId(1), 0, "A param");
             var eo = new ExtensionObject(arg, true);
             Variant v = Variant.From(eo);
-            bool result = v.TryCastTo<Argument>(out Argument value);
+            bool result = v.TryCastTo(out Argument value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.Not.Null);
             Assert.That(value.Name, Is.EqualTo("Param"));
@@ -318,7 +318,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eo = new ExtensionObject(new NodeId(99999));
             Variant v = Variant.From(eo);
-            bool result = v.TryCastTo<Argument>(out Argument value);
+            bool result = v.TryCastTo(out Argument value);
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
         }
@@ -328,7 +328,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<bool> arr = [true, false, true];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<bool>>(out ArrayOf<bool> value);
+            bool result = v.TryCastTo(out ArrayOf<bool> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(3));
         }
@@ -338,7 +338,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<sbyte> arr = new sbyte[] { -1, 0, 1 }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<sbyte>>(out ArrayOf<sbyte> value);
+            bool result = v.TryCastTo(out ArrayOf<sbyte> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(3));
         }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<byte> arr = new byte[] { 1, 2, 3 }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<byte>>(out ArrayOf<byte> value);
+            bool result = v.TryCastTo(out ArrayOf<byte> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(3));
         }
@@ -358,7 +358,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<short> arr = new short[] { -10, 0, 10 }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<short>>(out ArrayOf<short> value);
+            bool result = v.TryCastTo(out ArrayOf<short> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(3));
         }
@@ -368,7 +368,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ushort> arr = new ushort[] { 100, 200 }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<ushort>>(out ArrayOf<ushort> value);
+            bool result = v.TryCastTo(out ArrayOf<ushort> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -378,7 +378,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [1, 2, 3];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<int>>(out ArrayOf<int> value);
+            bool result = v.TryCastTo(out ArrayOf<int> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(3));
         }
@@ -388,7 +388,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<uint> arr = new uint[] { 10, 20 }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<uint>>(out ArrayOf<uint> value);
+            bool result = v.TryCastTo(out ArrayOf<uint> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -398,7 +398,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<long> arr = [100L, 200L];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<long>>(out ArrayOf<long> value);
+            bool result = v.TryCastTo(out ArrayOf<long> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -408,7 +408,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ulong> arr = [100UL, 200UL];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<ulong>>(out ArrayOf<ulong> value);
+            bool result = v.TryCastTo(out ArrayOf<ulong> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -418,7 +418,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<float> arr = [1.1f, 2.2f];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<float>>(out ArrayOf<float> value);
+            bool result = v.TryCastTo(out ArrayOf<float> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -428,7 +428,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<double> arr = [1.1, 2.2];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<double>>(out ArrayOf<double> value);
+            bool result = v.TryCastTo(out ArrayOf<double> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -438,7 +438,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<string> arr = ["a", "b"];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<string>>(out ArrayOf<string> value);
+            bool result = v.TryCastTo(out ArrayOf<string> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -449,7 +449,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt = (DateTimeUtc)DateTime.UtcNow;
             ArrayOf<DateTimeUtc> arr = new[] { dt }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<DateTimeUtc>>(out ArrayOf<DateTimeUtc> value);
+            bool result = v.TryCastTo(out ArrayOf<DateTimeUtc> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -460,7 +460,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var guid = Guid.NewGuid();
             ArrayOf<Uuid> arr = new[] { new Uuid(guid) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<Guid>>(out ArrayOf<Guid> value);
+            bool result = v.TryCastTo(out ArrayOf<Guid> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
             Assert.That(value[0], Is.EqualTo(guid));
@@ -472,7 +472,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var uuid = new Uuid(Guid.NewGuid());
             ArrayOf<Uuid> arr = new[] { uuid }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<Uuid>>(out ArrayOf<Uuid> value);
+            bool result = v.TryCastTo(out ArrayOf<Uuid> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -482,7 +482,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ByteString> arr = new[] { new ByteString(new byte[] { 1 }) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<ByteString>>(out ArrayOf<ByteString> value);
+            bool result = v.TryCastTo(out ArrayOf<ByteString> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -492,7 +492,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<XmlElement> arr = new[] { new XmlElement("<a/>") }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<XmlElement>>(out ArrayOf<XmlElement> value);
+            bool result = v.TryCastTo(out ArrayOf<XmlElement> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -502,7 +502,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<NodeId> arr = new[] { new NodeId(1) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<NodeId>>(out ArrayOf<NodeId> value);
+            bool result = v.TryCastTo(out ArrayOf<NodeId> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -512,7 +512,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ExpandedNodeId> arr = new[] { new ExpandedNodeId(1) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<ExpandedNodeId>>(out ArrayOf<ExpandedNodeId> value);
+            bool result = v.TryCastTo(out ArrayOf<ExpandedNodeId> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -522,7 +522,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<LocalizedText> arr = new[] { new LocalizedText("en-US", "Hi") }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<LocalizedText>>(out ArrayOf<LocalizedText> value);
+            bool result = v.TryCastTo(out ArrayOf<LocalizedText> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -532,7 +532,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<QualifiedName> arr = new[] { new QualifiedName("Test") }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<QualifiedName>>(out ArrayOf<QualifiedName> value);
+            bool result = v.TryCastTo(out ArrayOf<QualifiedName> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -542,7 +542,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<StatusCode> arr = new[] { StatusCodes.Good }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<StatusCode>>(out ArrayOf<StatusCode> value);
+            bool result = v.TryCastTo(out ArrayOf<StatusCode> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -552,7 +552,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<DataValue> arr = new[] { new DataValue(Variant.From(1)) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<DataValue>>(out ArrayOf<DataValue> value);
+            bool result = v.TryCastTo(out ArrayOf<DataValue> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -562,7 +562,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> arr = new[] { Variant.From(1), Variant.From("text") }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<Variant>>(out ArrayOf<Variant> value);
+            bool result = v.TryCastTo(out ArrayOf<Variant> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(2));
         }
@@ -573,7 +573,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arg = new Argument("P", new NodeId(1), 0, "D");
             ArrayOf<ExtensionObject> arr = new[] { new ExtensionObject(arg, true) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<ArrayOf<ExtensionObject>>(out ArrayOf<ExtensionObject> value);
+            bool result = v.TryCastTo(out ArrayOf<ExtensionObject> value);
             Assert.That(result, Is.True);
             Assert.That(value.Count, Is.EqualTo(1));
         }
@@ -583,7 +583,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<bool> matrix = new bool[,] { { true, false }, { false, true } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<bool>>(out MatrixOf<bool> value);
+            bool result = v.TryCastTo(out MatrixOf<bool> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -593,7 +593,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<sbyte> matrix = new sbyte[,] { { -1, 0 }, { 1, 2 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<sbyte>>(out MatrixOf<sbyte> value);
+            bool result = v.TryCastTo(out MatrixOf<sbyte> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<byte> matrix = new byte[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<byte>>(out MatrixOf<byte> value);
+            bool result = v.TryCastTo(out MatrixOf<byte> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -613,7 +613,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<short> matrix = new short[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<short>>(out MatrixOf<short> value);
+            bool result = v.TryCastTo(out MatrixOf<short> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -623,7 +623,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ushort> matrix = new ushort[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<ushort>>(out MatrixOf<ushort> value);
+            bool result = v.TryCastTo(out MatrixOf<ushort> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -633,7 +633,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<int>>(out MatrixOf<int> value);
+            bool result = v.TryCastTo(out MatrixOf<int> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -643,7 +643,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<uint> matrix = new uint[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<uint>>(out MatrixOf<uint> value);
+            bool result = v.TryCastTo(out MatrixOf<uint> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -653,7 +653,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<long> matrix = new long[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<long>>(out MatrixOf<long> value);
+            bool result = v.TryCastTo(out MatrixOf<long> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -663,7 +663,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ulong> matrix = new ulong[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<ulong>>(out MatrixOf<ulong> value);
+            bool result = v.TryCastTo(out MatrixOf<ulong> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -673,7 +673,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<float> matrix = new float[,] { { 1f, 2f }, { 3f, 4f } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<float>>(out MatrixOf<float> value);
+            bool result = v.TryCastTo(out MatrixOf<float> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -683,7 +683,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<double> matrix = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<double>>(out MatrixOf<double> value);
+            bool result = v.TryCastTo(out MatrixOf<double> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -693,7 +693,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<string> matrix = new string[,] { { "a", "b" }, { "c", "d" } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<string>>(out MatrixOf<string> value);
+            bool result = v.TryCastTo(out MatrixOf<string> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -704,7 +704,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt = (DateTimeUtc)DateTime.UtcNow;
             MatrixOf<DateTimeUtc> matrix = new DateTimeUtc[,] { { dt, dt }, { dt, dt } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<DateTimeUtc>>(out MatrixOf<DateTimeUtc> value);
+            bool result = v.TryCastTo(out MatrixOf<DateTimeUtc> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -715,7 +715,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var uuid = new Uuid(Guid.NewGuid());
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<Guid>>(out MatrixOf<Guid> value);
+            bool result = v.TryCastTo(out MatrixOf<Guid> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -726,7 +726,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var uuid = new Uuid(Guid.NewGuid());
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<Uuid>>(out MatrixOf<Uuid> value);
+            bool result = v.TryCastTo(out MatrixOf<Uuid> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -737,7 +737,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var bs = new ByteString(new byte[] { 1 });
             MatrixOf<ByteString> matrix = new ByteString[,] { { bs, bs }, { bs, bs } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<ByteString>>(out MatrixOf<ByteString> value);
+            bool result = v.TryCastTo(out MatrixOf<ByteString> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -748,7 +748,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xml = new XmlElement("<a/>");
             MatrixOf<XmlElement> matrix = new XmlElement[,] { { xml, xml }, { xml, xml } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<XmlElement>>(out MatrixOf<XmlElement> value);
+            bool result = v.TryCastTo(out MatrixOf<XmlElement> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -759,7 +759,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nid = new NodeId(1);
             MatrixOf<NodeId> matrix = new NodeId[,] { { nid, nid }, { nid, nid } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<NodeId>>(out MatrixOf<NodeId> value);
+            bool result = v.TryCastTo(out MatrixOf<NodeId> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -770,7 +770,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var enid = new ExpandedNodeId(1);
             MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,] { { enid, enid }, { enid, enid } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<ExpandedNodeId>>(out MatrixOf<ExpandedNodeId> value);
+            bool result = v.TryCastTo(out MatrixOf<ExpandedNodeId> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -781,7 +781,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var lt = new LocalizedText("en-US", "Hi");
             MatrixOf<LocalizedText> matrix = new LocalizedText[,] { { lt, lt }, { lt, lt } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<LocalizedText>>(out MatrixOf<LocalizedText> value);
+            bool result = v.TryCastTo(out MatrixOf<LocalizedText> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -792,7 +792,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn = new QualifiedName("Test");
             MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { qn, qn }, { qn, qn } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<QualifiedName>>(out MatrixOf<QualifiedName> value);
+            bool result = v.TryCastTo(out MatrixOf<QualifiedName> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -803,7 +803,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             StatusCode sc = StatusCodes.Good;
             MatrixOf<StatusCode> matrix = new StatusCode[,] { { sc, sc }, { sc, sc } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<StatusCode>>(out MatrixOf<StatusCode> value);
+            bool result = v.TryCastTo(out MatrixOf<StatusCode> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -814,7 +814,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(Variant.From(1));
             MatrixOf<DataValue> matrix = new DataValue[,] { { dv, dv }, { dv, dv } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<DataValue>>(out MatrixOf<DataValue> value);
+            bool result = v.TryCastTo(out MatrixOf<DataValue> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -825,7 +825,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var inner = Variant.From(1);
             MatrixOf<Variant> matrix = new Variant[,] { { inner, inner }, { inner, inner } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<Variant>>(out MatrixOf<Variant> value);
+            bool result = v.TryCastTo(out MatrixOf<Variant> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -837,7 +837,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eo = new ExtensionObject(arg, true);
             MatrixOf<ExtensionObject> matrix = new ExtensionObject[,] { { eo, eo }, { eo, eo } }.ToMatrixOf();
             Variant v = Variant.From(matrix);
-            bool result = v.TryCastTo<MatrixOf<ExtensionObject>>(out MatrixOf<ExtensionObject> value);
+            bool result = v.TryCastTo(out MatrixOf<ExtensionObject> value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.False);
         }
@@ -846,7 +846,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToBoolArrayReturnsBoolArray()
         {
             Variant v = Variant.From([true, false]);
-            bool result = v.TryCastTo<bool[]>(out bool[] value);
+            bool result = v.TryCastTo(out bool[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo([true, false]));
         }
@@ -855,7 +855,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToByteArrayReturnsByteArray()
         {
             Variant v = Variant.From(new byte[] { 1, 2, 3 }.ToArrayOf());
-            bool result = v.TryCastTo<byte[]>(out byte[] value);
+            bool result = v.TryCastTo(out byte[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new byte[] { 1, 2, 3 }));
         }
@@ -864,7 +864,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToSByteArrayReturnsSByteArray()
         {
             Variant v = Variant.From(new sbyte[] { -1, 0, 1 }.ToArrayOf());
-            bool result = v.TryCastTo<sbyte[]>(out sbyte[] value);
+            bool result = v.TryCastTo(out sbyte[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new sbyte[] { -1, 0, 1 }));
         }
@@ -873,7 +873,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt16ArrayReturnsUShortArray()
         {
             Variant v = Variant.From(new ushort[] { 100, 200 }.ToArrayOf());
-            bool result = v.TryCastTo<ushort[]>(out ushort[] value);
+            bool result = v.TryCastTo(out ushort[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new ushort[] { 100, 200 }));
         }
@@ -882,7 +882,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToInt16ArrayReturnsShortArray()
         {
             Variant v = Variant.From(new short[] { -10, 10 }.ToArrayOf());
-            bool result = v.TryCastTo<short[]>(out short[] value);
+            bool result = v.TryCastTo(out short[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new short[] { -10, 10 }));
         }
@@ -891,7 +891,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt32ArrayReturnsUIntArray()
         {
             Variant v = Variant.From(new uint[] { 10, 20 }.ToArrayOf());
-            bool result = v.TryCastTo<uint[]>(out uint[] value);
+            bool result = v.TryCastTo(out uint[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new uint[] { 10, 20 }));
         }
@@ -900,7 +900,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToInt32ArrayReturnsIntArray()
         {
             Variant v = Variant.From([1, 2, 3]);
-            bool result = v.TryCastTo<int[]>(out int[] value);
+            bool result = v.TryCastTo(out int[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo([1, 2, 3]));
         }
@@ -909,7 +909,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUInt64ArrayReturnsULongArray()
         {
             Variant v = Variant.From(new ulong[] { 100, 200 }.ToArrayOf());
-            bool result = v.TryCastTo<ulong[]>(out ulong[] value);
+            bool result = v.TryCastTo(out ulong[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new ulong[] { 100, 200 }));
         }
@@ -919,7 +919,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             long[] values = [-100L, 200L];
             Variant v = Variant.From(values);
-            bool result = v.TryCastTo<long[]>(out long[] value);
+            bool result = v.TryCastTo(out long[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(values));
         }
@@ -928,7 +928,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToDoubleArrayReturnsDoubleArray()
         {
             Variant v = Variant.From([1.1, 2.2]);
-            bool result = v.TryCastTo<double[]>(out double[] value);
+            bool result = v.TryCastTo(out double[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo([1.1, 2.2]));
         }
@@ -937,7 +937,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToFloatArrayReturnsFloatArray()
         {
             Variant v = Variant.From([1.1f, 2.2f]);
-            bool result = v.TryCastTo<float[]>(out float[] value);
+            bool result = v.TryCastTo(out float[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo([1.1f, 2.2f]));
         }
@@ -946,7 +946,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToStringArrayReturnsStringArray()
         {
             Variant v = Variant.From(["a", "b"]);
-            bool result = v.TryCastTo<string[]>(out string[] value);
+            bool result = v.TryCastTo(out string[] value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(["a", "b"]));
         }
@@ -956,7 +956,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.UtcNow;
             Variant v = Variant.From(new[] { dt }.ToArrayOf());
-            bool result = v.TryCastTo<DateTimeUtc[]>(out DateTimeUtc[] value);
+            bool result = v.TryCastTo(out DateTimeUtc[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -966,7 +966,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var uuid = new Uuid(Guid.NewGuid());
             Variant v = Variant.From(new[] { uuid }.ToArrayOf());
-            bool result = v.TryCastTo<Uuid[]>(out Uuid[] value);
+            bool result = v.TryCastTo(out Uuid[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -976,7 +976,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Guid.NewGuid();
             Variant v = Variant.From(new[] { new Uuid(guid) }.ToArrayOf());
-            bool result = v.TryCastTo<Guid[]>(out Guid[] value);
+            bool result = v.TryCastTo(out Guid[] value);
             Assert.That(result, Is.True);
             Assert.That(value[0], Is.EqualTo(guid));
         }
@@ -985,7 +985,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToByteStringArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new ByteString(new byte[] { 1 }) }.ToArrayOf());
-            bool result = v.TryCastTo<ByteString[]>(out ByteString[] value);
+            bool result = v.TryCastTo(out ByteString[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -994,7 +994,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToXmlElementArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new XmlElement("<a/>") }.ToArrayOf());
-            bool result = v.TryCastTo<XmlElement[]>(out XmlElement[] value);
+            bool result = v.TryCastTo(out XmlElement[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToNodeIdArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new NodeId(1) }.ToArrayOf());
-            bool result = v.TryCastTo<NodeId[]>(out NodeId[] value);
+            bool result = v.TryCastTo(out NodeId[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1012,7 +1012,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToExpandedNodeIdArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new ExpandedNodeId(1) }.ToArrayOf());
-            bool result = v.TryCastTo<ExpandedNodeId[]>(out ExpandedNodeId[] value);
+            bool result = v.TryCastTo(out ExpandedNodeId[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToLocalizedTextArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new LocalizedText("en-US", "Hi") }.ToArrayOf());
-            bool result = v.TryCastTo<LocalizedText[]>(out LocalizedText[] value);
+            bool result = v.TryCastTo(out LocalizedText[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToQualifiedNameArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new QualifiedName("Test") }.ToArrayOf());
-            bool result = v.TryCastTo<QualifiedName[]>(out QualifiedName[] value);
+            bool result = v.TryCastTo(out QualifiedName[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToStatusCodeArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { StatusCodes.Good }.ToArrayOf());
-            bool result = v.TryCastTo<StatusCode[]>(out StatusCode[] value);
+            bool result = v.TryCastTo(out StatusCode[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToDataValueArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { new DataValue(Variant.From(1)) }.ToArrayOf());
-            bool result = v.TryCastTo<DataValue[]>(out DataValue[] value);
+            bool result = v.TryCastTo(out DataValue[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToVariantArrayReturnsArray()
         {
             Variant v = Variant.From(new[] { Variant.From(1), Variant.From("x") }.ToArrayOf());
-            bool result = v.TryCastTo<Variant[]>(out Variant[] value);
+            bool result = v.TryCastTo(out Variant[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(2));
         }
@@ -1067,7 +1067,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arg = new Argument("P", new NodeId(1), 0, "D");
             Variant v = Variant.From(new[] { new ExtensionObject(arg, true) }.ToArrayOf());
-            bool result = v.TryCastTo<ExtensionObject[]>(out ExtensionObject[] value);
+            bool result = v.TryCastTo(out ExtensionObject[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(1));
         }
@@ -1082,7 +1082,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new ExtensionObject(arg2, true)
             }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<IEncodeable[]>(out IEncodeable[] value);
+            bool result = v.TryCastTo(out IEncodeable[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(2));
         }
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ExtensionObject> arr = new[] { new ExtensionObject(new NodeId(99999)) }.ToArrayOf();
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<IEncodeable[]>(out IEncodeable[] value);
+            bool result = v.TryCastTo(out IEncodeable[] value);
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
         }
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [0, 1, 2];
             Variant v = Variant.From(arr);
-            bool result = v.TryCastTo<TestEnum[]>(out TestEnum[] value);
+            bool result = v.TryCastTo(out TestEnum[] value);
             Assert.That(result, Is.True);
             Assert.That(value.Length, Is.EqualTo(3));
         }
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastToUnsupportedTypeReturnsFalse()
         {
             Variant v = Variant.From(42);
-            bool result = v.TryCastTo<TimeSpan>(out TimeSpan value);
+            bool result = v.TryCastTo(out TimeSpan value);
             Assert.That(result, Is.False);
             Assert.That(value, Is.Default);
         }
@@ -1979,7 +1979,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             const bool original = true;
             VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo<bool>(out bool result);
+            variant.TryCastTo(out bool result);
             Assert.That(result, Is.EqualTo(original));
         }
 
@@ -1988,7 +1988,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             int[] original = new[] { 1, 2, 3 };
             VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo<int[]>(out int[] result);
+            variant.TryCastTo(out int[] result);
             Assert.That(result, Is.EqualTo(original));
         }
 
@@ -1997,7 +1997,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             const string original = "test value";
             VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo<string>(out string result);
+            variant.TryCastTo(out string result);
             Assert.That(result, Is.EqualTo(original));
         }
     }

@@ -379,7 +379,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult == int.MinValue ? default : compareResult > 0;
+            return compareResult != int.MinValue && compareResult > 0;
         }
 
         /// <summary>
@@ -394,7 +394,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult == int.MinValue ? default : compareResult >= 0;
+            return compareResult != int.MinValue && compareResult >= 0;
         }
 
         /// <summary>
@@ -409,7 +409,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult == int.MinValue ? default : compareResult < 0;
+            return compareResult != int.MinValue && compareResult < 0;
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult == int.MinValue ? default : compareResult <= 0;
+            return compareResult != int.MinValue && compareResult <= 0;
         }
 
         /// <summary>

@@ -671,7 +671,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             MatrixOf<int> matrix = source.ToMatrixOf();
             MatrixOf<int> original = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
 
             StatusCode statusCode = numericRange.ApplyRange(ref matrix);
 
@@ -823,7 +823,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             MatrixOf<string> matrix = source.ToMatrixOf();
             MatrixOf<string> original = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
 
             StatusCode statusCode = numericRange.ApplyRange(ref matrix);
 
@@ -922,7 +922,7 @@ namespace Opc.Ua.Types.Tests.Utils
             }.ToMatrixOf();
 
             Variant source = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
             StatusCode statusCode = numericRange.ApplyRange(ref source);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(source.GetByteStringMatrix(), Is.EqualTo(matrix));

@@ -44,7 +44,6 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -281,8 +280,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
                 Assert.That(result, Is.EqualTo(expected), encodeInfo);
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(expected, result),
+                    Is.True,
                     "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
@@ -434,7 +434,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var resultParsed = JObject.Parse(result, jsonLoadSettings);
                 var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
                 bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
-                Assert.IsTrue(areEqual, encodeInfo);
+                Assert.That(areEqual, Is.True, encodeInfo);
             }
             catch
             {
@@ -490,7 +490,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(xml);
-                NUnit.Framework.Assert.Fail("Invalid xml data: " + ex.Message);
+                Assert.Fail("Invalid xml data: " + ex.Message);
             }
             return Encoding.UTF8.GetString(xml);
         }
@@ -539,7 +539,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
+                Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }

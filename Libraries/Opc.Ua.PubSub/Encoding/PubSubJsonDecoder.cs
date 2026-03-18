@@ -2347,7 +2347,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public T ReadEncodeableAsExtensionObject<T>(string fieldName) where T : IEncodeable
         {
-            return ReadExtensionObject(fieldName).TryGetEncodeable<T>(out T value) ? value : default;
+            return ReadExtensionObject(fieldName).TryGetEncodeable(out T value) ? value : default;
         }
 
         /// <inheritdoc/>

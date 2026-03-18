@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -139,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -236,7 +235,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -336,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -443,7 +442,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -543,7 +542,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -669,7 +668,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                NUnit.Framework.Assert.Fail("The UDP message was not received");
+                Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -699,7 +698,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Warn(
+                Assert.Warn(
                     Utils.Format(
                         "OnReceive() failed due to the following reason: {0}",
                         ex.Message));

@@ -4886,7 +4886,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
-        protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
+        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
             ServerSystemContext context,
             NodeId nodeId,
             IDictionary<NodeId, NodeState> cache,
@@ -4895,20 +4895,20 @@ namespace Quickstarts.ReferenceServer
             // quickly exclude nodes that are not in the namespace.
             if (!IsNodeIdInNamespace(nodeId))
             {
-                return null;
+                return default(ValueTask<NodeHandle>);
             }
 
             if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
-                return null;
+                return default(ValueTask<NodeHandle>);
             }
 
-            return new NodeHandle
+            return new ValueTask<NodeHandle>(new NodeHandle
             {
                 NodeId = nodeId,
                 Node = node,
                 Validated = true
-            };
+            });
         }
 
         /// <summary>

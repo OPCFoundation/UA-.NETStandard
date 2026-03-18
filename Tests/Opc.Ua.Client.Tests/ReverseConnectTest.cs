@@ -37,7 +37,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -69,7 +68,7 @@ namespace Opc.Ua.Client.Tests
             // this test fails on macOS, ignore (TODO)
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Reverse connect fails on mac OS.");
+                Assert.Ignore("Reverse connect fails on mac OS.");
             }
 
             // pki directory root for test runs.

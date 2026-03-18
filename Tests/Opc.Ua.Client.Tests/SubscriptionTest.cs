@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -148,7 +147,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list[0]);
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
             Assert.True(subscription.ChangesPending);
-            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
@@ -209,13 +208,13 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await subscription.RepublishAsync(subscription.SequenceNumber + 100)
                     .ConfigureAwait(false));
-            Assert.AreEqual(
-                StatusCodes.BadMessageNotAvailable,
+            Assert.That(
                 sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadMessageNotAvailable),
                 $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
@@ -243,7 +242,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(m_subscriptionTestXml))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore($"Save file {m_subscriptionTestXml} does not exist yet");
             }
 
@@ -431,7 +430,7 @@ namespace Opc.Ua.Client.Tests
             // The issue more unlikely seem to appear on .NET 6 in the given timeframe
             if (!enabled && !failed)
             {
-                NUnit.Framework.Assert
+                Assert
                     .Inconclusive("The test couldn't validate the issue on this platform");
             }
 
@@ -520,7 +519,7 @@ namespace Opc.Ua.Client.Tests
                 endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
@@ -649,7 +648,7 @@ namespace Opc.Ua.Client.Tests
             bool reactivateResult = await session2
                 .ReactivateSubscriptionsAsync(restoredSubscriptions, sendInitialValues)
                 .ConfigureAwait(false);
-            Assert.IsTrue(reactivateResult);
+            Assert.That(reactivateResult, Is.True);
 
             await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
@@ -707,12 +706,12 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                    sre = Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
-                    Assert.AreEqual(
-                        StatusCodes.BadSecureChannelIdInvalid,
+                    Assert.That(
                         sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
                         sre.Message);
                 }
                 else
@@ -777,7 +776,7 @@ namespace Opc.Ua.Client.Tests
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
                 subscription.AddItems(list);
-                NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
+                Assert.ThrowsAsync<ServiceResultException>(
                     () => subscription.CreateAsync());
                 bool result = Session.AddSubscription(subscription);
                 Assert.True(result);
@@ -1104,12 +1103,12 @@ namespace Opc.Ua.Client.Tests
             bool result = await targetSession
                 .TransferSubscriptionsAsync(transferSubscriptions, sendInitialValues)
                 .ConfigureAwait(false);
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
 
             // validate results
             for (int ii = 0; ii < transferSubscriptions.Count; ii++)
             {
-                Assert.IsTrue(transferSubscriptions[ii].Created);
+                Assert.That(transferSubscriptions[ii].Created, Is.True);
             }
 
             TestContext.Out
@@ -1347,11 +1346,11 @@ namespace Opc.Ua.Client.Tests
             Assert.True(conditionRefresh);
 
             ServiceResultException sre =
-                NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                Assert.ThrowsAsync<ServiceResultException>(() =>
                     subscription.RepublishAsync(subscription.SequenceNumber + 100));
-            Assert.AreEqual(
-                StatusCodes.BadMessageNotAvailable,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadMessageNotAvailable));
 
             subscription.RemoveItems(list);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);

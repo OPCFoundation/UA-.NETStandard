@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void ClearOnEmptyTableDoesNotThrow()
         {
             Assert.That(m_nodeTable.Count, Is.Zero);
-            Assert.DoesNotThrow(() => m_nodeTable.Clear());
+            Assert.DoesNotThrow(m_nodeTable.Clear);
         }
 
         [Test]

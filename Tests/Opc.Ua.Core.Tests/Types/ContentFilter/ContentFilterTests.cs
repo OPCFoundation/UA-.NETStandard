@@ -41,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             NodeId typeDefinitionId,
             ArrayOf<QualifiedName> relativePath,
             uint attributeId,
-            Ua.NumericRange indexRange)
+            NumericRange indexRange)
         {
             throw new NotImplementedException();
         }

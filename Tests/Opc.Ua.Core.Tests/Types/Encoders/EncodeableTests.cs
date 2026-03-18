@@ -32,7 +32,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -142,15 +141,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
                 case EncodingType.Xml:
                     string xml = Encoding.UTF8.GetString(buffer);
-                    Assert.IsTrue(
+                    Assert.That(
                         xml.Contains(
                             "<Array xmlns=\"urn:This:is:another:namespace\">",
-                            StringComparison.Ordinal));
+                            StringComparison.Ordinal),
+                        Is.True);
                     break;
                 case EncodingType.Binary:
                     break;
                 default:
-                    NUnit.Framework.Assert.Fail($"Encoder type {encoderType} not supported.");
+                    Assert.Fail($"Encoder type {encoderType} not supported.");
                     break;
             }
 

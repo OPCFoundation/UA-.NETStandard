@@ -40,7 +40,6 @@ using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -132,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
             catch (Exception e)
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
             }
         }
@@ -171,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
 
             bool success = await typeSystem.LoadAsync(onlyEnumTypes, true).ConfigureAwait(false);
-            Assert.IsTrue(success);
+            Assert.That(success, Is.True);
 
             Type[] types = typeSystem.GetDefinedTypes();
             TestContext.Out.WriteLine("Types loaded: {0} ", types.Length);
@@ -193,12 +192,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 if (type.IsEnum)
                 {
                     Assert.That(definitions.Count, Is.EqualTo(1));
-                    Assert.IsTrue(definitions.First().Value is EnumDefinition);
+                    Assert.That(definitions.First().Value is EnumDefinition, Is.True);
                     Assert.That(definitions.First().Key, Is.EqualTo(localTypeId));
                 }
                 else
                 {
-                    Assert.IsTrue(definitions[localTypeId] is StructureDefinition);
+                    Assert.That(definitions[localTypeId] is StructureDefinition, Is.True);
                 }
             }
         }
@@ -232,10 +231,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             foreach (ServiceResult serviceResult in serviceResults)
             {
                 ServiceResult result = serviceResults[ii++];
-                Assert.IsTrue(
+                Assert.That(
                     ServiceResult.IsGood(serviceResult) ||
                     serviceResult.StatusCode == StatusCodes.BadNotReadable ||
                     serviceResult.StatusCode == StatusCodes.BadUserAccessDenied,
+                    Is.True,
                     $"Expected good result, but received {serviceResult}");
             }
         }
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             foreach (ServiceResult serviceResult in serviceResults)
             {
-                Assert.IsTrue(ServiceResult.IsGood(serviceResult), serviceResult.ToString());
+                Assert.That(ServiceResult.IsGood(serviceResult), Is.True, serviceResult.ToString());
             }
 
             // check if complex type is properly decoded
@@ -372,7 +372,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             if (testFailed)
             {
-                NUnit.Framework.Assert.Fail(
+                Assert.Fail(
                     "Test failed, unknown or undecodable complex type detected. See log for information.");
             }
         }
@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             if (m_browsedNodesCount < 0 || m_fetchedNodesCount < 0)
             {
-                NUnit.Framework.Assert.Ignore("The browse or fetch test did not run.");
+                Assert.Ignore("The browse or fetch test did not run.");
             }
             Assert.That(m_browsedNodesCount, Is.EqualTo(m_fetchedNodesCount));
         }

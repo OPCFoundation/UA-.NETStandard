@@ -36,7 +36,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 
 namespace Opc.Ua.PubSub.Tests.Encoding

@@ -34,7 +34,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -98,7 +97,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
@@ -391,10 +390,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.CrlExtensions, Is.Not.Null);
             Assert.That(x509Crl.RevokedCertificates, Is.Not.Null);
             Assert.That(x509Crl.IssuerName.RawData, Is.EqualTo(crlBuilder.IssuerName.RawData));
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 crlBuilder.ThisUpdate,
                 Is.EqualTo(x509Crl.ThisUpdate).Within(TimeSpan.FromSeconds(1)));
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 crlBuilder.NextUpdate,
                 Is.EqualTo(x509Crl.NextUpdate).Within(TimeSpan.FromSeconds(1)));
             Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));

@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -145,7 +144,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    NUnit.Framework.Assert.Ignore(
+                    Assert.Ignore(
                         $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
@@ -264,17 +263,17 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(mi);
 
             ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
-            NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
-            NUnit.Framework.Assert
+            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
+            Assert
                 .That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
             ArrayOf<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
                 .ConfigureAwait(false);
-            NUnit.Framework.Assert
+            Assert
                 .That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
-            NUnit.Framework.Assert
+            Assert
                 .That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
             (bool success, _, _) = await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
@@ -314,9 +313,9 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(mi);
 
             ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
-            NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
+            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
-            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+            Assert.ThrowsAsync<ServiceResultException>(() =>
                 Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
@@ -340,7 +339,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
 
-            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+            Assert.ThrowsAsync<ServiceResultException>(() =>
                 Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
         }
 
@@ -353,7 +352,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Timing on mac OS causes issues");
+                Assert.Ignore("Timing on mac OS causes issues");
             }
 
             ISession transferSession = null;

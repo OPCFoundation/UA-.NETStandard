@@ -43,7 +43,7 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -1567,10 +1567,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1686,10 +1687,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1764,10 +1766,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 // compare the initial metadata with the one from the messages
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
+                    Is.True,
                     "After MetaDataVersion change - Metadata from network message is different from the original one for name " +
                     dataSetMetaDataArray[index].Name);
 
@@ -1859,14 +1862,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
 
-            Assert.IsTrue(
+            Assert.That(
                 faultIndex < 0,
-                "publishingInterval={0}, maxDeviation={1}, publishTimeInSeconds={2}, deviation[{3}] = {4} has maximum deviation",
-                metaDataUpdateTime,
-                maxDeviation,
-                publishTimeInSeconds,
-                faultIndex,
-                faultDeviation);
+                Is.True,
+                $"publishingInterval={metaDataUpdateTime}, maxDeviation={maxDeviation}, publishTimeInSeconds={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} has maximum deviation");
         }
 
         [Test(Description = "Validate missing or wrong DataSetMetaData fields definition")]
@@ -2198,8 +2197,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private void CompareEncodeDecodeMetaData(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
-            Assert.IsTrue(
+            Assert.That(
                 jsonNetworkMessage.IsMetaDataMessage,
+                Is.True,
                 "The received message is not a metadata message");
 
             byte[] bytes = jsonNetworkMessage.Encode(m_messageContext);
@@ -2210,8 +2210,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var uaNetworkMessageDecoded = new PubSubEncoding.JsonNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(m_messageContext, bytes, null);
 
-            Assert.IsTrue(
+            Assert.That(
                 uaNetworkMessageDecoded.IsMetaDataMessage,
+                Is.True,
                 "The Decode message is not a metadata message");
 
             Assert.That(
@@ -2219,10 +2220,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Is.EqualTo(jsonNetworkMessage.WriterGroupId),
                 "The Decoded WriterId does not match encoded value");
 
-            Assert.IsTrue(
+            Assert.That(
                 Utils.IsEqual(
                     jsonNetworkMessage.DataSetMetaData,
                     uaNetworkMessageDecoded.DataSetMetaData),
+                Is.True,
                 jsonNetworkMessage.DataSetMetaData.Name + " Decoded metadata is not equal ");
 
             // validate network message metadata
@@ -2269,10 +2271,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Verify flags
             if (!jsonNetworkMessageEncode.IsMetaDataMessage)
             {
-                Assert.AreEqual(
-                    jsonNetworkMessageEncode.NetworkMessageContentMask &
+                Assert.That(
                     jsonNetworkMessageDecoded.NetworkMessageContentMask,
-                    jsonNetworkMessageDecoded.NetworkMessageContentMask,
+                    Is.EqualTo(jsonNetworkMessageEncode.NetworkMessageContentMask &
+                    jsonNetworkMessageDecoded.NetworkMessageContentMask),
                     "NetworkMessageContentMask were not decoded correctly");
             }
 
@@ -2473,7 +2475,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
             if (failOptions != MetaDataFailOptions.Ok)
             {
-                NUnit.Framework.Assert.Fail(
+                Assert.Fail(
                     $"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
             }
         }
@@ -2569,31 +2571,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 return MetaDataFailOptions.MetaData_Name;
             }
-            Assert.AreEqual(
-                jsonNetworkMessage.DataSetMetaData.Name,
+            Assert.That(
                 dataSetMetaData.Name,
-                "DataSetMetaData.Name was not decoded correctly, Encoded: {0} Decoded: {1}",
-                jsonNetworkMessage.DataSetMetaData.Name,
-                dataSetMetaData.Name);
+                Is.EqualTo(jsonNetworkMessage.DataSetMetaData.Name),
+                $"DataSetMetaData.Name was not decoded correctly, Encoded: {jsonNetworkMessage.DataSetMetaData.Name} Decoded: {dataSetMetaData.Name}");
 
-            Assert.AreEqual(
-                jsonNetworkMessage.DataSetMetaData.Description,
+            Assert.That(
                 dataSetMetaData.Description,
-                "DataSetMetaData.Description was not decoded correctly, Encoded: {0} Decoded: {1}",
-                jsonNetworkMessage.DataSetMetaData.Description,
-                dataSetMetaData.Description);
+                Is.EqualTo(jsonNetworkMessage.DataSetMetaData.Description),
+                $"DataSetMetaData.Description was not decoded correctly, Encoded: {jsonNetworkMessage.DataSetMetaData.Description} Decoded: {dataSetMetaData.Description}");
 
             // jsonDataSetMetaData.Fields.Count should be > 0
             if (jsonDataSetMetaData.Fields.Count == 0)
             {
                 return MetaDataFailOptions.MetaData_Fields;
             }
-            Assert.AreEqual(
-                jsonNetworkMessage.DataSetMetaData.Fields.Count,
+            Assert.That(
                 dataSetMetaData.Fields.Count,
-                "DataSetMetaData.Fields.Count are not equal, Encoded: {0} Decoded: {1}",
-                jsonNetworkMessage.DataSetMetaData.Fields.Count,
-                dataSetMetaData.Fields.Count);
+                Is.EqualTo(jsonNetworkMessage.DataSetMetaData.Fields.Count),
+                $"DataSetMetaData.Fields.Count are not equal, Encoded: {jsonNetworkMessage.DataSetMetaData.Fields.Count} Decoded: {dataSetMetaData.Fields.Count}");
 
             foreach (FieldMetaData jsonFieldMetaData in jsonNetworkMessage.DataSetMetaData.Fields)
             {
@@ -2604,10 +2600,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     fieldMetaData,
                     "DataSetMetaData.Field - Name: '{0}' read by json decoder not found into decoded DataSetMetaData.Fields collection.",
                     jsonFieldMetaData.Name);
-                Assert.IsTrue(
+                Assert.That(
                     Utils.IsEqual(jsonFieldMetaData, fieldMetaData),
-                    "FieldMetaData found in decoded collection is not identical with original one. Encoded: {0} Decoded: {1}",
-                    Utils.Format(
+                    Is.True,
+                    $"FieldMetaData found in decoded collection is not identical with original one. Encoded: {Utils.Format(
                         "Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
                         jsonFieldMetaData.Name,
                         jsonFieldMetaData.Description,
@@ -2615,48 +2611,44 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         jsonFieldMetaData.BuiltInType,
                         jsonFieldMetaData.DataType,
                         jsonFieldMetaData.TypeId
-                    ),
-                    Utils.Format(
+                    )} Decoded: {Utils.Format(
                         "Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
                         fieldMetaData.Name,
                         fieldMetaData.Description,
                         fieldMetaData.DataSetFieldId,
                         fieldMetaData.BuiltInType,
                         fieldMetaData.DataType,
-                        fieldMetaData.TypeId));
+                        fieldMetaData.TypeId)}");
             }
 
             if (jsonDataSetMetaData.DataSetClassId == Uuid.Empty)
             {
                 return MetaDataFailOptions.MetaData_DataSetClassId;
             }
-            Assert.AreEqual(
-                jsonNetworkMessage.DataSetMetaData.DataSetClassId,
+            Assert.That(
                 dataSetMetaData.DataSetClassId,
-                "DataSetMetaData.DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}",
-                jsonNetworkMessage.DataSetMetaData.DataSetClassId,
-                dataSetMetaData.DataSetClassId);
+                Is.EqualTo(jsonNetworkMessage.DataSetMetaData.DataSetClassId),
+                $"DataSetMetaData.DataSetClassId was not decoded correctly, Encoded: {jsonNetworkMessage.DataSetMetaData.DataSetClassId} Decoded: {dataSetMetaData.DataSetClassId}");
 
             if (jsonDataSetMetaData.ConfigurationVersion.MajorVersion == 0 &&
                 jsonDataSetMetaData.ConfigurationVersion.MinorVersion == 0)
             {
                 return MetaDataFailOptions.MetaData_ConfigurationVersion;
             }
-            Assert.IsTrue(
+            Assert.That(
                 Utils.IsEqual(
                     jsonNetworkMessage.DataSetMetaData.ConfigurationVersion,
                     dataSetMetaData.ConfigurationVersion
                 ),
-                "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
-                Utils.Format(
+                Is.True,
+                $"DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {Utils.Format(
                     "MajorVersion: {0}, MinorVersion: {1}",
                     jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
                     jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion
-                ),
-                Utils.Format(
+                )} Decoded: {Utils.Format(
                     "MajorVersion: {0}, MinorVersion: {1}",
                     dataSetMetaData.ConfigurationVersion.MajorVersion,
-                    dataSetMetaData.ConfigurationVersion.MinorVersion));
+                    dataSetMetaData.ConfigurationVersion.MinorVersion)}");
 
             return MetaDataFailOptions.Ok;
         }
@@ -2671,11 +2663,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             switch (failOptions)
             {
                 case NetworkMessageFailOptions nmfo when nmfo != NetworkMessageFailOptions.Ok:
-                    NUnit.Framework.Assert.Fail(
+                    Assert.Fail(
                         $"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
                     break;
                 case DataSetMessageFailOptions dmfo when dmfo != DataSetMessageFailOptions.Ok:
-                    NUnit.Framework.Assert.Fail(
+                    Assert.Fail(
                         $"The mandatory 'jsonDataSetMessage.{failOptions}' field is wrong or missing from decoded message.");
                     break;
             }
@@ -2881,11 +2873,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                 object decodedFieldValue = null;
                                 foreach (Field field in jsonDataSetMessage.DataSet.Fields)
                                 {
-                                    Assert.IsTrue(
+                                    Assert.That(
                                         dataSetPayload?.Keys
                                             .Any(key => key == field.FieldMetaData.Name),
-                                        "Decoded Field: {0} not found",
-                                        field.FieldMetaData.Name);
+                                        Is.True,
+                                        $"Decoded Field: {field.FieldMetaData.Name} not found");
                                     Assert.IsNotNull(
                                         dataSetPayload[field.FieldMetaData.Name],
                                         "Decoded Field: {0} is not null",
@@ -2902,25 +2894,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     ((Variant)decodedFieldValue).IsNull,
                                                     "Decoded Field: {0} value should not be null",
                                                     field.FieldMetaData.Name);
-                                                Assert.AreEqual(
-                                                    field.Value.WrappedValue,
+                                                Assert.That(
                                                     (Variant)decodedFieldValue,
-                                                    "Decoded Field name: {0} values: encoded Variant {1} - decoded {2}",
-                                                    field.FieldMetaData.Name,
-                                                    field.Value.WrappedValue,
-                                                    dataSetPayload[field.FieldMetaData.Name]);
+                                                    Is.EqualTo(field.Value.WrappedValue),
+                                                    $"Decoded Field name: {field.FieldMetaData.Name} values: encoded Variant {field.Value.WrappedValue} - decoded {dataSetPayload[field.FieldMetaData.Name]}");
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                                                Assert.IsTrue(
+                                                Assert.That(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
                                                         ((Variant)decodedFieldValue).Value
                                                     ),
-                                                    "Decoded Field name: {0} values: encoded {1} - decoded {2}",
-                                                    field.FieldMetaData.Name,
-                                                    field.Value.Value,
-                                                    dataSetPayload[field.FieldMetaData.Name]);
+                                                    Is.True,
+                                                    $"Decoded Field name: {field.FieldMetaData.Name} values: encoded {field.Value.Value} - decoded {dataSetPayload[field.FieldMetaData.Name]}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -2971,14 +2958,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                 }
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                                                Assert.IsTrue(
+                                                Assert.That(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
                                                         decodedFieldValue),
-                                                    "Decoded Field name: {0} values: encoded {1} - decoded {2}",
-                                                    field.FieldMetaData.Name,
-                                                    field.Value.Value,
-                                                    dataSetPayload[field.FieldMetaData.Name]);
+                                                    Is.True,
+                                                    $"Decoded Field name: {field.FieldMetaData.Name} values: encoded {field.Value.Value} - decoded {dataSetPayload[field.FieldMetaData.Name]}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
                                                 break;
@@ -3121,14 +3106,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                                                    Assert.IsTrue(
+                                                    Assert.That(
                                                         Utils.IsEqual(
                                                             field.Value.Value,
                                                             dataValue.Value),
-                                                        "Decoded Field name: {0} values: encoded {1} - decoded {2}",
-                                                        field.FieldMetaData.Name,
-                                                        field.Value.Value,
-                                                        dataSetPayload[field.FieldMetaData.Name]);
+                                                        Is.True,
+                                                        $"Decoded Field name: {field.FieldMetaData.Name} values: encoded {field.Value.Value} - decoded {dataSetPayload[field.FieldMetaData.Name]}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -3164,20 +3147,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                     DataSetMessageMetaDataVersion,
                                     typeof(ConfigurationVersionDataType)
                                 ) as ConfigurationVersionDataType;
-                            Assert.IsTrue(
+                            Assert.That(
                                 Utils.IsEqual(
                                     jsonDataSetMessage.MetaDataVersion,
                                     configurationVersion),
-                                "jsonDataSetMessage.MetaDataVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
-                                Utils.Format(
+                                Is.True,
+                                $"jsonDataSetMessage.MetaDataVersion was not decoded correctly, Encoded: {Utils.Format(
                                     "MajorVersion: {0}, MinorVersion: {1}",
                                     jsonDataSetMessage.MetaDataVersion.MajorVersion,
                                     jsonDataSetMessage.MetaDataVersion.MinorVersion
-                                ),
-                                Utils.Format(
+                                )} Decoded: {Utils.Format(
                                     "MajorVersion: {0}, MinorVersion: {1}",
                                     configurationVersion?.MajorVersion,
-                                    configurationVersion?.MinorVersion));
+                                    configurationVersion?.MinorVersion)}");
                         }
 
                         if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))
@@ -3231,12 +3213,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
-                    NUnit.Framework.Assert.Warn(
+                    Assert.Warn(
                         $"JsonDataSetMessage - Decoding ValueRank = {fieldMetaData.ValueRank} not supported yet !!!");
                 }
                 catch (Exception ex)
                 {
-                    NUnit.Framework.Assert.Warn(
+                    Assert.Warn(
                         $"JsonDataSetMessage - Error reading element for RawData. {ex.Message}");
                     return StatusCodes.BadDecodingError;
                 }
@@ -3312,7 +3294,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             catch (Exception)
             {
-                NUnit.Framework.Assert
+                Assert
                     .Warn($"JsonDataSetMessage - Error decoding field {fieldName}");
             }
 
@@ -3351,7 +3333,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
+                Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }

@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -136,7 +135,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         AddNodesResponse response = await Session
@@ -151,9 +150,9 @@ namespace Opc.Ua.Client.Tests
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
-            Assert.AreEqual(
-                StatusCodes.BadServiceUnsupported,
+            Assert.That(
                 sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadServiceUnsupported),
                 sre.ToString());
         }
 
@@ -168,7 +167,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         AddReferencesResponse response = await Session
@@ -186,9 +185,9 @@ namespace Opc.Ua.Client.Tests
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
-            Assert.AreEqual(
-                StatusCodes.BadServiceUnsupported,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -202,7 +201,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         DeleteNodesResponse response = await Session
@@ -217,9 +216,9 @@ namespace Opc.Ua.Client.Tests
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
-            Assert.AreEqual(
-                StatusCodes.BadServiceUnsupported,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -233,7 +232,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         DeleteReferencesResponse response = await Session
@@ -251,9 +250,9 @@ namespace Opc.Ua.Client.Tests
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
-            Assert.AreEqual(
-                StatusCodes.BadServiceUnsupported,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -496,7 +495,7 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // there are no historizing nodes, instead use some real nodes to test
-            System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
+            IList<NodeId> testSet = GetTestSetSimulation(
                 Session.NamespaceUris);
 
             // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why

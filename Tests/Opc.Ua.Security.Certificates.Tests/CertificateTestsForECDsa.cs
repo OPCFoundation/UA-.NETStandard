@@ -32,7 +32,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NETFRAMEWORK
 using Org.BouncyCastle.X509;
 #endif
@@ -236,10 +236,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumberLength(0).SetECCurve(eccurve)
                     .CreateForECDsa());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                 .SetECCurve(eccurve)
@@ -268,10 +268,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumber([]).SetECCurve(eccurve)
                     .CreateForECDsa());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                     .Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .SetECCurve(eccurve)
@@ -361,7 +361,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            Assert.Throws<NotSupportedException>(() =>
             {
                 using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);

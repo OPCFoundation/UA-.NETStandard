@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -179,13 +178,13 @@ namespace Opc.Ua.Server.Tests
                 bool result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
 
                 //-- Assert
-                Assert.IsTrue(result);
+                Assert.That(result, Is.True);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
                 Assert.That(registeredManagers.Length, Is.EqualTo(totalManagers - 1));
-                NUnit.Framework.Assert.That(registeredManagers.Select(m => m.SyncNodeManager).ToList(), Has.No.Member(nodeManagerToRemove));
+                Assert.That(registeredManagers.Select(m => m.SyncNodeManager).ToList(), Has.No.Member(nodeManagerToRemove));
             }
             finally
             {
@@ -281,7 +280,7 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.IsFalse(result);
-                NUnit.Framework.Assert
+                Assert
                     .That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());

@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if !NET8_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -22,7 +22,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
@@ -85,7 +85,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif

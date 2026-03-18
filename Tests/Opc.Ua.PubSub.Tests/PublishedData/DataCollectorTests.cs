@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.PublishedData
 {
@@ -55,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
         }
 
@@ -111,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
         }
 
@@ -204,9 +203,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
             Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
-            Assert.AreEqual(
-                collectedDataSet.Fields.Length,
+            Assert.That(
                 publishedDataItems.PublishedData.Count,
+                Is.EqualTo(collectedDataSet.Fields.Length),
                 "collectedDataSet and published data fields count do not match.");
 
             // validate collected values
@@ -307,9 +306,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
             Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
-            Assert.AreEqual(
-                collectedDataSet.Fields.Length,
+            Assert.That(
                 publishedDataItems.PublishedData.Count,
+                Is.EqualTo(collectedDataSet.Fields.Length),
                 "collectedDataSet and published data fields count do not match.");
             // validate collected values
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -360,7 +359,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => dataCollector.CollectData(null),
                 "The data collect does not throw exception when null parameter.");
         }

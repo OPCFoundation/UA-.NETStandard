@@ -38,7 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.InteropServices;
 #endif
@@ -199,7 +198,7 @@ namespace Opc.Ua.Configuration.Tests
                     CertificateStoreType.Directory,
                     m_pkiRoot);
 
-            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -212,14 +211,14 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
             };
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                     .CreateAsync()
                     .ConfigureAwait(false));
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -239,7 +238,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
+            Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
 
             // client overrides server setting
             applicationInstance = new ApplicationInstance(telemetry)
@@ -254,12 +253,12 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
+            Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
 
             // invalid sec policy testing
             applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             // invalid use, use AddUnsecurePolicyNone instead
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -268,7 +267,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false));
             // invalid mix sign / none
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -277,7 +276,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false));
             // invalid policy
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -286,7 +285,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false));
             // invalid user token policy
-            NUnit.Framework.Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
@@ -424,7 +423,7 @@ namespace Opc.Ua.Configuration.Tests
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("X509Store trust lists not supported on mac OS.");
+                Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -480,7 +479,7 @@ namespace Opc.Ua.Configuration.Tests
                 using (ICertificateStore store = applicationCertificate.OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
-                    Assert.IsTrue(success);
+                    Assert.That(success, Is.True);
                 }
                 using (
                     ICertificateStore store =
@@ -489,7 +488,7 @@ namespace Opc.Ua.Configuration.Tests
                             .OpenStore(telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
-                    Assert.IsTrue(success);
+                    Assert.That(success, Is.True);
                 }
             }
         }
@@ -620,12 +619,12 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 else
                 {
-                    ServiceResultException sre = NUnit.Framework.Assert
+                    ServiceResultException sre = Assert
                         .ThrowsAsync<ServiceResultException>(async () =>
                             await applicationInstance.CheckApplicationInstanceCertificatesAsync(
                                 true)
                             .ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 }
             }
         }
@@ -739,12 +738,12 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 else
                 {
-                    ServiceResultException sre = NUnit.Framework.Assert
+                    ServiceResultException sre = Assert
                         .ThrowsAsync<ServiceResultException>(async () =>
                             await applicationInstance.CheckApplicationInstanceCertificatesAsync(
                                 true)
                             .ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 }
             }
         }
@@ -788,7 +787,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
 
             //Assert
-            Assert.IsTrue(storedCertificates.Contains(cert));
+            Assert.That(storedCertificates.Contains(cert), Is.True);
         }
 
         /// <summary>
@@ -824,7 +823,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateAsync()
                 .ConfigureAwait(false);
 
-            NUnit.Framework.Assert.DoesNotThrowAsync(
+            Assert.DoesNotThrowAsync(
                 async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
 
             subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
@@ -843,11 +842,11 @@ namespace Opc.Ua.Configuration.Tests
             // Since the SubjectName is a substring of the first one's CN,
             // the matching algorithm will find the first certificate because a fuzzy match is done on the SubjectName when SubjectName does not contain CN=.
             // However, since the ApplicationUri is different, the certificate will be considered invalid
-            ServiceResultException exception = NUnit.Framework.Assert
+            ServiceResultException exception = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadConfigurationError, exception.StatusCode);
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
 
             subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
             var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
@@ -863,7 +862,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
 
             // Since the SubjectName contains CN=UA, the matching algorithm will not do a fuzzy match and will not find the first certificate.
-            NUnit.Framework.Assert.DoesNotThrowAsync(
+            Assert.DoesNotThrowAsync(
                 async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
         }
 
@@ -924,11 +923,11 @@ namespace Opc.Ua.Configuration.Tests
 
             if (disableCertificateAutoCreation)
             {
-                ServiceResultException sre = NUnit.Framework.Assert
+                ServiceResultException sre = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             }
             else
             {
@@ -1011,12 +1010,12 @@ namespace Opc.Ua.Configuration.Tests
             ];
 
             // This should throw because all certificates must have the same ApplicationUri
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
-            NUnit.Framework.Assert.That(sre.Message, Does.Contain("certificate") & Does.Contain("invalid"));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(sre.Message, Does.Contain("certificate") & Does.Contain("invalid"));
         }
 
         /// <summary>
@@ -1103,7 +1102,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1176,7 +1175,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1223,11 +1222,11 @@ namespace Opc.Ua.Configuration.Tests
             config.SecurityConfiguration.ApplicationCertificates = [certId];
 
             // This should fail because none of the URIs match
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         /// <summary>
@@ -1241,7 +1240,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1322,7 +1321,7 @@ namespace Opc.Ua.Configuration.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1386,11 +1385,11 @@ namespace Opc.Ua.Configuration.Tests
             ];
 
             // This should fail because cert2 doesn't contain ApplicationUri
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         private static X509Certificate2 CreateInvalidCert(InvalidCertType certType)

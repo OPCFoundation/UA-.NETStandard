@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
 {
@@ -134,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_ValueName_ReturnsValueId()
         {
             uint id = Attributes.GetIdentifier("Value");
-            Assert.AreEqual(Attributes.Value, id);
+            Assert.That(id, Is.EqualTo(Attributes.Value));
         }
 
         /// <summary>

@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -272,13 +271,13 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(refId, Is.EqualTo(property.Value));
                 // is the node id known?
                 bool isKnown = await nodeCache.IsKnownAsync(property.Value).ConfigureAwait(false);
-                Assert.IsTrue(isKnown);
+                Assert.That(isKnown, Is.True);
                 // is it a reference?
                 bool isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.IsTrue(isTypeOf);
+                Assert.That(isTypeOf, Is.True);
                 // negative test
                 isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
@@ -593,8 +592,8 @@ namespace Opc.Ua.Client.Tests
                                             TestData.DataTypeIds.Vector,
                                             Session.NamespaceUris))
                                     .ConfigureAwait(false);
-                                Assert.AreEqual(DataTypeIds.Structure, nodeId);
-                                Assert.AreEqual(DataTypeIds.Structure, nodeId2);
+                                Assert.That(nodeId, Is.EqualTo(DataTypeIds.Structure));
+                                Assert.That(nodeId2, Is.EqualTo(DataTypeIds.Structure));
                                 ArrayOf<NodeId> subTypes = await Session.NodeCache.FindSubTypesAsync(
                                     new ExpandedNodeId((int)BuiltInType.Number)).ConfigureAwait(false);
                                 bool isTypeOf = await Session.NodeCache.IsTypeOfAsync(
@@ -624,7 +623,7 @@ namespace Opc.Ua.Client.Tests
                                 // NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
                                 break;
                             default:
-                                NUnit.Framework.Assert.Fail("Invalid test case");
+                                Assert.Fail("Invalid test case");
                                 break;
                         }
                     } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);

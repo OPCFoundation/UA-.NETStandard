@@ -872,7 +872,7 @@ namespace Opc.Ua
         {
             CheckAndIncrementNestingLevel();
 
-            if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default(T)), true))
+            if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default), true))
             {
                 value?.Encode(this);
 

@@ -1,7 +1,6 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -19,13 +18,13 @@ namespace Opc.Ua.Server.Tests
             var usersDb = new LinqUserDatabase();
 
             // Act + Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser(null, "PW"u8, [Role.AuthenticatedUser]));
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser("Name", null, [Role.AuthenticatedUser]));
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser(string.Empty, "PW"u8, [Role.AuthenticatedUser]));
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser("Name", ""u8, [Role.AuthenticatedUser]));
         }
 

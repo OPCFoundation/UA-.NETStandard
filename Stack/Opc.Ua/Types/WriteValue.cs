@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
-        public NumericRange ParsedIndexRange { get; set; } = default;
+        public NumericRange ParsedIndexRange { get; set; }
 
         /// <summary>
         /// Validates a write value parameter.

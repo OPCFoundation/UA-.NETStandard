@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -86,7 +85,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(default));
         }
 
@@ -97,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>(() =>
                 dataStore.WritePublishedDataItem(
                     NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));
@@ -126,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(default));
         }
 
@@ -136,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Arrange
             var dataStore = new UaPubSubDataStore();
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>(() =>
                 dataStore.ReadPublishedDataItem(
                     NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));

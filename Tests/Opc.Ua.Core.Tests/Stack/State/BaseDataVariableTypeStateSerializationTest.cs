@@ -30,7 +30,6 @@
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {
@@ -123,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 loadedVariable.LoadAsBinary(systemContext, stream);
             }
 
-            Assert.AreEqual(valueRank, loadedVariable.ValueRank);
+            Assert.That(loadedVariable.ValueRank, Is.EqualTo(valueRank));
         }
 
         /// <summary>

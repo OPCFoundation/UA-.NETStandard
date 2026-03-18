@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -241,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (X509Certificate2 cert in revokedCerts)
                 {
-                    NUnit.Framework.Assert.Throws<CryptographicException>(() =>
+                    Assert.Throws<CryptographicException>(() =>
                         crl.VerifySignature(otherIssuerCertificate, true));
                     Assert.False(crl.IsRevoked(cert));
                     X509CRL nextCrl = CertificateFactory.RevokeCertificate(
@@ -311,7 +310,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                NUnit.Framework.Assert.Ignore("No certificates for blob test");
+                Assert.Ignore("No certificates for blob test");
             }
         }
 
@@ -374,13 +373,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         keyHashPair.KeySize,
                         out issuerCertificate))
                     {
-                        NUnit.Framework.Assert.Ignore("Could not load Issuer Cert.");
+                        Assert.Ignore("Could not load Issuer Cert.");
                     }
                 }
             }
             catch
             {
-                NUnit.Framework.Assert.Ignore("Could not load create Issuer Cert.");
+                Assert.Ignore("Could not load create Issuer Cert.");
             }
             return issuerCertificate;
         }

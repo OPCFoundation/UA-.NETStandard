@@ -111,7 +111,6 @@ namespace Opc.Ua.Gds.Tests
                     .RegisterApplicationAsync(appData.ApplicationRecord)
                     .ConfigureAwait(false);
 
-                Assert.That(appId, Is.Not.Null);
                 Assert.That(appId.IsNull, Is.False);
 
                 // GetCertificateGroups should return both the default group and the custom group
@@ -119,7 +118,7 @@ namespace Opc.Ua.Gds.Tests
                     .GetCertificateGroupsAsync(appId)
                     .ConfigureAwait(false);
 
-                Assert.That(groups, Is.Not.Null);
+                Assert.That(groups.IsNull, Is.False);
                 Assert.That(groups.Count, Is.EqualTo(2),
                     "Expected 2 certificate groups: default + custom");
 
@@ -130,7 +129,6 @@ namespace Opc.Ua.Gds.Tests
                         .GetTrustListAsync(appId, groupId)
                         .ConfigureAwait(false);
 
-                    Assert.That(trustListId, Is.Not.Null);
                     Assert.That(trustListId.IsNull, Is.False,
                         $"TrustList NodeId must not be null for group {groupId}");
                 }
@@ -170,8 +168,6 @@ namespace Opc.Ua.Gds.Tests
 
                 // Verify the custom group NodeId is among the returned groups
                 NodeId customGroupNodeId = groups.ToList().FirstOrDefault(g => !Utils.IsEqual(g, defaultGroupId));
-                Assert.That(customGroupNodeId, Is.Not.Null,
-                    "A group NodeId other than DefaultApplicationGroup must be present");
                 Assert.That(customGroupNodeId.IsNull, Is.False,
                     "The custom group NodeId must not be null");
 

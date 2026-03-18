@@ -32,7 +32,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -106,7 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t
@@ -114,7 +113,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
                             .ConfigureAwait(false);
                     });
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> typeSystem
                 = await nodeResolver
                 .LoadDataTypeSystem()

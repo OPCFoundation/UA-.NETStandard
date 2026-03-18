@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
 {
@@ -375,10 +374,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 catch (UriFormatException e)
                 {
                     TestContext.Out.WriteLine($"Exception: {e.Message}");
-                    NUnit.Framework.Assert.Ignore("Invalid Left Part of URL");
+                    Assert.Ignore("Invalid Left Part of URL");
                 }
             }
-            System.Collections.Generic.IList<BaseAddress> filteredBaseAddresses
+            IList<BaseAddress> filteredBaseAddresses
                 = FilterByEndpointUrl(
                 parsedEndpointUrl,
                 BaseAddresses);
@@ -407,7 +406,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             [ValueSource(nameof(ClientUrls))] string endpointUrl,
             bool noUrlExtension)
         {
-            System.Collections.Generic.IList<BaseAddress> baseAddresses = BaseAddresses;
+            IList<BaseAddress> baseAddresses = BaseAddresses;
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
             if (noUrlExtension)
             {
@@ -419,7 +418,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 catch (UriFormatException e)
                 {
                     TestContext.Out.WriteLine($"Exception: {e.Message}");
-                    NUnit.Framework.Assert.Ignore("Invalid Left Part of URL");
+                    Assert.Ignore("Invalid Left Part of URL");
                 }
                 parsedEndpointUrl = new Uri(parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
             }
@@ -476,21 +475,21 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
                 Assert.Greater(matches.Count, 0);
                 EndpointDescription firstMatch = matches[0];
-                Assert.AreEqual(
-                    firstMatch.UserIdentityTokens.Count,
-                    translatedEndpoint.UserIdentityTokens.Count);
+                Assert.That(
+                    translatedEndpoint.UserIdentityTokens.Count,
+                    Is.EqualTo(firstMatch.UserIdentityTokens.Count));
                 for (int i = 0; i < firstMatch.UserIdentityTokens.Count; i++)
                 {
-                    Assert.AreEqual(
-                        firstMatch.UserIdentityTokens[i].TokenType,
-                        translatedEndpoint.UserIdentityTokens[i].TokenType);
-                    Assert.AreEqual(
-                        firstMatch.UserIdentityTokens[i].PolicyId,
-                        translatedEndpoint.UserIdentityTokens[i].PolicyId);
+                    Assert.That(
+                        translatedEndpoint.UserIdentityTokens[i].TokenType,
+                        Is.EqualTo(firstMatch.UserIdentityTokens[i].TokenType));
+                    Assert.That(
+                        translatedEndpoint.UserIdentityTokens[i].PolicyId,
+                        Is.EqualTo(firstMatch.UserIdentityTokens[i].PolicyId));
                 }
-                Assert.AreEqual(firstMatch.BinaryEncodingId, translatedEndpoint.BinaryEncodingId);
-                Assert.AreEqual(firstMatch.SecurityMode, translatedEndpoint.SecurityMode);
-                Assert.AreEqual(firstMatch.SecurityPolicyUri, translatedEndpoint.SecurityPolicyUri);
+                Assert.That(translatedEndpoint.BinaryEncodingId, Is.EqualTo(firstMatch.BinaryEncodingId));
+                Assert.That(translatedEndpoint.SecurityMode, Is.EqualTo(firstMatch.SecurityMode));
+                Assert.That(translatedEndpoint.SecurityPolicyUri, Is.EqualTo(firstMatch.SecurityPolicyUri));
                 var firstMatchEndpointUrl = new Uri(firstMatch.EndpointUrl);
                 var translatedEndpointUrl = new Uri(translatedEndpoint.EndpointUrl);
                 if (m_testConfiguration
@@ -515,7 +514,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         .Filter(endpoint =>
                             endpoint.EndpointUrl
                                 .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal));
-                    Assert.AreEqual(theSchemes[0].EndpointUrl, firstMatch.EndpointUrl);
+                    Assert.That(firstMatch.EndpointUrl, Is.EqualTo(theSchemes[0].EndpointUrl));
                 }
                 Assert.That(translatedEndpointUrl.Scheme, Is.EqualTo(firstMatchEndpointUrl.Scheme));
 

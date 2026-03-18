@@ -30,7 +30,6 @@
 using System;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
 {
@@ -124,10 +123,10 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                             securityPolicyUri == SecurityPolicies.ECC_nistP256 ||
                             securityPolicyUri == SecurityPolicies.ECC_nistP384))
                     {
-                        NUnit.Framework.Assert
+                        Assert
                             .Ignore("No exception is thrown on OSX with NIST curves");
                     }
-                    NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                    Assert.Throws<ArgumentException>(() =>
                         Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else

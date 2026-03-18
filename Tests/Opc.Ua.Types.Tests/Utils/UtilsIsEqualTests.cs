@@ -34,7 +34,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.CompilerServices;
 #endif

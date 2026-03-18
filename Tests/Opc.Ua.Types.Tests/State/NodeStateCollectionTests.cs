@@ -149,9 +149,11 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearCollection()
         {
-            var collection = new NodeStateCollection();
-            collection.Add(new ViewState { NodeId = new NodeId(50) });
-            collection.Add(new ViewState { NodeId = new NodeId(51) });
+            var collection = new NodeStateCollection
+            {
+                new ViewState { NodeId = new NodeId(50) },
+                new ViewState { NodeId = new NodeId(51) }
+            };
             collection.Clear();
             Assert.That(collection.Count, Is.Zero);
         }

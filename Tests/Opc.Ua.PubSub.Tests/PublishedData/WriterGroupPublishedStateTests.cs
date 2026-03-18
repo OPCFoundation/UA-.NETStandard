@@ -35,7 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Tests.Encoding;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.PublishedData
@@ -356,10 +356,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         var targetNodeId = new NodeId(
                             field.FieldMetaData.Name,
                             kNamespaceIndexAllTypes);
-                        Assert.IsTrue(
+                        Assert.That(
                             dataStoreData.ContainsKey(targetNodeId),
-                            "field name: '{0}' should be exists in partial received dataset",
-                            field.FieldMetaData.Name);
+                            Is.True,
+                            $"field name: '{field.FieldMetaData.Name}' should be exists in partial received dataset");
                         Assert.IsNotNull(
                             dataStoreData[targetNodeId],
                             "field: '{0}' should not be null",
@@ -367,26 +367,20 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                        Assert.AreEqual(
-                            field.Value.Value,
+                        Assert.That(
                             dataStoreData[targetNodeId].Value,
-                            "field: '{0}' value: {1} should be equal to datastore value: {2}",
-                            field.FieldMetaData.Name,
-                            field.Value,
-                            dataStoreData[targetNodeId].Value);
+                            Is.EqualTo(field.Value.Value),
+                            $"field: '{field.FieldMetaData.Name}' value: {field.Value} should be equal to datastore value: {dataStoreData[targetNodeId].Value}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                        Assert.AreEqual(
-                            lastDataSetField.Value.Value,
+                        Assert.That(
                             dataStoreData[targetNodeId].Value,
-                            "lastDataSetField: '{0}' value: {1} should be equal to datastore value: {2}",
-                            lastDataSetField.FieldMetaData.Name,
-                            lastDataSetField.Value,
-                            dataStoreData[targetNodeId].Value);
+                            Is.EqualTo(lastDataSetField.Value.Value),
+                            $"lastDataSetField: '{lastDataSetField.FieldMetaData.Name}' value: {lastDataSetField.Value} should be equal to datastore value: {dataStoreData[targetNodeId].Value}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -404,10 +398,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         var targetNodeId = new NodeId(
                             field.FieldMetaData.Name,
                             kNamespaceIndexAllTypes);
-                        Assert.IsTrue(
+                        Assert.That(
                             dataStoreData.ContainsKey(targetNodeId),
-                            "field name: {0} should be exists in partial received dataset",
-                            field.FieldMetaData.Name);
+                            Is.True,
+                            $"field name: {field.FieldMetaData.Name} should be exists in partial received dataset");
                         Assert.IsNotNull(
                             dataStoreData[targetNodeId],
                             "field {0}: should not be null",
@@ -415,13 +409,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                        Assert.AreEqual(
-                            field.Value.Value,
+                        Assert.That(
                             dataStoreData[targetNodeId].Value,
-                            "field: '{0}' value: {1} should be equal to datastore value: {2}",
-                            field.FieldMetaData.Name,
-                            field.Value,
-                            dataStoreData[targetNodeId].Value);
+                            Is.EqualTo(field.Value.Value),
+                            $"field: '{field.FieldMetaData.Name}' value: {field.Value} should be equal to datastore value: {dataStoreData[targetNodeId].Value}");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0618 // Type or member is obsolete

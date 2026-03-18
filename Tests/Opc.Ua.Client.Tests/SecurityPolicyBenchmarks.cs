@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -301,7 +300,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
-            Assert.AreEqual(m_smallReadValueIds.Count, response.Results.Count);
+            Assert.That(response.Results.Count, Is.EqualTo(m_smallReadValueIds.Count));
         }
 
         /// <summary>
@@ -342,7 +341,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
-            Assert.AreEqual(m_mediumReadValueIds.Count, response.Results.Count);
+            Assert.That(response.Results.Count, Is.EqualTo(m_mediumReadValueIds.Count));
         }
 
         /// <summary>
@@ -384,7 +383,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
-            Assert.AreEqual(m_largeReadValueIds.Count, response.Results.Count);
+            Assert.That(response.Results.Count, Is.EqualTo(m_largeReadValueIds.Count));
         }
 
         /// <summary>
@@ -559,7 +558,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
-            Assert.AreEqual(1, response.Results.Count);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
         /// <summary>

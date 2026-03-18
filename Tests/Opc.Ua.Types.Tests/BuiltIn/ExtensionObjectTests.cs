@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 #pragma warning disable IDE0028 // Simplify collection initialization
 #pragma warning disable IDE0305 // Simplify collection initialization
@@ -57,7 +56,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(extensionObject_Default.IsNull, Is.True);
             Assert.That(extensionObject_Default.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(extensionObject_Default.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
-            Assert.IsTrue(extensionObject_Default.IsNull);
+            Assert.That(extensionObject_Default.IsNull, Is.True);
             // Constructor by ExtensionObject
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.IsNull, Is.False);
@@ -67,18 +66,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
             Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
             Assert.IsFalse(extensionObject.TryGetAsJson(out string _));
-            Assert.IsTrue(extensionObject.IsNull);
+            Assert.That(extensionObject.IsNull, Is.True);
             // static extensions
-            Assert.Null(Ua.ExtensionObject.ToEncodeable(default));
-            Assert.Null(Ua.ExtensionObject.ToArray(null, typeof(object)));
-            Assert.Null(Ua.ExtensionObject.ToList<object>(null));
+            Assert.Null(ExtensionObject.ToEncodeable(default));
+            Assert.Null(ExtensionObject.ToArray(null, typeof(object)));
+            Assert.Null(ExtensionObject.ToList<object>(null));
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.GetHashCode(), Is.EqualTo(0));
 #pragma warning disable CS0618 // Type or member is obsolete
-            NUnit.Framework.Assert.Throws<ServiceResultException>(
+            Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
-            NUnit.Framework.Assert.Throws<ServiceResultException>(
+            Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new byte[] { 1, 2, 3 }));
 #pragma warning restore CS0618 // Type or member is obsolete
             // constructor by object
@@ -88,7 +87,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(extensionObject.Equals(extensionObject), Is.True);
             // string extension
             string extensionObjectString = extensionObject.ToString();
-            NUnit.Framework.Assert
+            Assert
                 .Throws<FormatException>(() => extensionObject.ToString("123", null));
             Assert.That(extensionObjectString, Is.Not.Null);
             // IsEqual operator

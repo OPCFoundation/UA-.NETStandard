@@ -957,7 +957,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Find for HasEncoding returns encoding references
             mockRefs.Setup(r => r.Find(
                     ReferenceTypeIds.HasEncoding, false, false, null))
-                .Returns(encodings ?? new List<IReference>());
+                .Returns(encodings ?? []);
 
             mockNode.Setup(n => n.References).Returns(mockRefs.Object);
             return mockNode;

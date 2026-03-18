@@ -35,7 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -154,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -421,7 +420,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Assertions
-                Assert.IsTrue(allNodesReceivedData, "Not all nodes received expected data");
+                Assert.That(allNodesReceivedData, Is.True, "Not all nodes received expected data");
                 Assert.That(errors.Count, Is.EqualTo(0), $"Test encountered {errors.Count} errors");
                 Assert.GreaterOrEqual(
                     totalNotifications,

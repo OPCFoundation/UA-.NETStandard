@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -209,11 +208,11 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -845,7 +844,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act && Assert
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -907,8 +906,8 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.AreEqual(StatusCodes.BadUnexpectedError, (uint)result[0].StatusCode);
-            Assert.AreEqual(StatusCodes.Good, (uint)result[1].StatusCode);
+            Assert.That((uint)result[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That((uint)result[1].StatusCode, Is.EqualTo(StatusCodes.Good));
             context.Verify();
         }
 
@@ -984,7 +983,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result[0], Is.EqualTo(expected[0]));
-            Assert.AreEqual(StatusCodes.Bad, (uint)result[1].StatusCode);
+            Assert.That((uint)result[1].StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(result[1].WrappedValue, Is.EqualTo(expected[1].WrappedValue));
 
             context

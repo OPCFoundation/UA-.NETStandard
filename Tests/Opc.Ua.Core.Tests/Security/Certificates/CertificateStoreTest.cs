@@ -39,7 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Opc.Ua.X509StoreExtensions;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -231,7 +230,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
@@ -316,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
@@ -390,12 +389,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
+            _ = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault",
                     telemetry: telemetry).ConfigureAwait(false));
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
+            _ = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault",
@@ -415,7 +414,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 Assert.False(x509Store.SupportsCRLs);
-                NUnit.Framework.Assert
+                Assert
                     .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
             }
             else
@@ -433,7 +432,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var x509Store = new X509CertificateStore(telemetry);
@@ -461,7 +460,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //TestRevocation
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode);
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.BadCertificateRevoked));
         }
 
         /// <summary>
@@ -473,7 +472,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var x509Store = new X509CertificateStore(telemetry);
@@ -484,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //Test Revocation before adding cert
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, statusCode);
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
             var crlBuilder = CrlBuilder.Create(crl);
 
@@ -501,7 +500,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             StatusCode statusCode2 = await x509Store
                 .IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode2);
+            Assert.That(statusCode2, Is.EqualTo(StatusCodes.BadCertificateRevoked));
         }
 
         /// <summary>
@@ -513,7 +512,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var x509Store = new X509CertificateStore(telemetry);
@@ -542,7 +541,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var x509Store = new X509CertificateStore(telemetry);
@@ -563,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //make shure IsRevoked can't find crl anymore
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, statusCode);
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
 
             //Delete second (empty) crl from store
             await x509Store.DeleteCRLAsync(crlsAfterFirstDelete[0]).ConfigureAwait(false);
@@ -588,16 +587,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    NUnit.Framework.Assert
+                    Assert
                         .Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([], logger));
-                    NUnit.Framework.Assert
+                    Assert
                         .Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls(logger));
-                    NUnit.Framework.Assert
+                    Assert
                         .Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([], logger));
                 }
                 else
                 {
-                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
+                    Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
             using (var x509Store = new X509CertificateStore(telemetry))
@@ -605,16 +604,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                    Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.AddCRLAsync(new X509CRL()));
-                    NUnit.Framework.Assert
+                    Assert
                         .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
-                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                    Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.DeleteCRLAsync(new X509CRL()));
                 }
                 else
                 {
-                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
+                    Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
         }

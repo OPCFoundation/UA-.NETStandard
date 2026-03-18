@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Tests
@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                NUnit.Framework.Assert.Fail("Invalid private key format");
+                Assert.Fail("Invalid private key format");
             }
             Assert.IsNotNull(newPrivateKeyCert);
             // verify the public cert matches the private key
@@ -89,7 +89,7 @@ namespace Opc.Ua.Gds.Tests
                 TrustedCertificates = issuerCertIdCollection
             };
             certValidator.Update(trustedStore, issuerStore, null);
-            NUnit.Framework.Assert.That(async () => await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false), Throws.Exception);
+            Assert.That(async () => await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false), Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(issuerStore, trustedStore, null);
             await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false);

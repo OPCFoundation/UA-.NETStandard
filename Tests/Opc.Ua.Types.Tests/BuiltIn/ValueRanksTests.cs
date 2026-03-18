@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -50,8 +49,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(ValueRanks.TwoDimensions)]
         public void TestValueRanks(int actualValueRank)
         {
-            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, actualValueRank));
-            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, ValueRanks.Any));
+            Assert.That(ValueRanks.IsValid(actualValueRank, actualValueRank), Is.True);
+            Assert.That(ValueRanks.IsValid(actualValueRank, ValueRanks.Any), Is.True);
             Assert.That(
                 ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension),
                 Is.EqualTo(actualValueRank is ValueRanks.Scalar or ValueRanks.OneDimension or ValueRanks

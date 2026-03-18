@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
@@ -83,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, serviceException.StatusCode);
+            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             Assert.That(serviceException.Message, Does.Contain(SecurityPolicies.Aes256_Sha256_RsaPss));
         }
 
@@ -117,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.AreEqual(StatusCodes.BadSecurityModeRejected, serviceException.StatusCode);
+            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
             Assert.That(serviceException.Message, Does.Contain("SignAndEncrypt"));
         }
 
@@ -151,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, serviceException.StatusCode);
+            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             Assert.That(serviceException.Message, Does.Contain(SecurityPolicies.Basic256Sha256));
             Assert.That(serviceException.Message, Does.Contain("SignAndEncrypt"));
         }
@@ -227,8 +226,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Should return the matching endpoint
             Assert.That(matches.IsNull, Is.False);
             Assert.That(matches.Count, Is.EqualTo(1));
-            Assert.AreEqual(SecurityPolicies.Basic256Sha256, matches[0].SecurityPolicyUri);
-            Assert.AreEqual(MessageSecurityMode.SignAndEncrypt, matches[0].SecurityMode);
+            Assert.That(matches[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(matches[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
         }
 
         /// <summary>

@@ -32,7 +32,6 @@ using System.IO;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Schema
 {
@@ -128,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(dataType1, Is.Not.Null);
             Assert.That(dataType1.Definition.Field.Length, Is.EqualTo(2));
             Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
-            Assert.IsTrue(dataType1.Definition.IsUnion);
+            Assert.That(dataType1.Definition.IsUnion, Is.True);
 
             Assert.That(dataType2, Is.Not.Null);
             Assert.IsFalse(dataType2.Definition.IsUnion);
@@ -163,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Assert.That(dataType1, Is.Not.Null);
                 Assert.That(dataType1.Definition.Field.Length, Is.EqualTo(2));
                 Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
-                Assert.IsTrue(dataType1.Definition.IsUnion);
+                Assert.That(dataType1.Definition.IsUnion, Is.True);
 
                 Assert.That(dataType2, Is.Not.Null);
                 Assert.IsFalse(dataType2.Definition.IsUnion);

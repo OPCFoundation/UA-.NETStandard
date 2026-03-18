@@ -32,7 +32,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -127,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             if (counts < 500)
             {
-                NUnit.Framework.Assert
+                Assert
                     .Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
@@ -139,13 +138,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     elapsed,
                     Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Inconclusive(ex.Message);
+                Assert.Inconclusive(ex.Message);
             }
         }
 
@@ -187,13 +186,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     elapsed,
                     Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Inconclusive(ex.Message);
+                Assert.Inconclusive(ex.Message);
             }
         }
 

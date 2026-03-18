@@ -36,7 +36,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 using Opc.Ua.Server.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -409,7 +408,7 @@ namespace Opc.Ua.Client.Tests
             foreach (
                 ArrayOf<ReferenceDescription> referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     referenceDescriptionCollection.Count,
                     Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
@@ -420,7 +419,7 @@ namespace Opc.Ua.Client.Tests
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
+                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
@@ -546,7 +545,7 @@ namespace Opc.Ua.Client.Tests
             int index = 0;
             foreach (ArrayOf<ReferenceDescription> referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     referenceDescriptionCollection.Count,
                     Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
@@ -557,7 +556,7 @@ namespace Opc.Ua.Client.Tests
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
+                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
@@ -703,7 +702,7 @@ namespace Opc.Ua.Client.Tests
             int index = 0;
             foreach (ArrayOf<ReferenceDescription> referenceDescriptionCollection in referenceDescriptionCollectionsPass1)
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     referenceDescriptionCollection.Count,
                     Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
@@ -714,7 +713,7 @@ namespace Opc.Ua.Client.Tests
                     .DisplayName
                     .Text;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix, StringComparison.Ordinal));
+                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
