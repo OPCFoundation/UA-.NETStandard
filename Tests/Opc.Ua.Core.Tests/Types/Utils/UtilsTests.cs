@@ -56,13 +56,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "00010203040506FF";
             string hexutil = Utils.ToHexString(blob);
-            Assert.AreEqual(hex, hexutil);
+            Assert.That(hexutil, Is.EqualTo(hex));
             byte[] byteblob = Utils.FromHexString(hex);
-            Assert.AreEqual(blob, byteblob);
+            Assert.That(byteblob, Is.EqualTo(blob));
             byte[] byteblob2 = Utils.FromHexString(hexutil);
-            Assert.AreEqual(blob, byteblob2);
+            Assert.That(byteblob2, Is.EqualTo(blob));
             string hexutil2 = Utils.ToHexString(byteblob);
-            Assert.AreEqual(hex, hexutil2);
+            Assert.That(hexutil2, Is.EqualTo(hex));
         }
 
         /// <summary>
@@ -74,26 +74,26 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // definition as big endian 64,206(0xFACE)
             byte[] bigEndian = [64206 / 256, 64206 % 256];
             // big endian is written as FA CE.
-            Assert.AreEqual("FACE", Utils.ToHexString(bigEndian, false));
+            Assert.That(Utils.ToHexString(bigEndian, false), Is.EqualTo("FACE"));
             // In Little Endian it's written as CE FA
-            Assert.AreEqual("CEFA", Utils.ToHexString(bigEndian, true));
+            Assert.That(Utils.ToHexString(bigEndian, true), Is.EqualTo("CEFA"));
             // definition as little endian 64,206(0xFACE)
             byte[] littleEndian = [64206 & 0xff, 64206 >> 8];
             // big endian is written as FA CE.
-            Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
+            Assert.That(Utils.ToHexString(littleEndian, true), Is.EqualTo("FACE"));
             // In Little Endian it's written as CE FA
-            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));
+            Assert.That(Utils.ToHexString(littleEndian, false), Is.EqualTo("CEFA"));
         }
 
         /// <summary>
         /// Convert to big endian hex string.
         /// </summary>
-        public void ToHexBigEndian()
+        private void ToHexBigEndian()
         {
             byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "FF06050403020100";
             string hexutil = Utils.ToHexString(blob, true);
-            Assert.AreEqual(hex, hexutil);
+            Assert.That(hexutil, Is.EqualTo(hex));
         }
 
         [Test]
@@ -178,9 +178,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void Clone()
         {
             var testClone = new TestClone(1);
-            Assert.NotNull(CoreUtils.Clone(testClone));
+            Assert.That(CoreUtils.Clone(testClone), Is.Not.Null);
             var testMemberwiseClone = new TestMemberwiseClone(2);
-            Assert.NotNull(CoreUtils.Clone(testMemberwiseClone));
+            Assert.That(CoreUtils.Clone(testMemberwiseClone), Is.Not.Null);
             var testNoClone = new TestNoClone(3);
             NUnit.Framework.Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
         }
@@ -226,7 +226,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/11";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -237,7 +237,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/123/789";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/123A/78B9";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/AA123A/bb78B9";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc/def";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/1:abc/2:def";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(str));
         }
 
         /// <summary>
@@ -304,9 +304,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 ReferenceTypeIds.HasChild,
                 NodeId.Null,
                 new QualifiedName("HasChild", 3));
-            Assert.AreEqual(
-                output,
-                RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
+            Assert.That(
+                RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable),
+                Is.EqualTo(output));
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void BuiltInTypeOfSimpleDataTypes()
         {
-            Assert.AreEqual(BuiltInType.DateTime, TypeInfo.GetBuiltInType(DataTypeIds.UtcTime));
+            Assert.That(TypeInfo.GetBuiltInType(DataTypeIds.UtcTime), Is.EqualTo(BuiltInType.DateTime));
 
             var bnList = new List<string>
             {
@@ -440,25 +440,25 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             foreach (string name in bnList)
             {
                 NodeId staticValue = DataTypeIds.GetIdentifier(name);
-                Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType(staticValue));
+                Assert.That(TypeInfo.GetBuiltInType(staticValue), Is.EqualTo(BuiltInType.ByteString));
             }
 
-            Assert.AreEqual(
-                BuiltInType.NodeId,
-                TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
-            Assert.AreEqual(BuiltInType.Double, TypeInfo.GetBuiltInType(DataTypeIds.Duration));
+            Assert.That(
+                TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken),
+                Is.EqualTo(BuiltInType.NodeId));
+            Assert.That(TypeInfo.GetBuiltInType(DataTypeIds.Duration), Is.EqualTo(BuiltInType.Double));
 
             bnList = [BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames
                 .Counter];
             foreach (string name in bnList)
             {
                 NodeId nodeId = DataTypeIds.GetIdentifier(name);
-                Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType(nodeId));
+                Assert.That(TypeInfo.GetBuiltInType(nodeId), Is.EqualTo(BuiltInType.UInt32));
             }
 
-            Assert.AreEqual(
-                BuiltInType.UInt64,
-                TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
+            Assert.That(
+                TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType),
+                Is.EqualTo(BuiltInType.UInt64));
 
             bnList =
             [
@@ -473,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             foreach (string name in bnList)
             {
                 NodeId nodeId = DataTypeIds.GetIdentifier(name);
-                Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType(nodeId));
+                Assert.That(TypeInfo.GetBuiltInType(nodeId), Is.EqualTo(BuiltInType.String));
             }
         }
 
@@ -481,22 +481,22 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ValidateXmlWriterSettings()
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-            Assert.AreEqual(Encoding.UTF8, settings.Encoding);
-            Assert.AreEqual(false, settings.CloseOutput);
-            Assert.AreEqual(true, settings.Indent);
-            Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
-            Assert.AreEqual(false, settings.OmitXmlDeclaration);
-            Assert.AreEqual("  ", settings.IndentChars);
+            Assert.That(settings.Encoding, Is.EqualTo(Encoding.UTF8));
+            Assert.That(settings.CloseOutput, Is.EqualTo(false));
+            Assert.That(settings.Indent, Is.EqualTo(true));
+            Assert.That(settings.ConformanceLevel, Is.EqualTo(ConformanceLevel.Document));
+            Assert.That(settings.OmitXmlDeclaration, Is.EqualTo(false));
+            Assert.That(settings.IndentChars, Is.EqualTo("  "));
         }
 
         [Test]
         public void ValidateXmlReaderSettings()
         {
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            Assert.AreEqual(DtdProcessing.Prohibit, settings.DtdProcessing);
+            Assert.That(settings.DtdProcessing, Is.EqualTo(DtdProcessing.Prohibit));
             //Assert.AreEqual(null, settings.XmlResolver);
-            Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
-            Assert.AreEqual(false, settings.CloseInput);
+            Assert.That(settings.ConformanceLevel, Is.EqualTo(ConformanceLevel.Document));
+            Assert.That(settings.CloseInput, Is.EqualTo(false));
         }
 
         /// <summary>
@@ -520,7 +520,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&#def";
             const string expected = "/abc#def";
-            Assert.AreEqual(expected, RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(expected));
         }
 
         /// <summary>

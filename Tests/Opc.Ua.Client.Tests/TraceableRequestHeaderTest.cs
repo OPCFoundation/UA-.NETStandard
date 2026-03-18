@@ -89,8 +89,8 @@ namespace Opc.Ua.Client.Tests
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
-            Assert.AreEqual(testSet.Count, values.Count);
-            Assert.AreEqual(testSet.Count, errors.Count);
+            Assert.That(values.Count, Is.EqualTo(testSet.Count));
+            Assert.That(errors.Count, Is.EqualTo(testSet.Count));
         }
     }
 }

@@ -31,7 +31,6 @@
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Json encoder options
     /// </summary>

@@ -194,28 +194,28 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 DataDictionary dictionary = await LoadDataDictionaryAsync(
                     theSession,
                     referenceDescription).ConfigureAwait(false);
-                Assert.IsNotNull(dictionary);
+                Assert.That(dictionary, Is.Not.Null);
 
                 // Sanity checks: verify that some well-known information is present
-                Assert.AreEqual("OPC Binary", dictionary.TypeSystemName);
+                Assert.That(dictionary.TypeSystemName, Is.EqualTo("OPC Binary"));
 
                 if (dataDictionaryId == dictionaryIds[0])
                 {
-                    Assert.IsTrue(dictionary.DataTypes.Count > 160);
+                    Assert.That(dictionary.DataTypes.Count, Is.GreaterThan(160));
                     Assert.IsTrue(
                         dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
                     Assert.IsTrue(
                         dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
-                    Assert.AreEqual(
-                        "http://opcfoundation.org/UA/",
-                        dictionary.TypeDictionary.TargetNamespace);
+                    Assert.That(
+                        dictionary.TypeDictionary.TargetNamespace,
+                        Is.EqualTo("http://opcfoundation.org/UA/"));
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
                     Assert.IsTrue(dictionary.DataTypes.Count >= 10);
-                    Assert.AreEqual(
-                        "http://test.org/UA/Data/",
-                        dictionary.TypeDictionary.TargetNamespace);
+                    Assert.That(
+                        dictionary.TypeDictionary.TargetNamespace,
+                        Is.EqualTo("http://test.org/UA/Data/"));
                 }
             }
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <summary>
         /// Load the data dictionary from the server.
         /// </summary>
-        public Task<DataDictionary> LoadDataDictionaryAsync(
+        private Task<DataDictionary> LoadDataDictionaryAsync(
             ISession session,
             ReferenceDescription dictionaryNode,
             CancellationToken ct = default)
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// hard coded identifiers
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
+        private async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
         {
             var browseDescription = new BrowseDescription
             {
@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
             ArrayOf<BrowseDescription> browseDescriptions = [browseDescription];
 
-            Assert.NotNull(Session, "Client not connected to Server.");
+            Assert.That(Session, Is.Not.Null, "Client not connected to Server.");
             BrowseResponse response = await Session.BrowseAsync(
                 null,
                 null,
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
             ReferenceDescription referenceDescription = results[0]
                 .References.Find(a => a.BrowseName.Name == "TestData");
-            Assert.NotNull(referenceDescription, "cannot find the test dictionary node");
+            Assert.That(referenceDescription, Is.Not.Null, "cannot find the test dictionary node");
             return ExpandedNodeId.ToNodeId(referenceDescription.NodeId, Session.NamespaceUris);
         }
     }

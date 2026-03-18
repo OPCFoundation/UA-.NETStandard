@@ -1710,7 +1710,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ushort> ReadUInt16Array(string fieldName)
         {
-            var values = new List<UInt16>();
+            var values = new List<ushort>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1736,7 +1736,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<int> ReadInt32Array(string fieldName)
         {
-            var values = new List<Int32>();
+            var values = new List<int>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1762,7 +1762,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<uint> ReadUInt32Array(string fieldName)
         {
-            var values = new List<UInt32>();
+            var values = new List<uint>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public ArrayOf<ulong> ReadUInt64Array(string fieldName)
         {
-            var values = new List<UInt64>();
+            var values = new List<ulong>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {

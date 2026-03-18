@@ -48,14 +48,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             }
 
             var jObject = JObject.Parse(result);
-            Assert.IsNotNull(jObject);
+            Assert.That(jObject, Is.Not.Null);
             uint version = jObject["UriVersion"].ToObject<uint>();
-            Assert.AreEqual(uriVersion, version);
+            Assert.That(version, Is.EqualTo(uriVersion));
             JToken serverUrisToken = jObject["ServerUris"];
-            Assert.IsNotNull(serverUrisToken);
+            Assert.That(serverUrisToken, Is.Not.Null);
             string[] serverUrisEncoded = serverUrisToken.ToObject<string[]>();
-            Assert.IsNotNull(serverUrisEncoded);
-            Assert.AreEqual(1, serverUrisEncoded.Length);
+            Assert.That(serverUrisEncoded, Is.Not.Null);
+            Assert.That(serverUrisEncoded.Length, Is.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
         }
     }

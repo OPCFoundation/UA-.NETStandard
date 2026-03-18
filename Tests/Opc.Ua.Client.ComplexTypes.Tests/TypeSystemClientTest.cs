@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public async Task OneTimeSetUpAsync(ITelemetryContext telemetry)
+        private async Task OneTimeSetUpAsync(ITelemetryContext telemetry)
         {
             // pki directory root for test runs.
             m_telemetry = telemetry;
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDictionary)
         {
             var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
 
@@ -187,14 +187,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         dataTypeId);
                 Assert.IsNotEmpty(definitions);
                 Type type = Session.Factory.GetSystemType(dataTypeId);
-                Assert.IsNotNull(type);
+                Assert.That(type, Is.Not.Null);
 
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
                 if (type.IsEnum)
                 {
-                    Assert.AreEqual(1, definitions.Count);
+                    Assert.That(definitions.Count, Is.EqualTo(1));
                     Assert.IsTrue(definitions.First().Value is EnumDefinition);
-                    Assert.AreEqual(localTypeId, definitions.First().Key);
+                    Assert.That(definitions.First().Key, Is.EqualTo(localTypeId));
                 }
                 else
                 {
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 NUnit.Framework.Assert.Ignore("The browse or fetch test did not run.");
             }
-            Assert.AreEqual(m_fetchedNodesCount, m_browsedNodesCount);
+            Assert.That(m_browsedNodesCount, Is.EqualTo(m_fetchedNodesCount));
         }
 
         [Test]
@@ -398,21 +398,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // test the static version of the structure
             ExpandedNodeId structureVariable = TestData.VariableIds
                 .Data_Static_Structure_ScalarStructure;
-            Assert.NotNull(structureVariable);
+            Assert.That(structureVariable.IsNull, Is.False);
             var nodeId = ExpandedNodeId.ToNodeId(structureVariable, Session.NamespaceUris);
-            Assert.NotNull(nodeId);
+            Assert.That(nodeId.IsNull, Is.False);
             Node node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
-            Assert.NotNull(node);
+            Assert.That(node, Is.Not.Null);
             Assert.True(node is VariableNode);
             DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-            Assert.NotNull(dataValue);
+            Assert.That(dataValue, Is.Not.Null);
 
             // test the accessor to the complex types
             Assert.True(dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject));
             Assert.True(extensionObject.TryGetEncodeable(out IEncodeable encodeable));
-            Assert.NotNull(encodeable);
+            Assert.That(encodeable, Is.Not.Null);
             var complexType = encodeable as IComplexTypeProperties;
-            Assert.NotNull(complexType);
+            Assert.That(complexType, Is.Not.Null);
 
             // list properties
             TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
@@ -460,13 +460,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             // read back written values
             dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-            Assert.NotNull(dataValue);
+            Assert.That(dataValue, Is.Not.Null);
 
             Assert.True(dataValue.WrappedValue.TryGet(out extensionObject));
             Assert.True(extensionObject.TryGetEncodeable(out encodeable));
-            Assert.NotNull(encodeable);
+            Assert.That(encodeable, Is.Not.Null);
             complexType = encodeable as IComplexTypeProperties;
-            Assert.NotNull(complexType);
+            Assert.That(complexType, Is.Not.Null);
 
             // list properties
             TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
@@ -481,11 +481,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.AreEqual((byte)0, complexType["ByteValue"]);
-            Assert.AreEqual("badbeef", complexType["StringValue"]);
-            Assert.AreEqual(complexType["NumberValue"], new Variant((uint)3210));
-            Assert.AreEqual(complexType["IntegerValue"], new Variant((long)54321));
-            Assert.AreEqual(complexType["UIntegerValue"], new Variant((ulong)12345));
+            Assert.That(complexType["ByteValue"], Is.EqualTo((byte)0));
+            Assert.That(complexType["StringValue"], Is.EqualTo("badbeef"));
+            Assert.That(new Variant((uint)3210), Is.EqualTo(complexType["NumberValue"]));
+            Assert.That(new Variant((long)54321), Is.EqualTo(complexType["IntegerValue"]));
+            Assert.That(new Variant((ulong)12345), Is.EqualTo(complexType["UIntegerValue"]));
         }
     }
 }

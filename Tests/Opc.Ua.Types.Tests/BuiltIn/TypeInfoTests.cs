@@ -67,14 +67,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetHashCodeForUnknownReturnsZero()
         {
             TypeInfo unknown = TypeInfo.Unknown;
-            Assert.That(unknown.GetHashCode(), Is.EqualTo(0));
+            Assert.That(unknown.GetHashCode(), Is.Zero);
         }
 
         [Test]
         public void GetHashCodeForKnownTypeReturnsNonZero()
         {
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(typeInfo.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(typeInfo.GetHashCode(), Is.Not.Zero);
         }
 
         [Test]
@@ -89,7 +89,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNullReturnsTrueForUnknown()
         {
             TypeInfo unknown = TypeInfo.Unknown;
-            Assert.That(unknown.Equals((object)null), Is.True);
+            Assert.That(unknown, Is.EqualTo((object)null));
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
             object b = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -119,7 +119,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Double, ValueRanks.OneDimension);
             var b = new TypeInfo(BuiltInType.Double, ValueRanks.OneDimension);
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]

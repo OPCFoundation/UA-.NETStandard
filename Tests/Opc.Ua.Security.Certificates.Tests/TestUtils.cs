@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
+using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Tests
@@ -107,7 +108,7 @@ namespace Opc.Ua.Tests
         {
             X509BasicConstraintsExtension basicConstraintsExtension =
                 certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
-            Assert.NotNull(basicConstraintsExtension);
+            Assert.That(basicConstraintsExtension, Is.Not.Null);
             Assert.False(basicConstraintsExtension.CertificateAuthority);
             Assert.True(basicConstraintsExtension.Critical);
             Assert.False(basicConstraintsExtension.HasPathLengthConstraint);

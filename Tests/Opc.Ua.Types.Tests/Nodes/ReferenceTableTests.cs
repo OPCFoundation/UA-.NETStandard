@@ -60,9 +60,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var collection = new ReferenceCollection();
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
             Assert.That(collection.IsReadOnly, Is.False);
         }
+
         [Test]
         public void ToStringReturnsReferenceCount()
         {
@@ -94,6 +95,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 () => collection.ToString("X", null),
                 Throws.TypeOf<FormatException>());
         }
+
         [Test]
         public void AddForwardReferenceIncrementsCount()
         {
@@ -101,7 +103,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Add(RefType1, false, Target1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -111,7 +113,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Add(RefType1, true, Target1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -122,7 +124,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             collection.Add(RefType1, false, Target1);
             collection.Add(RefType1, false, Target2);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -133,7 +135,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             collection.Add(RefType1, false, Target1);
             collection.Add(RefType2, false, Target1);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -144,7 +146,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             collection.Add(RefType1, false, Target1);
             collection.Add(RefType1, true, Target1);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -156,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Adding same reference again via typed Add uses dictionary indexer (replace)
             collection.Add(RefType1, false, Target1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -166,7 +168,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Add(RefType1, false, AbsoluteTarget1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -176,8 +178,9 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Add(RefType1, true, AbsoluteTarget1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
+
         [Test]
         public void AddIReferenceIncrementsCount()
         {
@@ -186,8 +189,9 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Add(reference);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
+
         [Test]
         public void RemoveExistingReferenceReturnsTrue()
         {
@@ -197,7 +201,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.Remove(RefType1, false, Target1);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -209,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.Remove(RefType1, false, Target2);
 
             Assert.That(result, Is.False);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -222,6 +226,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
+
         [Test]
         public void RemoveIReferenceExistingReturnsTrue()
         {
@@ -231,7 +236,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.Remove(new ReferenceNode(RefType1, false, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -243,6 +248,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
+
         [Test]
         public void RemoveAllForwardReferencesOfType()
         {
@@ -254,7 +260,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -268,7 +274,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -304,7 +310,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // After removing all forward references, the entry should be removed
             // Verify by adding a new reference of the same type (should succeed)
             collection.Add(RefType1, false, Target1);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -318,7 +324,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -332,8 +338,9 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
+
         [Test]
         public void ClearRemovesAllReferences()
         {
@@ -343,8 +350,9 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Clear();
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
+
         [Test]
         public void ContainsReturnsTrueForExistingReference()
         {
@@ -377,6 +385,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
+
         [Test]
         public void ExistsReturnsTrueForExactMatch()
         {
@@ -439,6 +448,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.False);
         }
+
         [Test]
         public void FindReturnsMatchingForwardReferences()
         {
@@ -449,7 +459,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType1, false, false, null);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.All(r => !r.IsInverse), Is.True);
         }
 
@@ -463,7 +473,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType1, true, false, null);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.All(r => r.IsInverse), Is.True);
         }
 
@@ -502,7 +512,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType3, false, true, typeTree.Object);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -513,7 +523,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType1, false, true, null);
 
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -525,7 +535,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType1, false, false, null);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -537,8 +547,9 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.Find(RefType1, true, false, null);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
+
         [Test]
         public void FindTargetReturnsTargetAtIndex()
         {
@@ -595,6 +606,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Not.EqualTo(ExpandedNodeId.Null));
         }
+
         [Test]
         public void FindReferencesToTargetReturnsAllMatchingReferences()
         {
@@ -605,7 +617,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = collection.FindReferencesToTarget(Target1);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -629,6 +641,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(result, Is.Empty);
         }
+
         [Test]
         public void CopyToCopiesReferencesToArray()
         {
@@ -687,6 +700,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 () => collection.CopyTo(array, 1),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
+
         [Test]
         public void GetEnumeratorIteratesAllReferences()
         {
@@ -695,12 +709,9 @@ namespace Opc.Ua.Types.Tests.Nodes
             collection.Add(RefType2, true, Target2);
 
             var references = new List<IReference>();
-            foreach (IReference reference in collection)
-            {
-                references.Add(reference);
-            }
+            references.AddRange(collection);
 
-            Assert.That(references.Count, Is.EqualTo(2));
+            Assert.That(references, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -751,9 +762,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
             Assert.That(dict.IsReadOnly, Is.False);
-            Assert.That(dict.Version, Is.EqualTo(0));
+            Assert.That(dict.Version, Is.Zero);
         }
         [Test]
         public void AddForwardReferenceIncrementsCount()
@@ -762,7 +773,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Add(MakeRef(RefType1, false, Target1), "value1");
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -772,7 +783,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Add(MakeRef(RefType1, true, Target1), "value1");
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -782,7 +793,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "value1");
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -792,7 +803,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Add(MakeRef(RefType1, true, AbsoluteTarget1), "value1");
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -804,7 +815,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Add(MakeRef(RefType1, false, Target2), 2);
             dict.Add(MakeRef(RefType2, true, Target1), 3);
 
-            Assert.That(dict.Count, Is.EqualTo(3));
+            Assert.That(dict, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -868,7 +879,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Add(kvp);
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -936,7 +947,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Add(MakeRef(RefType1, false, Target1), "value1");
 
             Assert.That(
-                () => { _ = dict[MakeRef(RefType1, false, Target2)]; },
+                () => _ = dict[MakeRef(RefType1, false, Target2)],
                 Throws.TypeOf<KeyNotFoundException>());
         }
 
@@ -946,7 +957,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
             Assert.That(
-                () => { _ = dict[null]; },
+                () => _ = dict[null],
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -960,7 +971,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict[reference] = "value2";
 
             Assert.That(dict[reference], Is.EqualTo("value2"));
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -972,7 +983,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict[reference] = "value1";
 
             Assert.That(dict[reference], Is.EqualTo("value1"));
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -985,7 +996,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict[reference] = "new-value";
 
             Assert.That(dict[reference], Is.EqualTo("new-value"));
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
         [Test]
         public void ContainsKeyReturnsTrueForExistingForwardReference()
@@ -1181,7 +1192,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, false, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1193,7 +1204,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, true, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1205,7 +1216,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1217,7 +1228,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1274,7 +1285,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(new KeyValuePair<IReference, string>(reference, "value1"));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1350,7 +1361,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -1364,7 +1375,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -1398,7 +1409,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1411,7 +1422,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1437,7 +1448,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.RemoveAll(RefType1, false);
 
             // The inverse reference should still be there
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, Target2)), Is.True);
         }
         [Test]
@@ -1450,7 +1461,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.Find(RefType1, false);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.All(r => !r.IsInverse), Is.True);
         }
 
@@ -1464,7 +1475,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.Find(RefType1, true);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.All(r => r.IsInverse), Is.True);
         }
 
@@ -1499,7 +1510,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.Find(RefType1, false);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1511,7 +1522,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.Find(RefType1, true);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
         [Test]
         public void FindWithTypeTreeThrowsOnNull()
@@ -1536,7 +1547,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.Find(RefType3, false, typeTree.Object);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1575,7 +1586,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             IList<IReference> result = dict.FindReferencesToTarget(Target1);
 
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1608,7 +1619,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Clear();
 
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
         }
 
         [Test]
@@ -1667,7 +1678,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             ICollection<IReference> keys = dict.Keys;
 
-            Assert.That(keys.Count, Is.EqualTo(2));
+            Assert.That(keys, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1679,7 +1690,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             ICollection<string> values = dict.Values;
 
-            Assert.That(values.Count, Is.EqualTo(2));
+            Assert.That(values, Has.Count.EqualTo(2));
             Assert.That(values, Does.Contain("v1"));
             Assert.That(values, Does.Contain("v2"));
         }
@@ -1724,12 +1735,9 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Add(MakeRef(RefType2, true, Target2), "v2");
 
             var entries = new List<KeyValuePair<IReference, string>>();
-            foreach (KeyValuePair<IReference, string> entry in dict)
-            {
-                entries.Add(entry);
-            }
+            entries.AddRange(dict);
 
-            Assert.That(entries.Count, Is.EqualTo(2));
+            Assert.That(entries, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1758,15 +1766,15 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "forward-external");
             dict.Add(MakeRef(RefType1, true, AbsoluteTarget2), "inverse-external");
 
-            Assert.That(dict.Count, Is.EqualTo(4));
+            Assert.That(dict, Has.Count.EqualTo(4));
 
             // Verify forward finds both internal and external
             IList<IReference> forwardRefs = dict.Find(RefType1, false);
-            Assert.That(forwardRefs.Count, Is.EqualTo(2));
+            Assert.That(forwardRefs, Has.Count.EqualTo(2));
 
             // Verify inverse finds both internal and external
             IList<IReference> inverseRefs = dict.Find(RefType1, true);
-            Assert.That(inverseRefs.Count, Is.EqualTo(2));
+            Assert.That(inverseRefs, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1780,7 +1788,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.RemoveAll(RefType1, false);
 
-            Assert.That(dict.Count, Is.EqualTo(2));
+            Assert.That(dict, Has.Count.EqualTo(2));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, Target2)), Is.True);
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, AbsoluteTarget2)), Is.True);
         }
@@ -1796,7 +1804,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.RemoveAll(RefType1, true);
 
-            Assert.That(dict.Count, Is.EqualTo(2));
+            Assert.That(dict, Has.Count.EqualTo(2));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, false, Target1)), Is.True);
             Assert.That(dict.ContainsKey(MakeRef(RefType1, false, AbsoluteTarget1)), Is.True);
         }
@@ -1984,7 +1992,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // RemoveAll forward removes both internal and external forward
             dict.RemoveAll(RefType1, false);
 
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, Target2)), Is.True);
         }
 
@@ -1999,7 +2007,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Remove the inverse external target
             dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
 
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
             // The entry should be removed since it's empty
             Assert.That(dict.Find(RefType1, true), Is.Empty);
         }
@@ -2015,7 +2023,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Remove the forward external target
             dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
 
-            Assert.That(dict.Count, Is.EqualTo(0));
+            Assert.That(dict.Count, Is.Zero);
             Assert.That(dict.Find(RefType1, false), Is.Empty);
         }
 
@@ -2031,7 +2039,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Remove(MakeRef(RefType1, false, Target1));
 
             // Entry should still exist because ForwardExternalTargets is not empty
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, false, AbsoluteTarget1)), Is.True);
         }
 
@@ -2047,14 +2055,14 @@ namespace Opc.Ua.Types.Tests.Nodes
             dict.Remove(MakeRef(RefType1, true, Target1));
 
             // Entry should still exist because InverseExternalTargets is not empty
-            Assert.That(dict.Count, Is.EqualTo(1));
+            Assert.That(dict, Has.Count.EqualTo(1));
             Assert.That(dict.ContainsKey(MakeRef(RefType1, true, AbsoluteTarget1)), Is.True);
         }
         [Test]
         public void VersionIncreasesOnEachMutation()
         {
             var dict = new ReferenceDictionary<string>();
-            Assert.That(dict.Version, Is.EqualTo(0));
+            Assert.That(dict.Version, Is.Zero);
 
             dict.Add(MakeRef(RefType1, false, Target1), "v1");
             Assert.That(dict.Version, Is.EqualTo(1));

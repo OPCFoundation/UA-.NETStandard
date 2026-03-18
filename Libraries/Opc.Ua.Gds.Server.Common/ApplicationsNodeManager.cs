@@ -1841,7 +1841,7 @@ namespace Opc.Ua.Gds.Server
                     ));
             }
             else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
+                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
                 certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(

@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // Assert - no logs should be recorded
             Assert.That(m_loggerProvider!.LogEntries
-                .Count(e => e.Contains("Read", StringComparison.Ordinal)), Is.EqualTo(0));
+                .Count(e => e.Contains("Read", StringComparison.Ordinal)), Is.Zero);
         }
 
         [Test]

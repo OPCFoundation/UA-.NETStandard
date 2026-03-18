@@ -69,20 +69,19 @@ namespace Opc.Ua.Types.Tests.State
             NodeState parent = null,
             string name = "TestObject")
         {
-            var node = new BaseObjectState(parent)
+            return new BaseObjectState(parent)
             {
                 NodeId = new NodeId(1000, 0),
                 BrowseName = QualifiedName.From(name),
                 DisplayName = LocalizedText.From(name)
             };
-            return node;
         }
 
         private static PropertyState CreatePropertyChild(
             NodeState parent,
             string name = "TestProperty")
         {
-            var child = new PropertyState(parent)
+            return new PropertyState(parent)
             {
                 NodeId = new NodeId(2000, 0),
                 BrowseName = QualifiedName.From(name),
@@ -90,22 +89,6 @@ namespace Opc.Ua.Types.Tests.State
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasProperty
             };
-            return child;
-        }
-
-        private static BaseDataVariableState CreateVariableChild(
-            NodeState parent,
-            string name = "TestVariable")
-        {
-            var child = new BaseDataVariableState(parent)
-            {
-                NodeId = new NodeId(3000, 0),
-                BrowseName = QualifiedName.From(name),
-                DisplayName = LocalizedText.From(name),
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent
-            };
-            return child;
         }
 
         [Test]
@@ -550,7 +533,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForEmpty()
         {
             using BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, string.Empty);
             Assert.That(found, Is.Null);
         }
 
@@ -799,7 +782,7 @@ namespace Opc.Ua.Types.Tests.State
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
-                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2)),
+                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2))
             };
             node.AddReferences(refs);
 
@@ -878,7 +861,7 @@ namespace Opc.Ua.Types.Tests.State
             var refs = new List<IReference>
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
-                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2)),
+                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2))
             };
             node.AddReferences(refs);
             Assert.That(count, Is.EqualTo(2));
@@ -1464,7 +1447,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             ArrayOf<Variant> values = node.ReadAttributes(m_context, null);
-            Assert.That(values.Count, Is.EqualTo(0));
+            Assert.That(values.Count, Is.Zero);
         }
 
         [Test]
@@ -1643,7 +1626,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant(new NodeId(1)));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.NodeId, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadNotWritable, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -1654,7 +1637,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant("not a NodeId"));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.NodeId, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadTypeMismatch, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         [Test]
@@ -1747,7 +1730,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.Value, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadWriteNotSupported, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
         }
 
         [Test]
@@ -1762,7 +1745,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadWriteNotSupported, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
         }
 
         [Test]
@@ -1774,7 +1757,7 @@ namespace Opc.Ua.Types.Tests.State
             var indexRange = NumericRange.Parse("0:1");
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, indexRange, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadIndexRangeInvalid, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
         [Test]
@@ -1827,7 +1810,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant("not a number"));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.AccessRestrictions, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadTypeMismatch, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         [Test]
@@ -2363,7 +2346,7 @@ namespace Opc.Ua.Types.Tests.State
 
             ServiceResult result = node.ReadChildAttribute(
                 m_context, relativePath, 0, Attributes.NodeId, dataValue);
-            Assert.That(result.StatusCode == StatusCodes.BadNodeIdUnknown, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]

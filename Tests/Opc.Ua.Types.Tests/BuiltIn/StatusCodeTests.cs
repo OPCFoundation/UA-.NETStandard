@@ -49,7 +49,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithCodeSetsCode()
         {
             var sc = new StatusCode(0x00000000);
-            Assert.That(sc.Code, Is.EqualTo(0x00000000));
+            Assert.That(sc.Code, Is.Zero);
         }
 
         [Test]
@@ -65,7 +65,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithCodePreservesInfoBits()
         {
             // Code with extra flag bits
-            uint codeWithFlags = 0x80000000 | 0x0001;
+            const uint codeWithFlags = 0x80000000 | 0x0001;
             var sc = new StatusCode(codeWithFlags);
             Assert.That(sc.Code, Is.EqualTo(codeWithFlags));
         }
@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithCodeAndSymbolicIdPreservesInfoBits()
         {
-            uint codeWithFlags = 0x80000000 | 0x0005;
+            const uint codeWithFlags = 0x80000000 | 0x0005;
             var sc = new StatusCode(codeWithFlags, "BadCustom");
             Assert.That(sc.Code, Is.EqualTo(codeWithFlags));
             Assert.That(sc.SymbolicId, Is.EqualTo("BadCustom"));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(0x00008000);
             StatusCode result = sc.SetStructureChanged(false);
             Assert.That(result.StructureChanged, Is.False);
-            Assert.That(result.Code & 0x8000, Is.EqualTo(0u));
+            Assert.That(result.Code & 0x8000, Is.Zero);
         }
 
         [Test]
@@ -290,7 +290,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(0x00004000);
             StatusCode result = sc.SetSemanticsChanged(false);
             Assert.That(result.SemanticsChanged, Is.False);
-            Assert.That(result.Code & 0x4000, Is.EqualTo(0u));
+            Assert.That(result.Code & 0x4000, Is.Zero);
         }
 
         [Test]
@@ -324,7 +324,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(0x000004FF);
             StatusCode result = sc.SetHasDataValueInfo(false);
             Assert.That(result.HasDataValueInfo, Is.False);
-            Assert.That(result.Code & 0x000003FF, Is.EqualTo(0u));
+            Assert.That(result.Code & 0x000003FF, Is.Zero);
         }
 
         [Test]
@@ -394,7 +394,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Overflow, Is.False);
             // DataValueInfo should still be set
             Assert.That(result.HasDataValueInfo, Is.True);
-            Assert.That(result.Code & 0x0080, Is.EqualTo(0u));
+            Assert.That(result.Code & 0x0080, Is.Zero);
         }
 
         [Test]
@@ -560,7 +560,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010000);
             object other = new StatusCode(0x80010000);
-            Assert.That(sc.CompareTo(other), Is.EqualTo(0));
+            Assert.That(sc.CompareTo(other), Is.Zero);
         }
 
         [Test]
@@ -570,7 +570,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var larger = new StatusCode(0x80000000);
             Assert.That(smaller.CompareTo(larger), Is.LessThan(0));
             Assert.That(larger.CompareTo(smaller), Is.GreaterThan(0));
-            Assert.That(smaller.CompareTo(smaller), Is.EqualTo(0));
+            Assert.That(smaller.CompareTo(smaller), Is.Zero);
         }
 
         [Test]
@@ -579,7 +579,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(0x40000000);
             Assert.That(sc.CompareTo(0x80000000), Is.LessThan(0));
             Assert.That(sc.CompareTo(0x00000000), Is.GreaterThan(0));
-            Assert.That(sc.CompareTo(0x40000000), Is.EqualTo(0));
+            Assert.That(sc.CompareTo(0x40000000), Is.Zero);
         }
 
         [Test]
@@ -587,7 +587,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc1 = new StatusCode(0x80010000);
             object sc2 = new StatusCode(0x80010000);
-            Assert.That(sc1.Equals(sc2), Is.True);
+            Assert.That(sc1, Is.EqualTo(sc2));
         }
 
         [Test]
@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010005);
             object code = (uint)0x80010005;
-            Assert.That(sc.Equals(code), Is.True);
+            Assert.That(sc, Is.EqualTo(code));
         }
 
         [Test]
@@ -628,14 +628,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Same code bits, different flag bits should be equal
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
-            Assert.That(sc1.Equals(sc2), Is.True);
+            Assert.That(sc1, Is.EqualTo(sc2));
         }
 
         [Test]
         public void EqualsUintComparesFullCode()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc.Equals(0x80010005), Is.True);
+            Assert.That(sc, Is.EqualTo(0x80010005));
             Assert.That(sc.Equals(0x80010006), Is.False);
         }
 
@@ -734,7 +734,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
             // Same code bits, different flags -> should be equal
-            Assert.That(sc1 == sc2, Is.True);
+            Assert.That(sc1, Is.EqualTo(sc2));
         }
 
         [Test]
@@ -749,7 +749,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorUintComparesByFullCode()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc == 0x80010005, Is.True);
+            Assert.That(sc, Is.EqualTo(0x80010005));
             Assert.That(sc == 0x80010006, Is.False);
         }
 
@@ -758,9 +758,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010005);
             Assert.That(sc != 0x80010006, Is.True);
-            Assert.That(sc != 0x80010005, Is.False);
+            Assert.That(sc, Is.EqualTo(0x80010005));
         }
 
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         [Test]
         public void LessThanOperatorUintWorksCorrectly()
         {
@@ -783,7 +784,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(0x40000000);
             Assert.That(sc <= 0x80000000, Is.True);
             Assert.That(sc <= 0x40000000, Is.True);
-            Assert.That(sc <= 0x00000000, Is.False);
+            Assert.That(sc > 0x00000000, Is.True);
         }
 
         [Test]
@@ -809,7 +810,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc1 = new StatusCode(0x80000000);
             var sc2 = new StatusCode(0x00000000);
-            Assert.That(sc1 > sc2, Is.True);
+            Assert.That(sc1, Is.GreaterThan(sc2));
             Assert.That(sc2 > sc1, Is.False);
         }
 
@@ -821,7 +822,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc3 = new StatusCode(0x00000000);
             Assert.That(sc1 <= sc2, Is.True);
             Assert.That(sc1 <= sc3, Is.True);
-            Assert.That(sc2 <= sc1, Is.False);
+            Assert.That(sc2, Is.GreaterThan(sc1));
         }
 
         [Test]
@@ -834,6 +835,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(sc1 >= sc3, Is.True);
             Assert.That(sc2 >= sc1, Is.False);
         }
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
 #pragma warning disable CS0618 // Type or member is obsolete
         [Test]
@@ -856,7 +858,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = StatusCode.LookupSymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
-#pragma warning restore CS0618
+#pragma warning restore CS0618  // Type or member is obsolete
 
         [Test]
         public void LookupUtf8SymbolicIdReturnsBytesForKnownCode()
@@ -957,7 +959,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void DefaultStatusCodeIsZero()
         {
             StatusCode sc = default;
-            Assert.That(sc.Code, Is.EqualTo(0u));
+            Assert.That(sc.Code, Is.Zero);
             Assert.That(sc.SymbolicId, Is.Null);
         }
 
@@ -974,7 +976,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SerializableStatusCodeDefaultConstructorCreatesDefault()
         {
             var ssc = new SerializableStatusCode();
-            Assert.That(ssc.Value.Code, Is.EqualTo(0u));
+            Assert.That(ssc.Value.Code, Is.Zero);
         }
 
         [Test]

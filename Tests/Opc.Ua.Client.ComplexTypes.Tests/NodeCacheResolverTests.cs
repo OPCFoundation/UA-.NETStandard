@@ -119,14 +119,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 = await nodeResolver
                 .LoadDataTypeSystem()
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
             typeSystem = await nodeResolver
                 .LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem)
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
             typeSystem = await nodeResolver.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem)
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
         }
 
         [Test]
@@ -145,7 +145,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             ArrayOf<ReferenceDescription> references =
                 await browser.BrowseAsync(dataTypeSystem).ConfigureAwait(false);
-            Assert.NotNull(references);
+            Assert.That(references.IsNull, Is.False);
 
             ILogger logger = Telemetry.CreateLogger<NodeCacheResolverTests>();
             logger.LogInformation("  Found {Count} references", references.Count);

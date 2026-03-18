@@ -65,10 +65,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring Connection to Enabled
             configurator.Enable(subscriberConnection);
@@ -78,10 +78,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring readerGroup to Enabled
             configurator.Enable(readerGroup);
@@ -91,10 +91,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring datasetReader to Enabled
             configurator.Enable(datasetReader);
@@ -104,10 +104,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Operational_2 on Reader")]
@@ -140,10 +140,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring PubSub to Enabled
             configurator.Enable(pubSub);
@@ -152,10 +152,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring subscriberConnection to Enabled
             configurator.Enable(subscriberConnection);
@@ -164,10 +164,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring readerGroup to Enabled
             configurator.Enable(readerGroup);
@@ -176,10 +176,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Operational, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // Bring datasetReader to Enabled
             configurator.Enable(datasetReader);
@@ -188,10 +188,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Operational, Is.True);
-            Assert.That(dsrState == PubSubState.Operational, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Operational));
         }
 
         [Test(Description = "Validate transition of state Paused_1 to Disabled_0 on Reader")]
@@ -229,10 +229,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
 
             // Bring Connection to Disabled
             configurator.Disable(subscriberConnection);
@@ -242,10 +242,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
 
             // Bring readerGroup to Disabled
             configurator.Disable(readerGroup);
@@ -255,10 +255,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
 
             // Bring datasetReader to Disabled
             configurator.Disable(datasetReader);
@@ -268,10 +268,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
         }
 
         [Test(Description = "Validate transition of state Paused_1 to Operational_2 on Reader")]
@@ -309,11 +309,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
             Assert.That(rgState == PubSubState.Paused, Is.True);
             Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
 
             // Bring pubSub to Enabled
             configurator.Enable(pubSub);
@@ -322,10 +322,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Operational, Is.True);
-            Assert.That(dsrState == PubSubState.Operational, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Operational));
         }
 
         [Test(Description = "Validate transition of state Operational_2 to Disabled_0 on Reader")]
@@ -359,10 +359,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Operational, Operational, Operational, Operational]
             configurator.Enable(pubSub);
@@ -375,10 +375,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Operational, Is.True);
-            Assert.That(dsrState == PubSubState.Operational, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Operational));
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
 
@@ -392,10 +392,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
         }
 
         [Test(Description = "Validate transition of state Operational_2 to Paused_1 on Reader")]
@@ -428,10 +428,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(readerGroup);
             PubSubState dsrState = uaPubSubApplication.UaPubSubConfigurator
                 .FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Disabled, Is.True);
-            Assert.That(rgState == PubSubState.Disabled, Is.True);
-            Assert.That(dsrState == PubSubState.Disabled, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Disabled));
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Operational, Operational, Operational, Operational]
 
@@ -445,10 +445,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Operational, Is.True);
-            Assert.That(conState == PubSubState.Operational, Is.True);
-            Assert.That(rgState == PubSubState.Operational, Is.True);
-            Assert.That(dsrState == PubSubState.Operational, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(conState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Operational));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Operational));
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Pause, Pause, Pause]
             configurator.Disable(pubSub);
@@ -457,10 +457,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(subscriberConnection);
             rgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(readerGroup);
             dsrState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetReader);
-            Assert.That(psState == PubSubState.Disabled, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(dsrState == PubSubState.Paused, Is.True);
+            Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
         }
     }
 }

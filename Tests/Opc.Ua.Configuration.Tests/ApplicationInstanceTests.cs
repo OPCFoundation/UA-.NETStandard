@@ -99,16 +99,16 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
             string configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
                 checkCurrentDirectory: true,
                 createAlways: false);
-            Assert.NotNull(configPath);
+            Assert.That(configPath, Is.Not.Null);
             ApplicationConfiguration applicationConfiguration = await applicationInstance
                 .LoadApplicationConfigurationAsync(configPath, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(applicationConfiguration);
+            Assert.That(applicationConfiguration, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -121,7 +121,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -135,7 +135,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -148,7 +148,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -165,7 +165,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetMinimumCertificateKeySize(minimumKeySize)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
@@ -180,8 +180,8 @@ namespace Opc.Ua.Configuration.Tests
                     telemetry)
                 .ConfigureAwait(false);
 
-            Assert.NotNull(certificate);
-            Assert.AreEqual(minimumKeySize, X509Utils.GetPublicKeySize(certificate));
+            Assert.That(certificate, Is.Not.Null);
+            Assert.That(X509Utils.GetPublicKeySize(certificate), Is.EqualTo(minimumKeySize));
         }
 
         [Test]
@@ -191,7 +191,7 @@ namespace Opc.Ua.Configuration.Tests
 
             // no app name
             var applicationInstance = new ApplicationInstance(telemetry);
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -302,7 +302,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -317,7 +317,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -330,7 +330,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -368,7 +368,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRejectUnknownRevocationStatus(true)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -381,7 +381,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -405,7 +405,7 @@ namespace Opc.Ua.Configuration.Tests
                     CertificateStoreType.X509Store)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -430,7 +430,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -449,7 +449,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(applicationCerts, CertificateStoreType.X509Store)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             CertificateIdentifier applicationCertificate = applicationInstance
                 .ApplicationConfiguration
                 .SecurityConfiguration
@@ -500,7 +500,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -515,7 +515,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetAddAppCertToTrustedStore(true)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
@@ -558,7 +558,7 @@ namespace Opc.Ua.Configuration.Tests
                 Path.DirectorySeparatorChar;
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -586,7 +586,7 @@ namespace Opc.Ua.Configuration.Tests
                     .ConfigureAwait(false);
             }
 
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             CertificateIdentifier applicationCertificate = applicationInstance
                 .ApplicationConfiguration
@@ -597,7 +597,7 @@ namespace Opc.Ua.Configuration.Tests
             X509Certificate2 publicKey = null;
             using (X509Certificate2 testCert = CreateInvalidCert(certType))
             {
-                Assert.NotNull(testCert);
+                Assert.That(testCert, Is.Not.Null);
                 Assert.True(testCert.HasPrivateKey);
                 await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
@@ -616,7 +616,7 @@ namespace Opc.Ua.Configuration.Tests
                         .ConfigureAwait(false);
 
                     Assert.True(certOK);
-                    Assert.AreEqual(publicKey, applicationCertificate.Certificate);
+                    Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
                 }
                 else
                 {
@@ -657,7 +657,7 @@ namespace Opc.Ua.Configuration.Tests
                 Path.DirectorySeparatorChar;
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -684,7 +684,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false);
             }
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             CertificateIdentifier applicationCertificate = applicationInstance
                 .ApplicationConfiguration
@@ -696,7 +696,7 @@ namespace Opc.Ua.Configuration.Tests
             if (certType != InvalidCertType.NoIssuer)
             {
                 using X509Certificate2 issuerCert = testCerts[1];
-                Assert.NotNull(issuerCert);
+                Assert.That(issuerCert, Is.Not.Null);
                 Assert.False(issuerCert.HasPrivateKey);
                 await issuerCert.AddToStoreAsync(
                     applicationInstance
@@ -716,7 +716,7 @@ namespace Opc.Ua.Configuration.Tests
             X509Certificate2 publicKey = null;
             using (X509Certificate2 testCert = testCerts[0])
             {
-                Assert.NotNull(testCert);
+                Assert.That(testCert, Is.Not.Null);
                 Assert.True(testCert.HasPrivateKey);
                 await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
@@ -735,7 +735,7 @@ namespace Opc.Ua.Configuration.Tests
                         .ConfigureAwait(false);
 
                     Assert.True(certOK);
-                    Assert.AreEqual(publicKey, applicationCertificate.Certificate);
+                    Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
                 }
                 else
                 {
@@ -887,7 +887,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName,
                 DisableCertificateAutoCreation = disableCertificateAutoCreation
             };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
             ApplicationConfiguration config;
 
             CertificateIdentifierCollection applicationCerts =
@@ -914,7 +914,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false);
             }
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             CertificateIdentifier applicationCertificate = applicationInstance
                 .ApplicationConfiguration
@@ -950,7 +950,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create two certificates with different ApplicationUris
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
@@ -1001,7 +1001,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             // Set multiple certificates
             config.SecurityConfiguration.ApplicationCertificates =
@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create two certificates with the same ApplicationUri
             X509Certificate2 cert1 = CertificateFactory
@@ -1076,7 +1076,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             // Set multiple certificates with same URI
             config.SecurityConfiguration.ApplicationCertificates =
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create a certificate with multiple URIs in SAN, including the ApplicationUri
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetMinimumCertificateKeySize(256)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             config.SecurityConfiguration.ApplicationCertificates = [certId];
 
@@ -1159,7 +1159,7 @@ namespace Opc.Ua.Configuration.Tests
             // Load the certificate to check its URIs
             X509Certificate2 loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
-            Assert.AreEqual(3, uris.Count);
+            Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create a certificate with multiple URIs in SAN, but none matching ApplicationUri
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetMinimumCertificateKeySize(256)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             config.SecurityConfiguration.ApplicationCertificates = [certId];
 
@@ -1247,7 +1247,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with multiple URIs including ApplicationUri
             X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetMinimumCertificateKeySize(256)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             config.SecurityConfiguration.ApplicationCertificates =
             [
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            Assert.NotNull(applicationInstance);
+            Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with ApplicationUri
             X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
@@ -1377,7 +1377,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetMinimumCertificateKeySize(256)
                 .CreateAsync()
                 .ConfigureAwait(false);
-            Assert.NotNull(config);
+            Assert.That(config, Is.Not.Null);
 
             config.SecurityConfiguration.ApplicationCertificates =
             [

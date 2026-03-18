@@ -179,11 +179,6 @@ namespace Opc.Ua.Server
             if (getMonitoredItemsOutputArguments != null &&
                 getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
             {
-                foreach (Argument argument in outputArgumentsValue)
-                {
-                    argument.ArrayDimensions = [0];
-                }
-
                 getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
             }
 

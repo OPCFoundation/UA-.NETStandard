@@ -721,7 +721,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void StructureBuilderScalarRoundTrip()
         {
             IVariantBuilder<Argument> builder = new StructureBuilder<Argument>();
-            var input = new Argument() { Name = "test" };
+            var input = new Argument { Name = "test" };
             Variant variant = builder.WithValue(input);
             Argument result = builder.GetValue(variant);
             Assert.That(result, Is.SameAs(input));
@@ -732,8 +732,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             IVariantBuilder<ArrayOf<Argument>> builder = new StructureBuilder<Argument>();
             var input = ArrayOf.Wrapped(
-                new Argument() { Name = "a" },
-                new Argument() { Name = "b" });
+                new Argument { Name = "a" },
+                new Argument { Name = "b" });
             Variant variant = builder.WithValue(input);
             ArrayOf<Argument> result = builder.GetValue(variant);
             Assert.That(result.Count, Is.EqualTo(2));
@@ -744,10 +744,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             IVariantBuilder<MatrixOf<Argument>> builder = new StructureBuilder<Argument>();
             MatrixOf<Argument> input = ArrayOf.Wrapped(
-                new Argument() { Name = "a" },
-                new Argument() { Name = "b" },
-                new Argument() { Name = "c" },
-                new Argument() { Name = "d" }).ToMatrix(2, 2);
+                new Argument { Name = "a" },
+                new Argument { Name = "b" },
+                new Argument { Name = "c" },
+                new Argument { Name = "d" }).ToMatrix(2, 2);
             Variant variant = builder.WithValue(input);
             MatrixOf<Argument> result = builder.GetValue(variant);
             Assert.That(result.Count, Is.EqualTo(4));

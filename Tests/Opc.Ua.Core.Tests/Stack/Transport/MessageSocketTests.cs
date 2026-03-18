@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             IMessageSocket messageSocket = messageSocketMock.Object;
             EndPoint gotEndpoint = messageSocket.LocalEndpoint;
 
-            Assert.IsTrue(gotEndpoint.Equals(endPoint));
+            Assert.That(gotEndpoint, Is.EqualTo(endPoint));
         }
     }
 }

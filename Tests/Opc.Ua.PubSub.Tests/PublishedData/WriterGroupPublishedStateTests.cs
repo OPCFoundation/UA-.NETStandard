@@ -56,9 +56,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test(
             Description = "Publish Uadp | Json DataSetMessages with KeyFrameCount and delta frames")]
         public void PublishDataSetMessages(
-            [Values(
-                PubSubMessageType.Uadp,
-                PubSubMessageType.Json)] PubSubMessageType pubSubMessageType,
+            [Values] PubSubMessageType pubSubMessageType,
             [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -130,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
-            Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
+            Assert.That(publisherConnection, Is.Not.Null, "Publisher first connection should not be null");
 
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
@@ -143,8 +141,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
                 writerGroupPublishState);
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessages,
+                Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
@@ -158,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             {
                 uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
                     networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
-                Assert.IsNotNull(uaNetworkMessagesList, "uaNetworkMessagesList should not be null");
+                Assert.That(uaNetworkMessagesList, Is.Not.Null, "uaNetworkMessagesList should not be null");
                 uaNetworkMessages =
                 [
                     .. (IEnumerable<UaNetworkMessage>)uaNetworkMessagesList
@@ -173,8 +172,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     .. (IEnumerable<UaNetworkMessage>)uaNetworkMessagesList
                 ];
             }
-            Assert.IsNotNull(
+            Assert.That(
                 uaNetworkMessages,
+                Is.Not.Null,
                 "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
 
             // get datastore data
@@ -208,8 +208,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 networkMessages = publisherConnection.CreateNetworkMessages(
                     publisherConfiguration.Connections[0].WriterGroups[0],
                     writerGroupPublishState);
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessages,
+                    Is.Not.Null,
                     "connection.CreateNetworkMessages shall not be null");
                 Assert.GreaterOrEqual(
                     networkMessages.Count,
@@ -220,8 +221,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 {
                     uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
                         networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
-                    Assert.IsNotNull(
+                    Assert.That(
                         uaNetworkMessagesList,
+                        Is.Not.Null,
                         "uaNetworkMessagesList shall not be null");
                     uaNetworkMessages =
                     [
@@ -237,8 +239,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         .. (IEnumerable<UaNetworkMessage>)uaNetworkMessagesList
                     ];
                 }
-                Assert.IsNotNull(
+                Assert.That(
                     uaNetworkMessages,
+                    Is.Not.Null,
                     "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
 
                 // check if delta received data is valid
@@ -299,11 +302,13 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 if (datasetMessage.DataSet.IsDeltaFrame)
                 {
                     Assert.Greater(keyFrameCount, 1, "keyFrameCount > 1 if dataset is delta!");
-                    Assert.IsNotNull(
+                    Assert.That(
                         writerGroupPublishState,
+                        Is.Not.Null,
                         "WriterGroupPublishState should not be null");
-                    Assert.IsNotNull(
+                    Assert.That(
                         writerGroupDataSetStates,
+                        Is.Not.Null,
                         "writerGroupDataSetStates that contains last saved detaset should not be null");
 
                     DataSet lastDataSetFound = null;
@@ -329,8 +334,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             }
                         }
                     }
-                    Assert.IsNotNull(
+                    Assert.That(
                         lastDataSetFound,
+                        Is.Not.Null,
                         "lastDataSetFound dataset should not be null");
 
                     int fieldIndex = 0;
@@ -338,8 +344,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     {
                         // ghost field should still be hold it in the state.LastDataSet
                         Field lastDataSetField = lastDataSetFound.Fields[fieldIndex++];
-                        Assert.IsNotNull(
+                        Assert.That(
                             lastDataSetField,
+                            Is.Not.Null,
                             "lastDataSetField should not be null even if the partial field is missing due to delta");
                         // for delta frames dataset might contains partial filled data
                         if (field == null)
@@ -387,7 +394,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 }
                 else
                 {
-                    Assert.AreEqual(1, keyFrameCount, "keyFrameCount = 1 if dataset is not delta!");
+                    Assert.That(keyFrameCount, Is.EqualTo(1), "keyFrameCount = 1 if dataset is not delta!");
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
                         Assert.IsNotNull(

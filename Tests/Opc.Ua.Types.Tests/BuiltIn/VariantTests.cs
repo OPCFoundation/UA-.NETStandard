@@ -829,7 +829,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var second = new Variant(Array(1, 2));
             var third = new Variant(Array(1, 3));
 
-            Assert.That(first.Equals(second), Is.True);
+            Assert.That(first, Is.EqualTo(second));
             Assert.That(first.Equals(third), Is.False);
         }
 
@@ -847,9 +847,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var variant = new Variant("value");
 
-            Assert.That(variant.Equals((object)"value"), Is.True);
+            Assert.That(variant, Is.EqualTo((object)"value"));
             Assert.That(variant.Equals((object)"other"), Is.False);
-            Assert.That(Variant.Null.Equals((object)null), Is.True);
+            Assert.That(Variant.Null, Is.EqualTo((object)null));
         }
 
         [Test]
@@ -859,8 +859,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var identical = new Variant(Array(true, false));
             var different = new Variant(Array(false, false));
 
-            Assert.That(left == identical, Is.True);
-            Assert.That(left != identical, Is.False);
+            Assert.That(left, Is.EqualTo(identical));
+            Assert.That(left, Is.EqualTo(identical));
             Assert.That(left == different, Is.False);
             Assert.That(left != different, Is.True);
         }
@@ -897,7 +897,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(Variant.Null.Value, Is.Null);
 #pragma warning restore CS0618 // Type or member is obsolete
-            Assert.That(Variant.Null.GetHashCode(), Is.EqualTo(0));
+            Assert.That(Variant.Null.GetHashCode(), Is.Zero);
         }
 
         [Test]
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var emptyStatusCodes = (StatusCode[])variant2.Value;
-            Assert.That(emptyStatusCodes.Length, Is.EqualTo(0));
+            Assert.That(emptyStatusCodes.Length, Is.Zero);
 
             // Test single element array
             ArrayOf<StatusCode> singleElement = [StatusCodes.BadNodeIdInvalid];
@@ -1066,11 +1066,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static T[] Array<T>(params T[] items)
         {
             return items;
-        }
-
-        private static byte[] Bytes(params byte[] values)
-        {
-            return values;
         }
 
         private static TestCaseData CreateConstructorCase(
@@ -1860,88 +1855,77 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitFromArrayOfSByteCreatesVariant()
         {
-            ArrayOf<sbyte> arr = [-1, 1];
-            Variant v = arr;
+            Variant v = (ArrayOf<sbyte>)[-1, 1];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.SByte));
         }
 
         [Test]
         public void ImplicitFromArrayOfByteCreatesVariant()
         {
-            ArrayOf<byte> arr = [1, 2];
-            Variant v = arr;
+            Variant v = (ArrayOf<byte>)[1, 2];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Byte));
         }
 
         [Test]
         public void ImplicitFromArrayOfInt16CreatesVariant()
         {
-            ArrayOf<short> arr = [-1, 1];
-            Variant v = arr;
+            Variant v = (ArrayOf<short>)[-1, 1];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int16));
         }
 
         [Test]
         public void ImplicitFromArrayOfUInt16CreatesVariant()
         {
-            ArrayOf<ushort> arr = [1, 2];
-            Variant v = arr;
+            Variant v = (ArrayOf<ushort>)[1, 2];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
         }
 
         [Test]
         public void ImplicitFromArrayOfInt32CreatesVariant()
         {
-            ArrayOf<int> arr = [-1, 1];
-            Variant v = arr;
+            Variant v = (ArrayOf<int>)[-1, 1];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
         public void ImplicitFromArrayOfUInt32CreatesVariant()
         {
-            ArrayOf<uint> arr = [1u, 2u];
-            Variant v = arr;
+            Variant v = (ArrayOf<uint>)[1u, 2u];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
         }
 
         [Test]
         public void ImplicitFromArrayOfInt64CreatesVariant()
         {
-            ArrayOf<long> arr = [-1L, 1L];
-            Variant v = arr;
+            Variant v = (ArrayOf<long>)[-1L, 1L];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
         }
 
         [Test]
         public void ImplicitFromArrayOfUInt64CreatesVariant()
         {
-            ArrayOf<ulong> arr = [1UL, 2UL];
-            Variant v = arr;
+            Variant v = (ArrayOf<ulong>)[1UL, 2UL];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt64));
         }
 
         [Test]
         public void ImplicitFromArrayOfFloatCreatesVariant()
         {
-            ArrayOf<float> arr = [1.0f, 2.0f];
-            Variant v = arr;
+            Variant v = (ArrayOf<float>)[1.0f, 2.0f];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Float));
         }
 
         [Test]
         public void ImplicitFromArrayOfDoubleCreatesVariant()
         {
-            ArrayOf<double> arr = [1.0, 2.0];
-            Variant v = arr;
+            Variant v = (ArrayOf<double>)[1.0, 2.0];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
         }
 
         [Test]
         public void ImplicitFromArrayOfStringCreatesVariant()
         {
-            ArrayOf<string> arr = ["a", "b"];
-            Variant v = arr;
+            Variant v = (ArrayOf<string>)["a", "b"];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
         }
 
@@ -1949,110 +1933,97 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromArrayOfDateTimeUtcCreatesVariant()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            ArrayOf<DateTimeUtc> arr = [dt, dt];
-            Variant v = arr;
+            Variant v = (ArrayOf<DateTimeUtc>)[dt, dt];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DateTime));
         }
 
         [Test]
         public void ImplicitFromArrayOfUuidCreatesVariant()
         {
-            ArrayOf<Uuid> arr = [Uuid.NewUuid(), Uuid.NewUuid()];
-            Variant v = arr;
+            Variant v = (ArrayOf<Uuid>)[Uuid.NewUuid(), Uuid.NewUuid()];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Guid));
         }
 
         [Test]
         public void ImplicitFromArrayOfByteStringCreatesVariant()
         {
-            ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
-            Variant v = arr;
+            Variant v = (ArrayOf<ByteString>)[ByteString.From(1), ByteString.From(2)];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
         }
 
         [Test]
         public void ImplicitFromArrayOfXmlElementCreatesVariant()
         {
-            ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
-            Variant v = arr;
+            Variant v = (ArrayOf<XmlElement>)[CreateXmlElement("A"), CreateXmlElement("B")];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
         }
 
         [Test]
         public void ImplicitFromArrayOfNodeIdCreatesVariant()
         {
-            ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
-            Variant v = arr;
+            Variant v = (ArrayOf<NodeId>)[new NodeId(1), new NodeId(2)];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
         }
 
         [Test]
         public void ImplicitFromArrayOfExpandedNodeIdCreatesVariant()
         {
-            ArrayOf<ExpandedNodeId> arr = [
+            Variant v = (ArrayOf<ExpandedNodeId>)[
                 ExpandedNodeId.Parse("nsu=T;s=A"),
                 ExpandedNodeId.Parse("nsu=T;s=B")
             ];
-            Variant v = arr;
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExpandedNodeId));
         }
 
         [Test]
         public void ImplicitFromArrayOfStatusCodeCreatesVariant()
         {
-            ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
-            Variant v = arr;
+            Variant v = (ArrayOf<StatusCode>)[new StatusCode(1u), new StatusCode(2u)];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
         }
 
         [Test]
         public void ImplicitFromArrayOfQualifiedNameCreatesVariant()
         {
-            ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
-            Variant v = arr;
+            Variant v = (ArrayOf<QualifiedName>)[new QualifiedName("a"), new QualifiedName("b")];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.QualifiedName));
         }
 
         [Test]
         public void ImplicitFromArrayOfLocalizedTextCreatesVariant()
         {
-            ArrayOf<LocalizedText> arr = [new LocalizedText("en", "a"), new LocalizedText("de", "b")];
-            Variant v = arr;
+            Variant v = (ArrayOf<LocalizedText>)[new LocalizedText("en", "a"), new LocalizedText("de", "b")];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
         }
 
         [Test]
         public void ImplicitFromArrayOfExtensionObjectCreatesVariant()
         {
-            ArrayOf<ExtensionObject> arr = [
+            Variant v = (ArrayOf<ExtensionObject>)[
                 new ExtensionObject(new Argument()),
                 new ExtensionObject(new Argument())
             ];
-            Variant v = arr;
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
         }
 
         [Test]
         public void ImplicitFromArrayOfDataValueCreatesVariant()
         {
-            ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
-            Variant v = arr;
+            Variant v = (ArrayOf<DataValue>)[new DataValue(1), new DataValue(2)];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DataValue));
         }
 
         [Test]
         public void ImplicitFromArrayOfVariantCreatesVariant()
         {
-            ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
-            Variant v = arr;
+            Variant v = (ArrayOf<Variant>)[new Variant(1), new Variant("x")];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
         }
 
         [Test]
         public void ImplicitFromMatrixOfBoolCreatesVariant()
         {
-            MatrixOf<bool> m = new bool[,] { { true, false }, { false, true } };
-            Variant v = m;
+            Variant v = (MatrixOf<bool>)(new bool[,] { { true, false }, { false, true } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
             Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
         }
@@ -2060,8 +2031,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitFromMatrixOfSByteCreatesVariant()
         {
-            MatrixOf<sbyte> m = new sbyte[,] { { -1, 1 }, { -2, 2 } };
-            Variant v = m;
+            Variant v = (MatrixOf<sbyte>)(new sbyte[,] { { -1, 1 }, { -2, 2 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.SByte));
             Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
         }
@@ -2069,80 +2039,70 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitFromMatrixOfByteCreatesVariant()
         {
-            MatrixOf<byte> m = new byte[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<byte>)(new byte[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Byte));
         }
 
         [Test]
         public void ImplicitFromMatrixOfInt16CreatesVariant()
         {
-            MatrixOf<short> m = new short[,] { { -1, 1 }, { -2, 2 } };
-            Variant v = m;
+            Variant v = (MatrixOf<short>)(new short[,] { { -1, 1 }, { -2, 2 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int16));
         }
 
         [Test]
         public void ImplicitFromMatrixOfUInt16CreatesVariant()
         {
-            MatrixOf<ushort> m = new ushort[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<ushort>)(new ushort[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
         }
 
         [Test]
         public void ImplicitFromMatrixOfInt32CreatesVariant()
         {
-            MatrixOf<int> m = new int[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<int>)(new int[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
         public void ImplicitFromMatrixOfUInt32CreatesVariant()
         {
-            MatrixOf<uint> m = new uint[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<uint>)(new uint[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
         }
 
         [Test]
         public void ImplicitFromMatrixOfInt64CreatesVariant()
         {
-            MatrixOf<long> m = new long[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<long>)(new long[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
         }
 
         [Test]
         public void ImplicitFromMatrixOfUInt64CreatesVariant()
         {
-            MatrixOf<ulong> m = new ulong[,] { { 1, 2 }, { 3, 4 } };
-            Variant v = m;
+            Variant v = (MatrixOf<ulong>)(new ulong[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt64));
         }
 
         [Test]
         public void ImplicitFromMatrixOfFloatCreatesVariant()
         {
-            MatrixOf<float> m = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
-            Variant v = m;
+            Variant v = (MatrixOf<float>)(new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Float));
         }
 
         [Test]
         public void ImplicitFromMatrixOfDoubleCreatesVariant()
         {
-            MatrixOf<double> m = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
-            Variant v = m;
+            Variant v = (MatrixOf<double>)(new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
         }
 
         [Test]
         public void ImplicitFromMatrixOfStringCreatesVariant()
         {
-            MatrixOf<string> m = new string[,] { { "a", "b" }, { "c", "d" } };
-            Variant v = m;
+            Variant v = (MatrixOf<string>)(new string[,] { { "a", "b" }, { "c", "d" } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
         }
 
@@ -2150,8 +2110,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfDateTimeUtcCreatesVariant()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            MatrixOf<DateTimeUtc> m = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
-            Variant v = m;
+            Variant v = (MatrixOf<DateTimeUtc>)(new DateTimeUtc[,] { { dt, dt }, { dt, dt } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DateTime));
         }
 
@@ -2159,8 +2118,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfUuidCreatesVariant()
         {
             var u = Uuid.NewUuid();
-            MatrixOf<Uuid> m = new Uuid[,] { { u, u }, { u, u } };
-            Variant v = m;
+            Variant v = (MatrixOf<Uuid>)(new Uuid[,] { { u, u }, { u, u } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Guid));
         }
 
@@ -2168,8 +2126,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfByteStringCreatesVariant()
         {
             var bs = ByteString.From(1);
-            MatrixOf<ByteString> m = new ByteString[,] { { bs, bs }, { bs, bs } };
-            Variant v = m;
+            Variant v = (MatrixOf<ByteString>)(new ByteString[,] { { bs, bs }, { bs, bs } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
         }
 
@@ -2177,8 +2134,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfXmlElementCreatesVariant()
         {
             XmlElement xml = CreateXmlElement("M");
-            MatrixOf<XmlElement> m = new XmlElement[,] { { xml, xml }, { xml, xml } };
-            Variant v = m;
+            Variant v = (MatrixOf<XmlElement>)(new XmlElement[,] { { xml, xml }, { xml, xml } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
         }
 
@@ -2186,8 +2142,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfNodeIdCreatesVariant()
         {
             var nid = new NodeId(1);
-            MatrixOf<NodeId> m = new NodeId[,] { { nid, nid }, { nid, nid } };
-            Variant v = m;
+            Variant v = (MatrixOf<NodeId>)(new NodeId[,] { { nid, nid }, { nid, nid } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
         }
 
@@ -2195,8 +2150,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfExpandedNodeIdCreatesVariant()
         {
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
-            MatrixOf<ExpandedNodeId> m = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
-            Variant v = m;
+            Variant v = (MatrixOf<ExpandedNodeId>)(new ExpandedNodeId[,] { { eni, eni }, { eni, eni } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExpandedNodeId));
         }
 
@@ -2204,8 +2158,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfStatusCodeCreatesVariant()
         {
             var sc = new StatusCode(1u);
-            MatrixOf<StatusCode> m = new StatusCode[,] { { sc, sc }, { sc, sc } };
-            Variant v = m;
+            Variant v = (MatrixOf<StatusCode>)(new StatusCode[,] { { sc, sc }, { sc, sc } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
         }
 
@@ -2213,8 +2166,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfQualifiedNameCreatesVariant()
         {
             var qn = new QualifiedName("q");
-            MatrixOf<QualifiedName> m = new QualifiedName[,] { { qn, qn }, { qn, qn } };
-            Variant v = m;
+            Variant v = (MatrixOf<QualifiedName>)(new QualifiedName[,] { { qn, qn }, { qn, qn } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.QualifiedName));
         }
 
@@ -2222,8 +2174,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfLocalizedTextCreatesVariant()
         {
             var lt = new LocalizedText("en", "t");
-            MatrixOf<LocalizedText> m = new LocalizedText[,] { { lt, lt }, { lt, lt } };
-            Variant v = m;
+            Variant v = (MatrixOf<LocalizedText>)(new LocalizedText[,] { { lt, lt }, { lt, lt } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
         }
 
@@ -2231,8 +2182,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfExtensionObjectCreatesVariant()
         {
             var eo = new ExtensionObject(new Argument());
-            MatrixOf<ExtensionObject> m = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
-            Variant v = m;
+            Variant v = (MatrixOf<ExtensionObject>)(new ExtensionObject[,] { { eo, eo }, { eo, eo } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
         }
 
@@ -2240,8 +2190,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfDataValueCreatesVariant()
         {
             var dv = new DataValue(1);
-            MatrixOf<DataValue> m = new DataValue[,] { { dv, dv }, { dv, dv } };
-            Variant v = m;
+            Variant v = (MatrixOf<DataValue>)(new DataValue[,] { { dv, dv }, { dv, dv } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.DataValue));
         }
 
@@ -2249,8 +2198,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitFromMatrixOfVariantCreatesVariant()
         {
             var vr = new Variant(1);
-            MatrixOf<Variant> m = new Variant[,] { { vr, vr }, { vr, vr } };
-            Variant v = m;
+            Variant v = (MatrixOf<Variant>)(new Variant[,] { { vr, vr }, { vr, vr } });
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
         }
 
@@ -2258,8 +2206,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorWithBoolValue()
         {
             var v = new Variant(true);
-            Assert.That(v == true, Is.True);
-            Assert.That(v != true, Is.False);
+            Assert.That(v, Is.EqualTo(true));
+            Assert.That(v, Is.EqualTo(true));
             Assert.That(v == false, Is.False);
             Assert.That(v != false, Is.True);
         }
@@ -2268,8 +2216,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorWithSByteValue()
         {
             var v = new Variant((sbyte)-5);
-            Assert.That(v == (sbyte)-5, Is.True);
-            Assert.That(v != (sbyte)-5, Is.False);
+            Assert.That(v, Is.EqualTo((sbyte)-5));
+            Assert.That(v, Is.EqualTo((sbyte)-5));
             Assert.That(v == (sbyte)0, Is.False);
         }
 
@@ -2277,8 +2225,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorWithByteValue()
         {
             var v = new Variant((byte)42);
-            Assert.That(v == (byte)42, Is.True);
-            Assert.That(v != (byte)42, Is.False);
+            Assert.That(v, Is.EqualTo((byte)42));
+            Assert.That(v, Is.EqualTo((byte)42));
             Assert.That(v == (byte)0, Is.False);
         }
 
@@ -2286,72 +2234,72 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorWithInt16Value()
         {
             var v = new Variant((short)-100);
-            Assert.That(v == (short)-100, Is.True);
-            Assert.That(v != (short)-100, Is.False);
+            Assert.That(v, Is.EqualTo((short)-100));
+            Assert.That(v, Is.EqualTo((short)-100));
         }
 
         [Test]
         public void EqualityOperatorWithUInt16Value()
         {
             var v = new Variant((ushort)200);
-            Assert.That(v == (ushort)200, Is.True);
-            Assert.That(v != (ushort)200, Is.False);
+            Assert.That(v, Is.EqualTo((ushort)200));
+            Assert.That(v, Is.EqualTo((ushort)200));
         }
 
         [Test]
         public void EqualityOperatorWithInt32Value()
         {
             var v = new Variant(-300);
-            Assert.That(v == -300, Is.True);
-            Assert.That(v != -300, Is.False);
+            Assert.That(v, Is.EqualTo(-300));
+            Assert.That(v, Is.EqualTo(-300));
         }
 
         [Test]
         public void EqualityOperatorWithUInt32Value()
         {
             var v = new Variant(400u);
-            Assert.That(v == 400u, Is.True);
-            Assert.That(v != 400u, Is.False);
+            Assert.That(v, Is.EqualTo(400u));
+            Assert.That(v, Is.EqualTo(400u));
         }
 
         [Test]
         public void EqualityOperatorWithInt64Value()
         {
             var v = new Variant(-500L);
-            Assert.That(v == -500L, Is.True);
-            Assert.That(v != -500L, Is.False);
+            Assert.That(v, Is.EqualTo(-500L));
+            Assert.That(v, Is.EqualTo(-500L));
         }
 
         [Test]
         public void EqualityOperatorWithUInt64Value()
         {
             var v = new Variant(600UL);
-            Assert.That(v == 600UL, Is.True);
-            Assert.That(v != 600UL, Is.False);
+            Assert.That(v, Is.EqualTo(600UL));
+            Assert.That(v, Is.EqualTo(600UL));
         }
 
         [Test]
         public void EqualityOperatorWithFloatValue()
         {
             var v = new Variant(1.5f);
-            Assert.That(v == 1.5f, Is.True);
-            Assert.That(v != 1.5f, Is.False);
+            Assert.That(v, Is.EqualTo(1.5f));
+            Assert.That(v, Is.EqualTo(1.5f));
         }
 
         [Test]
         public void EqualityOperatorWithDoubleValue()
         {
             var v = new Variant(2.5d);
-            Assert.That(v == 2.5d, Is.True);
-            Assert.That(v != 2.5d, Is.False);
+            Assert.That(v, Is.EqualTo(2.5d));
+            Assert.That(v, Is.EqualTo(2.5d));
         }
 
         [Test]
         public void EqualityOperatorWithStringValue()
         {
             var v = new Variant("hello");
-            Assert.That(v == "hello", Is.True);
-            Assert.That(v != "hello", Is.False);
+            Assert.That(v, Is.EqualTo("hello"));
+            Assert.That(v, Is.EqualTo("hello"));
             Assert.That(v == "world", Is.False);
         }
 
@@ -2360,8 +2308,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15), DateTimeKind.Utc);
             var v = new Variant(dt);
-            Assert.That(v == dt, Is.True);
-            Assert.That(v != dt, Is.False);
+            Assert.That(v, Is.EqualTo(dt));
+            Assert.That(v, Is.EqualTo(dt));
         }
 
         [Test]
@@ -2369,8 +2317,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Uuid.NewUuid();
             var v = new Variant(guid);
-            Assert.That(v == guid, Is.True);
-            Assert.That(v != guid, Is.False);
+            Assert.That(v, Is.EqualTo(guid));
+            Assert.That(v, Is.EqualTo(guid));
         }
 
         [Test]
@@ -2378,8 +2326,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bs = ByteString.From(1, 2, 3);
             var v = new Variant(bs);
-            Assert.That(v == bs, Is.True);
-            Assert.That(v != bs, Is.False);
+            Assert.That(v, Is.EqualTo(bs));
+            Assert.That(v, Is.EqualTo(bs));
         }
 
         [Test]
@@ -2387,8 +2335,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             XmlElement xml = CreateXmlElement("Test");
             var v = new Variant(xml);
-            Assert.That(v == xml, Is.True);
-            Assert.That(v != xml, Is.False);
+            Assert.That(v, Is.EqualTo(xml));
+            Assert.That(v, Is.EqualTo(xml));
         }
 
         [Test]
@@ -2396,8 +2344,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nid = new NodeId(10, 1);
             var v = new Variant(nid);
-            Assert.That(v == nid, Is.True);
-            Assert.That(v != nid, Is.False);
+            Assert.That(v, Is.EqualTo(nid));
+            Assert.That(v, Is.EqualTo(nid));
         }
 
         [Test]
@@ -2405,8 +2353,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eni = ExpandedNodeId.Parse("nsu=T;s=Node");
             var v = new Variant(eni);
-            Assert.That(v == eni, Is.True);
-            Assert.That(v != eni, Is.False);
+            Assert.That(v, Is.EqualTo(eni));
+            Assert.That(v, Is.EqualTo(eni));
         }
 
         [Test]
@@ -2414,8 +2362,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(123u);
             var v = new Variant(sc);
-            Assert.That(v == sc, Is.True);
-            Assert.That(v != sc, Is.False);
+            Assert.That(v, Is.EqualTo(sc));
+            Assert.That(v, Is.EqualTo(sc));
         }
 
         [Test]
@@ -2423,8 +2371,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("name", 2);
             var v = new Variant(qn);
-            Assert.That(v == qn, Is.True);
-            Assert.That(v != qn, Is.False);
+            Assert.That(v, Is.EqualTo(qn));
+            Assert.That(v, Is.EqualTo(qn));
         }
 
         [Test]
@@ -2432,8 +2380,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en", "text");
             var v = new Variant(lt);
-            Assert.That(v == lt, Is.True);
-            Assert.That(v != lt, Is.False);
+            Assert.That(v, Is.EqualTo(lt));
+            Assert.That(v, Is.EqualTo(lt));
         }
 
         [Test]
@@ -2441,8 +2389,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eo = new ExtensionObject(new Argument());
             var v = new Variant(eo);
-            Assert.That(v == eo, Is.True);
-            Assert.That(v != eo, Is.False);
+            Assert.That(v, Is.EqualTo(eo));
+            Assert.That(v, Is.EqualTo(eo));
         }
 
         [Test]
@@ -2450,16 +2398,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(5);
             var v = new Variant(dv);
-            Assert.That(v == dv, Is.True);
-            Assert.That(v != dv, Is.False);
+            Assert.That(v, Is.EqualTo(dv));
+            Assert.That(v, Is.EqualTo(dv));
         }
 
         [Test]
         public void EqualityOperatorWithEnumValue()
         {
             var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
-            Assert.That(v == (Enum)TestEnum.One, Is.True);
-            Assert.That(v != (Enum)TestEnum.One, Is.False);
+            Assert.That(v, Is.EqualTo((Enum)TestEnum.One));
+            Assert.That(v, Is.EqualTo((Enum)TestEnum.One));
         }
 
         [Test]
@@ -2467,8 +2415,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<bool> arr = [true, false];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2476,8 +2424,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<sbyte> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2485,8 +2433,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<byte> arr = [1, 2];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2494,8 +2442,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<short> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2503,8 +2451,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ushort> arr = [1, 2];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2512,8 +2460,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2521,8 +2469,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<uint> arr = [1u, 2u];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2530,8 +2478,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<long> arr = [-1L, 1L];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2539,8 +2487,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ulong> arr = [1UL, 2UL];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2548,8 +2496,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<float> arr = [1.0f, 2.0f];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2557,8 +2505,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<double> arr = [1.0, 2.0];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2566,8 +2514,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<string> arr = ["a", "b"];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2576,8 +2524,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
             ArrayOf<DateTimeUtc> arr = [dt, dt];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2586,8 +2534,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var u = Uuid.NewUuid();
             ArrayOf<Uuid> arr = [u, u];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2595,8 +2543,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2604,8 +2552,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2613,8 +2561,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2625,8 +2573,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ExpandedNodeId.Parse("nsu=T;s=B")
             ];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2634,8 +2582,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2643,8 +2591,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2652,8 +2600,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<LocalizedText> arr = [new LocalizedText("en", "a"), new LocalizedText("de", "b")];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2664,8 +2612,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new ExtensionObject(new Argument())
             ];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2673,8 +2621,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2682,8 +2630,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
             var v = new Variant(arr);
-            Assert.That(v == arr, Is.True);
-            Assert.That(v != arr, Is.False);
+            Assert.That(v, Is.EqualTo(arr));
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -2691,8 +2639,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<bool> m = new bool[,] { { true, false }, { false, true } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2700,8 +2648,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<sbyte> m = new sbyte[,] { { -1, 1 }, { -2, 2 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2709,8 +2657,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<byte> m = new byte[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2718,8 +2666,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<short> m = new short[,] { { -1, 1 }, { -2, 2 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2727,8 +2675,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ushort> m = new ushort[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2736,8 +2684,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> m = new int[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2745,8 +2693,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<uint> m = new uint[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2754,8 +2702,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<long> m = new long[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2763,8 +2711,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ulong> m = new ulong[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2772,8 +2720,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<float> m = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2781,8 +2729,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<double> m = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2790,8 +2738,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<string> m = new string[,] { { "a", "b" }, { "c", "d" } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2800,8 +2748,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
             MatrixOf<DateTimeUtc> m = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2810,8 +2758,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var u = Uuid.NewUuid();
             MatrixOf<Uuid> m = new Uuid[,] { { u, u }, { u, u } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2820,8 +2768,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var bs = ByteString.From(1);
             MatrixOf<ByteString> m = new ByteString[,] { { bs, bs }, { bs, bs } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2830,8 +2778,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             XmlElement xml = CreateXmlElement("E");
             MatrixOf<XmlElement> m = new XmlElement[,] { { xml, xml }, { xml, xml } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2840,8 +2788,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nid = new NodeId(1);
             MatrixOf<NodeId> m = new NodeId[,] { { nid, nid }, { nid, nid } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2850,8 +2798,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
             MatrixOf<ExpandedNodeId> m = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2860,8 +2808,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(1u);
             MatrixOf<StatusCode> m = new StatusCode[,] { { sc, sc }, { sc, sc } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2870,8 +2818,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn = new QualifiedName("q");
             MatrixOf<QualifiedName> m = new QualifiedName[,] { { qn, qn }, { qn, qn } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2880,8 +2828,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var lt = new LocalizedText("en", "t");
             MatrixOf<LocalizedText> m = new LocalizedText[,] { { lt, lt }, { lt, lt } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2890,8 +2838,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eo = new ExtensionObject(new Argument());
             MatrixOf<ExtensionObject> m = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2900,8 +2848,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(1);
             MatrixOf<DataValue> m = new DataValue[,] { { dv, dv }, { dv, dv } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -2910,8 +2858,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var vr = new Variant(1);
             MatrixOf<Variant> m = new Variant[,] { { vr, vr }, { vr, vr } };
             var v = new Variant(m);
-            Assert.That(v == m, Is.True);
-            Assert.That(v != m, Is.False);
+            Assert.That(v, Is.EqualTo(m));
+            Assert.That(v, Is.EqualTo(m));
         }
 
         [Test]
@@ -3347,7 +3295,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetHashCodeForNullVariantReturnsZero()
         {
             Variant v = default;
-            Assert.That(v.GetHashCode(), Is.EqualTo(0));
+            Assert.That(v.GetHashCode(), Is.Zero);
         }
 
         [Test]
@@ -3355,7 +3303,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var v = new Variant(true);
             // Just ensure it doesn't throw and returns a value
-            Assert.That(v.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(v.GetHashCode(), Is.Not.Zero);
         }
 
         [Test]
@@ -3769,7 +3717,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var v = new Variant(true);
             object boxed = v.AsBoxedObject();
-            Assert.That(boxed, Is.EqualTo(true));
+            Assert.That(boxed, Is.True);
         }
 
         [Test]
@@ -3933,7 +3881,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var v = new Variant(42);
             var sv = new SerializableVariant(v);
-            Assert.That(sv.Equals(v), Is.True);
+            Assert.That(sv, Is.EqualTo(v));
         }
 
         [Test]
@@ -3942,7 +3890,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant(42);
             var sv1 = new SerializableVariant(v);
             var sv2 = new SerializableVariant(v);
-            Assert.That(sv1.Equals(sv2), Is.True);
+            Assert.That(sv1, Is.EqualTo(sv2));
         }
 
         [Test]
@@ -3959,9 +3907,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var v = new Variant(42);
             var sv = new SerializableVariant(v);
-            Assert.That(sv.Equals((object)new SerializableVariant(v)), Is.True);
-            Assert.That(sv.Equals((object)v), Is.True);
-            Assert.That(sv.Equals((object)42), Is.True);
+            Assert.That(sv, Is.EqualTo((object)new SerializableVariant(v)));
+            Assert.That(sv, Is.EqualTo((object)v));
+            Assert.That(sv, Is.EqualTo((object)42));
         }
 
         [Test]
@@ -3976,8 +3924,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sv1 = new SerializableVariant(new Variant(42));
             var sv2 = new SerializableVariant(new Variant(42));
-            Assert.That(sv1 == sv2, Is.True);
-            Assert.That(sv1 != sv2, Is.False);
+            Assert.That(sv1, Is.EqualTo(sv2));
+            Assert.That(sv1, Is.EqualTo(sv2));
         }
 
         [Test]
@@ -3985,96 +3933,94 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sv = new SerializableVariant(new Variant(42));
             var v = new Variant(42);
-            Assert.That(sv == v, Is.True);
-            Assert.That(sv != v, Is.False);
+            Assert.That(sv, Is.EqualTo(v));
+            Assert.That(sv, Is.EqualTo(v));
         }
 
         [Test]
         public void SerializableVariantImplicitFromVariant()
         {
-            Variant v = new Variant(42);
-            SerializableVariant sv = v;
+            SerializableVariant sv = new Variant(42);
             Assert.That((int)sv.Value, Is.EqualTo(42));
         }
 
         [Test]
         public void SerializableVariantImplicitToVariant()
         {
-            var sv = new SerializableVariant(new Variant(42));
-            Variant v = sv;
+            Variant v = new SerializableVariant(new Variant(42));
             Assert.That((int)v, Is.EqualTo(42));
         }
 
         [Test]
         public void EqualsTypedOverloadForAllScalarTypes()
         {
-            Assert.That(new Variant(true).Equals(true), Is.True);
-            Assert.That(new Variant((sbyte)-1).Equals((sbyte)-1), Is.True);
-            Assert.That(new Variant((byte)1).Equals((byte)1), Is.True);
-            Assert.That(new Variant((short)-1).Equals((short)-1), Is.True);
-            Assert.That(new Variant((ushort)1).Equals((ushort)1), Is.True);
-            Assert.That(new Variant(42).Equals(42), Is.True);
-            Assert.That(new Variant(42u).Equals(42u), Is.True);
-            Assert.That(new Variant(42L).Equals(42L), Is.True);
-            Assert.That(new Variant(42UL).Equals(42UL), Is.True);
-            Assert.That(new Variant(1.5f).Equals(1.5f), Is.True);
-            Assert.That(new Variant(2.5d).Equals(2.5d), Is.True);
-            Assert.That(new Variant("test").Equals("test"), Is.True);
+            Assert.That(new Variant(true), Is.EqualTo(true));
+            Assert.That(new Variant((sbyte)-1), Is.EqualTo((sbyte)-1));
+            Assert.That(new Variant((byte)1), Is.EqualTo((byte)1));
+            Assert.That(new Variant((short)-1), Is.EqualTo((short)-1));
+            Assert.That(new Variant((ushort)1), Is.EqualTo((ushort)1));
+            Assert.That(new Variant(42), Is.EqualTo(42));
+            Assert.That(new Variant(42u), Is.EqualTo(42u));
+            Assert.That(new Variant(42L), Is.EqualTo(42L));
+            Assert.That(new Variant(42UL), Is.EqualTo(42UL));
+            Assert.That(new Variant(1.5f), Is.EqualTo(1.5f));
+            Assert.That(new Variant(2.5d), Is.EqualTo(2.5d));
+            Assert.That(new Variant("test"), Is.EqualTo("test"));
         }
 
         [Test]
         public void EqualsTypedOverloadForComplexTypes()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            Assert.That(new Variant(dt).Equals(dt), Is.True);
+            Assert.That(new Variant(dt), Is.EqualTo(dt));
 
             var guid = Uuid.NewUuid();
-            Assert.That(new Variant(guid).Equals(guid), Is.True);
+            Assert.That(new Variant(guid), Is.EqualTo(guid));
 
             var bs = ByteString.From(1, 2);
-            Assert.That(new Variant(bs).Equals(bs), Is.True);
+            Assert.That(new Variant(bs), Is.EqualTo(bs));
 
             XmlElement xml = CreateXmlElement("T");
-            Assert.That(new Variant(xml).Equals(xml), Is.True);
+            Assert.That(new Variant(xml), Is.EqualTo(xml));
 
             var nid = new NodeId(10, 1);
-            Assert.That(new Variant(nid).Equals(nid), Is.True);
+            Assert.That(new Variant(nid), Is.EqualTo(nid));
 
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
-            Assert.That(new Variant(eni).Equals(eni), Is.True);
+            Assert.That(new Variant(eni), Is.EqualTo(eni));
 
             var sc = new StatusCode(123u);
-            Assert.That(new Variant(sc).Equals(sc), Is.True);
+            Assert.That(new Variant(sc), Is.EqualTo(sc));
 
             var qn = new QualifiedName("q", 1);
-            Assert.That(new Variant(qn).Equals(qn), Is.True);
+            Assert.That(new Variant(qn), Is.EqualTo(qn));
 
             var lt = new LocalizedText("en", "t");
-            Assert.That(new Variant(lt).Equals(lt), Is.True);
+            Assert.That(new Variant(lt), Is.EqualTo(lt));
         }
 
         [Test]
         public void EqualsTypedOverloadForExtensionObjectAndDataValue()
         {
             var eo = new ExtensionObject(new Argument());
-            Assert.That(new Variant(eo).Equals(eo), Is.True);
+            Assert.That(new Variant(eo), Is.EqualTo(eo));
 
             var dv = new DataValue(42);
-            Assert.That(new Variant(dv).Equals(dv), Is.True);
+            Assert.That(new Variant(dv), Is.EqualTo(dv));
         }
 
         [Test]
         public void EqualsFloatNanValues()
         {
             var v = new Variant(float.NaN);
-            Assert.That(v.Equals(float.NaN), Is.True);
+            Assert.That(v, Is.EqualTo(float.NaN));
         }
 
         [Test]
         public void EqualsDoubleNanValues()
         {
             var v = new Variant(double.NaN);
-            Assert.That(v.Equals(double.NaN), Is.True);
+            Assert.That(v, Is.EqualTo(double.NaN));
         }
 
         [Test]
@@ -4089,7 +4035,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<bool> arr = [true, false];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4097,7 +4043,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<sbyte> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4105,7 +4051,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<byte> arr = [1, 2];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4113,7 +4059,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<short> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4121,7 +4067,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ushort> arr = [1, 2];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4129,7 +4075,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [-1, 1];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4137,7 +4083,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<uint> arr = [1u, 2u];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4145,7 +4091,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<long> arr = [-1L, 1L];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4153,7 +4099,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ulong> arr = [1UL, 2UL];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4161,7 +4107,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<float> arr = [1.0f, 2.0f];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4169,7 +4115,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<double> arr = [1.0, 2.0];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4177,31 +4123,31 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<string> arr = ["a", "b"];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
         public void EqualsArrayOfComplexTypes()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]).Equals((ArrayOf<DateTimeUtc>)[dt]), Is.True);
+            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]), Is.EqualTo((ArrayOf<DateTimeUtc>)[dt]));
 
             var u = Uuid.NewUuid();
-            Assert.That(new Variant((ArrayOf<Uuid>)[u]).Equals((ArrayOf<Uuid>)[u]), Is.True);
+            Assert.That(new Variant((ArrayOf<Uuid>)[u]), Is.EqualTo((ArrayOf<Uuid>)[u]));
 
-            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]).Equals((ArrayOf<ByteString>)[ByteString.From(1)]), Is.True);
+            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]), Is.EqualTo((ArrayOf<ByteString>)[ByteString.From(1)]));
 
             var nid = new NodeId(1);
-            Assert.That(new Variant((ArrayOf<NodeId>)[nid]).Equals((ArrayOf<NodeId>)[nid]), Is.True);
+            Assert.That(new Variant((ArrayOf<NodeId>)[nid]), Is.EqualTo((ArrayOf<NodeId>)[nid]));
 
             var sc = new StatusCode(1u);
-            Assert.That(new Variant((ArrayOf<StatusCode>)[sc]).Equals((ArrayOf<StatusCode>)[sc]), Is.True);
+            Assert.That(new Variant((ArrayOf<StatusCode>)[sc]), Is.EqualTo((ArrayOf<StatusCode>)[sc]));
 
             var qn = new QualifiedName("q");
-            Assert.That(new Variant((ArrayOf<QualifiedName>)[qn]).Equals((ArrayOf<QualifiedName>)[qn]), Is.True);
+            Assert.That(new Variant((ArrayOf<QualifiedName>)[qn]), Is.EqualTo((ArrayOf<QualifiedName>)[qn]));
 
             var lt = new LocalizedText("en", "t");
-            Assert.That(new Variant((ArrayOf<LocalizedText>)[lt]).Equals((ArrayOf<LocalizedText>)[lt]), Is.True);
+            Assert.That(new Variant((ArrayOf<LocalizedText>)[lt]), Is.EqualTo((ArrayOf<LocalizedText>)[lt]));
         }
 
         [Test]
@@ -4210,7 +4156,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eo = new ExtensionObject(new Argument());
             ArrayOf<ExtensionObject> arr = [eo];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4218,7 +4164,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<DataValue> arr = [new DataValue(1)];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4226,7 +4172,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> arr = [new Variant(1), new Variant("x")];
             var v = new Variant(arr);
-            Assert.That(v.Equals(arr), Is.True);
+            Assert.That(v, Is.EqualTo(arr));
         }
 
         [Test]
@@ -4234,7 +4180,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Variant a = default;
             Variant b = default;
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -4242,7 +4188,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new Variant(42);
             var b = new Variant(42);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -4257,7 +4203,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithBoxedValue()
         {
             var v = new Variant(42);
-            Assert.That(v.Equals((object)42), Is.True);
+            Assert.That(v, Is.EqualTo((object)42));
         }
 
         [Test]
@@ -4297,8 +4243,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitFromArrayOfBoolCreatesVariant()
         {
-            ArrayOf<bool> arr = [true, false];
-            Variant v = arr;
+            Variant v = (ArrayOf<bool>)[true, false];
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
             Assert.That(v.TypeInfo.IsArray, Is.True);
         }

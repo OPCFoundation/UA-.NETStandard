@@ -256,7 +256,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
             // Assert
             var files = vfs.Files.ToList();
-            Assert.That(files.Count, Is.EqualTo(3));
+            Assert.That(files, Has.Count.EqualTo(3));
             Assert.That(files, Does.Contain(file1));
             Assert.That(files, Does.Contain(file2));
             Assert.That(files, Does.Contain(file3));
@@ -445,11 +445,11 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             Assert.That(vfs.Get(filePath), Is.EqualTo(emptyContent));
 
             using Stream stream = vfs.OpenRead(filePath);
-            Assert.That(stream.Length, Is.EqualTo(0));
+            Assert.That(stream.Length, Is.Zero);
 
             byte[] buffer = new byte[10];
             int bytesRead = stream.Read(buffer, 0, buffer.Length);
-            Assert.That(bytesRead, Is.EqualTo(0));
+            Assert.That(bytesRead, Is.Zero);
         }
 
         [Test]
@@ -547,7 +547,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                             int chunkSize = Math.Min(100, kvp.Value.Length - totalRead);
                             int bytesRead = stream.Read(buffer, totalRead, chunkSize);
 
-                            Assert.That(bytesRead > 0, Is.True, $"Should read some bytes from {kvp.Key}");
+                            Assert.That(bytesRead, Is.GreaterThan(0), $"Should read some bytes from {kvp.Key}");
                             totalRead += bytesRead;
                         }
 
@@ -626,7 +626,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                 int chunkSize = Math.Min(buffer.Length, contentSize - totalRead);
                 int bytesRead = stream.Read(buffer, 0, chunkSize);
 
-                Assert.That(bytesRead > 0, Is.True, "Should read some bytes");
+                Assert.That(bytesRead, Is.GreaterThan(0), "Should read some bytes");
 
                 // Verify chunk content matches
                 for (int i = 0; i < bytesRead; i++)
@@ -918,7 +918,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                 {
                     int bytesRead = stream.Read(buffer, 0, Math.Min(buffer.Length, fileSize - totalRead));
 
-                    Assert.That(bytesRead > 0, Is.True, "Should read some bytes");
+                    Assert.That(bytesRead, Is.GreaterThan(0), "Should read some bytes");
 
                     // Verify chunk content
                     for (int i = 0; i < bytesRead; i++)

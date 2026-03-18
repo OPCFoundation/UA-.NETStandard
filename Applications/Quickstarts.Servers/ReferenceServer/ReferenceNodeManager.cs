@@ -564,7 +564,7 @@ namespace Quickstarts.ReferenceServer
                         "String",
                         DataTypeIds.String,
                         ValueRanks.OneDimension);
-                    ArrayOf<string> strings =
+                    stringArrayVar.Value = Variant.From(
                     [
                         "Лошадь_ Пурпурово( Змейка( Слон",
                         "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
@@ -576,8 +576,7 @@ namespace Quickstarts.ReferenceServer
                         "Yellow Sheep Peach Elephant Cow",
                         "Крыса Корова Свинья Собака Кот",
                         "龙_ 绵羊 大象 芒果; 猫'"
-                    ];
-                    stringArrayVar.Value = strings;
+                    ]);
                     variables.Add(stringArrayVar);
 
                     variables.Add(
@@ -4962,6 +4961,7 @@ namespace Quickstarts.ReferenceServer
 
         private static readonly ArrayOf<float> s_singleArray
             = [0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f];
+
         private static readonly ArrayOf<short> s_shortArray = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         private static readonly ArrayOf<int> s_int32Array = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 

@@ -201,8 +201,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(
                 publishedDataItems,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
-            Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
-            Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
+            Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
+            Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
             Assert.AreEqual(
                 collectedDataSet.Fields.Length,
@@ -210,21 +210,21 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 "collectedDataSet and published data fields count do not match.");
 
             // validate collected values
-            Assert.AreEqual(
-                false,
+            Assert.That(
                 collectedDataSet.Fields[0].Value.WrappedValue.GetBoolean(),
+                Is.EqualTo(false),
                 "collectedDataSet.Fields[0].Value does not match.");
-            Assert.AreEqual(
-                1,
+            Assert.That(
                 collectedDataSet.Fields[1].Value.WrappedValue.GetInt32(),
+                Is.EqualTo(1),
                 "collectedDataSet.Fields[1].Value does not match.");
-            Assert.AreEqual(
-                2,
+            Assert.That(
                 collectedDataSet.Fields[2].Value.WrappedValue.GetInt32(),
+                Is.EqualTo(2),
                 "collectedDataSet.Fields[2].Value does not match.");
-            Assert.AreEqual(
-                collectedDataSet.Fields[3].Value.WrappedValue.GetDateTime(),
+            Assert.That(
                 DateTimeUtc.MaxValue,
+                Is.EqualTo(collectedDataSet.Fields[3].Value.WrappedValue.GetDateTime()),
                 "collectedDataSet.Fields[3].Value does not match.");
         }
 
@@ -304,8 +304,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(
                 publishedDataItems,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
-            Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
-            Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
+            Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
+            Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
             Assert.AreEqual(
                 collectedDataSet.Fields.Length,
@@ -313,27 +313,27 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 "collectedDataSet and published data fields count do not match.");
             // validate collected values
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                true,
+            Assert.That(
                 collectedDataSet.Fields[0].Value.Value,
+                Is.EqualTo(true),
                 "collectedDataSet.Fields[0].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                100,
+            Assert.That(
                 collectedDataSet.Fields[1].Value.Value,
+                Is.EqualTo(100),
                 "collectedDataSet.Fields[1].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                50,
+            Assert.That(
                 collectedDataSet.Fields[2].Value.Value,
+                Is.EqualTo(50),
                 "collectedDataSet.Fields[2].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                collectedDataSet.Fields[3].Value.Value,
+            Assert.That(
                 new DateTimeUtc(DateTime.Today),
+                Is.EqualTo(collectedDataSet.Fields[3].Value.Value),
                 "collectedDataSet.Fields[3].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
         }

@@ -23,7 +23,7 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
-                Assert.NotNull(session, "Session should exist after Create/Activate.");
+                Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersIgnoredTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
-                Assert.NotNull(session, "Session should exist after Create/Activate.");
+                Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
 

@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             );
 
             // Should return available endpoints
-            Assert.IsNotNull(matches);
+            Assert.That(matches.IsNull, Is.False);
             Assert.Greater(matches.Count, 0);
         }
 
@@ -225,8 +225,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             );
 
             // Should return the matching endpoint
-            Assert.IsNotNull(matches);
-            Assert.AreEqual(1, matches.Count);
+            Assert.That(matches.IsNull, Is.False);
+            Assert.That(matches.Count, Is.EqualTo(1));
             Assert.AreEqual(SecurityPolicies.Basic256Sha256, matches[0].SecurityPolicyUri);
             Assert.AreEqual(MessageSecurityMode.SignAndEncrypt, matches[0].SecurityMode);
         }
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 null
             );
 
-            Assert.IsNotNull(matchEndpointsMethod, "MatchEndpoints method not found");
+            Assert.That(matchEndpointsMethod, Is.Not.Null, "MatchEndpoints method not found");
 
             return (ArrayOf<EndpointDescription>)matchEndpointsMethod.Invoke(
                 null,

@@ -181,7 +181,7 @@ namespace Opc.Ua.Gds.Tests
                     .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
                     .ConfigureAwait(false);
                 Assert.IsNotNull(crl2);
-                Assert.That(crls.First().RawData.SequenceEqual(crl2.RawData));
+                Assert.That(crls[0].RawData.SequenceEqual(crl2.RawData));
                 var id = new CertificateIdentifier
                 {
                     Thumbprint = certificate.Thumbprint,

@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.Tests
         public void NodeCacheLoadUaDefinedTypes()
         {
             INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
+            Assert.That(nodeCache, Is.Not.Null);
 
             // load the predefined types
             nodeCache.LoadUaDefinedTypes(Session.SystemContext);
@@ -246,7 +246,7 @@ namespace Opc.Ua.Client.Tests
         public async Task NodeCacheReferencesAsync()
         {
             INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
+            Assert.That(nodeCache, Is.Not.Null);
 
             // ensure the predefined types are loaded
             nodeCache.LoadUaDefinedTypes(Session.SystemContext);
@@ -263,13 +263,13 @@ namespace Opc.Ua.Client.Tests
                 // find the Qualified Name
                 QualifiedName qn = await nodeCache.FindReferenceTypeNameAsync(property.Value)
                     .ConfigureAwait(false);
-                Assert.NotNull(qn);
-                Assert.AreEqual(property.Key, qn.Name);
+                Assert.That(qn.IsNull, Is.False);
+                Assert.That(qn.Name, Is.EqualTo(property.Key));
                 // find the node by name
                 NodeId refId = await nodeCache.FindReferenceTypeAsync(QualifiedName.From(property.Key))
                     .ConfigureAwait(false);
-                Assert.NotNull(refId);
-                Assert.AreEqual(property.Value, refId);
+                Assert.That(refId.IsNull, Is.False);
+                Assert.That(refId, Is.EqualTo(property.Value));
                 // is the node id known?
                 bool isKnown = await nodeCache.IsKnownAsync(property.Value).ConfigureAwait(false);
                 Assert.IsTrue(isKnown);
@@ -288,7 +288,7 @@ namespace Opc.Ua.Client.Tests
                 ArrayOf<NodeId> subTypes = await nodeCache.FindSubTypesAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.NotNull(subTypes);
+                Assert.That(subTypes.IsNull, Is.False);
             }
         }
 
@@ -558,21 +558,21 @@ namespace Opc.Ua.Client.Tests
                             case 4:
                                 INode result4 = await Session.NodeCache.FindAsync(testSet2[0])
                                     .ConfigureAwait(false);
-                                Assert.NotNull(result4);
+                                Assert.That(result4, Is.Not.Null);
                                 Assert.True(result4 is VariableNode);
                                 break;
                             case 5:
                                 Node result5 = await Session
                                     .NodeCache.FetchNodeAsync(testSet3[0])
                                     .ConfigureAwait(false);
-                                Assert.NotNull(result5);
+                                Assert.That(result5, Is.Not.Null);
                                 Assert.True(result5 is VariableNode);
                                 await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId)
                                     .ConfigureAwait(false);
                                 break;
                             case 6:
                                 string text = await Session.NodeCache.GetDisplayTextAsync(testSet2[0]).ConfigureAwait(false);
-                                Assert.NotNull(text);
+                                Assert.That(text, Is.Not.Null);
                                 break;
                             case 7:
                                 var number = new NodeId((int)BuiltInType.Number);

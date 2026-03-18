@@ -336,7 +336,7 @@ namespace Opc.Ua.Configuration.Tests
                 document.Descendants(XName.Get("ApplicationCertificates", Namespaces.OpcUaConfig)).Any(),
                 Is.True,
                 "Hybrid configurations should serialize the modern ApplicationCertificates element.");
-            Assert.That(roundTripped.SecurityConfiguration.ApplicationCertificates.Count, Is.EqualTo(1));
+            Assert.That(roundTripped.SecurityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
         }
 
         private static IEnumerable<TestCaseData> GetInvalidConfigurations()

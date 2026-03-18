@@ -62,9 +62,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
-                Assert.IsNotNull(nonce);
-                Assert.IsNotNull(nonce.Data);
-                Assert.AreEqual(nonceLength, nonce.Data.Length);
+                Assert.That(nonce, Is.Not.Null);
+                Assert.That(nonce.Data, Is.Not.Null);
+                Assert.That(nonce.Data.Length, Is.EqualTo(nonceLength));
             }
         }
 
@@ -89,10 +89,10 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 var nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
 
-                Assert.IsNotNull(nonceByData);
-                Assert.IsNotNull(nonceByData.Data);
-                Assert.AreEqual(nonceLength, nonceByData.Data.Length);
-                Assert.AreEqual(nonceByData.Data, nonceByLen.Data);
+                Assert.That(nonceByData, Is.Not.Null);
+                Assert.That(nonceByData.Data, Is.Not.Null);
+                Assert.That(nonceByData.Data.Length, Is.EqualTo(nonceLength));
+                Assert.That(nonceByLen.Data, Is.EqualTo(nonceByData.Data));
             }
         }
 
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 else
                 {
                     var rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
-                    Assert.AreEqual(rsaNonce.Data, randomValue);
+                    Assert.That(randomValue, Is.EqualTo(rsaNonce.Data));
                 }
             }
         }

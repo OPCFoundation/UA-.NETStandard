@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
         public static readonly object[] CPFixtureArgs = [new object[] { Utils.UriSchemeOpcTcp }];
 
         [DatapointSource]
-        public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
+        private IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
         {
             yield return new ManagedBrowseTestDataProvider
             {
@@ -370,7 +370,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0).ConfigureAwait(false);
 
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
+            Assert.That(referenceDescriptionCollectionsPass1.Count, Is.EqualTo(nodeIds.Count));
 
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
@@ -391,7 +391,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceTypeIds.Organizes,
                 true,
                 0).ConfigureAwait(false);
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
+            Assert.That(referenceDescriptionsPass2.Count, Is.EqualTo(nodeIds.Count));
 
             // finally browse again with a simple browse service call.
             (_, _, ArrayOf<ArrayOf<ReferenceDescription>> referenceDescriptionCollections2ndBrowse, _) =
@@ -424,12 +424,12 @@ namespace Opc.Ua.Client.Tests
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
-                Assert.AreEqual(
-                    referenceDescriptionCollection.Count,
-                    referenceDescriptionCollections2ndBrowse[index].Count);
-                Assert.AreEqual(
-                    referenceDescriptionCollection[ii].NodeId,
-                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId);
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index].Count,
+                    Is.EqualTo(referenceDescriptionCollection.Count));
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId,
+                    Is.EqualTo(referenceDescriptionCollection[ii].NodeId));
 
                 index++;
             }
@@ -507,7 +507,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0).ConfigureAwait(false);
 
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
+            Assert.That(referenceDescriptionCollectionsPass1.Count, Is.EqualTo(nodeIds.Count));
 
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceTypeIds.Organizes,
                 true,
                 0).ConfigureAwait(false);
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
+            Assert.That(referenceDescriptionsPass2.Count, Is.EqualTo(nodeIds.Count));
 
             // finally browse again with a simple browse service call.
             (_, _, ArrayOf<ArrayOf<ReferenceDescription>> referenceDescriptionCollections2ndBrowse, _) = await theSession.BrowseAsync(
@@ -561,12 +561,12 @@ namespace Opc.Ua.Client.Tests
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
-                Assert.AreEqual(
-                    referenceDescriptionCollection.Count,
-                    referenceDescriptionCollections2ndBrowse[index].Count);
-                Assert.AreEqual(
-                    referenceDescriptionCollection[ii].NodeId,
-                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId);
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index].Count,
+                    Is.EqualTo(referenceDescriptionCollection.Count));
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId,
+                    Is.EqualTo(referenceDescriptionCollection[ii].NodeId));
 
                 index++;
             }
@@ -665,8 +665,8 @@ namespace Opc.Ua.Client.Tests
 
             await Task.WhenAll([.. tasks.Select(t => t.Invoke())]).ConfigureAwait(false);
 
-            Assert.AreEqual(nodeIds1.Count, referenceDescriptionCollectionsPass1.Count);
-            Assert.AreEqual(nodeIds2.Count, referenceDescriptionCollectionsPass2.Count);
+            Assert.That(referenceDescriptionCollectionsPass1.Count, Is.EqualTo(nodeIds1.Count));
+            Assert.That(referenceDescriptionCollectionsPass2.Count, Is.EqualTo(nodeIds2.Count));
 
             referenceDescriptionCollectionsPass1 = ArrayOf.Combine(
                 referenceDescriptionCollectionsPass1,
@@ -718,12 +718,12 @@ namespace Opc.Ua.Client.Tests
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
-                Assert.AreEqual(
-                    referenceDescriptionCollection.Count,
-                    referenceDescriptionCollections2ndBrowse[index].Count);
-                Assert.AreEqual(
-                    referenceDescriptionCollection[ii].NodeId,
-                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId);
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index].Count,
+                    Is.EqualTo(referenceDescriptionCollection.Count));
+                Assert.That(
+                    referenceDescriptionCollections2ndBrowse[index][ii].NodeId,
+                    Is.EqualTo(referenceDescriptionCollection[ii].NodeId));
 
                 index++;
             }

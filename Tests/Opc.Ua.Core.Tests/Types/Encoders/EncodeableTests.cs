@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-            Assert.NotNull(testObject);
+            Assert.That(testObject, Is.Not.Null);
 
             if (testObject.BinaryEncodingId.IsNull)
             {
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
-            Assert.AreEqual(expected, result, encodeInfo);
+            Assert.That(result, Is.EqualTo(expected), encodeInfo);
         }
 
         [Theory]
@@ -243,9 +243,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
 
-            Assert.AreEqual(
-                expected,
+            Assert.That(
                 result,
+                Is.EqualTo(expected),
                 $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.");
         }
 

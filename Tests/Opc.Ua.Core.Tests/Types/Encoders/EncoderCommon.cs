@@ -189,7 +189,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-
         /// <summary>
         /// Encode data value and return encoded string.
         /// </summary>
@@ -206,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             DataValue expected = CreateDataValue(builtInType, data);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
             using MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType);
             using (IEncoder encoder = CreateEncoder(
                 encoderType,
@@ -237,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
             DataValue expected = CreateDataValue(builtInType, data);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
 
             string formatted = null;
             DataValue result = null;
@@ -280,8 +279,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     result = decoder.ReadDataValue("DataValue");
                 }
 
-                Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-                Assert.AreEqual(expected, result, encodeInfo);
+                Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
+                Assert.That(result, Is.EqualTo(expected), encodeInfo);
                 Assert.IsTrue(
                     Utils.IsEqual(expected, result),
                     "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
@@ -358,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
                 }
 
-                Assert.AreEqual(expected, result, encodeInfo);
+                Assert.That(result, Is.EqualTo(expected), encodeInfo);
             }
             catch
             {

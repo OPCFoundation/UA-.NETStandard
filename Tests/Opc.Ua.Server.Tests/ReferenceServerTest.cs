@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
         public void GetEndpoints()
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
-            Assert.NotNull(endpoints);
+            Assert.That(endpoints.IsNull, Is.False);
         }
 
         /// <summary>
@@ -260,8 +260,8 @@ namespace Opc.Ua.Server.Tests
                 logger);
 
             ArrayOf<DataValue> results = readResponse.Results;
-            Assert.NotNull(results);
-            Assert.AreEqual(readIdCollection.Count, results.Count);
+            Assert.That(results.IsNull, Is.False);
+            Assert.That(results.Count, Is.EqualTo(readIdCollection.Count));
 
             m_operationLimits = new OperationLimits
             {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, firstReadResponse.Results.Count);
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
-            Assert.IsNotNull(firstValue.SourceTimestamp);
+            Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
@@ -460,7 +460,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, secondReadResponse.Results.Count);
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
-            Assert.IsNotNull(secondValue.SourceTimestamp);
+            Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
 
@@ -510,7 +510,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, firstReadResponse.Results.Count);
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
-            Assert.IsNotNull(firstValue.SourceTimestamp);
+            Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
@@ -537,7 +537,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, secondReadResponse.Results.Count);
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
-            Assert.IsNotNull(secondValue.SourceTimestamp);
+            Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
             logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
 
@@ -782,7 +782,7 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(1000);
 
             // Make sure publish queue becomes empty by consuming it
-            Assert.AreEqual(1, subscriptionIds.Count);
+            Assert.That(subscriptionIds.Count, Is.EqualTo(1));
 
             // Issue a Publish request
             m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -886,7 +886,7 @@ namespace Opc.Ua.Server.Tests
                 subscriptionIds[0],
                 testSet.Length).ConfigureAwait(false);
 
-            Assert.AreEqual(testSet.Length, totalNotifications,
+            Assert.That(totalNotifications, Is.EqualTo(testSet.Length),
                 "One MonitoredItemNotification should be returned for each Node present in the TestSet");
 
             await Task.Delay(1000).ConfigureAwait(false);
@@ -902,10 +902,9 @@ namespace Opc.Ua.Server.Tests
                     subscriptionIds[0],
                     expectedCount).ConfigureAwait(false);
 
-                Assert.AreEqual(
-                    expectedCount,
+                Assert.That(
                     totalNotifications,
-                    testSet.Length);
+                    Is.EqualTo(expectedCount).Within(testSet.Length));
             }
 
             // Call ResendData method with invalid subscription Id
@@ -1205,7 +1204,7 @@ namespace Opc.Ua.Server.Tests
                     result.SourceTimestamp,
                     result.ServerTimestamp);
 
-                Assert.AreEqual(result.SourceTimestamp, result.ServerTimestamp,
+                Assert.That(result.ServerTimestamp, Is.EqualTo(result.SourceTimestamp),
                     $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
             }
         }
@@ -1314,7 +1313,7 @@ namespace Opc.Ua.Server.Tests
                 // Verify the data values have proper timestamps
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
-                    Assert.IsNotNull(dataValue, "DataValue should not be null");
+                    Assert.That(dataValue, Is.Not.Null, "DataValue should not be null");
                     Assert.IsTrue(dataValue.ServerTimestamp != DateTimeUtc.MinValue,
                         "DataValue should have a valid ServerTimestamp");
                 }
@@ -1350,8 +1349,8 @@ namespace Opc.Ua.Server.Tests
 
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
-            Assert.IsNotNull(endpoints);
-            Assert.IsTrue(endpoints.Count > 0, "Server should have endpoints");
+            Assert.That(endpoints.IsNull, Is.False);
+            Assert.That(endpoints.Count, Is.GreaterThan(0), "Server should have endpoints");
 
             // Check that anonymous token policy is not present for at least one endpoint
             bool hasEndpointWithoutAnonymous = false;

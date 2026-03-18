@@ -1010,13 +1010,12 @@ namespace Opc.Ua.Server
                     eventFieldValues.Add(Variant.Null);
                 }
             }
-            var fields = new EventFieldList
+            return new EventFieldList
             {
                 ClientHandle = ClientHandle,
                 Handle = instance,
                 EventFields = eventFieldValues
             };
-            return fields;
         }
 
         /// <summary>

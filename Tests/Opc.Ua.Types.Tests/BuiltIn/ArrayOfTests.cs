@@ -56,8 +56,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> emptyArray = ArrayOf<int>.Empty;
             Assert.That(emptyArray.IsEmpty, Is.True);
-            Assert.That(emptyArray.Equals(ArrayOf.Empty<int>()), Is.True);
-            Assert.That(emptyArray.Count, Is.EqualTo(0));
+            Assert.That(emptyArray, Is.EqualTo(ArrayOf.Empty<int>()));
+            Assert.That(emptyArray.Count, Is.Zero);
         }
 
         [Test]
@@ -96,7 +96,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf1 = new ArrayOf<int>([1, 2, 3]);
             var arrayOf2 = new ArrayOf<int>([1, 2, 3]);
-            Assert.That(arrayOf1.Equals(arrayOf2), Is.True);
+            Assert.That(arrayOf1, Is.EqualTo(arrayOf2));
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
             object? nullObject = null;
-            Assert.That(arrayOf.Equals(nullObject), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(nullObject));
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             object array = new[] { 1, 2, 3 };
-            Assert.That(arrayOf.Equals(array), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(array));
         }
 
         [Test]
@@ -136,7 +136,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             object readOnlyMemory = new ReadOnlyMemory<int>([1, 2, 3]);
-            Assert.That(arrayOf.Equals(readOnlyMemory), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(readOnlyMemory));
         }
 
         [Test]
@@ -152,10 +152,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf1 = new ArrayOf<int>([1, 2, 3]);
             var arrayOf2 = new ArrayOf<int>([1, 2, 3]);
-            Assert.That(arrayOf1.Equals(arrayOf2), Is.True);
-            Assert.That(arrayOf1.Equals((object)arrayOf2), Is.True);
-            Assert.That(arrayOf1 == arrayOf2, Is.True);
-            Assert.That(arrayOf1 != arrayOf2, Is.False);
+            Assert.That(arrayOf1, Is.EqualTo(arrayOf2));
+            Assert.That(arrayOf1, Is.EqualTo((object)arrayOf2));
+            Assert.That(arrayOf1, Is.EqualTo(arrayOf2));
+            Assert.That(arrayOf1, Is.EqualTo(arrayOf2));
         }
 
         [Test]
@@ -174,8 +174,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = ArrayOf.Empty<int>();
             IEnumerable<int> enumerable = new List<int>();
-            Assert.That(arrayOf.Equals(enumerable), Is.True);
-            Assert.That(arrayOf.Equals((object)enumerable), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(enumerable));
+            Assert.That(arrayOf, Is.EqualTo((object)enumerable));
         }
 
         [Test]
@@ -203,27 +203,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int[] emptyArray = Array.Empty<int>();
             int[]? nullArray = null;
 
-            Assert.That(arrayOf.Equals(array), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf.Equals(emptyArray), Is.False);
             Assert.That(arrayOf.Equals(nullArray), Is.False);
             Assert.That(emptyArrayOf.Equals(array), Is.False);
-            Assert.That(emptyArrayOf.Equals(emptyArray), Is.True);
-            Assert.That(emptyArrayOf.Equals(nullArray), Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
+            Assert.That(emptyArrayOf, Is.EqualTo(nullArray));
 
-            Assert.That(arrayOf.Equals((object)array), Is.True);
+            Assert.That(arrayOf, Is.EqualTo((object)array));
             Assert.That(arrayOf.Equals((object)emptyArray), Is.False);
             Assert.That(emptyArrayOf.Equals((object)array), Is.False);
-            Assert.That(emptyArrayOf.Equals((object)emptyArray), Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo((object)emptyArray));
 
-            Assert.That(arrayOf == array, Is.True);
+            Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf == emptyArray, Is.False);
             Assert.That(emptyArrayOf == array, Is.False);
-            Assert.That(emptyArrayOf == emptyArray, Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
 
-            Assert.That(arrayOf != array, Is.False);
+            Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf != emptyArray, Is.True);
             Assert.That(emptyArrayOf != array, Is.True);
-            Assert.That(emptyArrayOf != emptyArray, Is.False);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
         }
 
         [Test]
@@ -234,25 +234,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var readOnlyMemory = new ReadOnlyMemory<int>([1, 2, 3]);
             ReadOnlyMemory<int> emptyReadOnlyMemory = ReadOnlyMemory<int>.Empty;
 
-            Assert.That(arrayOf.Equals(readOnlyMemory), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(readOnlyMemory));
             Assert.That(arrayOf.Equals(emptyReadOnlyMemory), Is.False);
             Assert.That(emptyArrayOf.Equals(readOnlyMemory), Is.False);
-            Assert.That(emptyArrayOf.Equals(emptyReadOnlyMemory), Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyReadOnlyMemory));
 
-            Assert.That(arrayOf.Equals((object)readOnlyMemory), Is.True);
+            Assert.That(arrayOf, Is.EqualTo((object)readOnlyMemory));
             Assert.That(arrayOf.Equals((object)emptyReadOnlyMemory), Is.False);
             Assert.That(emptyArrayOf.Equals((object)readOnlyMemory), Is.False);
-            Assert.That(emptyArrayOf.Equals((object)emptyReadOnlyMemory), Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo((object)emptyReadOnlyMemory));
 
-            Assert.That(arrayOf == readOnlyMemory, Is.True);
+            Assert.That(arrayOf, Is.EqualTo(readOnlyMemory));
             Assert.That(arrayOf == emptyReadOnlyMemory, Is.False);
             Assert.That(emptyArrayOf == readOnlyMemory, Is.False);
-            Assert.That(emptyArrayOf == emptyReadOnlyMemory, Is.True);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyReadOnlyMemory));
 
-            Assert.That(arrayOf != readOnlyMemory, Is.False);
+            Assert.That(arrayOf, Is.EqualTo(readOnlyMemory));
             Assert.That(arrayOf != emptyReadOnlyMemory, Is.True);
             Assert.That(emptyArrayOf != readOnlyMemory, Is.True);
-            Assert.That(emptyArrayOf != emptyReadOnlyMemory, Is.False);
+            Assert.That(emptyArrayOf, Is.EqualTo(emptyReadOnlyMemory));
         }
 
         [Test]
@@ -285,8 +285,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             IEnumerable<int> enumerable = new List<int> { 1, 2, 3 };
-            Assert.That(arrayOf.Equals(enumerable), Is.True);
-            Assert.That(arrayOf.Equals((object)enumerable), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(enumerable));
+            Assert.That(arrayOf, Is.EqualTo((object)enumerable));
         }
 
         [Test]
@@ -321,8 +321,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
             IEnumerable<int>? enumerable = null;
-            Assert.That(arrayOf.Equals(enumerable), Is.True);
-            Assert.That(arrayOf.Equals((object?)enumerable), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(enumerable));
+            Assert.That(arrayOf, Is.EqualTo((object?)enumerable));
         }
 
         [Test]
@@ -404,7 +404,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int found = arrayOf.Find(x => x == 4);
-            Assert.That(found, Is.EqualTo(0));
+            Assert.That(found, Is.Zero);
         }
 
         [Test]
@@ -469,7 +469,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ReadOnlyMemory<int> memory = ReadOnlyMemory<int>.Empty;
             var arrayOf = memory.ToArrayOf();
-            Assert.That(arrayOf.Count, Is.EqualTo(0));
+            Assert.That(arrayOf.Count, Is.Zero);
             Assert.That(arrayOf.IsEmpty, Is.True);
         }
 
@@ -515,7 +515,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             IEnumerable<int> enumerable = new List<int>();
             var arrayOf = enumerable.ToArrayOf();
-            Assert.That(arrayOf.Count, Is.EqualTo(0));
+            Assert.That(arrayOf.Count, Is.Zero);
             Assert.That(arrayOf.IsEmpty, Is.True);
         }
 
@@ -533,7 +533,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             int[] array = Array.Empty<int>();
             ArrayOf<int> arrayOf = array.ToArrayOf();
-            Assert.That(arrayOf.Count, Is.EqualTo(0));
+            Assert.That(arrayOf.Count, Is.Zero);
             Assert.That(arrayOf.IsEmpty, Is.True);
         }
 
@@ -563,7 +563,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int[] expected = [1, 2, 3];
             var matrix = new MatrixOf<int>(expected, [3]);
-            Assert.That(arrayOf.Equals(matrix), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(matrix));
         }
 
         [Test]
@@ -572,7 +572,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int[] expected = [1, 2, 3];
             var matrix = new MatrixOf<int>(expected, [3]);
-            Assert.That(arrayOf.Equals(matrix), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(matrix));
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
             MatrixOf<int> matrix = MatrixOf<int>.Empty;
-            Assert.That(arrayOf.Equals(matrix), Is.True);
+            Assert.That(arrayOf, Is.EqualTo(matrix));
         }
 
         [Test]
@@ -615,7 +615,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int[] array = [1, 2, 3];
             var matrix = new MatrixOf<int>(array, [3]);
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
-            Assert.That(matrix.Equals(arrayOf), Is.True);
+            Assert.That(matrix, Is.EqualTo(arrayOf));
         }
 
         [Test]
@@ -641,7 +641,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = MatrixOf<int>.Empty;
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
-            Assert.That(matrix.Equals(arrayOf), Is.True);
+            Assert.That(matrix, Is.EqualTo(arrayOf));
         }
 
         [Test]
@@ -672,7 +672,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var matrix2 = new MatrixOf<int>(array2, [3]);
             var matrix3 = new MatrixOf<int>(array3, [3]);
 
-            Assert.That(matrix1 == matrix2, Is.True);
+            Assert.That(matrix1, Is.EqualTo(matrix2));
             Assert.That(matrix1 != matrix3, Is.True);
         }
 
@@ -683,8 +683,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var matrix = new MatrixOf<int>(array, [3]);
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
 
-            Assert.That(matrix == arrayOf, Is.True);
-            Assert.That(matrix != arrayOf, Is.False);
+            Assert.That(matrix, Is.EqualTo(arrayOf));
+            Assert.That(matrix, Is.EqualTo(arrayOf));
         }
 
         [Test]

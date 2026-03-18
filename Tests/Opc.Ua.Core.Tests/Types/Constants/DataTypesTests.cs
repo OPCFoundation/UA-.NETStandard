@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (uint id in dataTypeIds)
             {
                 string browseName = DataTypes.GetBrowseName(id);
-                Assert.IsNotNull(browseName);
+                Assert.That(browseName, Is.Not.Null);
                 Assert.IsNotEmpty(browseName);
             }
         }
@@ -88,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_BooleanDataType_ReturnsBoolean()
         {
             string browseName = DataTypes.GetBrowseName(DataTypes.Boolean);
-            Assert.AreEqual("Boolean", browseName);
+            Assert.That(browseName, Is.EqualTo("Boolean"));
         }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_InvalidDataTypeId_ReturnsEmptyString()
         {
             string browseName = DataTypes.GetBrowseName(unchecked((uint)-9999));
-            Assert.AreEqual(string.Empty, browseName);
+            Assert.That(browseName, Is.Empty);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = DataTypes.GetIdentifier("InvalidDataTypeName");
-            Assert.AreEqual(0, id);
+            Assert.That(id, Is.EqualTo(0));
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = DataTypes.GetBrowseName(id);
                 uint retrievedId = DataTypes.GetIdentifier(browseName);
-                Assert.AreEqual(id, retrievedId);
+                Assert.That(retrievedId, Is.EqualTo(id));
             }
         }
 
@@ -175,9 +175,9 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         {
             NodeId dataTypeId = TypeInfo.GetDataTypeId(typeof(EUInformation));
 
-            Assert.IsNotNull(dataTypeId);
+            Assert.That(dataTypeId.IsNull, Is.False);
             Assert.AreEqual(DataTypes.EUInformation, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0);
-            Assert.AreEqual(0, dataTypeId.NamespaceIndex);
+            Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0));
             Assert.AreNotEqual(DataTypes.Structure, dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0,
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
@@ -203,10 +203,10 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 NodeId dataTypeId = TypeInfo.GetDataTypeId(type);
 
-                Assert.IsNotNull(dataTypeId, $"DataTypeId should not be null for {type.Name}");
-                Assert.AreEqual(expectedId, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0,
+                Assert.That(dataTypeId.IsNull, Is.False, $"DataTypeId should not be null for {type.Name}");
+                Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(expectedId),
                     $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.IdentifierAsString}");
-                Assert.AreEqual(0, dataTypeId.NamespaceIndex,
+                Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0),
                     $"NamespaceIndex should be 0 for {type.Name}");
             }
         }

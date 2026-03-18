@@ -181,10 +181,10 @@ namespace Opc.Ua.Client.Tests
                 {
                     PublishingEnabled = true,
                     SequentialPublishing = sequentialPublishing,
-                    MaxMessageCount = messagesToProcess.Length,
+                    MaxMessageCount = messagesToProcess.Length
                 })
             {
-                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true),
+                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true)
             };
             subscription.Session = BuildSessionMock((subscriptionId, sequenceNumber) =>
             {

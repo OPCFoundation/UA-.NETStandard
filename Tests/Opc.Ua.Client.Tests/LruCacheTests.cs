@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result.Count);
+            Assert.That(result.Count, Is.EqualTo(1));
             context.Verify();
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(BuiltInType.Null, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Null));
             context.Verify();
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(BuiltInType.Int32, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
@@ -149,9 +149,9 @@ namespace Opc.Ua.Client.Tests
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -180,11 +180,11 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -315,14 +315,14 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -432,14 +432,14 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -523,7 +523,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
@@ -534,7 +534,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             context.Verify();
         }
@@ -652,7 +652,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
@@ -663,7 +663,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             context.Verify();
         }
@@ -737,7 +737,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
@@ -748,7 +748,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
+            Assert.That(result1.Count, Is.EqualTo(1));
             Assert.True(result2.IsEmpty);
             context.Verify();
         }
@@ -776,7 +776,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(NodeId.Null, result);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
             context.Verify();
         }
 
@@ -816,12 +816,12 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             // Act
             result = await nodeCache.GetSuperTypeAsync(subTypeId, default).ConfigureAwait(false);
             // Assert
-            Assert.AreEqual(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             context.Verify();
         }
@@ -873,9 +873,9 @@ namespace Opc.Ua.Client.Tests
             DataValue result = await nodeCache.GetValueAsync(id, default).ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetValueAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -906,7 +906,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(2, result.Count);
+            Assert.That(result.Count, Is.EqualTo(2));
             Assert.AreEqual(StatusCodes.BadUnexpectedError, (uint)result[0].StatusCode);
             Assert.AreEqual(StatusCodes.Good, (uint)result[1].StatusCode);
             context.Verify();
@@ -944,10 +944,10 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -983,9 +983,9 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected[0], result[0]);
+            Assert.That(result[0], Is.EqualTo(expected[0]));
             Assert.AreEqual(StatusCodes.Bad, (uint)result[1].StatusCode);
-            Assert.AreEqual(expected[1].WrappedValue, result[1].WrappedValue);
+            Assert.That(result[1].WrappedValue, Is.EqualTo(expected[1].WrappedValue));
 
             context
                 .Setup(c => c.FetchValuesAsync(

@@ -133,12 +133,12 @@ namespace Opc.Ua.Server.Tests
 
             // Attempt to create session - should succeed
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
             Assert.IsTrue(session.Connected, "Session should be connected");
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.NotNull(result, "Should be able to read server state");
+            Assert.That(result, Is.Not.Null, "Should be able to read server state");
             Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
@@ -198,19 +198,19 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.AreEqual(3, uris.Count);
+            Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should succeed because one URI matches
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
             Assert.IsTrue(session.Connected, "Session should be connected");
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.NotNull(result, "Should be able to read server state");
+            Assert.That(result, Is.Not.Null, "Should be able to read server state");
             Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.AreEqual(3, uris.Count);
+            Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
@@ -314,7 +314,7 @@ namespace Opc.Ua.Server.Tests
                     .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
 
-                Assert.NotNull(endpoint, "No suitable endpoint found");
+                Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
 
                 var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
                 endpointConfiguration.OperationTimeout = 10000;

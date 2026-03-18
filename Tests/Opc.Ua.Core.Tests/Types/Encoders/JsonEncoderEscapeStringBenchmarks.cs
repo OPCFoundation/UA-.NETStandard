@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
             m_streamWriter?.Dispose();
             m_streamWriter = null;

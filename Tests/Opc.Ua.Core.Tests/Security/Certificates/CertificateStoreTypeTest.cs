@@ -38,7 +38,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .LoadAsync(fileInfo, ApplicationType.Client, systemType: null, telemetry)
                 .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
+            Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
                 .TrustedIssuerCertificates;
             using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore(telemetry);

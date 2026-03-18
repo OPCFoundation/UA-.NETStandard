@@ -70,7 +70,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             public ExpandedNodeId BinaryEncodingId => new ExpandedNodeId(300001);
             public ExpandedNodeId XmlEncodingId => new ExpandedNodeId(300002);
             public void Encode(IEncoder encoder) => throw new InvalidOperationException("Test exception");
-            public void Decode(IDecoder decoder) { }
+            public void Decode(IDecoder decoder)
+            {
+            }
             public bool IsEqual(IEncodeable encodeable) => false;
             public object Clone() => new ThrowingEncodeable();
         }

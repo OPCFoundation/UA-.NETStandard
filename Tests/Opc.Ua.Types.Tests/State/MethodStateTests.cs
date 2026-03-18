@@ -212,7 +212,7 @@ namespace Opc.Ua.Types.Tests.State
 
             // Exercise DeepGetHashCode - verifies the code path runs without error
             int hash = method.DeepGetHashCode();
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero.Or.Zero);
             method.Dispose();
         }
 

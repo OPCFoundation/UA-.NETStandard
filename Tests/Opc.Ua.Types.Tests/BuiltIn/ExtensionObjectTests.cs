@@ -54,15 +54,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Validate the default constructor
             var extensionObject_Default = new ExtensionObject();
-            Assert.NotNull(extensionObject_Default);
-            Assert.AreEqual(ExpandedNodeId.Null, extensionObject_Default.TypeId);
-            Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject_Default.Encoding);
+            Assert.That(extensionObject_Default.IsNull, Is.True);
+            Assert.That(extensionObject_Default.TypeId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(extensionObject_Default.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
             Assert.IsTrue(extensionObject_Default.IsNull);
             // Constructor by ExtensionObject
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
-            Assert.NotNull(extensionObject);
-            Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
-            Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject.Encoding);
+            Assert.That(extensionObject.IsNull, Is.False);
+            Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
             Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
             Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
             Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
@@ -74,7 +74,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.Null(Ua.ExtensionObject.ToList<object>(null));
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
-            Assert.AreEqual(0, extensionObject.GetHashCode());
+            Assert.That(extensionObject.GetHashCode(), Is.EqualTo(0));
 #pragma warning disable CS0618 // Type or member is obsolete
             NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
@@ -84,25 +84,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // constructor by object
             ByteString bytes = [1, 2, 3];
             extensionObject = new ExtensionObject(default, bytes);
-            Assert.NotNull(extensionObject);
-            Assert.AreEqual(extensionObject, extensionObject);
+            Assert.That(extensionObject.IsNull, Is.False);
+            Assert.That(extensionObject.Equals(extensionObject), Is.True);
             // string extension
             string extensionObjectString = extensionObject.ToString();
             NUnit.Framework.Assert
                 .Throws<FormatException>(() => extensionObject.ToString("123", null));
-            Assert.NotNull(extensionObjectString);
+            Assert.That(extensionObjectString, Is.Not.Null);
             // IsEqual operator
             ExtensionObject clonedExtensionObject = extensionObject.WithTypeId(new ExpandedNodeId(333));
-            Assert.AreNotEqual(extensionObject, clonedExtensionObject);
-            Assert.AreNotEqual(extensionObject, extensionObject_Default);
-            Assert.AreNotEqual(extensionObject, new object());
-            Assert.AreEqual(clonedExtensionObject, clonedExtensionObject);
-            Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
-            Assert.AreEqual(
-                ExpandedNodeId.Null.GetHashCode(),
-                extensionObject.TypeId.GetHashCode());
-            Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
-            Assert.AreEqual(bytes, extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default);
+            Assert.That(extensionObject, Is.Not.EqualTo(clonedExtensionObject));
+            Assert.That(extensionObject, Is.Not.EqualTo(extensionObject_Default));
+            Assert.That(extensionObject, Is.Not.EqualTo(new object()));
+            Assert.That(clonedExtensionObject.Equals(clonedExtensionObject), Is.True);
+            Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(
+                extensionObject.TypeId.GetHashCode(),
+                Is.EqualTo(ExpandedNodeId.Null.GetHashCode()));
+            Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.Binary));
+            Assert.That(extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default, Is.EqualTo(bytes));
             // default value is null
             Assert.That(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject), Is.EqualTo(ExtensionObject.Null));
         }

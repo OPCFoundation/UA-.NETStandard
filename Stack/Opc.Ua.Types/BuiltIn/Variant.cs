@@ -7067,7 +7067,7 @@ namespace Opc.Ua
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean & rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean && rhs.m_union.Boolean;
                 case BuiltInType.Byte:
                     return lhs.m_union.Byte & rhs.m_union.Byte;
                 case BuiltInType.SByte:
@@ -7101,7 +7101,7 @@ namespace Opc.Ua
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean | rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean || rhs.m_union.Boolean;
                 case BuiltInType.Byte:
                     return lhs.m_union.Byte | rhs.m_union.Byte;
                 case BuiltInType.SByte:
@@ -8177,7 +8177,7 @@ namespace Opc.Ua
             /// <see cref="Matrix"/> object as-is too the PubSub
             /// library still uses this behavior.
             /// </summary>
-            LegacyWithMatrix,
+            LegacyWithMatrix
         }
     }
 }

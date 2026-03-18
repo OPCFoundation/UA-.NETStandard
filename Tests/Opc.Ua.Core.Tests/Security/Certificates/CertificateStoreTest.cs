@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            Assert.NotNull(appCertificate);
+            Assert.That(appCertificate, Is.Not.Null);
             Assert.True(appCertificate.HasPrivateKey);
             await appCertificate.AddToStoreAsync(
                 CertificateStoreType.X509Store,
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
             using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
-            Assert.NotNull(publicKey);
+            Assert.That(publicKey, Is.Not.Null);
             Assert.False(publicKey.HasPrivateKey);
 
             var id = new CertificateIdentifier
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(
                 password: null,
                 telemetry: telemetry).ConfigureAwait(false);
-            Assert.NotNull(privateKey);
+            Assert.That(privateKey, Is.Not.Null);
             Assert.True(privateKey.HasPrivateKey);
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
-            Assert.NotNull(appCertificate);
+            Assert.That(appCertificate, Is.Not.Null);
             Assert.True(appCertificate.HasPrivateKey);
 
             char[] password = Uuid.NewUuid().ToString().ToCharArray();
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
-            Assert.NotNull(publicKey);
+            Assert.That(publicKey, Is.Not.Null);
             Assert.False(publicKey.HasPrivateKey);
 
             var id = new CertificateIdentifier
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 telemetry: telemetry)
                 .ConfigureAwait(false);
 
-            Assert.NotNull(privateKey);
+            Assert.That(privateKey, Is.Not.Null);
             Assert.True(privateKey.HasPrivateKey);
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
 
-                Assert.AreEqual(3, certificates.Count);
+                Assert.That(certificates.Count, Is.EqualTo(3));
 
                 //Add private key for leaf cert to private folder
                 File.WriteAllBytes(
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         null)
                     .ConfigureAwait(false);
 
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
-                Assert.AreEqual(2, certificates.Count);
+                Assert.That(certificates.Count, Is.EqualTo(2));
                 Assert.IsEmpty(
                     certificates.Find(
                         X509FindType.FindByThumbprint,
@@ -346,13 +346,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
 
-                Assert.AreEqual(1, certificates.Count);
+                Assert.That(certificates.Count, Is.EqualTo(1));
 
-                Assert.NotNull(
+                Assert.That(
                     certificates.Find(
                         X509FindType.FindByThumbprint,
                         "14A630438BF775E19169D3279069BBF20419EF84",
-                        false));
+                        false),
+                    Is.Not.Null);
                 //Load private key
                 X509Certificate2 cert = await store
                     .LoadPrivateKeyAsync(
@@ -363,7 +364,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         null)
                     .ConfigureAwait(false);
 
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
@@ -451,11 +452,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //enumerate Crls
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.AreEqual(1, crls.Count);
-            Assert.AreEqual(crl.RawData, crls[0].RawData);
-            Assert.AreEqual(
-                GetTestCert().SerialNumber,
-                crls[0].RevokedCertificates[0].SerialNumber);
+            Assert.That(crls.Count, Is.EqualTo(1));
+            Assert.That(crls[0].RawData, Is.EqualTo(crl.RawData));
+            Assert.That(
+                crls[0].RevokedCertificates[0].SerialNumber,
+                Is.EqualTo(GetTestCert().SerialNumber));
 
             //TestRevocation
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
@@ -493,9 +494,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.AreEqual(1, crls.Count);
+            Assert.That(crls.Count, Is.EqualTo(1));
 
-            Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
+            Assert.That(crls[0].RevokedCertificates.Count, Is.EqualTo(2));
             //Test Revocation after adding cert
             StatusCode statusCode2 = await x509Store
                 .IsRevokedAsync(GetTestCert(), GetTestCert2())
@@ -528,8 +529,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //enumerate Crls
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.AreEqual(2, crls.Count);
-            Assert.NotNull(crls.SingleOrDefault(c => c.Issuer == crl.Issuer));
+            Assert.That(crls.Count, Is.EqualTo(2));
+            Assert.That(crls.SingleOrDefault(c => c.Issuer == crl.Issuer), Is.Not.Null);
         }
 
         /// <summary>
@@ -556,7 +557,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             //check the right crl was deleted
-            Assert.AreEqual(1, crlsAfterFirstDelete.Count);
+            Assert.That(crlsAfterFirstDelete.Count, Is.EqualTo(1));
             Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
 
             //make shure IsRevoked can't find crl anymore
@@ -571,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             //make shure no crls remain in store
-            Assert.AreEqual(0, crlsAfterSecondDelete.Count);
+            Assert.That(crlsAfterSecondDelete.Count, Is.EqualTo(0));
         }
 
         /// <summary>
@@ -706,8 +707,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultThumbprint);
-            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprint.Thumbprint);
+            Assert.That(resultThumbprint, Is.Not.Null);
+            Assert.That(resultThumbprint.Thumbprint, Is.EqualTo(certSubjectSubstring.Thumbprint));
 
             // Test that searching by existing thumbprint and subject name works
             X509Certificate2 resultThumbprintAndSubject = CertificateIdentifier.Find(
@@ -717,8 +718,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultThumbprintAndSubject);
-            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprintAndSubject.Thumbprint);
+            Assert.That(resultThumbprintAndSubject, Is.Not.Null);
+            Assert.That(resultThumbprintAndSubject.Thumbprint, Is.EqualTo(certSubjectSubstring.Thumbprint));
 
             // Test that searching by existing thumbprint and non-matching subject name fails
             X509Certificate2 resultThumbprintAndNonMatchingSubject = CertificateIdentifier.Find(
@@ -739,8 +740,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultSubjectSubstring);
-            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultSubjectSubstring.Thumbprint);
+            Assert.That(resultSubjectSubstring, Is.Not.Null);
+            Assert.That(resultSubjectSubstring.Thumbprint, Is.EqualTo(certSubjectSubstring.Thumbprint));
 
             // Test that exact match is done if CN is in subject name and multiple matches exist
             // and the longest remaining validity certificate is selected in that case
@@ -751,9 +752,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultSubjectWithCnDuplicate);
-            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
-             resultSubjectWithCnDuplicate.Thumbprint);
+            Assert.That(resultSubjectWithCnDuplicate, Is.Not.Null);
+            Assert.That(resultSubjectWithCnDuplicate.Thumbprint,
+             Is.EqualTo(certLongestDurationLatestNotAfterValid.Thumbprint));
 
             // Test that longest remaining validity certificate is selected when multiple matches exist
             // and CN is not in subject name
@@ -764,9 +765,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultLongestDuration);
-            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
-             resultLongestDuration.Thumbprint);
+            Assert.That(resultLongestDuration, Is.Not.Null);
+            Assert.That(resultLongestDuration.Thumbprint,
+             Is.EqualTo(certLongestDurationLatestNotAfterValid.Thumbprint));
 
             // Test search by applicationUri works for single match
             X509Certificate2 resultApplicationUri = CertificateIdentifier.Find(
@@ -776,8 +777,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "urn:localhost:UA:Ua.Core.Tests",
                 default,
                 false);
-            Assert.NotNull(resultApplicationUri);
-            Assert.AreEqual(certSubjectSubstring.Thumbprint, resultApplicationUri.Thumbprint);
+            Assert.That(resultApplicationUri, Is.Not.Null);
+            Assert.That(resultApplicationUri.Thumbprint, Is.EqualTo(certSubjectSubstring.Thumbprint));
 
             // Test search by applicationUri works for multiple matches and longest remaining validity is selected
             X509Certificate2 resultApplicationUriDuplicate = CertificateIdentifier.Find(
@@ -787,9 +788,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
                 default,
                 false);
-            Assert.NotNull(resultApplicationUriDuplicate);
-            Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
-             resultApplicationUriDuplicate.Thumbprint);
+            Assert.That(resultApplicationUriDuplicate, Is.Not.Null);
+            Assert.That(resultApplicationUriDuplicate.Thumbprint,
+             Is.EqualTo(certLongestDurationLatestNotAfterValid.Thumbprint));
 
             // Test that CA-signed certificate is prioritized over self-signed certificate
             // --------------------------------------------------------------------------
@@ -822,8 +823,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultCASigned);
-            Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint,
+            Assert.That(resultCASigned, Is.Not.Null);
+            Assert.That(resultCASigned.Thumbprint, Is.EqualTo(caSignedCert.Thumbprint),
                 "Should pick CA-signed certificate over self-signed even with shorter remaining validity");
 
             // Test that CA-signed certificate is picked by applicationUri over self-signed
@@ -834,8 +835,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
                 default,
                 false);
-            Assert.NotNull(resultCASignedByUri);
-            Assert.AreEqual(caSignedCert.Thumbprint, resultCASignedByUri.Thumbprint);
+            Assert.That(resultCASignedByUri, Is.Not.Null);
+            Assert.That(resultCASignedByUri.Thumbprint, Is.EqualTo(caSignedCert.Thumbprint));
 
             // Test multiple valid certificates - should pick CA-signed first, then longest remaining validity
             X509Certificate2 validShortRemaining = CreateDuplicateCertificate(
@@ -868,8 +869,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultValidMultiple);
-            Assert.AreEqual(validLongRemaining.Thumbprint, resultValidMultiple.Thumbprint,
+            Assert.That(resultValidMultiple, Is.Not.Null);
+            Assert.That(resultValidMultiple.Thumbprint, Is.EqualTo(validLongRemaining.Thumbprint),
                 "Should pick certificate with longest remaining validity (validLongRemaining has ~24 months, validEqualDurationLessRemaining has ~12 months)");
 
             // Test expired certificate handling
@@ -907,8 +908,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultExpired);
-            Assert.AreEqual(expiredCert2.Thumbprint, resultExpired.Thumbprint,
+            Assert.That(resultExpired, Is.Not.Null);
+            Assert.That(resultExpired.Thumbprint, Is.EqualTo(expiredCert2.Thumbprint),
                 "Should pick the least expired certificate (most recent NotAfter)");
 
             // Test 2: Mix of valid and expired - should always pick valid certificate
@@ -940,8 +941,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultMixed);
-            Assert.AreEqual(validCertShort.Thumbprint, resultMixed.Thumbprint,
+            Assert.That(resultMixed, Is.Not.Null);
+            Assert.That(resultMixed.Thumbprint, Is.EqualTo(validCertShort.Thumbprint),
                 "Should pick valid certificate over expired, regardless of total validity period");
 
             // Test 3: All expired, CA-signed vs self-signed - should prioritize CA-signed
@@ -975,8 +976,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultExpiredCA);
-            Assert.AreEqual(expiredCASigned.Thumbprint, resultExpiredCA.Thumbprint,
+            Assert.That(resultExpiredCA, Is.Not.Null);
+            Assert.That(resultExpiredCA.Thumbprint, Is.EqualTo(expiredCASigned.Thumbprint),
                 "Should prioritize CA-signed over self-signed even when CA-signed is more expired");
 
             // Test 4: Certificate not yet valid (NotBefore in future) - should be treated as invalid
@@ -1004,8 +1005,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultFuture);
-            Assert.AreEqual(currentlyValid.Thumbprint, resultFuture.Thumbprint,
+            Assert.That(resultFuture, Is.Not.Null);
+            Assert.That(resultFuture.Thumbprint, Is.EqualTo(currentlyValid.Thumbprint),
                 "Should pick currently valid certificate over not-yet-valid certificate");
 
             // Test 5: All expired with same NotAfter, CA-signed should win
@@ -1041,8 +1042,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultSameExpiry);
-            Assert.AreEqual(expiredCASigned1.Thumbprint, resultSameExpiry.Thumbprint,
+            Assert.That(resultSameExpiry, Is.Not.Null);
+            Assert.That(resultSameExpiry.Thumbprint, Is.EqualTo(expiredCASigned1.Thumbprint),
                 "Should prioritize CA-signed over self-signed when both have same NotAfter");
 
             // Test 6: Mix of expired and not-yet-valid - should pick soonest to become valid
@@ -1076,8 +1077,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultMixedExpiredFuture);
-            Assert.AreEqual(notYetValidSoon.Thumbprint, resultMixedExpiredFuture.Thumbprint,
+            Assert.That(resultMixedExpiredFuture, Is.Not.Null);
+            Assert.That(resultMixedExpiredFuture.Thumbprint, Is.EqualTo(notYetValidSoon.Thumbprint),
                 "Should pick soonest to become valid when both expired and not-yet-valid exist (5 days < 20 days)");
 
             // Test 7: All not-yet-valid - should pick soonest to become valid
@@ -1094,8 +1095,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultAllNotYetValid);
-            Assert.AreEqual(notYetValidSoon.Thumbprint, resultAllNotYetValid.Thumbprint,
+            Assert.That(resultAllNotYetValid, Is.Not.Null);
+            Assert.That(resultAllNotYetValid.Thumbprint, Is.EqualTo(notYetValidSoon.Thumbprint),
                 "Should pick soonest to become valid when all are not-yet-valid");
 
             // Test 8: Not-yet-valid CA-signed vs self-signed - should prioritize CA-signed
@@ -1121,8 +1122,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultNotYetValidCA);
-            Assert.AreEqual(notYetValidCASigned.Thumbprint, resultNotYetValidCA.Thumbprint,
+            Assert.That(resultNotYetValidCA, Is.Not.Null);
+            Assert.That(resultNotYetValidCA.Thumbprint, Is.EqualTo(notYetValidCASigned.Thumbprint),
                 "Should prioritize CA-signed over self-signed even when CA-signed becomes valid later");
 
             // Test 9: Mix of expired and not-yet-valid with CA-signed - should pick CA-signed not-yet-valid
@@ -1145,8 +1146,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultMixedCA);
-            Assert.AreEqual(notYetValidCASigned.Thumbprint, resultMixedCA.Thumbprint,
+            Assert.That(resultMixedCA, Is.Not.Null);
+            Assert.That(resultMixedCA.Thumbprint, Is.EqualTo(notYetValidCASigned.Thumbprint),
                 "Should pick CA-signed not-yet-valid over self-signed expired when comparing soonest to become valid");
 
             // Test 10: Search by applicationUri with expired certificates
@@ -1157,8 +1158,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "urn:localhost:UA:Opc.Ua.Core.Tests.Expired2",
                 default,
                 false);
-            Assert.NotNull(resultExpiredByUri);
-            Assert.AreEqual(expiredCert2.Thumbprint, resultExpiredByUri.Thumbprint,
+            Assert.That(resultExpiredByUri, Is.Not.Null);
+            Assert.That(resultExpiredByUri.Thumbprint, Is.EqualTo(expiredCert2.Thumbprint),
                 "Should find least expired certificate when searching by applicationUri");
 
             // Test 11: Valid CA-signed with shorter remaining validity beats self-signed with longer remaining validity
@@ -1190,8 +1191,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.NotNull(resultValidCAvsSeIf);
-            Assert.AreEqual(validCASignedShorter.Thumbprint, resultValidCAvsSeIf.Thumbprint,
+            Assert.That(resultValidCAvsSeIf, Is.Not.Null);
+            Assert.That(resultValidCAvsSeIf.Thumbprint, Is.EqualTo(validCASignedShorter.Thumbprint),
                 "Should pick CA-signed valid certificate over self-signed valid even with shorter remaining validity");
         }
 

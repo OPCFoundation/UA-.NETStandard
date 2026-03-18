@@ -158,15 +158,15 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     Utils.ReplaceLocalhost("opc.tcp://localhost:52641/UA/SampleServer");
                 configuration.ServerConfiguration.BaseAddresses +=
                     Utils.ReplaceLocalhost("https://localhost:52642/UA/SampleServer");
-                Assert.AreEqual(
-                    BaseAddressCount,
-                    configuration.ServerConfiguration.BaseAddresses.Count);
+                Assert.That(
+                    configuration.ServerConfiguration.BaseAddresses.Count,
+                    Is.EqualTo(BaseAddressCount));
             }
             else
             {
-                Assert.AreEqual(
-                    BaseAddressCount / 2,
-                    configuration.ServerConfiguration.BaseAddresses.Count);
+                Assert.That(
+                    configuration.ServerConfiguration.BaseAddresses.Count,
+                    Is.EqualTo(BaseAddressCount / 2));
             }
 
             if (m_testConfiguration
@@ -345,13 +345,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var clientUri1 = new Uri(clientUrl1);
             var clientUri2 = new Uri(clientUrl2);
 
-            Assert.AreEqual(clientUri1, clientUri2);
-            Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
-            Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
+            Assert.That(clientUri2, Is.EqualTo(clientUri1));
+            Assert.That(clientUri2.IdnHost, Is.EqualTo(clientUri1.IdnHost));
+            Assert.That(clientUri2.IdnHost, Is.EqualTo(clientUri1.IdnHost));
 
-            Assert.AreEqual(
-                Utils.NormalizedIPAddress(clientUri1.IdnHost),
-                Utils.NormalizedIPAddress(clientUri2.IdnHost));
+            Assert.That(
+                Utils.NormalizedIPAddress(clientUri2.IdnHost),
+                Is.EqualTo(Utils.NormalizedIPAddress(clientUri1.IdnHost)));
         }
 
         /// <summary>
@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 = FilterByEndpointUrl(
                 parsedEndpointUrl,
                 BaseAddresses);
-            Assert.NotNull(filteredBaseAddresses);
+            Assert.That(filteredBaseAddresses, Is.Not.Null);
             Assert.Greater(filteredBaseAddresses.Count, 0);
             TestContext.Out.WriteLine($"Filtered endpoints: {filteredBaseAddresses.Count}");
             foreach (BaseAddress baseaddress in filteredBaseAddresses)
@@ -433,7 +433,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 baseAddresses,
                 m_endpoints,
                 m_serverDescription);
-            Assert.NotNull(translatedEndpoints);
+            Assert.That(translatedEndpoints.IsNull, Is.False);
             Assert.Greater(translatedEndpoints.Count, 0);
             foreach (EndpointDescription endpoint in translatedEndpoints)
             {
@@ -499,17 +499,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         and not TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
                         and not TestConfigurations.DualBaseAdressesWithAlternatePort)
                 {
-                    Assert.AreEqual(firstMatchEndpointUrl.Port, translatedEndpointUrl.Port);
-                    Assert.AreEqual(
-                        firstMatchEndpointUrl.LocalPath,
-                        translatedEndpointUrl.LocalPath);
+                    Assert.That(translatedEndpointUrl.Port, Is.EqualTo(firstMatchEndpointUrl.Port));
+                    Assert.That(
+                        translatedEndpointUrl.LocalPath,
+                        Is.EqualTo(firstMatchEndpointUrl.LocalPath));
                 }
                 else if (firstMatchEndpointUrl.Port != translatedEndpointUrl.Port)
                 {
                     // ensure port is translated and mapped to the first base address with the same scheme.
-                    Assert.AreEqual(
-                        firstMatchEndpointUrl.Port % 10,
-                        translatedEndpointUrl.Port % 10);
+                    Assert.That(
+                        translatedEndpointUrl.Port % 10,
+                        Is.EqualTo(firstMatchEndpointUrl.Port % 10));
 
                     ArrayOf<EndpointDescription> theSchemes = m_endpoints
                         .Filter(endpoint =>
@@ -517,20 +517,20 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                                 .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal));
                     Assert.AreEqual(theSchemes[0].EndpointUrl, firstMatch.EndpointUrl);
                 }
-                Assert.AreEqual(firstMatchEndpointUrl.Scheme, translatedEndpointUrl.Scheme);
+                Assert.That(translatedEndpointUrl.Scheme, Is.EqualTo(firstMatchEndpointUrl.Scheme));
 
                 // validate results have matching scheme with a port index.
                 if (translatedEndpointUrl.Scheme == Utils.UriSchemeHttps)
                 {
-                    Assert.IsTrue(translatedEndpointUrl.Port % 10 == 2);
+                    Assert.That(translatedEndpointUrl.Port % 10, Is.EqualTo(2));
                 }
                 if (translatedEndpointUrl.Scheme == Utils.UriSchemeOpcHttps)
                 {
-                    Assert.IsTrue(translatedEndpointUrl.Port % 10 == 0);
+                    Assert.That(translatedEndpointUrl.Port % 10, Is.EqualTo(0));
                 }
                 else if (translatedEndpointUrl.Scheme == Utils.UriSchemeOpcTcp)
                 {
-                    Assert.IsTrue(translatedEndpointUrl.Port % 10 == 1);
+                    Assert.That(translatedEndpointUrl.Port % 10, Is.EqualTo(1));
                 }
             }
         }

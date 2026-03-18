@@ -50,8 +50,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(dv.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
             Assert.That(dv.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
-            Assert.That(dv.SourcePicoseconds, Is.EqualTo((ushort)0));
-            Assert.That(dv.ServerPicoseconds, Is.EqualTo((ushort)0));
+            Assert.That(dv.SourcePicoseconds, Is.Zero);
+            Assert.That(dv.ServerPicoseconds, Is.Zero);
         }
 
         [Test]
@@ -142,7 +142,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42));
             var dv2 = new DataValue(new Variant(42));
 
-            Assert.That(dv1.Equals((object)dv2), Is.True);
+            Assert.That(dv1, Is.EqualTo((object)dv2));
         }
 
         [Test]
@@ -240,7 +240,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerPicoseconds = 60
             };
 
-            Assert.That(dv1.Equals(dv2), Is.True);
+            Assert.That(dv1, Is.EqualTo(dv2));
         }
 
         [Test]
@@ -250,7 +250,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue b = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -282,7 +282,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var a = new DataValue(new Variant(42));
             var b = new DataValue(new Variant(42));
 
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -300,7 +300,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var a = new DataValue(new Variant(42));
             var b = new DataValue(new Variant(42));
 
-            Assert.That(a != b, Is.False);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -316,7 +316,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetHashCodeWithNullValue()
         {
-            var dv = new DataValue()
+            var dv = new DataValue
             {
                 StatusCode = StatusCodes.BadUnexpectedError
             };
@@ -555,7 +555,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             int result = dv.GetValueOrDefault<int>();
 
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -691,8 +691,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue();
             var dv2 = new DataValue();
 
-            Assert.That(dv1.Equals(dv2), Is.True);
-            Assert.That(dv1 == dv2, Is.True);
+            Assert.That(dv1, Is.EqualTo(dv2));
+            Assert.That(dv1, Is.EqualTo(dv2));
         }
 
         [Test]
@@ -748,10 +748,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerPicoseconds = 222
             };
 
-            var clone = (DataValue)((ICloneable)original).Clone();
+            var clone = (DataValue)original.Clone();
 
             Assert.That(clone, Is.Not.SameAs(original));
-            Assert.That(clone.Equals(original), Is.True);
+            Assert.That(clone, Is.EqualTo(original));
         }
 
         [Test]

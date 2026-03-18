@@ -91,8 +91,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.LessOrEqual(1.0, TimeSpan.TicksPerMillisecond);
             HiResClock.Disabled = true;
             Assert.True(HiResClock.Disabled);
-            Assert.AreEqual(TimeSpan.TicksPerSecond, HiResClock.Frequency);
-            Assert.AreEqual(TimeSpan.TicksPerMillisecond, HiResClock.TicksPerMillisecond);
+            Assert.That(HiResClock.Frequency, Is.EqualTo(TimeSpan.TicksPerSecond));
+            Assert.That(HiResClock.TicksPerMillisecond, Is.EqualTo(TimeSpan.TicksPerMillisecond));
             HiResClock.Disabled = false;
             Assert.True(HiResClock.Disabled);
             HiResClock.Reset();
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void HiResClockTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
-            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.EqualTo(disabled));
             var stopWatch = new Stopwatch();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void HiResUtcNowTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
-            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.EqualTo(disabled));
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             long lastTickCount = HiResClock.UtcNow.Ticks;

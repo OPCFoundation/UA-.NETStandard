@@ -163,7 +163,7 @@ namespace Opc.Ua.Client.Tests
                 session = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(session, "Failed to create session");
+                Assert.That(session, Is.Not.Null, "Failed to create session");
 
                 // Create subscription
                 subscription = new Subscription(session.DefaultSubscription)
@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Tests
                 ISession writerSession = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(writerSession, "Failed to create writer session");
+                Assert.That(writerSession, Is.Not.Null, "Failed to create writer session");
 
                 // Writer task - continuously write values
                 int writeCount = 0;
@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Assertions
                 Assert.IsTrue(allNodesReceivedData, "Not all nodes received expected data");
-                Assert.AreEqual(0, errors.Count, $"Test encountered {errors.Count} errors");
+                Assert.That(errors.Count, Is.EqualTo(0), $"Test encountered {errors.Count} errors");
                 Assert.GreaterOrEqual(
                     totalNotifications,
                     expectedMinNotifications,

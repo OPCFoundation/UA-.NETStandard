@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
-                Assert.AreEqual(1, registeredManagers.Length);
+                Assert.That(registeredManagers.Length, Is.EqualTo(1));
                 Assert.Contains(nodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
-                Assert.AreEqual(2, registeredManagers.Length);
+                Assert.That(registeredManagers.Length, Is.EqualTo(2));
                 Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
                 Assert.Contains(newNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
-                Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
+                Assert.That(registeredManagers.Length, Is.EqualTo(totalManagers - 1));
                 NUnit.Framework.Assert.That(registeredManagers.Select(m => m.SyncNodeManager).ToList(), Has.No.Member(nodeManagerToRemove));
             }
             finally
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
                 ]];
-                Assert.AreEqual(2, registeredManagers.Length);
+                Assert.That(registeredManagers.Length, Is.EqualTo(2));
                 Assert.Contains(firstNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
                 Assert.Contains(thirdNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(originalNs)
                 ]];
-                Assert.AreEqual(1, registeredManagers.Length);
+                Assert.That(registeredManagers.Length, Is.EqualTo(1));
                 Assert.Contains(originalNodeManager.Object, registeredManagers.Select(m => m.SyncNodeManager).ToList());
             }
             finally

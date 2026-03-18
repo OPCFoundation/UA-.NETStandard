@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.State
             var view = new ViewState();
             Assert.That(view, Is.Not.Null);
             Assert.That(view.NodeClass, Is.EqualTo(NodeClass.View));
-            Assert.That(view.EventNotifier, Is.EqualTo((byte)0));
+            Assert.That(view.EventNotifier, Is.Zero);
             Assert.That(view.ContainsNoLoops, Is.False);
             view.Dispose();
         }

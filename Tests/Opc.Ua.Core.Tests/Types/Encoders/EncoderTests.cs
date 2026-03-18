@@ -107,25 +107,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             "If the Server timestamp is missing the Picoseconds are ignored.")]
         public void EncodeDataValueWithoutValueProperty()
         {
-            var dataValue = new DataValue() { SourcePicoseconds = 1 };
+            var dataValue = new DataValue { SourcePicoseconds = 1 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 01).ToUniversalTime() };
+            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 01).ToUniversalTime() };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 02).ToUniversalTime() };
+            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 02).ToUniversalTime() };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerPicoseconds = 2 };
+            dataValue = new DataValue { ServerPicoseconds = 2 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { StatusCode = StatusCodes.BadNotImplemented };
+            dataValue = new DataValue { StatusCode = StatusCodes.BadNotImplemented };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 03).ToUniversalTime(), SourcePicoseconds = 3 };
+            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 03).ToUniversalTime(), SourcePicoseconds = 3 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 04).ToUniversalTime(), ServerPicoseconds = 4 };
+            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 04).ToUniversalTime(), ServerPicoseconds = 4 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 05).ToUniversalTime(), ServerPicoseconds = 5 };
+            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 05).ToUniversalTime(), ServerPicoseconds = 5 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 06).ToUniversalTime(), SourcePicoseconds = 6 };
+            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 06).ToUniversalTime(), SourcePicoseconds = 6 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue()
+            dataValue = new DataValue
             {
                 ServerTimestamp = new DateTime(2001, 01, 07).ToUniversalTime(),
                 ServerPicoseconds = 7,
@@ -138,16 +138,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void EncodeDataValueWithoutValuePropertyTest(DataValue dataValue)
         {
-            EncodingType encoderType = EncodingType.Binary;
-            BuiltInType builtInType = BuiltInType.Null;
-            MemoryStreamType memoryStreamType = MemoryStreamType.MemoryStream;
-            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose;
+            const EncodingType encoderType = EncodingType.Binary;
+            const BuiltInType builtInType = BuiltInType.Null;
+            const MemoryStreamType memoryStreamType = MemoryStreamType.MemoryStream;
+            const JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose;
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             DataValue expected = dataValue;
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
 
-            string formatted = null;
             DataValue result = null;
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -165,16 +164,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 buffer = encoderStream.ToArray();
             }
 
-            switch (encoderType)
-            {
-                case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(buffer);
-                    break;
-                case EncodingType.Xml:
-                    formatted = PrettifyAndValidateXml(buffer);
-                    break;
-            }
-
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
@@ -186,10 +175,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 result = decoder.ReadDataValue("DataValue");
             }
 
-            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
             // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
-            if (expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue ||
-                expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue)
+            if ((expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue) ||
+                (expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue))
             {
                 Assert.That(expected, Is.Not.EqualTo(result), encodeInfo);
                 Assert.IsFalse(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
@@ -497,20 +486,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static void ReadByteStringData(IDecoder decoder)
         {
             ByteString result = decoder.ReadByteString("ByteString1");
-            Assert.AreEqual(ByteString.From(new byte[] { 1, 2, 3 }), result);
+            Assert.That(result, Is.EqualTo(ByteString.From(new byte[] { 1, 2, 3 })));
             result = decoder.ReadByteString("ByteString2");
-            Assert.AreEqual(ByteString.Empty, result);
+            Assert.That(result, Is.EqualTo(ByteString.Empty));
             result = decoder.ReadByteString("ByteString3");
-            Assert.AreEqual(ByteString.Empty, result);
+            Assert.That(result, Is.EqualTo(ByteString.Empty));
 #if SPAN_SUPPORT
             result = decoder.ReadByteString("ByteString4");
-            Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+            Assert.That(result, Is.EqualTo(new byte[] { 1, 2, 3 }));
             result = decoder.ReadByteString("ByteString5");
-            Assert.AreEqual(ByteString.Empty, result);
+            Assert.That(result, Is.EqualTo(ByteString.Empty));
             result = decoder.ReadByteString("ByteString6");
-            Assert.AreEqual(ByteString.Empty, result);
+            Assert.That(result, Is.EqualTo(ByteString.Empty));
             result = decoder.ReadByteString("ByteString7");
-            Assert.AreEqual(ByteString.Empty, result);
+            Assert.That(result, Is.EqualTo(ByteString.Empty));
 #endif
         }
 
@@ -662,7 +651,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
 
-            Assert.AreEqual(randomData, result, encodeInfo);
+            Assert.That(result, Is.EqualTo(randomData), encodeInfo);
         }
 
         /// <summary>
@@ -790,35 +779,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            Assert.AreEqual(randomData, result, encodeInfo);
-        }
-
-        /// <summary>
-        /// Test if deserializing an extensionObject alters the Null NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Issue was raised in github #2974.
-        /// </remarks>
-        [Test]
-        public void EnsureNodeIdNullIsNotModified()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            const string text1 =
-                "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
-                "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
-                "{\"ListOfExtensionObject\":{\"ExtensionObject\":[" +
-                "{\"Body\":{\"KeyValuePair\":{\"Key\":{\"Name\":\"stringProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
-                "{\"String\":\"EinString\"}}}},\"TypeId\":{\"Identifier\":\"i=14801\"}},{\"Body\":{\"KeyValuePair\":{\"Key\":" +
-                "{\"Name\":\"intProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":{\"Int32\":\"1\"}}}},\"TypeId\":" +
-                "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
-                "{\"Identifier\":\"i=14803\"}}]";
-
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
-
-            Assert.NotNull(NodeId.Null);
-            Assert.True(NodeId.Null.IsNull);
+            Assert.That(result, Is.EqualTo(randomData), encodeInfo);
         }
     }
 }

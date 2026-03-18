@@ -60,11 +60,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             var csr = new Pkcs10CertificationRequest(csrData);
 
             // Verify subject
-            Assert.NotNull(csr.Subject);
+            Assert.That(csr.Subject, Is.Not.Null);
             Assert.IsNotEmpty(csr.Subject.Name);
 
             // Verify public key info
-            Assert.NotNull(csr.SubjectPublicKeyInfo);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
             Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
 
             // Verify signature
@@ -91,14 +91,14 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Create CSR
             byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
-            Assert.NotNull(csrData);
+            Assert.That(csrData, Is.Not.Null);
             Assert.Greater(csrData.Length, 0);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
 
             // Verify subject
-            Assert.NotNull(csr.Subject);
+            Assert.That(csr.Subject, Is.Not.Null);
             NUnit.Framework.Assert.That(csr.Subject.Name, Does.Contain("CN=Test RSA CSR"));
 
             // Verify signature
@@ -106,7 +106,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.True(isValid, "CSR signature should be valid");
 
             // Verify SubjectPublicKeyInfo
-            Assert.NotNull(csr.SubjectPublicKeyInfo);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
             Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
         }
 
@@ -130,18 +130,18 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Create CSR
             byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
-            Assert.NotNull(csrData);
+            Assert.That(csrData, Is.Not.Null);
             Assert.Greater(csrData.Length, 0);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
 
             // Verify subject
-            Assert.NotNull(csr.Subject);
+            Assert.That(csr.Subject, Is.Not.Null);
             NUnit.Framework.Assert.That(csr.Subject.Name, Does.Contain("CN=Test ECDSA P256 CSR"));
 
             // Verify SubjectPublicKeyInfo
-            Assert.NotNull(csr.SubjectPublicKeyInfo);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
             Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
 
             // Verify signature
@@ -231,7 +231,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Extract Subject Alternative Name
             X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes);
 
-            Assert.NotNull(sanExtension);
+            Assert.That(sanExtension, Is.Not.Null);
             NUnit.Framework.Assert.That(sanExtension.Uris, Has.Count.EqualTo(1));
             NUnit.Framework.Assert.That(sanExtension.Uris[0], Is.EqualTo(applicationUri));
 
@@ -266,7 +266,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes);
 
             // SAN extension should exist (created by CertificateFactory)
-            Assert.NotNull(sanExtension);
+            Assert.That(sanExtension, Is.Not.Null);
         }
 
         /// <summary>
@@ -286,7 +286,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var csr = new Pkcs10CertificationRequest(csrData);
 
             byte[] requestInfo = csr.GetCertificationRequestInfo();
-            Assert.NotNull(requestInfo);
+            Assert.That(requestInfo, Is.Not.Null);
             Assert.Greater(requestInfo.Length, 0);
         }
 
@@ -315,7 +315,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
                 var csr = new Pkcs10CertificationRequest(csrData);
 
-                Assert.NotNull(csr);
+                Assert.That(csr, Is.Not.Null);
                 Assert.True(csr.Verify());
                 csrList.Add(csr);
             }

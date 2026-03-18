@@ -1166,7 +1166,6 @@ namespace Opc.Ua.Server
             {
                 bool diagnosticsExist = false;
 
-
                 var dataChangeList = new List<MonitoredItemNotification>(datachanges.Count);
                 var diagnosticInfos = new List<DiagnosticInfo>(datachanges.Count);
                 while (datachanges.Count > 0 && notificationCount < m_maxNotificationsPerPublish)

@@ -67,13 +67,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 readDataValue,
+                Is.Not.Null,
                 "Returned DataValue for written nodeId and attribute is null");
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                readDataValue.Value,
+            Assert.That(
                 value,
+                Is.EqualTo(readDataValue.Value),
                 "Read after write returned different value");
 #pragma warning restore CS0618 // Type or member is obsolete
         }

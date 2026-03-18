@@ -87,7 +87,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn1 = new QualifiedName("Same", 3);
             var qn2 = new QualifiedName("Same", 3);
-            Assert.That(qn1.CompareTo(qn2), Is.EqualTo(0));
+            Assert.That(qn1.CompareTo(qn2), Is.Zero);
         }
 
         [Test]
@@ -95,7 +95,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn1 = new QualifiedName("Beta", 1);
             var qn2 = new QualifiedName("Alpha", 1);
-            Assert.That(qn1 > qn2, Is.True);
+            Assert.That(qn1, Is.GreaterThan(qn2));
             Assert.That(qn2 > qn1, Is.False);
         }
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn3 = new QualifiedName("Alpha", 1);
             Assert.That(qn1 <= qn2, Is.True);
             Assert.That(qn1 <= qn3, Is.True);
-            Assert.That(qn2 <= qn1, Is.False);
+            Assert.That(qn2, Is.GreaterThan(qn1));
         }
 
         [Test]
@@ -142,7 +142,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Alpha");
             Assert.That(qn.CompareTo("Beta"), Is.LessThan(0));
-            Assert.That(qn.CompareTo("Alpha"), Is.EqualTo(0));
+            Assert.That(qn.CompareTo("Alpha"), Is.Zero);
             Assert.That(qn.CompareTo("AAAAAA"), Is.GreaterThan(0));
         }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorGreaterThanString()
         {
             var qn = new QualifiedName("Beta");
-            Assert.That(qn > "Alpha", Is.True);
+            Assert.That(qn, Is.GreaterThan("Alpha"));
             Assert.That(qn > "Gamma", Is.False);
         }
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn = new QualifiedName("Alpha");
             Assert.That(qn <= "Beta", Is.True);
             Assert.That(qn <= "Alpha", Is.True);
-            Assert.That(qn <= "AAAAAA", Is.False);
+            Assert.That(qn, Is.GreaterThan("AAAAAA"));
         }
 
         [Test]
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithString()
         {
             var qn = new QualifiedName("Hello");
-            Assert.That(qn.Equals((object)"Hello"), Is.True);
+            Assert.That(qn, Is.EqualTo((object)"Hello"));
             Assert.That(qn.Equals((object)"World"), Is.False);
         }
 
@@ -192,7 +192,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithQualifiedName()
         {
             var qn = new QualifiedName("Hello", 1);
-            Assert.That(qn.Equals((object)new QualifiedName("Hello", 1)), Is.True);
+            Assert.That(qn, Is.EqualTo((object)new QualifiedName("Hello", 1)));
             Assert.That(qn.Equals((object)new QualifiedName("Hello", 2)), Is.False);
         }
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsStringWithZeroNamespaceIndex()
         {
             var qn = new QualifiedName("Hello");
-            Assert.That(qn.Equals("Hello"), Is.True);
+            Assert.That(qn, Is.EqualTo("Hello"));
             Assert.That(qn.Equals("World"), Is.False);
         }
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualityQualifiedNameString()
         {
             var qn = new QualifiedName("Hello");
-            Assert.That(qn == "Hello", Is.True);
+            Assert.That(qn, Is.EqualTo("Hello"));
             Assert.That(qn == "World", Is.False);
         }
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Hello");
             Assert.That(qn != "World", Is.True);
-            Assert.That(qn != "Hello", Is.False);
+            Assert.That(qn, Is.EqualTo("Hello"));
         }
 
         [Test]
@@ -262,7 +262,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateWithEmptyNameReturnsNull()
         {
             var table = new NamespaceTable();
-            var result = QualifiedName.Create("", "http://test.org/", table);
+            var result = QualifiedName.Create(string.Empty, "http://test.org/", table);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -272,7 +272,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var table = new NamespaceTable();
             var result = QualifiedName.Create("MyName", null, table);
             Assert.That(result.Name, Is.EqualTo("MyName"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -306,7 +306,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void IsValidWithEmptyNameReturnsFalse()
         {
             Assert.That(QualifiedName.IsValid(new QualifiedName(null), null), Is.False);
-            Assert.That(QualifiedName.IsValid(new QualifiedName(""), null), Is.False);
+            Assert.That(QualifiedName.IsValid(new QualifiedName(string.Empty), null), Is.False);
         }
 
         [Test]
@@ -336,7 +336,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseEmptyStringReturnsNull()
         {
             Assert.That(QualifiedName.Parse(null).IsNull, Is.True);
-            Assert.That(QualifiedName.Parse("").IsNull, Is.True);
+            Assert.That(QualifiedName.Parse(string.Empty).IsNull, Is.True);
         }
 
         [Test]
@@ -344,7 +344,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ServiceMessageContext context = CreateContext();
             Assert.That(QualifiedName.Parse(context, null, false).IsNull, Is.True);
-            Assert.That(QualifiedName.Parse(context, "", false).IsNull, Is.True);
+            Assert.That(QualifiedName.Parse(context, string.Empty, false).IsNull, Is.True);
         }
 
         [Test]
@@ -408,7 +408,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "SimpleName", false);
             Assert.That(result.Name, Is.EqualTo("SimpleName"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -467,7 +467,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEmptyReturnsNull()
         {
-            Assert.That(QualifiedName.From("").IsNull, Is.True);
+            Assert.That(QualifiedName.From(string.Empty).IsNull, Is.True);
         }
 
         [Test]
@@ -475,7 +475,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var result = QualifiedName.From("Test");
             Assert.That(result.Name, Is.EqualTo("Test"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -483,7 +483,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             QualifiedName qn = (QualifiedName)"Hello";
             Assert.That(qn.Name, Is.EqualTo("Hello"));
-            Assert.That(qn.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(qn.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -555,7 +555,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ServiceMessageContext context = CreateContext();
             var result = QualifiedName.Parse(context, "0:MyName", false);
             Assert.That(result.Name, Is.EqualTo("MyName"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         private static ServiceMessageContext CreateContext()

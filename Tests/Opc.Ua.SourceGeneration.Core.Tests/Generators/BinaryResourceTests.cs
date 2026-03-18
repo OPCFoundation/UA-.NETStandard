@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long length = resource.GetLength(null);
             // Assert
-            Assert.That(length, Is.EqualTo(0));
+            Assert.That(length, Is.Zero);
         }
 
         /// <summary>

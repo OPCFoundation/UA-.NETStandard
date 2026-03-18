@@ -63,6 +63,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Bad.Code));
         }
+
         [Test]
         public void ConstructorWithStatusCodeSetsProperties()
         {
@@ -171,6 +172,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(result.NamespaceUri, Is.Null);
         }
+
         [Test]
         public void CopyConstructorCopiesProperties()
         {
@@ -198,6 +200,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.InnerResult, Is.SameAs(inner));
         }
+
         [Test]
         public void ConstructorWithExceptionSetsDefaultBadCode()
         {
@@ -334,6 +337,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result.AdditionalInfo, Does.Contain("One or more errors occurred."));
 #endif
         }
+
         [Test]
         public void ConstructorWithCodeAndInnerException()
         {
@@ -418,6 +422,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result.AdditionalInfo, Is.EqualTo("extra"));
             Assert.That(result.InnerResult, Is.Not.Null);
         }
+
         [Test]
         public void ObsoleteConstructorWithUintCodeAndInnerResult()
         {
@@ -470,6 +475,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.InnerResult, Is.Not.Null);
         }
+
         [Test]
         public void ConstructorWithDiagnosticInfoSetsProperties()
         {
@@ -645,6 +651,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(result.NamespaceUri, Is.Null);
         }
+
         [Test]
         public void CreateWithStatusCodeAndNullTranslationReturnsCodeOnly()
         {
@@ -737,7 +744,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void CreateWithExceptionFormatEmptyReturnsCodeOnly()
         {
             var exception = new InvalidOperationException("test");
-            var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, "");
+            var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, string.Empty);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
@@ -782,6 +789,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
+
         [Test]
         public void IsGoodWithGoodStatusReturnsTrue()
         {
@@ -928,6 +936,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             Assert.That(ServiceResult.IsNotBad(null!), Is.True);
         }
+
         [Test]
         public void ImplicitConversionFromStatusCode()
         {
@@ -951,6 +960,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var statusCode = (StatusCode)nullResult!;
             Assert.That(StatusCode.IsGood(statusCode), Is.True);
         }
+
         [Test]
         public void LookupSymbolicIdDelegatesToStatusCode()
         {
@@ -967,6 +977,7 @@ namespace Opc.Ua.Types.Tests.Utils
             string symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
             Assert.That(symbolicId, Is.Null);
         }
+
         [Test]
         public void GetServiceResultExceptionReturnsWrappingException()
         {
@@ -977,6 +988,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(exception, Is.InstanceOf<ServiceResultException>());
             Assert.That(exception.Result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
+
         [Test]
         public void ToStringContainsStatusCodeHex()
         {
@@ -1039,6 +1051,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(str, Does.Contain("[0001]"));
         }
+
         [Test]
         public void SymbolicIdPropertySetViaConstructor()
         {
@@ -1058,6 +1071,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // Verify the code is preserved after setting SymbolicId
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
+
         [Test]
         public void BuildExceptionTraceIncludesExceptionType()
         {
@@ -1083,6 +1097,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result.AdditionalInfo, Does.Contain("outer error"));
 #endif
         }
+
         [Test]
         public void GetDefaultMessageFormatsExceptionTypeName()
         {

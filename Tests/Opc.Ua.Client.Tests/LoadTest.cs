@@ -483,7 +483,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                NUnit.Framework.Assert.That(readErrors.Count, Is.EqualTo(0), "There were read errors.");
+                NUnit.Framework.Assert.That(readErrors.Count, Is.Zero, "There were read errors.");
                 NUnit.Framework.Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
                 NUnit.Framework.Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
             }

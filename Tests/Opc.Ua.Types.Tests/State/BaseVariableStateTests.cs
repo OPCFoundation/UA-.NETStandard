@@ -30,10 +30,9 @@
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-
+using AttributesToSave = Opc.Ua.NodeState.AttributesToSave;
 namespace Opc.Ua.Types.Tests.State
 {
-    using AttributesToSave = NodeState.AttributesToSave;
 
     /// <summary>
     /// Tests for BaseVariableState.
@@ -1017,7 +1016,7 @@ namespace Opc.Ua.Types.Tests.State
             ArrayOf<uint> result = BaseVariableState.ArrayDimensionsFromXml("abc");
 
             Assert.That(result.Count, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(0u));
+            Assert.That(result[0], Is.Zero);
         }
 
         [Test]

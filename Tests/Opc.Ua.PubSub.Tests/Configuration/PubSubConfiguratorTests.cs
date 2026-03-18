@@ -118,12 +118,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             StatusCode result = m_uaPubSubConfigurator.AddConnection(
                 new PubSubConnectionDataType());
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-            Assert.AreEqual(
-                expected,
+            Assert.That(
                 CallCountConnectionAdded,
-                0,
-                "Expected value of CallCountConnectionAdded not equal to {0}",
-                expected);
+                Is.EqualTo(expected).Within(0),
+                $"Expected value of CallCountConnectionAdded not equal to {expected}");
         }
 
         [Test(
@@ -138,10 +136,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var connection2 = new PubSubConnectionDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddConnection(connection2);
 
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format(
+                    "Status code received {0} instead of BadBrowseNameDuplicated",
+                    result));
         }
 
         [Test(Description = "Validate AddConnection throws ArgumentException if a connection is added twice")]
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             Assert.IsTrue(
                 StatusCode.IsGood(m_uaPubSubConfigurator.RemoveConnection(lastAddedConnId)));
-            Assert.AreEqual(expected, CallCountConnectionRemoved, 0);
+            Assert.That(CallCountConnectionRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate PublishedDataSetAdded event is triggered")]
@@ -175,7 +175,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             StatusCode result = m_uaPubSubConfigurator.AddPublishedDataSet(
                 new PublishedDataSetDataType());
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-            Assert.AreEqual(expected, CallCountPublishedDataSetAdded, 0);
+            Assert.That(CallCountPublishedDataSetAdded, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate AddPublishedDataSet returns AddPublishedDataSet")]
@@ -188,10 +188,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var publishedDataSetDataType2 = new PublishedDataSetDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddPublishedDataSet(publishedDataSetDataType2);
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format(
+                    "Status code received {0} instead of BadBrowseNameDuplicated",
+                    result));
         }
 
         [Test(Description = "Validate PublishedDataSetRemoved event is triggered")]
@@ -205,7 +207,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             uint lastAddedPubDsId = m_uaPubSubConfigurator.FindIdForObject(publishedDataSet);
             result = m_uaPubSubConfigurator.RemovePublishedDataSet(lastAddedPubDsId);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-            Assert.AreEqual(expected, CallCountConnectionRemoved, 0);
+            Assert.That(CallCountConnectionRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate ReaderGroupAdded event is triggered")]
@@ -219,7 +221,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 StatusCode.IsGood(m_uaPubSubConfigurator.AddReaderGroup(
                     lastAddedConnId,
                     new ReaderGroupDataType())));
-            Assert.AreEqual(expected, CallCountReaderGroupAdded, 0);
+            Assert.That(CallCountReaderGroupAdded, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate ReaderGroupRemoved event is triggered")]
@@ -233,7 +235,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(StatusCode.IsGood(
                 m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveReaderGroup(readerGroup)));
-            Assert.AreEqual(expected, CallCountReaderGroupRemoved, 0);
+            Assert.That(CallCountReaderGroupRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate AddReaderGroup throws ArgumentException if a reader-group is added twice")]
@@ -268,10 +270,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var readerGroup2 = new ReaderGroupDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup2);
 
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format(
+                    "Status code received {0} instead of BadBrowseNameDuplicated",
+                    result));
         }
 
         [Test(
@@ -281,10 +285,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var readerGroup = new ReaderGroupDataType { Name = "Name" };
             StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(1, readerGroup);
-            Assert.IsTrue(
-                result == StatusCodes.BadInvalidArgument,
-                "Status code received {0} instead of BadInvalidArgument",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
+                CoreUtils.Format("Status code received {0} instead of BadInvalidArgument", result));
         }
 
         [Test(
@@ -309,7 +313,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 StatusCode.IsGood(m_uaPubSubConfigurator.AddWriterGroup(
                     lastAddedConnId,
                     new WriterGroupDataType())));
-            Assert.AreEqual(expected, CallCountWriterGroupAdded, 0);
+            Assert.That(CallCountWriterGroupAdded, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate WriterGroupRemoved event is triggered")]
@@ -324,7 +328,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 StatusCode.IsGood(
                     m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGrp)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveWriterGroup(writerGrp)));
-            Assert.AreEqual(expected, CallCountWriterGroupRemoved, 0);
+            Assert.That(CallCountWriterGroupRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(
@@ -344,10 +348,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var writerGroup2 = new WriterGroupDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup2);
 
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format("Status code received {0} instead of BadBrowseNameDuplicated", result));
         }
 
         [Test(
@@ -357,10 +361,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
             StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(1, writerGroup1);
-            Assert.IsTrue(
-                result == StatusCodes.BadInvalidArgument,
-                "Status code received {0} instead of BadInvalidArgument",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
+                CoreUtils.Format("Status code received {0} instead of BadInvalidArgument", result));
         }
 
         [Test(Description = "Validate AddWriterGroup throws ArgumentException if a WriterGroup is added twice")]
@@ -408,7 +412,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     m_uaPubSubConfigurator.AddDataSetReader(
                         lastAddedReaderGroupId,
                         new DataSetReaderDataType())));
-            Assert.AreEqual(expected, CallCountDataSetReaderAdded, 0);
+            Assert.That(CallCountDataSetReaderAdded, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate DataSetReaderRemoved event is triggered")]
@@ -428,7 +432,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(StatusCode.IsGood(
                 m_uaPubSubConfigurator.AddDataSetReader(lastAddedReaderGroupId, dsReader)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveDataSetReader(dsReader)));
-            Assert.AreEqual(expected, CallCountDataSetReaderRemoved, 0);
+            Assert.That(CallCountDataSetReaderRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(
@@ -453,10 +457,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var reader2 = new DataSetReaderDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddDataSetReader(lastAddedGroup, reader2);
 
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format("Status code received {0} instead of BadBrowseNameDuplicated", result));
         }
 
         [Test(Description = "Validate AddDataSetReader throws ArgumentException if a dataset-reader is added twice")]
@@ -488,10 +492,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var reader1 = new DataSetReaderDataType { Name = "Name" };
             StatusCode result = m_uaPubSubConfigurator.AddDataSetReader(1, reader1);
-            Assert.IsTrue(
-                result == StatusCodes.BadInvalidArgument,
-                "Status code received {0} instead of BadInvalidArgument",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
+                CoreUtils.Format("Status code received {0} instead of BadInvalidArgument", result));
         }
 
         [Test(Description = "Validate DataSetWriterAdded event is triggered")]
@@ -512,7 +516,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     m_uaPubSubConfigurator.AddDataSetWriter(
                         lastAddedWriterGroupId,
                         new DataSetWriterDataType())));
-            Assert.AreEqual(expected, CallCountDataSetWriterAdded, 0);
+            Assert.That(CallCountDataSetWriterAdded, Is.EqualTo(expected).Within(0));
         }
 
         [Test(Description = "Validate DataSetWriterRemoved event is triggered")]
@@ -532,7 +536,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(StatusCode.IsGood(
                 m_uaPubSubConfigurator.AddDataSetWriter(lastAddedWriterGroupId, dsWriter)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveDataSetWriter(dsWriter)));
-            Assert.AreEqual(expected, CallCountDataSetWriterRemoved, 0);
+            Assert.That(CallCountDataSetWriterRemoved, Is.EqualTo(expected).Within(0));
         }
 
         [Test(
@@ -557,10 +561,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var writer2 = new DataSetWriterDataType { Name = "Name" };
             result = m_uaPubSubConfigurator.AddDataSetWriter(lastAddedGroup, writer2);
 
-            Assert.IsTrue(
-                result == StatusCodes.BadBrowseNameDuplicated,
-                "Status code received {0} instead of BadBrowseNameDuplicated",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated),
+                CoreUtils.Format("Status code received {0} instead of BadBrowseNameDuplicated", result));
         }
 
         [Test(Description = "Validate AddDataSetWriter throws ArgumentException if a dataset-reader is added twice")]
@@ -592,10 +596,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var writer1 = new DataSetWriterDataType { Name = "Name" };
             StatusCode result = m_uaPubSubConfigurator.AddDataSetWriter(1, writer1);
-            Assert.IsTrue(
-                result == StatusCodes.BadInvalidArgument,
-                "Status code received {0} instead of BadInvalidArgument",
-                result);
+            Assert.That(
+                result,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
+                CoreUtils.Format("Status code received {0} instead of BadInvalidArgument", result));
         }
 
         [Test(Description = "Validate Publisher ConnectionAdded event is reflected in the parent UaPubSubApplication")]
@@ -636,7 +640,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 result = uaPubSubApplication.UaPubSubConfigurator.RemoveConnection(pscon);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                Assert.AreEqual(initialCount, uaPubSubApplication.PubSubConnections.Count);
+                Assert.That(uaPubSubApplication.PubSubConnections.Count, Is.EqualTo(initialCount));
             }
         }
 
@@ -726,7 +730,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups
                     .Count;
 
-                Assert.AreEqual(nrInitialWriterGroups, nrActualWriterGroups);
+                Assert.That(nrActualWriterGroups, Is.EqualTo(nrInitialWriterGroups));
 
                 break;
             }
@@ -874,7 +878,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .DataSetWriters
                     .Count;
 
-                Assert.AreEqual(nrInitialDsWriters, nrActualDsWriters);
+                Assert.That(nrActualDsWriters, Is.EqualTo(nrInitialDsWriters));
                 break;
             }
         }
@@ -940,7 +944,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .PubSubConfiguration
                 .PublishedDataSets
                 .Count;
-            Assert.AreEqual(initialNrPublishedDs, actualNrPublishedDs);
+            Assert.That(actualNrPublishedDs, Is.EqualTo(initialNrPublishedDs));
         }
 
         [Test(Description = "Validate Subscriber ConnectionAdded event is reflected in the parent UaPubSubApplication")]
@@ -986,7 +990,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 result = uaPubSubApplication.UaPubSubConfigurator.RemoveConnection(pscon);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                Assert.AreEqual(initialCount, uaPubSubApplication.PubSubConnections.Count);
+                Assert.That(uaPubSubApplication.PubSubConnections.Count, Is.EqualTo(initialCount));
             }
         }
 
@@ -1086,7 +1090,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups
                     .Count;
 
-                Assert.AreEqual(nrInitialReaderGroups, nrActualReaderGroups);
+                Assert.That(nrActualReaderGroups, Is.EqualTo(nrInitialReaderGroups));
                 break;
             }
         }
@@ -1229,7 +1233,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .DataSetReaders
                     .Count;
 
-                Assert.AreEqual(nrInitialDsReaders, nrActualDsReaders);
+                Assert.That(nrActualDsReaders, Is.EqualTo(nrInitialDsReaders));
 
                 break;
             }

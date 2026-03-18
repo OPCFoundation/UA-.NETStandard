@@ -153,8 +153,8 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
                     Assert.Greater(nodeSet.Items.Length, 0, "NodeSet2 should contain at least one node");
                 }
             }
@@ -225,9 +225,9 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
-                    Assert.AreEqual(allNodes.Count, nodeSet.Items.Length, "Should have exported all nodes");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
+                    Assert.That(nodeSet.Items.Length, Is.EqualTo(allNodes.Count), "Should have exported all nodes");
 
                     // Verify we have different node types
                     var nodeTypes = nodeSet.Items.Select(n => n.GetType()).Distinct().ToList();
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     nodeSet.Import(localContext, importedNodeStates);
-                    Assert.AreEqual(allNodes.Count, importedNodeStates.Count, "Should have imported all nodes");
+                    Assert.That(importedNodeStates.Count, Is.EqualTo(allNodes.Count), "Should have imported all nodes");
                 }
             }
             finally
@@ -361,8 +361,8 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
 
                     // Check that variables don't have values
                     foreach (UAVariable variable in nodeSet.Items.OfType<UAVariable>())
@@ -455,8 +455,8 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
                 }
             }
             finally
@@ -564,13 +564,13 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile1, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read backward compatible export");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read backward compatible export");
                 }
 
                 using (var stream = new FileStream(tempFile2, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read default options export");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read default options export");
                 }
             }
             finally
@@ -659,27 +659,27 @@ namespace Opc.Ua.Client.Tests
                     using (var stream = new FileStream(tempFileNoContext, FileMode.Open))
                     {
                         nodeSetNoContext = UANodeSet.Read(stream);
-                        Assert.IsNotNull(nodeSetNoContext, "Should be able to read NodeSet without user context");
+                        Assert.That(nodeSetNoContext, Is.Not.Null, "Should be able to read NodeSet without user context");
                     }
 
                     UANodeSet nodeSetWithContext;
                     using (var stream = new FileStream(tempFileWithContext, FileMode.Open))
                     {
                         nodeSetWithContext = UANodeSet.Read(stream);
-                        Assert.IsNotNull(nodeSetWithContext, "Should be able to read NodeSet with user context");
+                        Assert.That(nodeSetWithContext, Is.Not.Null, "Should be able to read NodeSet with user context");
                     }
 
                     // Verify that methods in the context version have UserExecutable
                     List<UAMethod> methodsNoContext = nodeSetNoContext.Items?.OfType<UAMethod>().ToList() ?? [];
                     List<UAMethod> methodsWithContext = nodeSetWithContext.Items?.OfType<UAMethod>().ToList() ?? [];
 
-                    Assert.AreEqual(methodsNoContext.Count, methodsWithContext.Count, "Should have same number of methods");
+                    Assert.That(methodsWithContext.Count, Is.EqualTo(methodsNoContext.Count), "Should have same number of methods");
 
                     // Variables with context should potentially have UserAccessLevel if different from AccessLevel
                     List<UAVariable> variablesNoContext = nodeSetNoContext.Items?.OfType<UAVariable>().ToList() ?? [];
                     List<UAVariable> variablesWithContext = nodeSetWithContext.Items?.OfType<UAVariable>().ToList() ?? [];
 
-                    Assert.AreEqual(variablesNoContext.Count, variablesWithContext.Count, "Should have same number of variables");
+                    Assert.That(variablesWithContext.Count, Is.EqualTo(variablesNoContext.Count), "Should have same number of variables");
 
                     // File with user context should be larger or equal
                     var fileNoContext = new FileInfo(tempFileNoContext);
@@ -687,8 +687,8 @@ namespace Opc.Ua.Client.Tests
 
                     // Note: Sizes might be equal if UserAccessLevel == AccessLevel for all variables
                     // The important part is that export completes successfully with both options
-                    Assert.IsTrue(fileWithContext.Length > 0, "Export with user context should produce a valid file");
-                    Assert.IsTrue(fileNoContext.Length > 0, "Export without user context should produce a valid file");
+                    Assert.That(fileWithContext.Length, Is.GreaterThan(0), "Export with user context should produce a valid file");
+                    Assert.That(fileNoContext.Length, Is.GreaterThan(0), "Export without user context should produce a valid file");
                 }
                 finally
                 {

@@ -268,9 +268,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             await Task.Delay(1500).ConfigureAwait(false);
-            Assert.AreEqual(
-                m_appSelfSignedCerts.Count,
+            Assert.That(
                 validator.RejectedStore.EnumerateAsync().GetAwaiter().GetResult().Count,
+                Is.EqualTo(m_appSelfSignedCerts.Count),
                 "All self signed certs shall be contained in the RejectedStore");
 
             // add auto approver
@@ -282,7 +282,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
             }
             // count certs written to rejected store
-            Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount,
+            Assert.That(approver.AcceptedCount, Is.EqualTo(m_appSelfSignedCerts.Count),
                 "All self signed certs shall be accepted with StatusCode BadCertificateUntrusted");
         }
 
@@ -340,9 +340,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
                 }
-                Assert.AreEqual(
-                    m_appSelfSignedCerts.Count,
-                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)).Count);
+                Assert.That(
+                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)).Count,
+                    Is.EqualTo(m_appSelfSignedCerts.Count));
                 CertificateValidator certValidator = validator.Update();
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -356,9 +356,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(
-                    m_appSelfSignedCerts.Count,
-                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)).Count);
+                Assert.That(
+                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)).Count,
+                    Is.EqualTo(m_appSelfSignedCerts.Count));
             }
         }
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2Collection certificates = await validator
                 .IssuerStore.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.AreEqual(m_appSelfSignedCerts.Count, certificates.Count);
+            Assert.That(certificates.Count, Is.EqualTo(m_appSelfSignedCerts.Count));
 
             CertificateValidator certValidator = validator.Update();
             certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
@@ -514,9 +514,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
-            Assert.AreEqual(
-                m_appSelfSignedCerts.Count,
-                validator.TrustedStore.EnumerateAsync().Result.Count);
+            Assert.That(
+                validator.TrustedStore.EnumerateAsync().Result.Count,
+                Is.EqualTo(m_appSelfSignedCerts.Count));
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
@@ -1090,7 +1090,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2 cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
                     CertificateFactory.Create(appCert.RawData),
                     pemDataBlob);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 // note: password is ignored
                 X509Certificate2 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
                     CertificateFactory.Create(appCert.RawData),
@@ -1141,9 +1141,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateCertificate(null, applicationName, null)
                 .SetNotBefore(DateTime.Today.AddDays(14))
                 .CreateForRSA();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     serviceResultException.Message);
                 // check the chained service result
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
-                Assert.NotNull(innerResult);
+                Assert.That(innerResult, Is.Not.Null);
                 Assert.AreEqual(
                     StatusCodes.BadCertificateTimeInvalid,
                     innerResult.StatusCode,
@@ -1196,9 +1196,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetLifeTime(12)
                 .CreateForRSA();
             TestContext.Out.WriteLine($"{cert}:");
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
@@ -1245,9 +1245,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetIssuer(m_caChain[0])
                 .CreateForRSA();
             TestContext.Out.WriteLine($"{cert}:");
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Subject));
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
@@ -1342,11 +1342,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StatusCodes.BadCertificatePolicyCheckFailed,
                     serviceResultException.StatusCode,
                     serviceResultException.Message);
-                Assert.NotNull(serviceResultException.InnerResult);
+                Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 if (!trusted)
                 {
-                    Assert.NotNull(innerResult);
+                    Assert.That(innerResult, Is.Not.Null);
                     Assert.AreEqual(
                         StatusCodes.BadCertificateUntrusted,
                         innerResult.StatusCode,
@@ -1371,7 +1371,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StatusCodes.BadCertificateUntrusted,
                     serviceResultException.StatusCode,
                     serviceResultException.Message);
-                Assert.NotNull(serviceResultException.InnerResult);
+                Assert.That(serviceResultException.InnerResult, Is.Not.Null);
             }
         }
 
@@ -1404,7 +1404,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StatusCodes.BadCertificateUseNotAllowed,
                 serviceResultException.StatusCode,
                 serviceResultException.Message);
-            Assert.NotNull(serviceResultException.InnerResult);
+            Assert.That(serviceResultException.InnerResult, Is.Not.Null);
             ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
             if (trusted)
             {
@@ -1412,7 +1412,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                Assert.NotNull(innerResult);
+                Assert.That(innerResult, Is.Not.Null);
                 Assert.AreEqual(
                     StatusCodes.BadCertificateUntrusted,
                     (StatusCode)innerResult.StatusCode.Code,
@@ -1472,7 +1472,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StatusCodes.BadCertificateUseNotAllowed,
                     serviceResultException.StatusCode,
                     serviceResultException.Message);
-                Assert.NotNull(serviceResultException.InnerResult);
+                Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 innerResult = serviceResultException.InnerResult.InnerResult;
             }
             else
@@ -1482,7 +1482,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (!trusted)
             {
                 // for the untrusted case, the untrusted error is also reported.
-                Assert.NotNull(innerResult);
+                Assert.That(innerResult, Is.Not.Null);
                 Assert.AreEqual(
                     StatusCodes.BadCertificateUntrusted,
                     innerResult.StatusCode,
@@ -1490,12 +1490,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 innerResult = innerResult.InnerResult;
             }
             // However, all cert versions got an invalid signature, must fail...
-            Assert.NotNull(innerResult);
+            Assert.That(innerResult, Is.Not.Null);
             Assert.AreEqual(
                 StatusCodes.BadCertificateInvalid,
                 innerResult.StatusCode,
                 innerResult.LocalizedText.Text);
-            Assert.AreEqual(0, approver.Count);
+            Assert.That(approver.Count, Is.EqualTo(0));
         }
 
         /// <summary>
@@ -1524,11 +1524,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StatusCodes.BadCertificatePolicyCheckFailed,
                 serviceResultException.StatusCode,
                 serviceResultException.Message);
-            Assert.NotNull(serviceResultException.InnerResult);
+            Assert.That(serviceResultException.InnerResult, Is.Not.Null);
             ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
             if (!trusted)
             {
-                Assert.NotNull(innerResult);
+                Assert.That(innerResult, Is.Not.Null);
                 Assert.AreEqual(
                     StatusCodes.BadCertificateUntrusted,
                     innerResult.StatusCode,
@@ -1588,7 +1588,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StatusCodes.BadCertificatePolicyCheckFailed,
                     serviceResultException.StatusCode,
                     serviceResultException.Message);
-                Assert.NotNull(serviceResultException.InnerResult);
+                Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 Assert.Null(innerResult);
             }
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StatusCodes.BadCertificateUntrusted,
                     serviceResultException.StatusCode,
                     serviceResultException.Message);
-                Assert.NotNull(serviceResultException.InnerResult);
+                Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 Assert.Null(innerResult);
             }
@@ -1677,8 +1677,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     CertificateValidator = new CertificateValidator(telemetry)
                 };
-                Assert.NotNull(appConfig);
-                Assert.NotNull(appConfig.CertificateValidator);
+                Assert.That(appConfig, Is.Not.Null);
+                Assert.That(appConfig.CertificateValidator, Is.Not.Null);
             });
         }
 
@@ -1776,9 +1776,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             await certValidator.ValidateAsync(
                                 CertificateFactory.Create(app.Certificate), CancellationToken.None).ConfigureAwait(false));
 
-                    Assert.IsTrue(
-                        StatusCodes.BadCertificateRevocationUnknown == serviceResultException
-                            .StatusCode,
+                    Assert.That(
+                        StatusCodes.BadCertificateRevocationUnknown,
+                        Is.EqualTo(serviceResultException
+                            .StatusCode),
                         serviceResultException.Message);
 
                     // ensure the missing issuer certificate is detected, also.
@@ -1792,7 +1793,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         }
                         inner = inner.InnerResult;
                     }
-                    Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown == kCaChainCount - 1);
+                    Assert.That(isPresentCertificateIssuerRevocationUnknown, Is.EqualTo(kCaChainCount - 1));
                 }
             }
         }
@@ -2019,12 +2020,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Assert.LessOrEqual(
                             kCaChainCount - 1,
                             isPresentCertificateIssuerRevocationUnknown);
-                        Assert.AreEqual(1, isPresentCertificateRevocationUnknown);
+                        Assert.That(isPresentCertificateRevocationUnknown, Is.EqualTo(1));
                     }
                     else
                     {
-                        Assert.AreEqual(0, isPresentCertificateIssuerRevocationUnknown);
-                        Assert.AreEqual(0, isPresentCertificateRevocationUnknown);
+                        Assert.That(isPresentCertificateIssuerRevocationUnknown, Is.EqualTo(0));
+                        Assert.That(isPresentCertificateRevocationUnknown, Is.EqualTo(0));
                     }
                 }
             }

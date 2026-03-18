@@ -86,7 +86,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Path = uri.AbsolutePath
             };
 
-            Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
+            Assert.That(uriBuilder.Uri.OriginalString, Is.EqualTo(uri.OriginalString));
         }
 
         [Test]

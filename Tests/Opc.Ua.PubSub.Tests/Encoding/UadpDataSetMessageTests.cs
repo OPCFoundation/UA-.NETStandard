@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 createAlways: false);
             m_telemetry = NUnitTelemetryContext.Create();
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile, m_telemetry);
-            Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
+            Assert.That(m_publisherApplication, Is.Not.Null, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
             m_publisherConfiguration = m_publisherApplication.UaPubSubConfigurator
@@ -101,8 +101,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_publisherConfiguration.Connections.IsEmpty,
                 "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
-            Assert.IsNotNull(
+            Assert.That(
                 m_firstPublisherConnection,
+                Is.Not.Null,
                 "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
@@ -122,7 +123,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 checkCurrentDirectory: true,
                 createAlways: false);
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile, m_telemetry);
-            Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
+            Assert.That(m_subscriberApplication, Is.Not.Null, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration
             m_subscriberConfiguration = m_subscriberApplication.UaPubSubConfigurator
@@ -428,10 +429,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // Assert
-            Assert.AreEqual(
-                DataSetDecodeErrorReason.NoError,
-                uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
+            Assert.That(
+                uaDataSetMessageDecoded.DecodeErrorReason,
+                Is.EqualTo(DataSetDecodeErrorReason.NoError));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(false));
             Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
@@ -518,10 +519,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // Assert
-            Assert.AreEqual(
-                DataSetDecodeErrorReason.NoError,
-                uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
+            Assert.That(
+                uaDataSetMessageDecoded.DecodeErrorReason,
+                Is.EqualTo(DataSetDecodeErrorReason.NoError));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(false));
             Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
@@ -609,11 +610,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // Assert
-            Assert.AreEqual(
-                DataSetDecodeErrorReason.MetadataMajorVersion,
-                uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(true, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
-            Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
+            Assert.That(
+                uaDataSetMessageDecoded.DecodeErrorReason,
+                Is.EqualTo(DataSetDecodeErrorReason.MetadataMajorVersion));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(true));
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.EqualTo(null));
         }
 
         [Test(Description = "Validate MajorVersion differ and MinorVersion differ")]
@@ -697,11 +698,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // Assert
-            Assert.AreEqual(
-                DataSetDecodeErrorReason.MetadataMajorVersion,
-                uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(true, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
-            Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
+            Assert.That(
+                uaDataSetMessageDecoded.DecodeErrorReason,
+                Is.EqualTo(DataSetDecodeErrorReason.MetadataMajorVersion));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(true));
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.EqualTo(null));
         }
 
         [Test(Description = "Validate SequenceNumber")]
@@ -763,7 +764,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void LoadData()
         {
-            Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
+            Assert.That(m_publisherApplication, Is.Not.Null, "m_publisherApplication should not be null");
 
             // DataSet 'Simple' fill with data
             var booleanValue = new DataValue(new Variant(true), StatusCodes.Good);
@@ -833,17 +834,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessages,
+                Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.AreEqual(
-                1,
+            Assert.That(
                 networkMessages.Count,
+                Is.EqualTo(1),
                 "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
-            Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
+            Assert.That(uaNetworkMessage, Is.Not.Null, "networkMessageEncode should not be null");
 
             // read first dataset message
             UaDataSetMessage[] uadpDataSetMessages = [.. uaNetworkMessage.DataSetMessages];
@@ -852,7 +854,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "uadpDataSetMessages collection should not be empty");
 
             UaDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
-            Assert.IsNotNull(uadpDataSetMessage, "uadpDataSetMessage should not be null");
+            Assert.That(uadpDataSetMessage, Is.Not.Null, "uadpDataSetMessage should not be null");
 
             return uadpDataSetMessage as UadpDataSetMessage;
         }
@@ -897,39 +899,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessageContentMask dataSetMessageContentMask =
                 uadpDataSetMessageEncode.DataSetMessageContentMask;
 
-            Assert.AreEqual(
-                uadpDataSetMessageEncode.DataSetFlags1,
+            Assert.That(
                 uadpDataSetMessageDecoded.DataSetFlags1,
+                Is.EqualTo(uadpDataSetMessageEncode.DataSetFlags1),
                 "DataSetMessages DataSetFlags1 do not match:");
-            Assert.AreEqual(
-                uadpDataSetMessageEncode.DataSetFlags2,
+            Assert.That(
                 uadpDataSetMessageDecoded.DataSetFlags2,
+                Is.EqualTo(uadpDataSetMessageEncode.DataSetFlags2),
                 "DataSetMessages DataSetFlags2 do not match:");
 
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) ==
                 UadpDataSetMessageContentMask.Timestamp)
             {
-                Assert.AreEqual(
-                    uadpDataSetMessageEncode.Timestamp,
+                Assert.That(
                     uadpDataSetMessageDecoded.Timestamp,
+                    Is.EqualTo(uadpDataSetMessageEncode.Timestamp),
                     "DataSetMessages TimeStamp do not match:");
             }
 
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) ==
                 UadpDataSetMessageContentMask.PicoSeconds)
             {
-                Assert.AreEqual(
-                    uadpDataSetMessageEncode.PicoSeconds,
+                Assert.That(
                     uadpDataSetMessageDecoded.PicoSeconds,
+                    Is.EqualTo(uadpDataSetMessageEncode.PicoSeconds),
                     "DataSetMessages PicoSeconds do not match:");
             }
 
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Status) ==
                 UadpDataSetMessageContentMask.Status)
             {
-                Assert.AreEqual(
-                    uadpDataSetMessageEncode.Status,
+                Assert.That(
                     uadpDataSetMessageDecoded.Status,
+                    Is.EqualTo(uadpDataSetMessageEncode.Status),
                     "DataSetMessages Status do not match:");
             }
 
@@ -952,9 +954,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // check also the payload data
-            Assert.AreEqual(
-                uadpDataSetMessageEncode.DataSet.Fields.Length,
+            Assert.That(
                 dataSetDecoded.Fields.Length,
+                Is.EqualTo(uadpDataSetMessageEncode.DataSet.Fields.Length),
                 "DataSetMessages DataSet fields size do not match:");
 
             for (int index = 0; index < uadpDataSetMessageEncode.DataSet.Fields.Length; index++)
@@ -962,8 +964,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Field dataSetFieldEncoded = uadpDataSetMessageEncode.DataSet.Fields[index];
                 Field dataSetFieldDecoded = dataSetDecoded.Fields[index];
 
-                Assert.IsNotNull(dataSetFieldEncoded.Value, "DataSetFieldEncoded.Value is null");
-                Assert.IsNotNull(dataSetFieldDecoded.Value, "DataSetFieldDecoded.Value is null");
+                Assert.That(dataSetFieldEncoded.Value, Is.Not.Null, "DataSetFieldEncoded.Value is null");
+                Assert.That(dataSetFieldDecoded.Value, Is.Not.Null, "DataSetFieldDecoded.Value is null");
 #pragma warning disable CS0618 // Type or member is obsolete
                 object encodedValue = dataSetFieldEncoded.Value.Value;
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -971,13 +973,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 object decodedValue = dataSetFieldDecoded.Value.Value;
 #pragma warning restore CS0618 // Type or member is obsolete
 
-                Assert.AreEqual(
-                    encodedValue,
+                Assert.That(
                     decodedValue,
-                    "DataSetMessages Field.Value does not match value field at position: {0} {1}|{2}",
-                    index,
-                    encodedValue,
-                    decodedValue);
+                    Is.EqualTo(encodedValue),
+                    $"DataSetMessages Field.Value does not match value field at position: {index} {encodedValue}|{decodedValue}");
             }
         }
 

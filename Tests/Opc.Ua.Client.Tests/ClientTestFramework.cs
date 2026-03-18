@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests
                     Session = await ClientFixture
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
-                    Assert.NotNull(Session);
+                    Assert.That(Session, Is.Not.Null);
                 }
                 catch (Exception e)
                 {

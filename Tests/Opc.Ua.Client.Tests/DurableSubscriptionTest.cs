@@ -127,7 +127,7 @@ namespace Opc.Ua.Client.Tests
             return MySetUpAsync();
         }
 
-        public async Task MySetUpAsync()
+        private async Task MySetUpAsync()
         {
             if (!SingleSession)
             {
@@ -199,17 +199,17 @@ namespace Opc.Ua.Client.Tests
             (bool success, uint revisedLifetimeInHours) =
                 await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
             Assert.True(success);
-            Assert.AreEqual(expectedHours, revisedLifetimeInHours);
+            Assert.That(revisedLifetimeInHours, Is.EqualTo(expectedHours));
 
             Dictionary<string, object> modifiedValues =
                 await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
-            Assert.IsNotNull(maxLifetimeCountValue);
+            Assert.That(maxLifetimeCountValue, Is.Not.Null);
             Assert.IsFalse(maxLifetimeCountValue.WrappedValue.IsNull);
-            Assert.AreEqual(
-                expectedLifetime,
-                maxLifetimeCountValue.WrappedValue.ConvertToUInt32());
+            Assert.That(
+                maxLifetimeCountValue.WrappedValue.ConvertToUInt32(),
+                Is.EqualTo(expectedLifetime));
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
@@ -414,7 +414,7 @@ namespace Opc.Ua.Client.Tests
                 (bool success, uint revisedLifetimeInHours) =
                     await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
                 Assert.True(success);
-                Assert.AreEqual(expectedHours, revisedLifetimeInHours);
+                Assert.That(revisedLifetimeInHours, Is.EqualTo(expectedHours));
 
                 await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", expectedLifetime)
                     .ConfigureAwait(false);
@@ -536,9 +536,9 @@ namespace Opc.Ua.Client.Tests
             Session = null;
 
             bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
-            Assert.AreEqual(
-                expected,
+            Assert.That(
                 result,
+                Is.EqualTo(expected),
                 $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
 
             if (setSubscriptionDurable && !restartServer)
@@ -605,11 +605,11 @@ namespace Opc.Ua.Client.Tests
                 await GetValuesAsync(nodeIds).ConfigureAwait(false);
 
             var dataValue = modifiedValues[desiredValue] as DataValue;
-            Assert.IsNotNull(dataValue);
+            Assert.That(dataValue, Is.Not.Null);
             Assert.IsFalse(dataValue.WrappedValue.IsNull);
-            Assert.AreEqual(
-                expectedValue,
-                dataValue.WrappedValue.ConvertToUInt32());
+            Assert.That(
+                dataValue.WrappedValue.ConvertToUInt32(),
+                Is.EqualTo(expectedValue));
 
             return modifiedValues;
         }
@@ -657,7 +657,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0).ConfigureAwait(false);
 
-            Assert.NotNull(references, "Initial Browse has no references");
+            Assert.That(references.IsNull, Is.False, "Initial Browse has no references");
             Assert.Greater(references.Count, 0, "Initial Browse has zero references");
 
             TestContext.Out.WriteLine(
@@ -687,7 +687,7 @@ namespace Opc.Ua.Client.Tests
                         true,
                         0).ConfigureAwait(false);
 
-                    Assert.NotNull(desiredReferences, "Secondary Browse has no references");
+                    Assert.That(desiredReferences.IsNull, Is.False, "Secondary Browse has no references");
                     Assert.Greater(
                         desiredReferences.Count,
                         0,
@@ -769,11 +769,11 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            Assert.IsNotNull(monitoredItemCountNodeId, "Unable to find MonitoredItemCount");
-            Assert.IsNotNull(maxLifetimeCountNodeId, "Unable to find MaxLifetimeCount");
-            Assert.IsNotNull(maxKeepAliveCountNodeId, "Unable to find MaxKeepAliveCount");
-            Assert.IsNotNull(currentLifetimeCountNodeId, "Unable to find CurrentLifetimeCount");
-            Assert.IsNotNull(publishingIntervalNodeId, "Unable to find PublishingInterval");
+            Assert.That(monitoredItemCountNodeId.IsNull, Is.False, "Unable to find MonitoredItemCount");
+            Assert.That(maxLifetimeCountNodeId.IsNull, Is.False, "Unable to find MaxLifetimeCount");
+            Assert.That(maxKeepAliveCountNodeId.IsNull, Is.False, "Unable to find MaxKeepAliveCount");
+            Assert.That(currentLifetimeCountNodeId.IsNull, Is.False, "Unable to find CurrentLifetimeCount");
+            Assert.That(publishingIntervalNodeId.IsNull, Is.False, "Unable to find PublishingInterval");
 
             desiredNodeIds.Add("MonitoredItemCount", monitoredItemCountNodeId);
             desiredNodeIds.Add("MaxLifetimeCount", maxLifetimeCountNodeId);

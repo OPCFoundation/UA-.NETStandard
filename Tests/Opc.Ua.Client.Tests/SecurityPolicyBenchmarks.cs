@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Override to exclude None policy from benchmarks to avoid CI test failures.
         /// </summary>
-        public new IEnumerable<string> BenchPolicies()
+        private new IEnumerable<string> BenchPolicies()
         {
             // Return all security policies except None
             foreach (string displayName in SecurityPolicies.GetDisplayNames())
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             session.Dispose();
@@ -595,7 +595,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             // Perform a read operation
             await session.ReadAsync(
@@ -836,7 +836,7 @@ namespace Opc.Ua.Client.Tests
                         policyUri
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(session, $"Failed to create session with {displayName}");
+                    Assert.That(session, Is.Not.Null, $"Failed to create session with {displayName}");
 
                     // Perform a basic read to verify the connection works
                     ReadResponse response = await session.ReadAsync(

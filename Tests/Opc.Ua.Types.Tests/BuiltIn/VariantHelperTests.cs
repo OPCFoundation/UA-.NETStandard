@@ -53,7 +53,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.Null;
             bool result = v.TryCastTo<int>(out int value);
             Assert.That(result, Is.True);
-            Assert.That(value, Is.EqualTo(0));
+            Assert.That(value, Is.Zero);
         }
 
         [Test]
@@ -1113,7 +1113,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(42);
             bool result = v.TryCastTo<TimeSpan>(out TimeSpan value);
             Assert.That(result, Is.False);
-            Assert.That(value, Is.EqualTo(default(TimeSpan)));
+            Assert.That(value, Is.Default);
         }
 
         [Test]
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Variant v = Variant.From(42);
             TimeSpan result = v.CastTo<TimeSpan>(throwOnError: false);
-            Assert.That(result, Is.EqualTo(default(TimeSpan)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1977,7 +1977,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RoundtripBoolThroughVariantHelper()
         {
-            bool original = true;
+            const bool original = true;
             VariantHelper.TryCastFrom(original, out Variant variant);
             variant.TryCastTo<bool>(out bool result);
             Assert.That(result, Is.EqualTo(original));
@@ -1995,7 +1995,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RoundtripStringThroughVariantHelper()
         {
-            string original = "test value";
+            const string original = "test value";
             VariantHelper.TryCastFrom(original, out Variant variant);
             variant.TryCastTo<string>(out string result);
             Assert.That(result, Is.EqualTo(original));

@@ -173,7 +173,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 new(123, 1)
             };
-            Assert.That(hashSet.Contains(new NodeId(123, 1)), Is.True);
+            Assert.That(hashSet, Does.Contain(new NodeId(123, 1)));
             Assert.That(hashSet.Contains(new NodeId(456, 1)), Is.False);
         }
 
@@ -268,7 +268,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SequenceEqualityComparerGetHashCodeNullArray()
         {
             int hash = SequenceEqualityComparer<int>.Default.GetHashCode(null);
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
         [Test]
@@ -387,7 +387,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ArrayEqualityComparerGetHashCodeNullArray()
         {
             int hash = ArrayEqualityComparer<string>.Default.GetHashCode(null);
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
         [Test]
@@ -410,247 +410,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             dictionary[key] = "Test";
             Assert.That(dictionary.ContainsKey(["a", "b", "c"]), Is.True);
             Assert.That(dictionary[["a", "b", "c"]], Is.EqualTo("Test"));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerDefaultInstanceExists()
-        {
-            Assert.That(ByteStringEqualityComparer.Default, Is.Not.Null);
-            Assert.That(
-                ByteStringEqualityComparer.Default,
-                Is.SameAs(ByteStringEqualityComparer.Default));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsSameReference()
-        {
-            byte[] array = [1, 2, 3, 4, 5];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array, array), Is.True);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsEqualArrays()
-        {
-            byte[] array1 = [1, 2, 3, 4, 5];
-            byte[] array2 = [1, 2, 3, 4, 5];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array1, array2), Is.True);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsDifferentArrays()
-        {
-            byte[] array1 = [1, 2, 3, 4, 5];
-            byte[] array2 = [1, 2, 3, 4, 6];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsDifferentLengths()
-        {
-            byte[] array1 = [1, 2, 3, 4, 5];
-            byte[] array2 = [1, 2, 3, 4];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsNullFirstArray()
-        {
-            byte[] array = [1, 2, 3];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(null, array), Is.False);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsNullSecondArray()
-        {
-            byte[] array = [1, 2, 3];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array, null), Is.False);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsBothNull()
-        {
-            Assert.That(ByteStringEqualityComparer.Default.Equals(null, null), Is.True);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerEqualsEmptyArrays()
-        {
-            byte[] array1 = [];
-            byte[] array2 = [];
-            Assert.That(ByteStringEqualityComparer.Default.Equals(array1, array2), Is.True);
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerGetHashCodeConsistency()
-        {
-            byte[] array = [1, 2, 3, 4, 5];
-            int hash1 = ByteStringEqualityComparer.Default.GetHashCode(array);
-            int hash2 = ByteStringEqualityComparer.Default.GetHashCode(array);
-            Assert.That(hash1, Is.EqualTo(hash2));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerGetHashCodeEqualArraysHaveSameHashCode()
-        {
-            byte[] array1 = [1, 2, 3, 4, 5];
-            byte[] array2 = [1, 2, 3, 4, 5];
-            Assert.That(
-                ByteStringEqualityComparer.Default.GetHashCode(array1),
-                Is.EqualTo(ByteStringEqualityComparer.Default.GetHashCode(array2)));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerGetHashCodeNullArray()
-        {
-            int hash = ByteStringEqualityComparer.Default.GetHashCode(null);
-            Assert.That(hash, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerCanBeUsedInDictionary()
-        {
-            var dictionary = new Dictionary<byte[], string>(ByteStringEqualityComparer.Default);
-            byte[] key = [1, 2, 3];
-            dictionary[key] = "Test";
-            Assert.That(dictionary.ContainsKey([1, 2, 3]), Is.True);
-            Assert.That(dictionary[[1, 2, 3]], Is.EqualTo("Test"));
-        }
-
-        [Test]
-        public void ByteStringEqualityComparerCanBeUsedInHashSet()
-        {
-            var hashSet = new HashSet<byte[]>([[1, 2, 3]], ByteStringEqualityComparer.Default);
-            Assert.That(hashSet.Contains([1, 2, 3]), Is.True);
-            Assert.That(hashSet.Contains([4, 5, 6]), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerDefaultInstanceExists()
-        {
-            Assert.That(ByteStringArrayEqualityComparer.Default, Is.Not.Null);
-            Assert.That(
-                ByteStringArrayEqualityComparer.Default,
-                Is.SameAs(ByteStringArrayEqualityComparer.Default));
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsSameReference()
-        {
-            byte[][] array = [[1, 2, 3], [4, 5, 6]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array, array), Is.True);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsEqualArrays()
-        {
-            byte[][] array1 = [[1, 2, 3], [4, 5, 6]];
-            byte[][] array2 = [[1, 2, 3], [4, 5, 6]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.True);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsDifferentInnerArrays()
-        {
-            byte[][] array1 = [[1, 2, 3], [4, 5, 6]];
-            byte[][] array2 = [[1, 2, 3], [4, 5, 7]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsDifferentOuterLengths()
-        {
-            byte[][] array1 = [[1, 2, 3], [4, 5, 6]];
-            byte[][] array2 = [[1, 2, 3]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsDifferentInnerLengths()
-        {
-            byte[][] array1 = [[1, 2, 3], [4, 5, 6]];
-            byte[][] array2 = [[1, 2, 3], [4, 5]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsNullFirstArray()
-        {
-            byte[][] array = [[1, 2, 3]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(null, array), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsNullSecondArray()
-        {
-            byte[][] array = [[1, 2, 3]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array, null), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsBothNull()
-        {
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(null, null), Is.True);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsEmptyArrays()
-        {
-            byte[][] array1 = [];
-            byte[][] array2 = [];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.True);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsWithNullInnerArrays()
-        {
-            byte[][] array1 = [[1, 2, 3], null];
-            byte[][] array2 = [[1, 2, 3], null];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.True);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerEqualsMismatchedNullInnerArrays()
-        {
-            byte[][] array1 = [[1, 2, 3], null];
-            byte[][] array2 = [[1, 2, 3], [4, 5, 6]];
-            Assert.That(ByteStringArrayEqualityComparer.Default.Equals(array1, array2), Is.False);
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerGetHashCodeConsistency()
-        {
-            byte[][] array = [[1, 2, 3], [4, 5, 6]];
-            int hash1 = ByteStringArrayEqualityComparer.Default.GetHashCode(array);
-            int hash2 = ByteStringArrayEqualityComparer.Default.GetHashCode(array);
-            Assert.That(hash1, Is.EqualTo(hash2));
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerGetHashCodeEqualArraysHaveSameHashCode()
-        {
-            byte[][] array1 = [[1, 2, 3], [4, 5, 6]];
-            byte[][] array2 = [[1, 2, 3], [4, 5, 6]];
-            Assert.That(
-                ByteStringArrayEqualityComparer.Default.GetHashCode(array1),
-                Is.EqualTo(ByteStringArrayEqualityComparer.Default.GetHashCode(array2)));
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerGetHashCodeNullArray()
-        {
-            int hash = ByteStringArrayEqualityComparer.Default.GetHashCode(null);
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
-        }
-
-        [Test]
-        public void ByteStringArrayEqualityComparerCanBeUsedInDictionary()
-        {
-            var dictionary =
-                new Dictionary<byte[][], string>(ByteStringArrayEqualityComparer.Default);
-            byte[][] key = [[1, 2, 3], [4, 5, 6]];
-            dictionary[key] = "Test";
-            Assert.That(dictionary.ContainsKey([[1, 2, 3], [4, 5, 6]]), Is.True);
-            Assert.That(dictionary[[[1, 2, 3], [4, 5, 6]]], Is.EqualTo("Test"));
         }
 
         [Test]
@@ -909,7 +668,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void XmlElementArrayStringEqualityComparerGetHashCodeNullArray()
         {
             int hash = XmlElementArrayStringEqualityComparer.Default.GetHashCode(null);
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
         [Test]
@@ -1054,8 +813,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     new("test", "http://example.com")
                 };
             Assert.That(
-                hashSet.Contains(new XmlQualifiedName("test", "http://example.com")),
-                Is.True);
+                hashSet,
+                Does.Contain(new XmlQualifiedName("test", "http://example.com")));
             Assert.That(
                 hashSet.Contains(new XmlQualifiedName("other", "http://example.com")),
                 Is.False);
@@ -1275,7 +1034,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 IsInverse = false,
                 TargetId = new ExpandedNodeId(2)
             };
-            Assert.That(hashSet.Contains(reference2), Is.True);
+            Assert.That(hashSet, Does.Contain(reference2));
 
             var reference3 = new ReferenceNode
             {

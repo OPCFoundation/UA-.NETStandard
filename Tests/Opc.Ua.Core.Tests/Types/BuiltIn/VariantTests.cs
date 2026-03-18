@@ -121,12 +121,12 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             object randomData = DataGenerator.GetRandom(builtInType);
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant1 = new Variant(randomData);
-            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            Assert.That(variant1.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
             var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.Scalar));
-            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+            Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
             var variant3 = new Variant(variant2);
 #pragma warning restore CS0618 // Type or member is obsolete
-            Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
+            Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
             // implicit
         }
 
@@ -145,9 +145,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 false);
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant1 = new Variant(randomData);
-            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            Assert.That(variant1.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
             var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
-            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+            Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
 #pragma warning restore CS0618 // Type or member is obsolete
         }
     }

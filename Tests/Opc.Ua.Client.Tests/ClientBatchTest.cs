@@ -147,8 +147,8 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<AddNodesResult> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-                        Assert.AreEqual(nodesToAdd.Count, results.Count);
-                        Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+                        Assert.That(results.Count, Is.EqualTo(nodesToAdd.Count));
+                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
             Assert.AreEqual(
@@ -182,8 +182,8 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<StatusCode> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-                        Assert.AreEqual(referencesToAdd.Count, results.Count);
-                        Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+                        Assert.That(results.Count, Is.EqualTo(referencesToAdd.Count));
+                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
             Assert.AreEqual(
@@ -213,8 +213,8 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
-                        Assert.AreEqual(nodesTDelete.Count, results.Count);
-                        Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+                        Assert.That(results.Count, Is.EqualTo(nodesTDelete.Count));
+                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
             Assert.AreEqual(
@@ -247,8 +247,8 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                         Assert.NotNull(response.ResponseHeader);
-                        Assert.AreEqual(referencesToDelete.Count, results.Count);
-                        Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+                        Assert.That(results.Count, Is.EqualTo(referencesToDelete.Count));
+                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
 
             Assert.AreEqual(

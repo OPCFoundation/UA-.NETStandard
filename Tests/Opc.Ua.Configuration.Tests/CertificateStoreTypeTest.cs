@@ -104,7 +104,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.True(certOK);
 
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
+            Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
 
             await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
                 .ConfigureAwait(false);

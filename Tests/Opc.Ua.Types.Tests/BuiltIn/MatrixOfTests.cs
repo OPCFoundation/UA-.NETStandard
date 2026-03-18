@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             MatrixOf<int> emptyMatrix1 = MatrixOf<int>.Empty;
             var emptyMatrix2 = MatrixOf.Empty<int>();
             Assert.That(emptyMatrix1.IsEmpty, Is.True);
-            Assert.That(emptyMatrix1.Count, Is.EqualTo(0));
+            Assert.That(emptyMatrix1.Count, Is.Zero);
             Assert.That(emptyMatrix1, Is.EqualTo(emptyMatrix2));
         }
 
@@ -122,10 +122,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var matrix1 = MatrixOf<int>.CreateFromArray(new int[,] { { 1, 2 }, { 3, 4 } });
             var matrix2 = MatrixOf<int>.CreateFromArray(new int[,] { { 1, 2 }, { 3, 4 } });
 
-            Assert.That(matrix1.Equals(matrix2), Is.True);
-            Assert.That(matrix1.Equals((object)matrix2), Is.True);
-            Assert.That(matrix1 == matrix2, Is.True);
-            Assert.That(matrix1 != matrix2, Is.False);
+            Assert.That(matrix1, Is.EqualTo(matrix2));
+            Assert.That(matrix1, Is.EqualTo((object)matrix2));
+            Assert.That(matrix1, Is.EqualTo(matrix2));
+            Assert.That(matrix1, Is.EqualTo(matrix2));
         }
 
         [Test]
@@ -145,10 +145,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int[]? array = [1, 2, 3, 4];
             var matrix = MatrixOf<int>.CreateFromArray(array);
             var arrayOf = new ArrayOf<int>([1, 2, 3, 4]);
-            Assert.That(matrix.Equals(arrayOf), Is.True);
-            Assert.That(matrix.Equals((object)arrayOf), Is.True);
-            Assert.That(matrix == arrayOf, Is.True);
-            Assert.That(matrix != arrayOf, Is.False);
+            Assert.That(matrix, Is.EqualTo(arrayOf));
+            Assert.That(matrix, Is.EqualTo((object)arrayOf));
+            Assert.That(matrix, Is.EqualTo(arrayOf));
+            Assert.That(matrix, Is.EqualTo(arrayOf));
         }
 
         [Test]
@@ -157,10 +157,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,] { { 1, 2 }, { 3, 4 } });
             Array array = new int[,] { { 1, 2 }, { 3, 4 } };
-            Assert.That(matrix.Equals(array), Is.True);
-            Assert.That(matrix.Equals((object)array), Is.True);
-            Assert.That(matrix == array, Is.True);
-            Assert.That(matrix != array, Is.False);
+            Assert.That(matrix, Is.EqualTo(array));
+            Assert.That(matrix, Is.EqualTo((object)array));
+            Assert.That(matrix, Is.EqualTo(array));
+            Assert.That(matrix, Is.EqualTo(array));
         }
 
         [Test]
@@ -185,9 +185,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void NullEqualsNullArrayTest()
         {
             MatrixOf<int> matrix = MatrixOf<int>.Null;
-            Assert.That(matrix.Equals((Array?)null), Is.True);
-            Assert.That(matrix.Equals((object?)null), Is.True);
-            Assert.That(matrix.Equals(MatrixOf<int>.Null), Is.True);
+            Assert.That(matrix, Is.EqualTo((Array?)null));
+            Assert.That(matrix, Is.EqualTo((object?)null));
+            Assert.That(matrix, Is.EqualTo(MatrixOf<int>.Null));
         }
 
         [Test]

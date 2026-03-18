@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(stdDev, Is.EqualTo(0.0),
+            Assert.That(stdDev, Is.Zero,
                 "Standard deviation of single value should be 0");
         }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(stdDev, Is.EqualTo(0.0),
+            Assert.That(stdDev, Is.Zero,
                 "Standard deviation of identical values should be 0");
         }
 
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(stdDev, Is.EqualTo(0.0),
+            Assert.That(stdDev, Is.Zero,
                 "Sample standard deviation with single value should be 0");
         }
 
@@ -416,7 +416,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(variance, Is.EqualTo(0.0),
+            Assert.That(variance, Is.Zero,
                 "Variance of single value should be 0");
         }
 
@@ -445,7 +445,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(variance, Is.EqualTo(0.0),
+            Assert.That(variance, Is.Zero,
                 "Variance of identical values should be 0");
         }
 
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(variance, Is.EqualTo(0.0),
+            Assert.That(variance, Is.Zero,
                 "Sample variance with single value should be 0");
         }
 

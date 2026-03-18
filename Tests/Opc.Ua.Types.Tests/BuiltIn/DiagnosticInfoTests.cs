@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(diagnosticInfo.InnerDiagnosticInfo, Is.Null);
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(diagnosticInfo.Equals(null), Is.True);
+            Assert.That(diagnosticInfo, Is.EqualTo(null));
 #pragma warning restore CA1508 // Avoid dead conditional code
             Assert.That(diagnosticInfo.IsNullDiagnosticInfo, Is.True);
         }
@@ -111,7 +111,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 (ServiceResult)innerResult);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll | DiagnosticsMasks.UserPermissionAdditionalInfo;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll | DiagnosticsMasks.UserPermissionAdditionalInfo;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -141,7 +141,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var stringTable = new StringTable();
             // OperationSymbolicId=32, OperationLocalizedText=64: after >>5 they become ServiceSymbolicId=1, ServiceLocalizedText=2
-            DiagnosticsMasks mask = DiagnosticsMasks.OperationSymbolicId | DiagnosticsMasks.OperationLocalizedText;
+            const DiagnosticsMasks mask = DiagnosticsMasks.OperationSymbolicId | DiagnosticsMasks.OperationLocalizedText;
 
             var di = new DiagnosticInfo(result, mask, false, stringTable, s_logger);
 
@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 (ServiceResult)null);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -219,7 +219,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             stringTable.Append("Existing error");
 
             int originalCount = stringTable.Count;
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 (ServiceResult)null);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.UserPermissionAdditionalInfo;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.UserPermissionAdditionalInfo;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 (ServiceResult)null);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo; // Missing UserPermissionAdditionalInfo
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo; // Missing UserPermissionAdditionalInfo
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -271,7 +271,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = new ServiceResult(StatusCodes.Bad, innerResult);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceInnerStatusCode;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceInnerStatusCode;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -295,7 +295,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 (ServiceResult)innerResult);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -313,12 +313,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode;
 
-            var di = new DiagnosticInfo(current, mask, true, stringTable, s_logger);
+            
 
             // Navigate to the deepest inner diagnostic info
-            DiagnosticInfo innermost = di;
+            DiagnosticInfo innermost = new DiagnosticInfo(current, mask, true, stringTable, s_logger);
             int depth = 0;
             while (innermost.InnerDiagnosticInfo != null)
             {
@@ -335,7 +335,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var exception = new InvalidOperationException("test exception");
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
 
             var di = new DiagnosticInfo(exception, mask, true, stringTable, s_logger);
 
@@ -347,7 +347,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var exception = new ArgumentException("arg error");
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.OperationAll;
+            const DiagnosticsMasks mask = DiagnosticsMasks.OperationAll;
 
             var di = new DiagnosticInfo(exception, mask, false, stringTable, s_logger);
 
@@ -360,7 +360,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = new ServiceResult(StatusCodes.Bad);
 
             var stringTable = new StringTable();
-            DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
+            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
 
             var di = new DiagnosticInfo(result, mask, true, stringTable, s_logger);
 
@@ -373,7 +373,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var di = new DiagnosticInfo(1, 2, 3, 4, "test");
 
-            Assert.That(di.Equals((object)di), Is.True);
+            Assert.That(di, Is.EqualTo((object)di));
         }
 
         [Test]
@@ -446,7 +446,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerDiagnosticInfo = inner1 };
             var di2 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerDiagnosticInfo = inner2 };
 
-            Assert.That(di1.Equals(di2), Is.True);
+            Assert.That(di1, Is.EqualTo(di2));
         }
 
         [Test]
@@ -479,7 +479,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerStatusCode = StatusCodes.Bad };
             var di2 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerStatusCode = StatusCodes.Bad };
 
-            Assert.That(di1.Equals(di2), Is.True);
+            Assert.That(di1, Is.EqualTo(di2));
         }
 
         [Test]
@@ -489,8 +489,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // MaxInnerDepth is 5, so at depth 5, Equals returns true even if inners differ
             static DiagnosticInfo BuildChain(int depth, int leafSymbolicId)
             {
-                var leaf = new DiagnosticInfo(leafSymbolicId, 0, 0, 0, null);
-                DiagnosticInfo current = leaf;
+                DiagnosticInfo current = new DiagnosticInfo(leafSymbolicId, 0, 0, 0, null);
                 for (int i = 0; i < depth; i++)
                 {
                     current = new DiagnosticInfo(1, 2, 3, 4, null) { InnerDiagnosticInfo = current };
@@ -504,7 +503,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DiagnosticInfo di2 = BuildChain(DiagnosticInfo.MaxInnerDepth + 1, 999);
 
             // Should return true because at depth 5, comparison is truncated
-            Assert.That(di1.Equals(di2), Is.True);
+            Assert.That(di1, Is.EqualTo(di2));
         }
 
         [Test]

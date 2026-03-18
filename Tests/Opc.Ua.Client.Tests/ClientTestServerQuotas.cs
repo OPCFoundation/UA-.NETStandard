@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Tests
 
             ByteString readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
                 .ConfigureAwait(false);
-            Assert.AreEqual(chunk, readData);
+            Assert.That(readData, Is.EqualTo(chunk));
         }
     }
 }

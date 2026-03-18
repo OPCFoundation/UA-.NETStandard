@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -288,7 +288,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.False);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -376,7 +376,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -1062,7 +1062,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.GetBoolean(), Is.EqualTo(true));
+            Assert.That(result.GetBoolean(), Is.True);
         }
 
         [Test]
@@ -1995,7 +1995,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             uint result = decoder.ReadEncodingMask(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(0u));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]

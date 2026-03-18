@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateCertificate("CN=AppCert")
                 .SetIssuer(m_rootCert)
                 .CreateForRSA();
-            Assert.NotNull(appCert);
+            Assert.That(appCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = true;
             await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
@@ -257,7 +257,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create app cert from alternate root
             using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
-            Assert.NotNull(altAppCert);
+            Assert.That(altAppCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
             ServiceResultException result = NUnit.Framework.Assert
@@ -299,7 +299,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create the certificate from the alternate root
             using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
-            Assert.NotNull(altAppCert);
+            Assert.That(altAppCert, Is.Not.Null);
 
             // should not pass!
             m_certValidator.RejectUnknownRevocationStatus = false;

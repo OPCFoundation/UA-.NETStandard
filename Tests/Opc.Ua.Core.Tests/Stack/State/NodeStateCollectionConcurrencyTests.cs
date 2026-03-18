@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             references.Clear();
             testNodeState.GetReferences(systemContext, references);
 
-            Assert.AreEqual(originalReferenceCount, references.Count);
+            Assert.That(references.Count, Is.EqualTo(originalReferenceCount));
         }
 
         [Test]
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             notifiers.Clear();
             testNodeState.GetNotifiers(systemContext, notifiers);
 
-            Assert.AreEqual(originalNotifierCount, notifiers.Count);
+            Assert.That(notifiers.Count, Is.EqualTo(originalNotifierCount));
         }
 
         [Test]
@@ -257,7 +257,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             children.Clear();
             testNodeState.GetChildren(systemContext, children);
 
-            Assert.AreEqual(originalNotifierCount, children.Count);
+            Assert.That(children.Count, Is.EqualTo(originalNotifierCount));
         }
     }
 }

@@ -438,7 +438,7 @@ namespace Opc.Ua.Server.Tests
                 }
                 ArrayOf<BrowsePath> browsePathSnippet =
                     operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
-                        browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                    browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
                         ? browsePaths // take all
                         : browsePaths[..(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds];
                 TranslateBrowsePathsToNodeIdsResponse translateResponse = await services.TranslateBrowsePathsToNodeIdsAsync(
@@ -462,7 +462,7 @@ namespace Opc.Ua.Server.Tests
 
                 browsePaths =
                     operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
-                        browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds ?
+                    browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds ?
                         default : // done
                         browsePaths[(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds..];
             }
@@ -781,7 +781,7 @@ namespace Opc.Ua.Server.Tests
             bool sendInitialData,
             bool expectAccessDenied)
         {
-            Assert.AreEqual(1, subscriptionIds.Count);
+            Assert.That(subscriptionIds.Count, Is.EqualTo(1));
 
             requestHeader.Timestamp = DateTime.UtcNow;
             TransferSubscriptionsResponse transferResponse = await services.TransferSubscriptionsAsync(
@@ -877,7 +877,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
-            Assert.AreEqual("{GoodSubscriptionTransferred [0x002D0000] | }", statusMessage);
+            Assert.That(statusMessage, Is.EqualTo("{GoodSubscriptionTransferred [0x002D0000] | }"));
 
             // static node, do not acknowledge
             Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);

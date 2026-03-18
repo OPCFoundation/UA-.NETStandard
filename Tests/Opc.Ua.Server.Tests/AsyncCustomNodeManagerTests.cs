@@ -562,7 +562,6 @@ namespace Opc.Ua.Server.Tests
             variable.Value = ArrayOf.Wrapped(10.0, 20.0, 30.0);
             variable.DataType = DataTypeIds.Double;
             variable.ValueRank = ValueRanks.OneDimension;
-            variable.ArrayDimensions = [0];
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
@@ -674,12 +673,12 @@ namespace Opc.Ua.Server.Tests
             if (!m_useSamplingGroups)
             {
                 // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks
-                Assert.That(notifications.Count, Is.EqualTo(2));
+                Assert.That(notifications, Has.Count.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
+                Assert.That((int)notification.Value.WrappedValue, Is.Zero);
                 Assert.That((int)notificationAfterWrite.Value.WrappedValue, Is.EqualTo(123));
-                Assert.That(diagnostics.Count, Is.EqualTo(2));
+                Assert.That(diagnostics, Has.Count.EqualTo(2));
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
             // For SamplingGroupMonitoredItemManager the background sampling timer fires
@@ -779,12 +778,12 @@ namespace Opc.Ua.Server.Tests
             // For MonitoredNodeMonitoredItemManager the write value is propagated immediately
             if (!m_useSamplingGroups)
             {
-                Assert.That(notifications.Count, Is.EqualTo(2));
+                Assert.That(notifications, Has.Count.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That((int)notification.Value.WrappedValue, Is.EqualTo(0));
+                Assert.That((int)notification.Value.WrappedValue, Is.Zero);
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
-                Assert.That(diagnostics.Count, Is.EqualTo(2));
+                Assert.That(diagnostics, Has.Count.EqualTo(2));
             }
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }

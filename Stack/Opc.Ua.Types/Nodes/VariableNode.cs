@@ -85,7 +85,7 @@ namespace Opc.Ua
             Value = Variant.Null;
             DataType = default;
             ValueRank = 0;
-            m_arrayDimensions = [];
+            ArrayDimensions = [];
             AccessLevel = 0;
             UserAccessLevel = 0;
             MinimumSamplingInterval = 0;
@@ -115,15 +115,7 @@ namespace Opc.Ua
         /// Array dimensions
         /// </summary>
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
-        public ArrayOf<uint> ArrayDimensions
-        {
-            get => m_arrayDimensions;
-
-            set
-            {
-                m_arrayDimensions = value;
-            }
-        }
+        public ArrayOf<uint> ArrayDimensions { get; set; }
 
         /// <summary>
         /// Access level
@@ -235,7 +227,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_arrayDimensions != value.m_arrayDimensions)
+            if (ArrayDimensions != value.ArrayDimensions)
             {
                 return false;
             }
@@ -282,7 +274,7 @@ namespace Opc.Ua
             clone.Value = CoreUtils.Clone(Value);
             clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);
-            clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
+            clone.ArrayDimensions = CoreUtils.Clone(ArrayDimensions);
             clone.AccessLevel = CoreUtils.Clone(AccessLevel);
             clone.UserAccessLevel = CoreUtils.Clone(UserAccessLevel);
             clone.MinimumSamplingInterval = (double)CoreUtils.Clone(MinimumSamplingInterval);
@@ -298,8 +290,8 @@ namespace Opc.Ua
         /// <value>The array dimensions.</value>
         ArrayOf<uint> IVariableBase.ArrayDimensions
         {
-            get => m_arrayDimensions;
-            set => m_arrayDimensions = value;
+            get => ArrayDimensions;
+            set => ArrayDimensions = value;
         }
 
         /// <summary>
@@ -321,7 +313,7 @@ namespace Opc.Ua
                 case Attributes.Historizing:
                     return true;
                 case Attributes.ArrayDimensions:
-                    return !m_arrayDimensions.IsEmpty;
+                    return !ArrayDimensions.IsEmpty;
                 default:
                     return base.SupportsAttribute(attributeId);
             }
@@ -355,12 +347,12 @@ namespace Opc.Ua
                     return Value;
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions.IsEmpty)
+                    if (ArrayDimensions.IsEmpty)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
-                    return m_arrayDimensions;
+                    return ArrayDimensions;
                 default:
                     return base.Read(attributeId);
             }
@@ -418,12 +410,12 @@ namespace Opc.Ua
 
                     return ServiceResult.Good;
                 case Attributes.ArrayDimensions:
-                    m_arrayDimensions = value.GetUInt32Array();
+                    ArrayDimensions = value.GetUInt32Array();
 
                     // ensure number of dimensions is correct.
-                    if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != ValueRank)
+                    if (ArrayDimensions.Count > 0 && ArrayDimensions.Count != ValueRank)
                     {
-                        ValueRank = m_arrayDimensions.Count;
+                        ValueRank = ArrayDimensions.Count;
                         Value = TypeInfo.GetDefaultVariantValue(DataType, ValueRank);
                     }
 
@@ -432,7 +424,5 @@ namespace Opc.Ua
                     return base.Write(attributeId, value);
             }
         }
-
-        private ArrayOf<uint> m_arrayDimensions;
     }
 }

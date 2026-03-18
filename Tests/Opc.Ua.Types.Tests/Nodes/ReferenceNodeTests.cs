@@ -141,7 +141,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -163,7 +163,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 100);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void GetHashCodeReturnsSameValueOnMultipleCalls()
         {
             ReferenceNode node = CreateNode(42, true, 100);
-            Assert.That(node.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(node.GetHashCode(), Is.Not.Zero);
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -219,7 +219,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a == (object)null, Is.True);
+            Assert.That(a, Is.EqualTo((object)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a != (object)null, Is.False);
+            Assert.That(a, Is.EqualTo((object)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CompareToObjectWithSameReferenceReturnsZero()
         {
             ReferenceNode node = CreateNode();
-            Assert.That(node.CompareTo((object)node), Is.EqualTo(0));
+            Assert.That(node.CompareTo((object)node), Is.Zero);
         }
 
         [Test]
@@ -284,7 +284,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             object b = CreateNode(42, false, 100);
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -292,7 +292,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var a = new ReferenceNode(NodeId.Null, false, new ExpandedNodeId(100));
             var b = new ReferenceNode(NodeId.Null, false, new ExpandedNodeId(100));
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -308,7 +308,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(10, false, 100);
             ReferenceNode b = CreateNode(20, false, 100);
-            Assert.That(a.CompareTo(b), Is.Not.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Not.Zero);
         }
 
         [Test]
@@ -332,7 +332,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var a = new ReferenceNode(new NodeId(42), false, ExpandedNodeId.Null);
             var b = new ReferenceNode(new NodeId(42), false, ExpandedNodeId.Null);
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -396,7 +396,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(20, false, 100);
             ReferenceNode b = CreateNode(10, false, 100);
-            Assert.That(a > b, Is.True);
+            Assert.That(a, Is.GreaterThan(b));
         }
 
         [Test]

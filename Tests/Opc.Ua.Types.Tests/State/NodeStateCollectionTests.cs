@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             var collection = new NodeStateCollection();
             Assert.That(collection, Is.Not.Null);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -84,9 +84,11 @@ namespace Opc.Ua.Types.Tests.State
                 new ViewState { NodeId = new NodeId(2) }
             };
             var collection = new NodeStateCollection(items);
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
             foreach (NodeState item in items)
-            { item.Dispose(); }
+            {
+                item.Dispose();
+            }
         }
 
         [Test]
@@ -95,7 +97,7 @@ namespace Opc.Ua.Types.Tests.State
             var collection = new NodeStateCollection();
             var view = new ViewState { NodeId = new NodeId(10) };
             collection.Add(view);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
             Assert.That(collection[0], Is.SameAs(view));
             view.Dispose();
         }
@@ -108,7 +110,7 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(view);
             bool removed = collection.Remove(view);
             Assert.That(removed, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
             view.Dispose();
         }
 
@@ -118,7 +120,7 @@ namespace Opc.Ua.Types.Tests.State
             var collection = new NodeStateCollection();
             var view = new ViewState { NodeId = new NodeId(30) };
             collection.Add(view);
-            Assert.That(collection.Contains(view), Is.True);
+            Assert.That(collection, Does.Contain(view));
             var other = new ViewState { NodeId = new NodeId(31) };
             Assert.That(collection.Contains(other), Is.False);
             view.Dispose();
@@ -136,7 +138,9 @@ namespace Opc.Ua.Types.Tests.State
 
             int count = 0;
             foreach (NodeState item in collection)
-            { count++; }
+            {
+                count++;
+            }
             Assert.That(count, Is.EqualTo(2));
             v1.Dispose();
             v2.Dispose();
@@ -149,7 +153,7 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(new ViewState { NodeId = new NodeId(50) });
             collection.Add(new ViewState { NodeId = new NodeId(51) });
             collection.Clear();
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -173,7 +177,7 @@ namespace Opc.Ua.Types.Tests.State
             stream.Position = 0;
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, false);
-            Assert.That(restored.Count, Is.EqualTo(1));
+            Assert.That(restored, Has.Count.EqualTo(1));
             view.Dispose();
         }
 
@@ -258,7 +262,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, true);
-            Assert.That(restored.Count, Is.EqualTo(1));
+            Assert.That(restored, Has.Count.EqualTo(1));
             dt.Dispose();
         }
 
@@ -287,7 +291,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, false);
-            Assert.That(restored.Count, Is.EqualTo(2));
+            Assert.That(restored, Has.Count.EqualTo(2));
             view.Dispose();
             refType.Dispose();
         }

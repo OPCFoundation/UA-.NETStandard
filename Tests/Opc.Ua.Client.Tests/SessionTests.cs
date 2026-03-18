@@ -1560,7 +1560,7 @@ namespace Opc.Ua.Client.Tests
             var loadSession = SessionMock.Create();
             var loadedSubscriptions = loadSession.Load(stream).ToList();
 
-            Assert.That(loadedSubscriptions.Count, Is.EqualTo(2), "Only the specified subscriptions should be saved");
+            Assert.That(loadedSubscriptions, Has.Count.EqualTo(2), "Only the specified subscriptions should be saved");
             Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
         }
     }

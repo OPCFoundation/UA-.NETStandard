@@ -275,7 +275,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(string.Empty);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(0));
+            Assert.That(parsed.Operations.Count, Is.Zero);
         }
 
         /// <summary>
@@ -294,11 +294,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(whitespace);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.WhiteSpace));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(whitespace));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0));
-            Assert.That(parsed.Operations[0].LineNumber, Is.EqualTo(0));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero);
+            Assert.That(parsed.Operations[0].LineNumber, Is.Zero);
         }
 
         /// <summary>
@@ -317,11 +317,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(text));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0));
-            Assert.That(parsed.Operations[0].LineNumber, Is.EqualTo(0));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero);
+            Assert.That(parsed.Operations[0].LineNumber, Is.Zero);
         }
 
         /// <summary>
@@ -338,7 +338,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
@@ -361,7 +361,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
@@ -409,7 +409,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(4));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(4));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
@@ -432,7 +432,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(2));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(2));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[1].Item, Is.EqualTo("Line1"));
@@ -452,7 +452,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(2));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(2));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
@@ -472,7 +472,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
             Assert.That(parsed.Operations.All(op => op.Type == ParsedTemplateString.OpType.LineBreak), Is.True);
         }
 
@@ -490,13 +490,13 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero);
 
             // Add another literal
             parsed.AddLiteral(" More");
 
-            Assert.That(parsed.Operations.Count, Is.EqualTo(2));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(2));
             Assert.That(parsed.Operations[1].Offset, Is.EqualTo(16));
         }
 
@@ -514,10 +514,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0)); // "Hello"
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero); // "Hello"
             Assert.That(parsed.Operations[1].Offset, Is.EqualTo(5)); // LineBreak at offset 5
-            Assert.That(parsed.Operations[2].Offset, Is.EqualTo(0)); // "World" starts at 0 on new line
+            Assert.That(parsed.Operations[2].Offset, Is.Zero); // "World" starts at 0 on new line
         }
 
         /// <summary>
@@ -534,8 +534,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations[0].LineNumber, Is.EqualTo(0)); // "Line0"
-            Assert.That(parsed.Operations[1].LineNumber, Is.EqualTo(0)); // First LineBreak
+            Assert.That(parsed.Operations[0].LineNumber, Is.Zero); // "Line0"
+            Assert.That(parsed.Operations[1].LineNumber, Is.Zero); // First LineBreak
             Assert.That(parsed.Operations[2].LineNumber, Is.EqualTo(1)); // "Line1"
             Assert.That(parsed.Operations[3].LineNumber, Is.EqualTo(1)); // Second LineBreak
             Assert.That(parsed.Operations[4].LineNumber, Is.EqualTo(2)); // "Line2"
@@ -580,7 +580,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1\rLine2"));
         }
@@ -599,7 +599,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(text));
         }
@@ -618,7 +618,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(5));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(5));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Text1"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.LineBreak));
@@ -643,7 +643,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(longText);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(longText));
             Assert.That(parsed.Operations[0].Item.Length, Is.EqualTo(5000));
@@ -685,7 +685,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(text));
         }
@@ -703,7 +703,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(" ");
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.WhiteSpace));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo(" "));
         }
@@ -723,7 +723,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral("Second");
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("First"));
             Assert.That(parsed.Operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.WhiteSpace));
@@ -746,7 +746,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("Line1\r"));
         }
@@ -765,7 +765,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("\r"));
         }
@@ -784,7 +784,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(1));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(parsed.Operations[0].Item, Is.EqualTo("\t"));
         }
@@ -803,8 +803,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral("World");  // Offset 5, length 5
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(2));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0));
+            Assert.That(parsed.Operations, Has.Count.EqualTo(2));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero);
             Assert.That(parsed.Operations[1].Offset, Is.EqualTo(5));
         }
 
@@ -822,10 +822,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.EqualTo(3));
-            Assert.That(parsed.Operations[0].Offset, Is.EqualTo(0)); // "ABC" at offset 0
+            Assert.That(parsed.Operations, Has.Count.EqualTo(3));
+            Assert.That(parsed.Operations[0].Offset, Is.Zero); // "ABC" at offset 0
             Assert.That(parsed.Operations[1].Offset, Is.EqualTo(3)); // LineBreak at offset 3
-            Assert.That(parsed.Operations[2].Offset, Is.EqualTo(0)); // "DEF" at offset 0 (new line)
+            Assert.That(parsed.Operations[2].Offset, Is.Zero); // "DEF" at offset 0 (new line)
         }
 
         /// <summary>
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1189,7 +1189,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1205,7 +1205,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1221,7 +1221,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1383,7 +1383,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int argumentCount = parsedTemplate.ArgumentCount;
 
             // Assert
-            Assert.That(argumentCount, Is.EqualTo(0));
+            Assert.That(argumentCount, Is.Zero);
         }
 
         /// <summary>
@@ -1423,8 +1423,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var parsed = new ParsedTemplateString(literalLength, formattedCount);
 
             // Assert
-            Assert.That(parsed.LiteralLength, Is.EqualTo(0));
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
+            Assert.That(parsed.LiteralLength, Is.Zero);
+            Assert.That(parsed.FormattedCount, Is.Zero);
             Assert.That(parsed.Operations, Is.Not.Null);
             Assert.That(parsed.Operations, Is.Empty);
         }
@@ -1574,7 +1574,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(parsed.LiteralLength, Is.EqualTo(ParsedTemplateString.MaxLiteralLength));
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
+            Assert.That(parsed.FormattedCount, Is.Zero);
             Assert.That(parsed.Operations, Is.Not.Null);
         }
 
@@ -1592,7 +1592,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var parsed = new ParsedTemplateString(literalLength, formattedCount);
 
             // Assert
-            Assert.That(parsed.LiteralLength, Is.EqualTo(0));
+            Assert.That(parsed.LiteralLength, Is.Zero);
             Assert.That(parsed.FormattedCount, Is.EqualTo(ParsedTemplateString.MaxFormattedCount));
             Assert.That(parsed.Operations, Is.Not.Null);
         }
@@ -2028,7 +2028,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(operations, Is.Not.Null);
             Assert.That(operations, Is.Empty);
-            Assert.That(operations.Count, Is.EqualTo(0));
+            Assert.That(operations.Count, Is.Zero);
         }
 
         /// <summary>
@@ -2049,7 +2049,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(literalText));
         }
 
@@ -2071,7 +2071,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(formattedValue));
         }
 
@@ -2097,7 +2097,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(3));
+            Assert.That(operations, Has.Count.EqualTo(3));
             Assert.That(operations[0].Item, Is.EqualTo(literal1));
             Assert.That(operations[1].Item, Is.EqualTo(formatted1));
             Assert.That(operations[2].Item, Is.EqualTo(literal2));
@@ -2141,7 +2141,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(whitespace));
         }
 
@@ -2163,7 +2163,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.GreaterThan(1));
+            Assert.That(operations, Has.Count.GreaterThan(1));
             Assert.That(operations.Any(op => op.Item == "Line1"), Is.True);
             Assert.That(operations.Any(op => op.Item == "Line2"), Is.True);
         }
@@ -2227,7 +2227,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(longString));
         }
 
@@ -2270,7 +2270,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(stringValue));
         }
 
@@ -2292,7 +2292,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.EqualTo(1));
+            Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Item, Is.EqualTo(intValue));
         }
 
@@ -2310,9 +2310,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(parsed, Is.Not.Null);
-            Assert.That(parsed.LiteralLength, Is.EqualTo(0));
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
-            Assert.That(parsed.ArgumentCount, Is.EqualTo(0));
+            Assert.That(parsed.LiteralLength, Is.Zero);
+            Assert.That(parsed.FormattedCount, Is.Zero);
+            Assert.That(parsed.ArgumentCount, Is.Zero);
             Assert.That(parsed.Format, Is.EqualTo(string.Empty));
             Assert.That(parsed.Operations, Is.Empty);
         }
@@ -2331,9 +2331,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(parsed, Is.Not.Null);
-            Assert.That(parsed.LiteralLength, Is.EqualTo(0));
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
-            Assert.That(parsed.ArgumentCount, Is.EqualTo(0));
+            Assert.That(parsed.LiteralLength, Is.Zero);
+            Assert.That(parsed.FormattedCount, Is.Zero);
+            Assert.That(parsed.ArgumentCount, Is.Zero);
             Assert.That(parsed.Format, Is.EqualTo(string.Empty));
             Assert.That(parsed.Operations, Is.Empty);
         }
@@ -2353,8 +2353,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.LiteralLength, Is.EqualTo(input.Length));
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
-            Assert.That(parsed.ArgumentCount, Is.EqualTo(0));
+            Assert.That(parsed.FormattedCount, Is.Zero);
+            Assert.That(parsed.ArgumentCount, Is.Zero);
             Assert.That(parsed.Format, Is.EqualTo(input));
             Assert.That(parsed.Operations, Has.Count.EqualTo(1));
             Assert.That(parsed.Operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
@@ -2582,8 +2582,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(parsed, Is.Not.Null);
             var operations = parsed.Operations.ToList();
-            Assert.That(operations[0].LineNumber, Is.EqualTo(0));
-            Assert.That(operations[1].LineNumber, Is.EqualTo(0));
+            Assert.That(operations[0].LineNumber, Is.Zero);
+            Assert.That(operations[1].LineNumber, Is.Zero);
             Assert.That(operations[2].LineNumber, Is.EqualTo(1));
             Assert.That(operations[3].LineNumber, Is.EqualTo(1));
             Assert.That(operations[4].LineNumber, Is.EqualTo(2));
@@ -2605,8 +2605,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(parsed, Is.Not.Null);
             var operations = parsed.Operations.ToList();
             var literalOps = operations.Where(op => op.Type == ParsedTemplateString.OpType.Literal).ToList();
-            Assert.That(literalOps[0].Offset, Is.EqualTo(0));
-            Assert.That(literalOps[1].Offset, Is.EqualTo(0)); // Offset reset after line break
+            Assert.That(literalOps[0].Offset, Is.Zero);
+            Assert.That(literalOps[1].Offset, Is.Zero); // Offset reset after line break
         }
 
         /// <summary>
@@ -2683,7 +2683,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var parsed = ParsedTemplateString.FromString(input);
 
             // Assert
-            Assert.That(parsed.ArgumentCount, Is.EqualTo(0));
+            Assert.That(parsed.ArgumentCount, Is.Zero);
             Assert.That(parsed.GetArguments(), Is.Empty);
         }
 
@@ -2700,7 +2700,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var parsed = ParsedTemplateString.FromString(input);
 
             // Assert
-            Assert.That(parsed.FormattedCount, Is.EqualTo(0));
+            Assert.That(parsed.FormattedCount, Is.Zero);
         }
 
         /// <summary>
@@ -2924,8 +2924,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(item));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
-            Assert.That(operations[0].LineNumber, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
+            Assert.That(operations[0].LineNumber, Is.Zero);
         }
 
         /// <summary>
@@ -2975,7 +2975,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(item));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
         }
 
         /// <summary>
@@ -2998,7 +2998,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             var operations = parsed.Operations.ToList();
             Assert.That(operations, Has.Count.EqualTo(2));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
             Assert.That(operations[1].Offset, Is.EqualTo(firstItem.Length));
         }
 
@@ -3026,7 +3026,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(3));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(item1));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
             Assert.That(operations[1].Type, Is.EqualTo(ParsedTemplateString.OpType.Value));
             Assert.That(operations[1].Item, Is.EqualTo(item2));
             Assert.That(operations[1].Offset, Is.EqualTo(item1.Length));
@@ -3059,7 +3059,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(item));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
         }
 
         /// <summary>
@@ -3083,7 +3083,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(longString));
             Assert.That(operations[0].Item.Length, Is.EqualTo(10000));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
         }
 
         /// <summary>
@@ -3104,7 +3104,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             var operations = parsed.Operations.ToList();
             Assert.That(operations, Has.Count.EqualTo(1));
-            Assert.That(operations[0].LineNumber, Is.EqualTo(0));
+            Assert.That(operations[0].LineNumber, Is.Zero);
         }
 
         /// <summary>
@@ -3127,7 +3127,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(item));
-            Assert.That(operations[0].Offset, Is.EqualTo(0));
+            Assert.That(operations[0].Offset, Is.Zero);
         }
 
         /// <summary>
