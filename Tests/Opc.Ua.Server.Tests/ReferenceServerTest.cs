@@ -637,7 +637,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteAbandonedSubscriptionsConcurrentlyAsync()
         {
             const int sessionCount = 5;
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new List<uint>();
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
@@ -655,13 +655,13 @@ namespace Opc.Ua.Server.Tests
                         .ConfigureAwait(false);
 
                 var services = new ServerTestServices(m_server, context);
-                header.Timestamp = DateTime.UtcNow;
-                UInt32Collection ids = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                header.Timestamp = DateTimeUtc.Now;
+                ArrayOf<uint> ids = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                     services, header, testSet, kQueueSize, -1).ConfigureAwait(false);
-                subscriptionIds.AddRange(ids);
+                subscriptionIds.AddRange(ids.ToList());
 
                 // Close session without deleting subscriptions - makes them abandoned
-                header.Timestamp = DateTime.UtcNow;
+                header.Timestamp = DateTimeUtc.Now;
                 await m_server.CloseSessionAsync(context, header, false, CancellationToken.None)
                     .ConfigureAwait(false);
             }
@@ -671,8 +671,8 @@ namespace Opc.Ua.Server.Tests
             var deleteTasks = new List<Task<DeleteSubscriptionsResponse>>();
             foreach (uint id in subscriptionIds)
             {
-                var singleId = new UInt32Collection { id };
-                m_requestHeader.Timestamp = DateTime.UtcNow;
+                ArrayOf<uint> singleId = [id];
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
                 deleteTasks.Add(
                     mainServices.DeleteSubscriptionsAsync(m_requestHeader, singleId)
                         .AsTask());
