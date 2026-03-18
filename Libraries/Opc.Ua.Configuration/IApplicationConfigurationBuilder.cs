@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -638,6 +639,10 @@ namespace Opc.Ua.Configuration
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value);
@@ -684,3 +689,4 @@ namespace Opc.Ua.Configuration
         Task<ApplicationConfiguration> CreateAsync(CancellationToken ct = default);
     }
 }
+

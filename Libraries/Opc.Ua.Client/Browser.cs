@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -716,6 +717,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates the browser from a persisted stream
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
         public static Browser? Load(Stream stream, ITelemetryContext telemetry)
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
@@ -730,6 +735,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Saves the state to the stream
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
         public void Save(Stream stream)
         {
             // secure settings
@@ -790,3 +799,4 @@ namespace Opc.Ua.Client
     /// </summary>
     public delegate void BrowserEventHandler(Browser sender, BrowserEventArgs e);
 }
+

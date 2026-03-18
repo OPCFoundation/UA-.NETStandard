@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Opc.Ua;
 using Opc.Ua.Sample;
 using Opc.Ua.Server;
@@ -59,6 +60,8 @@ namespace Boiler
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Scans assembly types for known OPC UA types at startup.")]
         public BoilerNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -83,6 +84,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "The type's constructor is preserved because this instance already exists.")]
         public override object Clone()
         {
             var clone = (ReferenceTypeState)Activator.CreateInstance(GetType());

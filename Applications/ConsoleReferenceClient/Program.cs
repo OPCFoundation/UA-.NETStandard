@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -52,6 +53,10 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Main entry point.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
         public static async Task Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Client");

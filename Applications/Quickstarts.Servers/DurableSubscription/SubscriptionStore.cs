@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
@@ -65,6 +66,10 @@ namespace Quickstarts.Servers
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json is used with known subscription types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json is used with known subscription types.")]
         public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
         {
             try
@@ -94,6 +99,10 @@ namespace Quickstarts.Servers
             return false;
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json is used with known subscription types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json is used with known subscription types.")]
         public RestoreSubscriptionResult RestoreSubscriptions()
         {
             string filePath = Path.Combine(s_storage_path, kFilename);
@@ -119,6 +128,10 @@ namespace Quickstarts.Servers
             return new RestoreSubscriptionResult(false, null);
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json converter for known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json converter for known OPC UA types.")]
         public class ExtensionObjectConverter : JsonConverter
         {
             public override bool CanConvert(Type objectType)
@@ -154,6 +167,10 @@ namespace Quickstarts.Servers
             }
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json converter for known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json converter for known OPC UA types.")]
         public class NumericRangeConverter : JsonConverter
         {
             public override bool CanConvert(Type objectType)
@@ -192,6 +209,10 @@ namespace Quickstarts.Servers
             }
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json is used with known queue types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json is used with known queue types.")]
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(
             uint monitoredItemId)
         {
@@ -200,6 +221,10 @@ namespace Quickstarts.Servers
                 s_storage_path);
         }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Newtonsoft.Json is used with known queue types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Newtonsoft.Json is used with known queue types.")]
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(
@@ -232,3 +257,4 @@ namespace Quickstarts.Servers
         }
     }
 }
+

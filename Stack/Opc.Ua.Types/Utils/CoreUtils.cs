@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -180,6 +181,9 @@ namespace Opc.Ua
         /// e.g. a array with dimensions [2,2,2] is written in this order:
         /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
         /// </remarks>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA element types.")]
         public static Array FlattenArray(Array array)
         {
             var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
@@ -360,6 +364,8 @@ namespace Opc.Ua
         /// Clone contents of an array
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         public static ArrayOf<T> Clone<T>(ArrayOf<T> values)
         {
             return values.ConvertAll(v => (T)Clone(v));
@@ -369,6 +375,8 @@ namespace Opc.Ua
         /// Clone contents of an array
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         public static MatrixOf<T> Clone<T>(MatrixOf<T> values)
         {
             return values.ConvertAll(v => (T)Clone(v));
@@ -409,6 +417,10 @@ namespace Opc.Ua
         /// Returns a deep copy of the value.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
+        [RequiresUnreferencedCode("Uses reflection to find Clone and MemberwiseClone methods.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA element types.")]
         public static object Clone(object value)
         {
             if (value == null)

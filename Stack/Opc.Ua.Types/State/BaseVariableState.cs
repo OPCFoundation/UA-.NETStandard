@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -153,7 +154,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static object DecodeExtensionObject(
             ISystemContext context,
-            Type targetType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type targetType,
             ExtensionObject extension,
             bool throwOnError)
         {
@@ -229,6 +230,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "The type's constructor is preserved because this instance already exists.")]
         public override object Clone()
         {
             var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
@@ -1896,6 +1899,8 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the current value.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         protected ServiceResult Read(object currentValue, ref object valueToRead)
         {
             lock (Lock)
@@ -1922,6 +1927,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the current value.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         protected object Write(object valueToWrite)
         {
             lock (Lock)

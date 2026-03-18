@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -65,6 +66,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
         public static NodeSet Read(Stream istrm)
         {
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
@@ -76,6 +79,8 @@ namespace Opc.Ua
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
         public void Write(Stream istrm)
         {
             var writer = XmlWriter.Create(istrm, CoreUtils.DefaultXmlWriterSettings());
@@ -554,6 +559,9 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA element types.")]
         private object ImportValue(
             object value,
             NamespaceTable namespaceUris,

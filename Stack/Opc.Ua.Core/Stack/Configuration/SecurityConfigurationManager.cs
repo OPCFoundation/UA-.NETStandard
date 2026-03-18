@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -67,6 +68,10 @@ namespace Opc.Ua.Security
         /// <returns>The security configuration.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public SecuredApplication ReadConfiguration(string filePath)
         {
             if (filePath == null)
@@ -481,6 +486,10 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         private object GetObject(Type type, XmlNode element)
         {
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
@@ -499,6 +508,10 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         private string SetObject(Type type, object value)
         {
             using var memoryStream = new MemoryStream();
@@ -518,3 +531,4 @@ namespace Opc.Ua.Security
         private readonly ITelemetryContext m_telemetry;
     }
 }
+

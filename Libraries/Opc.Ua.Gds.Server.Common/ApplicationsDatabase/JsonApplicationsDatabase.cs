@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -53,6 +54,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// Load the JSON application database.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="fileName"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
+        [RequiresDynamicCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
         public static JsonApplicationsDatabase Load(string fileName)
         {
             if (fileName == null)
@@ -80,6 +85,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <summary>
         /// Save the complete database.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses Newtonsoft.Json with known database types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses Newtonsoft.Json with known database types.")]
         public override void Save()
         {
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
@@ -93,3 +102,4 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string FileName { get; private set; }
     }
 }
+

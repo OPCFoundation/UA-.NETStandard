@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
@@ -1215,6 +1216,8 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Scans assembly types for known OPC UA encodeable types.")]
         private async Task ConnectInternalAsync(
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,

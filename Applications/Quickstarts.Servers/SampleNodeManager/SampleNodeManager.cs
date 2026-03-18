@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -266,6 +267,8 @@ namespace Opc.Ua.Sample
         /// </summary>
         /// <param name="assembly">The assembly which contains the encodeable types.</param>
         /// <param name="filter">A filter with which the FullName of the type must start.</param>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         protected void AddEncodeableNodeManagerTypes(Assembly assembly, string filter)
         {
             Server.Factory.AddEncodeableTypes(assembly

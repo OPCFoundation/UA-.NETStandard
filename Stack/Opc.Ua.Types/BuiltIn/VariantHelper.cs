@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Types;
 #if NET8_0_OR_GREATER
@@ -1016,6 +1017,11 @@ namespace Opc.Ua
         /// Use reflection to cast
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2060",
+            Justification = "FromStructure and FromEnumeration are methods in this class and their signatures are preserved.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "MakeGenericMethod and MakeGenericType are used with known OPC UA types.")]
         private static bool TryCastFromWithReflection<T>(T value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum

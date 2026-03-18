@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1512,6 +1513,8 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         /// <returns>A system type equivalent to the built-in type.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "MakeArrayType is used with known OPC UA built-in types.")]
         public static Type GetSystemType(BuiltInType builtInType, int valueRank)
         {
             if (valueRank == ValueRanks.Scalar)
@@ -2326,6 +2329,9 @@ namespace Opc.Ua
         /// <returns>The default value for the specified built-in type</returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA built-in types.")]
         public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
             if (dimensions == null || dimensions.Length == 0)
@@ -2481,6 +2487,8 @@ namespace Opc.Ua
         /// <param name="type">The framework type.</param>
         /// <param name="namespaceTable">The namespace table.</param>
         /// <returns>An data type identifier for a node in a server's address space.</returns>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "IEncodeable types registered in the factory have parameterless constructors preserved.")]
         public static NodeId GetDataTypeId(Type type, NamespaceTable namespaceTable = null)
         {
             TypeInfo typeInfo = Construct(type);

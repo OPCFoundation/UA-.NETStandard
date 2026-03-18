@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
@@ -178,6 +179,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates the session configuration from a stream.
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
@@ -189,3 +194,4 @@ namespace Opc.Ua.Client
         }
     }
 }
+

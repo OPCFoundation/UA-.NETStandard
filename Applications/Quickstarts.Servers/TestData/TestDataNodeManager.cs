@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -59,6 +60,10 @@ namespace TestData
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses reflection with known OPC UA types at startup.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses reflection with known OPC UA types at startup.")]
         public TestDataNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -925,3 +930,4 @@ namespace TestData
         private VectorVariableValue m_dataDynamicVectorScalarValue;
     }
 }
+

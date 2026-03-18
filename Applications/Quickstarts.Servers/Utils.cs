@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -139,6 +140,8 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Helper to determine the INodeManagerFactory by reflection.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "Factory types are in the same assembly and their constructors are preserved.")]
         private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
         {
             System.Reflection.TypeInfo nodeManagerTypeInfo = type.GetTypeInfo();
@@ -153,6 +156,8 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Scans types in the same assembly which are preserved.")]
         private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
             Assembly assembly = typeof(Utils).Assembly;

@@ -156,7 +156,8 @@ namespace Opc.Ua
 
             /// <inheritdoc/>
             public IEncodeableFactoryBuilder AddEncodeableType(
-                Type systemType)
+                [DynamicallyAccessedMembers(
+                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
             {
                 AddEncodeableType(systemType, null);
                 return this;
@@ -165,7 +166,8 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public IEncodeableFactoryBuilder AddEncodeableType(
                 ExpandedNodeId encodingId,
-                Type systemType)
+                [DynamicallyAccessedMembers(
+                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
             {
                 if (!encodingId.IsNull)
                 {
@@ -204,6 +206,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
+            [RequiresUnreferencedCode("Scans assembly types via reflection.")]
             public IEncodeableFactoryBuilder AddEncodeableTypes(Assembly assembly)
             {
                 if (assembly == null)
@@ -341,7 +344,9 @@ namespace Opc.Ua
             /// <param name="systemType">The underlying system type to add to the factory</param>
             /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
             /// referenced by object name.</param>
-            private void AddEncodeableType(Type systemType,
+            private void AddEncodeableType(
+                [DynamicallyAccessedMembers(
+                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
                 IEncodeableType? encodeableType = ReflectionBasedType.From(systemType);
@@ -464,12 +469,14 @@ namespace Opc.Ua
         /// </summary>
         internal sealed class ReflectionBasedType : IEncodeableType
         {
-            private ReflectionBasedType(Type type)
+            private ReflectionBasedType(
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
             {
                 Type = type;
             }
 
             /// <inheritdoc/>
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
             public Type Type { get; }
 
             /// <inheritdoc/>
@@ -483,7 +490,9 @@ namespace Opc.Ua
             /// <summary>
             /// Create type wrapper from system type.
             /// </summary>
-            public static ReflectionBasedType? From(Type? systemType, ExpandedNodeId typeId = default)
+            public static ReflectionBasedType? From(
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
+                ExpandedNodeId typeId = default)
             {
                 if (systemType == null)
                 {
@@ -562,6 +571,8 @@ namespace Opc.Ua
         /// </summary>
         private static EncodeableFactory Root { get; }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Well-known types are loaded from the types assembly at startup and their types are preserved.")]
         static EncodeableFactory()
         {
             var factory = new EncodeableFactory();

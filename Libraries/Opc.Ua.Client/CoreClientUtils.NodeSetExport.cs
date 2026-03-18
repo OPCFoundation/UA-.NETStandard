@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Opc.Ua.Client
@@ -96,6 +97,10 @@ namespace Opc.Ua.Client
         /// <param name="version">The version to set in the NodeSet2 XML.</param>
         /// <param name="lastModified">The last modified date to set in the NodeSet2 XML.</param>
         /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
@@ -122,6 +127,10 @@ namespace Opc.Ua.Client
         /// <param name="version">The version to set in the NodeSet2 XML.</param>
         /// <param name="lastModified">The last modified date to set in the NodeSet2 XML.</param>
         /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
@@ -470,3 +479,4 @@ namespace Opc.Ua.Client
         }
     }
 }
+

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Server
 {
@@ -346,6 +347,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a calculator for one of the standard aggregates.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Aggregate calculator types are statically registered in s_mappings.")]
         public static IAggregateCalculator CreateStandardCalculator(
             NodeId aggregateId,
             DateTimeUtc startTime,

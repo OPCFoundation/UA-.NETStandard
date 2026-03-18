@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1581,6 +1582,10 @@ namespace Quickstarts
         /// <param name="session">The session to use for exporting.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="filePath">The path where the NodeSet2 XML file will be saved.</param>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public void ExportNodesToNodeSet2(ISession session, IList<INode> nodes, string filePath)
         {
             m_logger.LogInformation("Exporting {Count} nodes to {FilePath}...", nodes.Count, filePath);
@@ -1617,6 +1622,10 @@ namespace Quickstarts
         /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
         /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
         /// <exception cref="ArgumentException">Thrown when outputDirectory is empty or whitespace.</exception>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public async Task<IReadOnlyDictionary<string, string>> ExportNodesToNodeSet2PerNamespaceAsync(
             ISession session,
             IList<INode> nodes,
@@ -1789,3 +1798,4 @@ namespace Quickstarts
         private DateTimeUtc m_lastEventTime = DateTimeUtc.Now;
     }
 }
+

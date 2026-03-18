@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -1100,6 +1101,10 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value)
@@ -1366,8 +1371,12 @@ namespace Opc.Ua.Configuration
                 defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
             }
 
+#if NET5_0_OR_GREATER
+            foreach (MessageSecurityMode securityMode in Enum.GetValues<MessageSecurityMode>())
+#else
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode)
                 .GetEnumValues())
+#endif
             {
                 ServerSecurityPolicyCollection policies = ApplicationConfiguration
                     .ServerConfiguration
@@ -1463,3 +1472,4 @@ namespace Opc.Ua.Configuration
         private bool m_typeSelected;
     }
 }
+

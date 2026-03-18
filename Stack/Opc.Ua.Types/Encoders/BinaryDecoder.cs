@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -667,6 +668,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Types from the encodeable factory have parameterless constructors preserved.")]
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
             // read type id.

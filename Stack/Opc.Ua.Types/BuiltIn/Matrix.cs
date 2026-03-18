@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -109,6 +110,9 @@ namespace Opc.Ua
         /// Returns the flattened array as a multi-dimensional array.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA element types.")]
         public Array ToArray()
         {
             try

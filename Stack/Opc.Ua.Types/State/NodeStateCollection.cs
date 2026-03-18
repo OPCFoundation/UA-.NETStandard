@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -74,6 +75,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
         /// </summary>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
         public void SaveAsNodeSet(ISystemContext context, Stream ostrm)
         {
             var nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
@@ -174,6 +177,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version = null, DateTime? lastModified = null)
         {
             var nodeSet = new Export.UANodeSet
@@ -254,6 +259,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void SaveAsNodeSet2(
             ISystemContext context,
             Stream ostrm,

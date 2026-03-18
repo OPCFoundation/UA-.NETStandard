@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -489,6 +490,10 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             string filePath,
@@ -537,6 +542,10 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             Stream stream,
@@ -1150,3 +1159,4 @@ namespace Opc.Ua.Configuration
         private readonly ILogger m_logger;
     }
 }
+

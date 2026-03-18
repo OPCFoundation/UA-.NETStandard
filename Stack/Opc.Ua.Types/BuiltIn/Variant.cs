@@ -1055,6 +1055,8 @@ namespace Opc.Ua
         /// Copy and while cloneing the inner value
         /// </summary>
         /// <returns></returns>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         public Variant Copy()
         {
             if (m_value is null)

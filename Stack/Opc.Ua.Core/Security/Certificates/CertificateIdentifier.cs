@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -968,6 +969,8 @@ namespace Opc.Ua
     public partial class CertificateIdentifierCollection : ICloneable
     {
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "MemberwiseClone copies known CertificateIdentifier types.")]
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -979,6 +982,8 @@ namespace Opc.Ua
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
+        [RequiresUnreferencedCode(
+            "Uses CoreUtils.Clone which uses reflection.")]
         public new object MemberwiseClone()
         {
             var collection = new CertificateIdentifierCollection();

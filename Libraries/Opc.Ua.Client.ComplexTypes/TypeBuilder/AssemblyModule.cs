@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -41,6 +42,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Dynamic assembly creation is fundamental to ComplexTypes.")]
         public AssemblyModule(string assemblyName = null)
         {
             m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
@@ -60,6 +63,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the types defined in this assembly.
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses Assembly.GetTypes which requires unreferenced code.")]
         public Type[] GetTypes()
         {
             return m_assemblyBuilder.GetTypes();

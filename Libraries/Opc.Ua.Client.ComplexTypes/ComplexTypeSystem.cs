@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1187,6 +1188,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Helper to add new type with absolute ExpandedNodeId.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Encodeable types are dynamically built and registered with known constructors.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "Encodeable types are dynamically built and registered with known constructors.")]
         private void AddEncodeableType(ExpandedNodeId nodeId, Type type)
         {
             if (nodeId.IsNull || type == null)
@@ -1372,6 +1377,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
         /// <exception cref="DataTypeNotSupportedException"></exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Complex types are dynamically built via Reflection.Emit.")]
         private async Task<(bool isEnum, Type fieldType)> GetFieldTypeAsync(
             StructureField field,
             bool allowSubTypes,

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1270,6 +1271,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a deep copy of the value.
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses CoreUtils.Clone which uses reflection.")]
+        [RequiresDynamicCode(
+            "Uses CoreUtils.Clone which may require dynamic code.")]
         public static object Clone(object value)
         {
             return CoreUtils.Clone(value);
@@ -1408,6 +1413,10 @@ namespace Opc.Ua
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -1477,6 +1486,10 @@ namespace Opc.Ua
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -1574,6 +1587,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the linker timestamp for an assembly.
         /// </summary>
+        [UnconditionalSuppressMessage("SingleFile", "IL3000",
+            Justification = "Assembly.Location fallback returns empty string in single-file; caught and handled.")]
         public static DateTime GetAssemblyTimestamp()
         {
             try
@@ -2076,3 +2091,4 @@ namespace Opc.Ua
         }
     }
 }
+

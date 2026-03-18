@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 // suppress warnings until OAuth 2.0 is supported
@@ -64,6 +65,10 @@ namespace Opc.Ua
     )]
     public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -91,6 +96,10 @@ namespace Opc.Ua
             return list;
         }
 
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static OAuth2Credential FindByServerUri(
             ApplicationConfiguration configuration,
             string serverApplicationUri)
@@ -142,6 +151,10 @@ namespace Opc.Ua
             return null;
         }
 
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static OAuth2Credential FindByAuthorityUrl(
             ApplicationConfiguration configuration,
             string authorityUrl)
@@ -194,3 +207,4 @@ namespace Opc.Ua
         }
     }
 }
+

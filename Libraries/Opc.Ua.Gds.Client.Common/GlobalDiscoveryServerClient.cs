@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -1526,6 +1527,8 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Scans assembly types for known OPC UA GDS encodeable types.")]
         private async Task ConnectInternalAsync(
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,

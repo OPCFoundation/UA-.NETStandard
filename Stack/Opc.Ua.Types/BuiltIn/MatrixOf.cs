@@ -32,6 +32,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -543,6 +544,9 @@ namespace Opc.Ua
         /// Get as multidimensional array which is missing the type
         /// </summary>
         /// <returns>A multi dimensional array object</returns>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "Array.CreateInstance is used with known OPC UA element types.")]
         public Array? CreateArrayInstance()
         {
             if (IsNull)

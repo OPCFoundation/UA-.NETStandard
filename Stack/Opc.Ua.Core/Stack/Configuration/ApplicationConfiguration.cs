@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -52,6 +53,10 @@ namespace Opc.Ua
         /// <param name="section">The section as XML node.</param>
         /// <returns>The created section handler object.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="section"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public object Create(object parent, object configContext, XmlNode section)
         {
             if (section == null)
@@ -218,6 +223,10 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType)
@@ -235,6 +244,10 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
@@ -260,6 +273,10 @@ namespace Opc.Ua
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType,
@@ -280,6 +297,10 @@ namespace Opc.Ua
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
@@ -312,6 +333,10 @@ namespace Opc.Ua
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static ApplicationConfiguration LoadWithNoValidation(
             FileInfo file,
             Type systemType,
@@ -350,6 +375,10 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
@@ -367,6 +396,10 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
@@ -387,6 +420,10 @@ namespace Opc.Ua
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
@@ -415,6 +452,10 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
@@ -462,6 +503,10 @@ namespace Opc.Ua
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
@@ -490,6 +535,10 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
@@ -568,6 +617,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public void SaveToFile(string filePath)
         {
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
@@ -697,6 +750,10 @@ namespace Opc.Ua
         /// <param name="createAlways">if set to <c>true</c> ConfiguredEndpointCollection is always returned,
         ///	even if loading from disk fails</param>
         /// <returns>Collection of configured endpoints from the disk.</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways)
         {
             return LoadCachedEndpoints(createAlways, false);
@@ -712,6 +769,10 @@ namespace Opc.Ua
         /// Collection of configured endpoints from the disk.
         /// </returns>
         /// <exception cref="InvalidOperationException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public ConfiguredEndpointCollection LoadCachedEndpoints(
             bool createAlways,
             bool overrideConfiguration)
@@ -807,6 +868,10 @@ namespace Opc.Ua
         /// <remarks>
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public T ParseExtension<T>()
         {
             return ParseExtension<T>(null);
@@ -818,6 +883,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <returns>The extension if found. Null otherwise.</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
@@ -829,6 +898,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which requires dynamic code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
@@ -888,3 +961,4 @@ namespace Opc.Ua
         }
     }
 }
+

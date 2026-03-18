@@ -76,6 +76,7 @@ namespace Opc.Ua
         /// Used when using reflection emit to emit other
         /// encodeable types.
         /// </summary>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         Type Type { get; }
 
         /// <summary>
@@ -95,10 +96,12 @@ namespace Opc.Ua
     /// Encodeable activator
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public abstract class EncodeableType<T> : IEncodeableType
+    public abstract class EncodeableType<[DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicConstructors)] T> : IEncodeableType
         where T : IEncodeable
     {
         /// <inheritdoc/>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         public Type Type => typeof(T);
 
         /// <inheritdoc/>
@@ -182,7 +185,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The underlying system type to add to
         /// the factory builder</param>
-        IEncodeableFactoryBuilder AddEncodeableType(Type systemType);
+        IEncodeableFactoryBuilder AddEncodeableType(
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType);
 
         /// <summary>
         /// Associates an .net system type with an encoding id. The
@@ -199,7 +204,8 @@ namespace Opc.Ua
         /// specified encoding.</param>
         IEncodeableFactoryBuilder AddEncodeableType(
             ExpandedNodeId encodingId,
-            Type systemType);
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType);
 
         /// <summary>
         /// <para>
@@ -215,6 +221,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="assembly">The assembly containing the types
         /// to add to the factory</param>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         IEncodeableFactoryBuilder AddEncodeableTypes(Assembly assembly);
 
         /// <summary>
@@ -234,7 +242,9 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The underlying system type to add to
         /// the factory builder</typeparam>
-        public static IEncodeableFactoryBuilder AddEncodeableType<T>(
+        public static IEncodeableFactoryBuilder AddEncodeableType<
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
             this IEncodeableFactoryBuilder builder)
             where T : IEncodeable
         {
@@ -261,7 +271,8 @@ namespace Opc.Ua
         /// </summary>
         public static void AddEncodeableType(
             this IEncodeableFactory factory,
-            Type systemType)
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
         {
             factory.Builder.AddEncodeableType(systemType).Commit();
         }
@@ -272,7 +283,8 @@ namespace Opc.Ua
         public static void AddEncodeableType(
             this IEncodeableFactory factory,
             ExpandedNodeId encodingId,
-            Type systemType)
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
         {
             factory.Builder.AddEncodeableType(encodingId, systemType).Commit();
         }
@@ -281,6 +293,8 @@ namespace Opc.Ua
         /// Adds all encodeable types exported from an assembly
         /// to the factory builder.
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         public static void AddEncodeableTypes(
             this IEncodeableFactory factory,
             Assembly assembly)
@@ -292,6 +306,8 @@ namespace Opc.Ua
         /// Adds an enumerable of extension types to the factory builder.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Types from IEnumerable<Type> are expected to have constructors preserved by the caller.")]
         public static void AddEncodeableTypes(
             this IEncodeableFactory factory,
             IEnumerable<Type> systemTypes)

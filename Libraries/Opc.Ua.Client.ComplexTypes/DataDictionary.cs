@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
@@ -135,6 +136,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Schema validators use XmlSerializer with known schema types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Schema validators use XmlSerializer with known schema types.")]
         internal void Validate(
             byte[] dictionary,
             ILogger logger,

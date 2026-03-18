@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -124,6 +125,8 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Complex types are dynamically built via Reflection.Emit.")]
         public Type GetStructureType(int valueRank)
         {
             if (valueRank == ValueRanks.Scalar)

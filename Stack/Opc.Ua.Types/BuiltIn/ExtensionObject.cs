@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -271,6 +272,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2075",
+            Justification = "GetProperties is used for diagnostic display of IEncodeable types whose properties are preserved.")]
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -502,6 +505,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Will add null elements if individual elements cannot be converted.
         /// </remarks>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Array.CreateInstance is used with known OPC UA types.")]
         public static Array ToArray(object source, Type elementType)
         {
             if (source is not Array extensions)

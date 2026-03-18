@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -250,6 +251,10 @@ namespace Opc.Ua.Gds.Server
         /// Verifies if an Application is registered with the provided certificate at the GDS
         /// </summary>
         /// <param name="session">the session</param>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA GDS types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA GDS types.")]
         private bool VerifiyApplicationRegistered(ISession session)
         {
             X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
@@ -388,3 +393,4 @@ namespace Opc.Ua.Gds.Server
         private readonly bool m_autoApprove;
     }
 }
+

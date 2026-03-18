@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.Sample;
@@ -60,6 +61,10 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses reflection with known OPC UA types at startup.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses reflection with known OPC UA types at startup.")]
         public MemoryBufferNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -541,3 +546,4 @@ namespace MemoryBuffer
         private readonly Dictionary<string, MemoryBufferState> m_buffers;
     }
 }
+

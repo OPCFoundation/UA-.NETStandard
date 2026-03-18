@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -55,6 +56,10 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer and reflection are used with known OPC UA GDS types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer and reflection are used with known OPC UA GDS types.")]
         public ApplicationsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -1946,3 +1951,4 @@ namespace Opc.Ua.Gds.Server
         private Dictionary<NodeId, string> m_certTypeMap;
     }
 }
+

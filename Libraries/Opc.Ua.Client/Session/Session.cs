@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -946,6 +947,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public SessionConfiguration SaveSessionConfiguration(Stream? stream = null)
         {
             Snapshot(out SessionConfiguration sessionConfiguration);
@@ -961,6 +966,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public virtual void Save(
             Stream stream,
             IEnumerable<Subscription> subscriptions,
@@ -985,6 +994,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public virtual IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
@@ -5142,3 +5155,4 @@ namespace Opc.Ua.Client
         public List<SubscriptionAcknowledgement> DeferredAcknowledgementsToSend { get; }
     }
 }
+

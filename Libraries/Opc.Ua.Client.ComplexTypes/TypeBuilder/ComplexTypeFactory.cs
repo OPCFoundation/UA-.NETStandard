@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -65,6 +66,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Return array of all types created in this factory.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Types are dynamically built via Reflection.Emit and are preserved.")]
         public override Type[] GetTypes()
         {
             return m_moduleFactory.GetTypes();

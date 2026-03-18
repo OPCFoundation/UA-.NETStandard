@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -2607,6 +2608,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         protected virtual async void OnConfigurationChangedAsync(
             object sender,
             ConfigurationWatcherEventArgs args)
@@ -3632,3 +3637,4 @@ namespace Opc.Ua.Server
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
     }
 }
+

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -130,6 +131,10 @@ namespace Quickstarts.Servers
         /// Deletes the batches of all queues that are not in the list
         /// </summary>
         /// <param name="ids">the MonitoredItem ids of the queues to store</param>
+        [RequiresUnreferencedCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
+        [RequiresDynamicCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
         public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
         {
             string targetPath = Path.Combine(baseDirectory, kQueueDirectory);
@@ -184,6 +189,10 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore an Event queue
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
+        [RequiresDynamicCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
         public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
         {
             try
@@ -218,6 +227,10 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore a DataChange queue
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
+        [RequiresDynamicCode(
+            "Uses Newtonsoft.Json reflection-based serialization.")]
         public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
         {
             try
@@ -298,3 +311,4 @@ namespace Quickstarts.Servers
         }
     }
 }
+

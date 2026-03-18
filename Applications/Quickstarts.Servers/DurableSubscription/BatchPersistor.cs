@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -104,6 +105,10 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "System.Text.Json is used with known batch types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "System.Text.Json is used with known batch types.")]
         public void RestoreSynchronously(BatchBase batch)
         {
             string filePath = Path.Combine(
@@ -147,6 +152,10 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "System.Text.Json is used with known batch types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "System.Text.Json is used with known batch types.")]
         public void PersistSynchronously(BatchBase batch)
         {
             using var cancellationTokenSource = new CancellationTokenSource();
@@ -260,3 +269,4 @@ namespace Quickstarts.Servers
         private readonly ITelemetryContext m_telemetry;
     }
 }
+

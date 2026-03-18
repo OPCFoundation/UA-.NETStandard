@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -45,6 +46,8 @@ namespace Opc.Ua.Server.UserDatabase
     /// <remarks>
     /// This db is used for testing, not for production.
     /// </remarks>
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "JsonStringEnumConverter is used with known enum types.")]
     public class JsonUserDatabase : LinqUserDatabase
     {
         /// <summary>
@@ -59,6 +62,10 @@ namespace Opc.Ua.Server.UserDatabase
         /// Load the JSON application database.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="fileName"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Uses System.Text.Json reflection-based serialization.")]
+        [RequiresDynamicCode(
+            "Uses System.Text.Json which requires dynamic code.")]
         public static IUserDatabase Load(string fileName, ITelemetryContext telemetry)
         {
             if (fileName == null)
@@ -88,6 +95,10 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// Save the complete database.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses System.Text.Json with known user database types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses System.Text.Json with known user database types.")]
         protected override void Save()
         {
             byte[] utf8Json = JsonSerializer.SerializeToUtf8Bytes(
@@ -122,6 +133,12 @@ namespace Opc.Ua.Server.UserDatabase
             AllowTrailingCommas = true
         };
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses reflection on DataContract-attributed types with known structure.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2070",
+            Justification = "Uses reflection on DataContract-attributed types with known structure.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses reflection on DataContract-attributed types with known structure.")]
         private class SystemRuntimeSerializationAttributeResolver : DefaultJsonTypeInfoResolver
         {
             public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
@@ -160,3 +177,4 @@ namespace Opc.Ua.Server.UserDatabase
         }
     }
 }
+

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
@@ -48,6 +49,8 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// The default constructor adds all interfaces T.
         /// </remarks>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "The assembly containing transport bindings is always fully preserved.")]
         protected TransportBindingsBase()
         {
             Bindings = [];
@@ -95,6 +98,8 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         public IEnumerable<Type> AddBindings(Assembly assembly)
         {
             IEnumerable<Type> bindings = assembly.GetExportedTypes().Where(IsBindingType);
@@ -102,6 +107,8 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Binding types are expected to have constructors preserved by the caller.")]
         public IEnumerable<Type> AddBindings(IEnumerable<Type> bindings)
         {
             var result = new List<Type>();
@@ -119,6 +126,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validate the type is a transport listener.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "Binding types are expected to have constructors preserved by the caller.")]
         protected static bool IsBindingType(Type bindingType)
         {
             if (bindingType == null)
@@ -146,6 +155,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="scheme">The uri scheme of the binding.</param>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Transport binding assemblies are loaded by name and fully preserved.")]
         private bool TryAddDefaultTransportBindings(ITelemetryContext telemetry, string scheme)
         {
             ILogger<TransportBindingsBase<T>> logger = telemetry.CreateLogger<TransportBindingsBase<T>>();

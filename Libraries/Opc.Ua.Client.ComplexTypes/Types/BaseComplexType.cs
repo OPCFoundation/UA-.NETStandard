@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -87,6 +88,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "The type's constructor is preserved because this instance already exists.")]
         public new object MemberwiseClone()
         {
             Type thisType = GetType();
@@ -387,6 +390,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initialize the helpers for property enumerator and dictionary.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2075",
+            Justification = "Complex types are dynamically built with known properties preserved.")]
         protected virtual void InitializePropertyAttributes()
         {
             StructureDefinitionAttribute definitionAttribute = GetType()
