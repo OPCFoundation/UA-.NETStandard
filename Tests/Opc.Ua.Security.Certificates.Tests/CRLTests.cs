@@ -137,6 +137,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
+            m_issuerCert?.Dispose();
         }
 
         /// <summary>

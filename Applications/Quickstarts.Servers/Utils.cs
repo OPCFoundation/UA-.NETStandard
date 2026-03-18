@@ -49,7 +49,7 @@ namespace Quickstarts.Servers
         /// </summary>
         public static async Task ApplyCTTModeAsync(TextWriter output, IStandardServer server)
         {
-            var methodsToCall = new CallMethodRequestCollection();
+            var methodsToCall = new List<CallMethodRequest>();
             int index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
             if (index > 0)
             {
@@ -69,7 +69,7 @@ namespace Quickstarts.Servers
                         TimeoutHint = 10000
                     };
                     var context = new OperationContext(requestHeader, null, RequestType.Call);
-                    (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) = await server.CurrentInstance.NodeManager.CallAsync(
+                    (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) = await server.CurrentInstance.NodeManager.CallAsync(
                         context,
                         methodsToCall)
                         .ConfigureAwait(false);
@@ -77,7 +77,8 @@ namespace Quickstarts.Servers
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
                         {
-                            ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
+                            ILogger<StandardServer> logger =
+                                server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
                             logger.LogError("Error calling method with status code {StatusCode}.", result.StatusCode);
                         }
                     }
@@ -126,12 +127,12 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The property with available node manager factories.
         /// </summary>
-        public static ReadOnlyList<INodeManagerFactory> NodeManagerFactories
+        public static ArrayOf<INodeManagerFactory> NodeManagerFactories
         {
             get
             {
                 s_nodeManagerFactories ??= GetNodeManagerFactories();
-                return new ReadOnlyList<INodeManagerFactory>(s_nodeManagerFactories);
+                return s_nodeManagerFactories.ToArrayOf();
             }
         }
 

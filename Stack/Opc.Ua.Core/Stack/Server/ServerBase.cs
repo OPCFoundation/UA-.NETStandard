@@ -128,16 +128,9 @@ namespace Opc.Ua
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
-        public virtual EndpointDescriptionCollection GetEndpoints()
+        public virtual ArrayOf<EndpointDescription> GetEndpoints()
         {
-            ReadOnlyList<EndpointDescription> endpoints = Endpoints;
-
-            if (endpoints != null)
-            {
-                return [.. endpoints];
-            }
-
-            return [];
+            return Endpoints;
         }
 
         /// <summary>
@@ -277,11 +270,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -344,11 +337,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -373,8 +366,8 @@ namespace Opc.Ua
         {
             BaseAddresses = [];
 
-            StringCollection sourceBaseAddresses = null;
-            StringCollection sourceAlternateAddresses = null;
+            ArrayOf<string> sourceBaseAddresses = default;
+            ArrayOf<string> sourceAlternateAddresses = default;
 
             if (configuration.ServerConfiguration != null)
             {
@@ -385,11 +378,10 @@ namespace Opc.Ua
             if (configuration.DiscoveryServerConfiguration != null)
             {
                 sourceBaseAddresses = configuration.DiscoveryServerConfiguration.BaseAddresses;
-                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration
-                    .AlternateBaseAddresses;
+                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration.AlternateBaseAddresses;
             }
 
-            if (sourceBaseAddresses == null)
+            if (sourceBaseAddresses.IsNull)
             {
                 return;
             }
@@ -398,16 +390,13 @@ namespace Opc.Ua
             {
                 var address = new BaseAddress { Url = new Uri(baseAddress) };
 
-                if (sourceAlternateAddresses != null)
+                foreach (string alternateAddress in sourceAlternateAddresses)
                 {
-                    foreach (string alternateAddress in sourceAlternateAddresses)
-                    {
-                        var alternateUrl = new Uri(alternateAddress);
+                    var alternateUrl = new Uri(alternateAddress);
 
-                        if (alternateUrl.Scheme == address.Url.Scheme)
-                        {
-                            (address.AlternateUrls ??= []).Add(alternateUrl);
-                        }
+                    if (alternateUrl.Scheme == address.Url.Scheme)
+                    {
+                        (address.AlternateUrls ??= []).Add(alternateUrl);
                     }
                 }
 
@@ -438,10 +427,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the discovery URLs for the server.
         /// </summary>
-        protected StringCollection GetDiscoveryUrls()
+        protected ArrayOf<string> GetDiscoveryUrls()
         {
             // build list of discovery uris.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
             string computerName = Utils.GetHostName();
 
             foreach (BaseAddress baseAddress in BaseAddresses)
@@ -648,11 +637,11 @@ namespace Opc.Ua
                 if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider
-                        .LoadCertificateChainRaw(serverCertificate);
+                        .LoadCertificateChainRaw(serverCertificate).ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    description.ServerCertificate = serverCertificate.RawData.ToByteString();
                 }
             }
         }
@@ -691,7 +680,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the list of endpoints supported by the server.
         /// </summary>
-        protected ReadOnlyList<EndpointDescription> Endpoints { get; private set; }
+        protected ArrayOf<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
         /// The object used to verify client certificates
@@ -748,7 +737,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or set the capabilities for the server.
         /// </summary>
-        protected StringCollection ServerCapabilities { get; set; }
+        protected ArrayOf<string> ServerCapabilities { get; set; }
 
         /// <summary>
         /// Gets the list of transport listeners used by the server instance.
@@ -831,7 +820,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
             ICertificateValidator certificateValidator)
@@ -882,16 +871,16 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <returns>
         /// Returns a collection of UserTokenPolicy objects,
-        /// the return type is <seealso cref="UserTokenPolicyCollection"/> .
+        /// the return type is <seealso cref="ArrayOf{UserTokenPolicy}"/> .
         /// </returns>
-        public virtual UserTokenPolicyCollection GetUserTokenPolicies(
+        public virtual ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
             EndpointDescription description)
         {
-            var policies = new UserTokenPolicyCollection();
+            var policies = new List<UserTokenPolicy>();
 
             if (configuration.ServerConfiguration == null ||
-                configuration.ServerConfiguration.UserTokenPolicies == null)
+                configuration.ServerConfiguration.UserTokenPolicies.IsNull)
             {
                 return policies;
             }
@@ -915,7 +904,20 @@ namespace Opc.Ua
                     }
                 }
 
-                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
+                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(
+                    o => o.TokenType == clone.TokenType &&
+                    string.Equals(
+                        o.SecurityPolicyUri,
+                        clone.SecurityPolicyUri,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        o.IssuedTokenType,
+                        clone.IssuedTokenType,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        o.IssuerEndpointUrl,
+                        clone.IssuerEndpointUrl,
+                        StringComparison.Ordinal));
 
                 // Ensure each policy has a unique ID within the context of the Server
                 if (existingPolicy == null)
@@ -1024,10 +1026,10 @@ namespace Opc.Ua
         /// Filters the list of addresses by profile.
         /// </summary>
         protected IList<BaseAddress> FilterByProfile(
-            StringCollection profileUris,
+            ArrayOf<string> profileUris,
             IList<BaseAddress> baseAddresses)
         {
-            if (profileUris == null || profileUris.Count == 0)
+            if (profileUris.IsEmpty)
             {
                 return baseAddresses;
             }
@@ -1150,7 +1152,7 @@ namespace Opc.Ua
             LocalizedText applicationName)
         {
             // get the discovery urls.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
@@ -1185,13 +1187,13 @@ namespace Opc.Ua
         /// <param name="endpoints">The endpoints.</param>
         /// <param name="application">The application to use with the endpoints.</param>
         /// <returns>The translated list of endpoints.</returns>
-        protected EndpointDescriptionCollection TranslateEndpointDescriptions(
+        protected ArrayOf<EndpointDescription> TranslateEndpointDescriptions(
             Uri clientUrl,
             IList<BaseAddress> baseAddresses,
-            IList<EndpointDescription> endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             ApplicationDescription application)
         {
-            var translations = new EndpointDescriptionCollection();
+            var translations = new List<EndpointDescription>();
 
             bool matchPort = false;
             do
@@ -1357,7 +1359,7 @@ namespace Opc.Ua
                 RequestHandle = requestHeader.RequestHandle
             };
 
-            responseHeader.StringTable.AddRange(stringTable.ToArray());
+            responseHeader.StringTable = stringTable.ToArrayOf();
 
             return responseHeader;
         }
@@ -1418,7 +1420,7 @@ namespace Opc.Ua
                 }
 
                 // ensure at least one user token policy exists.
-                if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
+                if (configuration.ServerConfiguration.UserTokenPolicies.IsEmpty)
                 {
                     var userTokenPolicy = new UserTokenPolicy
                     {
@@ -1426,7 +1428,8 @@ namespace Opc.Ua
                     };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
-                    configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+                    configuration.ServerConfiguration.UserTokenPolicies =
+                        configuration.ServerConfiguration.UserTokenPolicies.AddItem(userTokenPolicy);
                 }
             }
 
@@ -1520,10 +1523,10 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out ArrayOf<EndpointDescription> endpoints)
         {
             serverDescription = null;
-            endpoints = null;
+            endpoints = default;
             return [];
         }
 

@@ -30,10 +30,40 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Compare node states
+    /// </summary>
+    public class NodeStateComparer : IEqualityComparer<NodeState>
+    {
+        /// <inheritdoc/>
+        public static NodeStateComparer Default { get; } = new();
+
+        /// <inheritdoc/>
+        public bool Equals(NodeState x, NodeState y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+            if (x is null || y is null)
+            {
+                return false;
+            }
+            return x.DeepEquals(y);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(NodeState obj)
+        {
+            return obj is null ? 0 : obj.DeepGetHashCode();
+        }
+    }
+
     /// <summary>
     /// Helper which implements a NodeId IEqualityComparer for Linq queries.
     /// </summary>
@@ -113,81 +143,6 @@ namespace Opc.Ua
                 hash.Add(item);
             }
             return hash.ToHashCode();
-        }
-    }
-
-    /// <summary>
-    /// Compare arrays of date time as per OPC UA rules
-    /// </summary>
-    public sealed class DateTimeArrayComparer : IEqualityComparer<DateTime[]>
-    {
-        /// <inheritdoc/>
-        public static DateTimeArrayComparer Default { get; } = new();
-
-        /// <inheritdoc/>
-        public bool Equals(DateTime[] x, DateTime[] y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-            if (x is null || y is null || x.Length != y.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < x.Length; i++)
-            {
-                if (!CoreUtils.IsEqual(x[i], y[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public int GetHashCode(DateTime[] obj)
-        {
-            if (obj is null)
-            {
-                return 0;
-            }
-            var hash = new HashCode();
-            foreach (DateTime item in obj)
-            {
-                hash.Add(DateTimeComparer.Default.GetHashCode(item));
-            }
-            return hash.ToHashCode();
-        }
-    }
-
-    /// <summary>
-    /// Compare date times
-    /// </summary>
-    public sealed class DateTimeComparer : IEqualityComparer<DateTime>
-    {
-        /// <inheritdoc/>
-        public static DateTimeComparer Default { get; } = new();
-
-        /// <inheritdoc/>
-        public bool Equals(DateTime x, DateTime y)
-        {
-            return CoreUtils.IsEqual(x, y);
-        }
-
-        /// <inheritdoc/>
-        public int GetHashCode(DateTime obj)
-        {
-            if (obj <= CoreUtils.TimeBase)
-            {
-                return 0;
-            }
-
-            if (obj >= DateTime.MaxValue)
-            {
-                return int.MaxValue;
-            }
-            return obj.ToUniversalTime().GetHashCode();
         }
     }
 
@@ -327,13 +282,14 @@ namespace Opc.Ua
     /// <summary>
     /// Deep comparison of XmlElement array
     /// </summary>
-    public sealed class XmlElementArrayStringEqualityComparer : IEqualityComparer<XmlElement[]>
+    public sealed class XmlElementArrayStringEqualityComparer :
+        IEqualityComparer<System.Xml.XmlElement[]>
     {
         /// <inheritdoc/>
         public static XmlElementArrayStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(XmlElement[] x, XmlElement[] y)
+        public bool Equals(System.Xml.XmlElement[] x, System.Xml.XmlElement[] y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -354,14 +310,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(XmlElement[] obj)
+        public int GetHashCode(System.Xml.XmlElement[] obj)
         {
             if (obj is null)
             {
                 return 0;
             }
             var hash = new HashCode();
-            foreach (XmlElement item in obj)
+            foreach (System.Xml.XmlElement item in obj)
             {
                 hash.Add(XmlElementStringEqualityComparer.Default.GetHashCode(item));
             }
@@ -372,13 +328,14 @@ namespace Opc.Ua
     /// <summary>
     /// String comparison of xml element
     /// </summary>
-    public sealed class XmlElementStringEqualityComparer : IEqualityComparer<XmlElement>
+    public sealed class XmlElementStringEqualityComparer :
+        IEqualityComparer<System.Xml.XmlElement>
     {
         /// <inheritdoc/>
         public static XmlElementStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(XmlElement x, XmlElement y)
+        public bool Equals(System.Xml.XmlElement x, System.Xml.XmlElement y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -392,7 +349,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(XmlElement obj)
+        public int GetHashCode(System.Xml.XmlElement obj)
         {
             return EqualityComparer<string>.Default.GetHashCode(obj?.OuterXml);
         }
@@ -426,6 +383,29 @@ namespace Opc.Ua
         public int GetHashCode(XmlQualifiedName obj)
         {
             return HashCode.Combine(obj?.Name, obj?.Namespace);
+        }
+    }
+
+    /// <summary>
+    /// Compare anything by reference
+    /// </summary>
+    public sealed class RefEqualityComparer : IEqualityComparer<object>
+    {
+        /// <summary>
+        /// Get an instance of the reference equality comparer.
+        /// </summary>
+        public static RefEqualityComparer Default { get; } = new();
+
+        /// <inheritdoc/>
+        public new bool Equals(object x, object y)
+        {
+            return ReferenceEquals(x, y);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(object obj)
+        {
+            return RuntimeHelpers.GetHashCode(obj);
         }
     }
 

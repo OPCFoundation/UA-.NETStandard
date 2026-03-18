@@ -288,7 +288,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -315,7 +315,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -370,7 +370,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -397,7 +397,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>
@@ -556,7 +556,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hash = ns.GetHashCode();
 
             // Assert
-            Assert.That(hash, Is.Not.Null);
+            Assert.That(hash, Is.Not.EqualTo(0));
         }
 
         /// <summary>

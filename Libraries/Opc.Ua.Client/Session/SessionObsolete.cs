@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
         /// Updates the cache with the types and its subtypes.
         /// </summary>
         [Obsolete("Use FetchTypeTreeAsync instead.")]
-        public static void FetchTypeTree(this ISession session, ExpandedNodeIdCollection typeIds)
+        public static void FetchTypeTree(this ISession session, ArrayOf<ExpandedNodeId> typeIds)
         {
             session.FetchTypeTreeAsync(typeIds).GetAwaiter().GetResult();
         }
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
         /// Returns the available encodings for a node
         /// </summary>
         [Obsolete("Use ReadAvailableEncodingsAsync instead.")]
-        public static ReferenceDescriptionCollection ReadAvailableEncodings(
+        public static ArrayOf<ReferenceDescription> ReadAvailableEncodings(
             this ISession session,
             NodeId variableId)
         {
@@ -151,9 +151,9 @@ namespace Opc.Ua.Client
         [Obsolete("Use ReadNodesAsync instead.")]
         public static void ReadNodes(
             this ISession session,
-            IList<NodeId> nodeIds,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
+            ArrayOf<NodeId> nodeIds,
+            out ArrayOf<Node> nodeCollection,
+            out ArrayOf<ServiceResult> errors,
             bool optionalAttributes = false)
         {
             (nodeCollection, errors) = session.ReadNodesAsync(
@@ -172,10 +172,10 @@ namespace Opc.Ua.Client
         [Obsolete("Use ReadNodesAsync instead.")]
         public static void ReadNodes(
             this ISession session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
+            out ArrayOf<Node> nodeCollection,
+            out ArrayOf<ServiceResult> errors,
             bool optionalAttributes = false)
         {
             (nodeCollection, errors) = session.ReadNodesAsync(
@@ -194,6 +194,54 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reads the values for a set of variables.
+        /// </summary>
+        [Obsolete("Use ReadValuesAsync returning Variant Array")]
+        public static async ValueTask<(
+            ArrayOf<object>,
+            ArrayOf<ServiceResult>
+            )> ReadValuesAsync(
+                this ISessionClient session,
+                ArrayOf<NodeId> variableIds,
+                ArrayOf<Type> expectedTypes,
+                CancellationToken ct = default)
+        {
+            (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
+                await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
+
+            ServiceResult[] errors = new ServiceResult[errorValues.Count];
+            object[] values = new object[dataValues.Count];
+            for (int ii = 0; ii < variableIds.Count; ii++)
+            {
+                object value = dataValues[ii].Value;
+
+                // extract the body from extension objects.
+                if (value is ExtensionObject extension &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                {
+                    value = encodeable;
+                }
+
+                // check expected type.
+                if (expectedTypes[ii] != null &&
+                    !expectedTypes[ii].IsInstanceOfType(value))
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "Value {0} does not have expected type: {1}.",
+                        value,
+                        expectedTypes[ii].Name);
+                    continue;
+                }
+
+                // suitable value found.
+                errors[ii] = errorValues[ii];
+                values[ii] = value;
+            }
+            return (values, errors);
+        }
+
+        /// <summary>
         /// Reads the value for a node an checks that it is the specified type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -205,9 +253,10 @@ namespace Opc.Ua.Client
 
             if (expectedType != null)
             {
-                if (value is ExtensionObject extension)
+                if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 if (!expectedType.IsInstanceOfType(value))
@@ -227,15 +276,12 @@ namespace Opc.Ua.Client
         [Obsolete("Use ReadValuesAsync instead.")]
         public static void ReadValues(
             this ISession session,
-            IList<NodeId> nodeIds,
-            out DataValueCollection values,
-            out IList<ServiceResult> errors)
+            ArrayOf<NodeId> nodeIds,
+            out ArrayOf<DataValue> values,
+            out ArrayOf<ServiceResult> errors)
         {
-            (DataValueCollection, IList<ServiceResult>) result = session.ReadValuesAsync(
+            (values, errors) = session.ReadValuesAsync(
                 nodeIds).GetAwaiter().GetResult();
-            // Todo: Validate the types are correct
-            values = result.Item1;
-            errors = result.Item2;
         }
 
         /// <summary>
@@ -243,7 +289,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <returns></returns>
         [Obsolete("Use ReadByteStringInChunksAsync instead.")]
-        public static byte[] ReadByteStringInChunks(
+        public static ByteString ReadByteStringInChunks(
             this ISession session,
             NodeId nodeId)
         {
@@ -254,7 +300,7 @@ namespace Opc.Ua.Client
         /// Fetches all references for the specified node.
         /// </summary>
         [Obsolete("Use FetchReferencesAsync instead.")]
-        public static ReferenceDescriptionCollection FetchReferences(
+        public static ArrayOf<ReferenceDescription> FetchReferences(
             this ISession session,
             NodeId nodeId)
         {
@@ -267,9 +313,9 @@ namespace Opc.Ua.Client
         [Obsolete("Use FetchReferencesAsync instead.")]
         public static void FetchReferences(
             this ISession session,
-            IList<NodeId> nodeIds,
-            out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors)
+            ArrayOf<NodeId> nodeIds,
+            out ArrayOf<ArrayOf<ReferenceDescription>> referenceDescriptions,
+            out ArrayOf<ServiceResult> errors)
         {
             (referenceDescriptions, errors) = session.FetchReferencesAsync(
                 nodeIds).GetAwaiter().GetResult();
@@ -296,7 +342,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
             session.OpenAsync(
                 sessionName,
@@ -314,7 +360,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain)
         {
             session.OpenAsync(
@@ -334,7 +380,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             bool closeChannel)
         {
@@ -350,9 +396,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the preferred locales used for the session.
         /// </summary>
+        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
         public static void ChangePreferredLocales(
             this ISession session,
-            StringCollection preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
             session.ChangePreferredLocalesAsync(preferredLocales)
                 .GetAwaiter()
@@ -362,10 +409,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the user identity and/or locales used for the session.
         /// </summary>
+        [Obsolete("Use UpdateSessionAsync instead.")]
         public static void UpdateSession(
             this ISession session,
             IUserIdentity identity,
-            StringCollection preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
             session.UpdateSessionAsync(identity, preferredLocales)
                 .GetAwaiter()
@@ -375,11 +423,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
+        [Obsolete("Use FindComponentIdsAsync instead.")]
         public static void FindComponentIds(this ISession session,
             NodeId instanceId,
             IList<string> componentPaths,
-            out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors)
+            out ArrayOf<NodeId> componentIds,
+            out ArrayOf<ServiceResult> errors)
         {
             (componentIds, errors) = session.FindComponentIdsAsync(
                 instanceId,
@@ -393,33 +442,34 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use Use ReadValuesAsync instead.")]
         public static void ReadValues(this ISession session,
-            IList<NodeId> variableIds,
-            IList<Type> expectedTypes,
-            out IList<object> values,
-            out IList<ServiceResult> errors)
+            ArrayOf<NodeId> variableIds,
+            ArrayOf<Type> expectedTypes,
+            out ArrayOf<object> values,
+            out ArrayOf<ServiceResult> errors)
         {
-            (DataValueCollection dataValues, errors) = session.ReadValuesAsync(
+            (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) = session.ReadValuesAsync(
                 variableIds)
                 .GetAwaiter()
                 .GetResult();
-            values = new object[dataValues.Count];
 
+            object[] valuesBuffer = new object[dataValues.Count];
+            var errorsBuffer = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
                 object value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
-                if (value is ExtensionObject extension &&
-                    extension.Body is IEncodeable)
+                if (dataValues[ii].WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 // check expected type.
                 if (expectedTypes[ii] != null &&
                     !expectedTypes[ii].IsInstanceOfType(value))
                 {
-                    errors[ii] = ServiceResult.Create(
+                    errorsBuffer[ii] = ServiceResult.Create(
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
                         value,
@@ -429,8 +479,12 @@ namespace Opc.Ua.Client
                 }
 
                 // suitable value found.
-                values[ii] = value;
+                valuesBuffer[ii] = value;
+                errorsBuffer[ii] = errorValues[ii];
             }
+
+            values = valuesBuffer;
+            errors = errorsBuffer;
         }
 
         /// <summary>
@@ -438,9 +492,9 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use Use ReadValuesAsync instead.")]
         public static void ReadDisplayName(this ISession session,
-            IList<NodeId> nodeIds,
-            out IList<string> displayNames,
-            out IList<ServiceResult> errors)
+            ArrayOf<NodeId> nodeIds,
+            out ArrayOf<string> displayNames,
+            out ArrayOf<ServiceResult> errors)
         {
             (displayNames, errors) = session.ReadDisplayNameAsync(nodeIds)
                 .GetAwaiter()
@@ -563,15 +617,15 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
+            out ByteString continuationPoint,
+            out ArrayOf<ReferenceDescription> references)
         {
-            ResponseHeader responseHeader;
-            IList<ServiceResult> errors;
-            IList<ReferenceDescriptionCollection> referencesList;
-
-            ByteStringCollection continuationPoints;
-            (responseHeader, continuationPoints, referencesList, errors) =
+            (
+                ResponseHeader responseHeader,
+                ArrayOf<ByteString> continuationPoints,
+                ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+                ArrayOf<ServiceResult> errors
+            ) =
                 session.BrowseAsync(
                     requestHeader,
                     view,
@@ -606,16 +660,16 @@ namespace Opc.Ua.Client
             this ISession session,
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
+            ByteString continuationPoint,
+            out ByteString revisedContinuationPoint,
+            out ArrayOf<ReferenceDescription> references)
         {
-            ResponseHeader responseHeader;
-            IList<ServiceResult> errors;
-            IList<ReferenceDescriptionCollection> referencesList;
-
-            ByteStringCollection revisedContinuationPoints;
-            (responseHeader, revisedContinuationPoints, referencesList, errors) =
+            (
+                ResponseHeader responseHeader,
+                ArrayOf<ByteString> revisedContinuationPoints,
+                ArrayOf<ArrayOf<ReferenceDescription>> referencesList,
+                ArrayOf<ServiceResult> errors
+            ) =
                 session.BrowseNextAsync(
                     requestHeader,
                     [continuationPoint],
@@ -644,14 +698,14 @@ namespace Opc.Ua.Client
             this ISession session,
             RequestHeader requestHeader,
             ViewDescription view,
-            IList<NodeId> nodesToBrowse,
+            ArrayOf<NodeId> nodesToBrowse,
             uint maxResultsToReturn,
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors)
+            out ArrayOf<ArrayOf<ReferenceDescription>> result,
+            out ArrayOf<ServiceResult> errors)
         {
             (result, errors) = session.ManagedBrowseAsync(
                 requestHeader,
@@ -670,7 +724,7 @@ namespace Opc.Ua.Client
         /// Calls the specified method and returns the output arguments.
         /// </summary>
         [Obsolete("Use CallAsync instead.")]
-        public static IList<Variant> Call(
+        public static ArrayOf<Variant> Call(
             this ISession session,
             NodeId objectId,
             NodeId methodId,
@@ -710,7 +764,7 @@ namespace Opc.Ua.Client
         public static bool ResendData(
             this ISession session,
             IEnumerable<Subscription> subscriptions,
-            out IList<ServiceResult> errors)
+            out ArrayOf<ServiceResult> errors)
         {
             (bool success, errors) = session.ResendDataAsync(subscriptions)
                 .GetAwaiter()
@@ -722,16 +776,16 @@ namespace Opc.Ua.Client
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
         [Obsolete("Use ResendDataAsync using subscription ids instead.")]
-        public static async Task<(bool, IList<ServiceResult>)> ResendDataAsync(
+        public static async Task<(bool, ArrayOf<ServiceResult>)> ResendDataAsync(
             this ISession session,
             IEnumerable<Subscription> subscriptions,
             CancellationToken ct = default)
         {
             try
             {
-                IReadOnlyList<ServiceResult> errorsRo = await session.ResendDataAsync(
-                    subscriptions.Select(s => s.Id), ct).ConfigureAwait(false);
-                return (true, errorsRo.ToList());
+                ArrayOf<ServiceResult> errorsRo = await session.ResendDataAsync(
+                    subscriptions.Select(s => s.Id).ToArrayOf(), ct).ConfigureAwait(false);
+                return (true, errorsRo);
             }
             catch
             {
@@ -753,7 +807,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return Create(
@@ -780,7 +834,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return Create(
@@ -805,8 +859,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
         {
             return Create(
                 null,
@@ -921,7 +975,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return CreateAsync(
@@ -953,7 +1007,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return CreateAsync(
@@ -985,7 +1039,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return CreateAsync(
@@ -1016,7 +1070,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return CreateAsync(
@@ -1042,8 +1096,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
             var factory = new DefaultSessionFactory(context.Telemetry);
@@ -1094,7 +1148,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             DiagnosticsMasks returnDiagnostics,
             CancellationToken ct = default)
         {
@@ -1129,7 +1183,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
@@ -1161,7 +1215,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             DiagnosticsMasks returnDiagnostics,
             CancellationToken ct = default)
         {
@@ -1220,8 +1274,8 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
             : base(
                   channel,
                   configuration,
@@ -1275,8 +1329,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
         {
             return factory.Create(
                 channel,

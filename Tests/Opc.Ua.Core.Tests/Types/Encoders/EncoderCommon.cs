@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -65,7 +64,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture]
     [Category("Encoder")]
     [SetCulture("en-us")]
-    public class EncoderCommon
+    public abstract class EncoderCommon
     {
         protected const int kArrayRepeats = 3;
         protected const int kRandomStart = 4840;
@@ -157,59 +156,39 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [DatapointSource]
         public static readonly EncodingType[] EncoderTypes =
 #if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
-        Enum.GetValues<EncodingType>();
+            Enum.GetValues<EncodingType>();
 #else
-        (EncodingType[])Enum.GetValues(typeof(EncodingType));
+            (EncodingType[])Enum.GetValues(typeof(EncodingType));
 #endif
 
         public static readonly EncodingTypeGroup[] EncodingTypesJson =
         [
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose =
+        public static readonly EncodingTypeGroup[] EncodingTypesJsonVerbose =
         [
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        ];
-
-        public static readonly EncodingTypeGroup[] EncodingTypesReversibleCompact =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        ];
-
-        public static readonly EncodingTypeGroup[] EncodingTypesNonReversibleVerbose =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
+        ];
+
+        public static readonly EncodingTypeGroup[] EncodingTypesJsonBinaryXmlAndJsonCompact =
+        [
+            new EncodingTypeGroup(EncodingType.Binary),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll =
         [
             new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible =
-        [
-            new EncodingTypeGroup(EncodingType.Binary),
-            new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        ];
 
         /// <summary>
         /// Encode data value and return encoded string.
@@ -218,7 +197,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object data,
+            Variant data,
             JsonEncodingType encoding)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType} Encoding:{encoding}";
@@ -249,9 +228,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void EncodeDecodeDataValue(
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object data)
+            Variant data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
@@ -292,6 +272,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (var decoderStream = new MemoryStream(buffer))
                 using (IDecoder decoder = CreateDecoder(
                     encoderType,
+                    useXmlParser,
                     Context,
                     decoderStream,
                     typeof(DataValue)))
@@ -300,8 +281,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-                expected.Value
-                    = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
                 Assert.AreEqual(expected, result, encodeInfo);
                 Assert.IsTrue(
                     Utils.IsEqual(expected, result),
@@ -326,17 +305,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Encode and decode object, validate result.
+        /// Encode and decode Variant, validate result.
         /// </summary>
         protected void EncodeDecode(
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object expected)
+            Variant expected)
         {
             string formatted = null;
-            object result = null;
+            Variant result = default;
             try
             {
                 string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
@@ -354,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             type,
                             jsonEncodingType))
                     {
-                        Encode(encoder, builtInType, builtInType.ToString(), expected);
+                        encoder.WriteVariantValue(builtInType.ToString(), expected);
                     }
                     buffer = encoderStream.ToArray();
                 }
@@ -373,32 +353,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+                using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
                 {
-                    result = Decode(decoder, builtInType, builtInType.ToString(), type);
-                }
-
-                expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
-                if (BuiltInType.DateTime == builtInType)
-                {
-                    expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
+                    result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
                 }
 
                 Assert.AreEqual(expected, result, encodeInfo);
-                Assert.IsTrue(
-                    Utils.IsEqual(expected, result),
-                    "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
             {
                 // only print infos if test fails, to reduce log output
                 TestContext.Out.WriteLine("Expected:");
                 TestContext.Out.WriteLine(expected);
-                if (result != null)
-                {
-                    TestContext.Out.WriteLine("Result:");
-                    TestContext.Out.WriteLine(result);
-                }
+                TestContext.Out.WriteLine("Result:");
+                TestContext.Out.WriteLine(result);
                 if (formatted != null)
                 {
                     TestContext.Out.WriteLine("Encoded:");
@@ -409,16 +377,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Encode object as JSON and validate against expected JSON string.
+        /// Encode Variant as JSON and validate against expected JSON string.
         /// </summary>
         protected void EncodeJsonVerifyResult(
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
-            object data,
+            Variant data,
             JsonEncodingType jsonEncoding,
-            string expected,
-            bool topLevelIsArray,
-            bool includeDefaults)
+            string expected)
         {
             string result = null;
             string formattedResult = null;
@@ -435,11 +401,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     expected = "{}";
                 }
 
-                bool isNumber = TypeInfo.IsNumericType(builtInType) ||
-                    builtInType == BuiltInType.Boolean;
-                bool includeDefaultValues = !isNumber && includeDefaults;
-                bool includeDefaultNumbers = !isNumber || includeDefaults;
-
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
@@ -449,16 +410,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             Context,
                             encoderStream,
                             typeof(DataValue),
-                            jsonEncoding,
-                            topLevelIsArray,
-                            includeDefaultValues,
-                            includeDefaultNumbers))
+                            jsonEncoding))
                     {
-                        if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
+                        if (builtInType == BuiltInType.Variant)
                         {
-                            // encoder.SetMappingTables(nameSpaceUris, serverUris);
+                            encoder.WriteVariant(builtInType.ToString(), data);
                         }
-                        Encode(encoder, builtInType, builtInType.ToString(), data);
+                        else
+                        {
+                            encoder.WriteVariantValue(builtInType.ToString(), data);
+                        }
                     }
                     buffer = encoderStream.ToArray();
                 }
@@ -536,6 +497,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Format binary data
+        /// </summary>
+        public static string PrettifyAndValidateBinary(byte[] buffer, bool outputFormatted = false)
+        {
+            return CoreUtils.ToHexString(buffer);
+        }
+
+        /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
         public static string PrettifyAndValidateJson(byte[] json, bool outputFormatted = false)
@@ -556,6 +525,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var jsonWriter = new JsonTextWriter(stringWriter)
                 {
                     FloatFormatHandling = FloatFormatHandling.String,
+                    StringEscapeHandling = StringEscapeHandling.EscapeHtml,
                     Formatting = Newtonsoft.Json.Formatting.Indented,
                     Culture = System.Globalization.CultureInfo.InvariantCulture
                 };
@@ -607,38 +577,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IServiceMessageContext context,
             Stream stream,
             Type systemType,
-            JsonEncodingType jsonEncoding = JsonEncodingType.Reversible,
-            bool topLevelIsArray = false,
-            bool includeDefaultValues = false,
-            bool includeDefaultNumbers = true)
+            JsonEncodingType jsonEncoding = JsonEncodingType.Verbose)
         {
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    Assume.That(
-                        jsonEncoding == JsonEncodingType.Reversible,
-                        "Binary encoding doesn't allow to set the JsonEncodingType.");
                     return new BinaryEncoder(stream, context, true);
                 case EncodingType.Xml:
-                    Assume.That(
-                        jsonEncoding == JsonEncodingType.Reversible,
-                        "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
-                    var encoder = new JsonEncoder(
-                        context,
-                        jsonEncoding,
-                        topLevelIsArray,
+                    return new JsonEncoder(
                         stream,
-                        true);
-                    // only deprecated encodings allow to set the default value
-                    if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
-                    {
-                        encoder.IncludeDefaultValues = includeDefaultValues;
-                        encoder.IncludeDefaultNumberValues = includeDefaultNumbers;
-                    }
-                    return encoder;
+                        context,
+                        jsonEncoding == JsonEncodingType.Verbose ? JsonEncoderOptions.Verbose : JsonEncoderOptions.Compact);
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(encoderType),
@@ -652,6 +604,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected IDecoder CreateDecoder(
             EncodingType decoderType,
+            bool useXmlParser,
             IServiceMessageContext context,
             Stream stream,
             Type systemType)
@@ -660,302 +613,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case EncodingType.Binary:
                     return new BinaryDecoder(stream, context);
+                case EncodingType.Xml when useXmlParser:
+                    return new XmlParser(systemType, stream, context);
                 case EncodingType.Xml:
                     var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
-                    var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-                    return new JsonDecoder(systemType, jsonTextReader, context);
+                    return new JsonDecoder(stream, context);
                 default:
                     return null;
             }
         }
 
         /// <summary>
-        /// Wrap object in a DataValue.
+        /// Wrap Variant in a DataValue.
         /// </summary>
-        protected DataValue CreateDataValue(BuiltInType builtInType, object data)
+        protected DataValue CreateDataValue(BuiltInType builtInType, Variant variant)
         {
             var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            var sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
-            Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant v)
-                ? v
-                : new Variant(data);
+            var sourceTimeStamp = (DateTimeUtc)DataGenerator.GetRandom(BuiltInType.DateTime);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
-        }
-
-        /// <summary>
-        /// Helper for encoding of built in types.
-        /// </summary>
-        protected void Encode(
-            IEncoder encoder,
-            BuiltInType builtInType,
-            string fieldName,
-            object value)
-        {
-            bool isArray = (value?.GetType().IsArray ?? false) &&
-                (builtInType != BuiltInType.ByteString);
-            bool isCollection = (value is IList) && (builtInType != BuiltInType.ByteString);
-            if (!isArray && !isCollection)
-            {
-                switch (builtInType)
-                {
-                    case BuiltInType.Null:
-                        encoder.WriteVariant(fieldName, new Variant(value));
-                        return;
-                    case BuiltInType.Boolean:
-                        encoder.WriteBoolean(fieldName, (bool)value);
-                        return;
-                    case BuiltInType.SByte:
-                        encoder.WriteSByte(fieldName, (sbyte)value);
-                        return;
-                    case BuiltInType.Byte:
-                        encoder.WriteByte(fieldName, (byte)value);
-                        return;
-                    case BuiltInType.Int16:
-                        encoder.WriteInt16(fieldName, (short)value);
-                        return;
-                    case BuiltInType.UInt16:
-                        encoder.WriteUInt16(fieldName, (ushort)value);
-                        return;
-                    case BuiltInType.Int32:
-                        encoder.WriteInt32(fieldName, (int)value);
-                        return;
-                    case BuiltInType.UInt32:
-                        encoder.WriteUInt32(fieldName, (uint)value);
-                        return;
-                    case BuiltInType.Int64:
-                        encoder.WriteInt64(fieldName, (long)value);
-                        return;
-                    case BuiltInType.UInt64:
-                        encoder.WriteUInt64(fieldName, (ulong)value);
-                        return;
-                    case BuiltInType.Float:
-                        encoder.WriteFloat(fieldName, (float)value);
-                        return;
-                    case BuiltInType.Double:
-                        encoder.WriteDouble(fieldName, (double)value);
-                        return;
-                    case BuiltInType.String:
-                        encoder.WriteString(fieldName, (string)value);
-                        return;
-                    case BuiltInType.DateTime:
-                        encoder.WriteDateTime(fieldName, (DateTime)value);
-                        return;
-                    case BuiltInType.Guid:
-                        encoder.WriteGuid(fieldName, value is Guid g ? (Uuid)g : (Uuid)value);
-                        return;
-                    case BuiltInType.ByteString:
-                        encoder.WriteByteString(fieldName, (byte[])value);
-                        return;
-                    case BuiltInType.XmlElement:
-                        encoder.WriteXmlElement(fieldName, (XmlElement)value);
-                        return;
-                    case BuiltInType.NodeId:
-                        encoder.WriteNodeId(fieldName, (NodeId)value);
-                        return;
-                    case BuiltInType.ExpandedNodeId:
-                        encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId)value);
-                        return;
-                    case BuiltInType.StatusCode:
-                        encoder.WriteStatusCode(fieldName, (StatusCode)value);
-                        return;
-                    case BuiltInType.QualifiedName:
-                        encoder.WriteQualifiedName(fieldName, (QualifiedName)value);
-                        return;
-                    case BuiltInType.LocalizedText:
-                        encoder.WriteLocalizedText(fieldName, (LocalizedText)value);
-                        return;
-                    case BuiltInType.ExtensionObject:
-                        encoder.WriteExtensionObject(fieldName, (ExtensionObject)value);
-                        return;
-                    case BuiltInType.DataValue:
-                        encoder.WriteDataValue(fieldName, (DataValue)value);
-                        return;
-                    case BuiltInType.Enumeration:
-                        if (value.GetType().IsEnum)
-                        {
-                            encoder.WriteEnumerated(fieldName, (Enum)value);
-                        }
-                        else
-                        {
-                            encoder.WriteEnumerated(fieldName, (Enumeration)value);
-                        }
-                        return;
-                    case BuiltInType.Variant:
-                        encoder.WriteVariant(fieldName, (Variant)value);
-                        return;
-                    case BuiltInType.DiagnosticInfo:
-                        encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value);
-                        return;
-                }
-            }
-            else
-            {
-                Type arrayType = value.GetType().GetElementType();
-                var array = value as Array;
-                if (builtInType == BuiltInType.Variant)
-                {
-                    encoder.WriteVariantArray(fieldName, (VariantCollection)value);
-                    return;
-                }
-                else if (builtInType == BuiltInType.Enumeration)
-                {
-                    encoder.WriteEnumeratedArray(fieldName, array, arrayType);
-                    return;
-                }
-            }
-            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-        }
-
-        /// <summary>
-        /// Helper for decoding of builtin types.
-        /// </summary>
-        protected object Decode(
-            IDecoder decoder,
-            BuiltInType builtInType,
-            string fieldName,
-            Type type)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.Null:
-                    Variant variant = decoder.ReadVariant(fieldName);
-                    return variant.AsBoxedObject();
-                case BuiltInType.Boolean:
-                    return decoder.ReadBoolean(fieldName);
-                case BuiltInType.SByte:
-                    return decoder.ReadSByte(fieldName);
-                case BuiltInType.Byte:
-                    return decoder.ReadByte(fieldName);
-                case BuiltInType.Int16:
-                    return decoder.ReadInt16(fieldName);
-                case BuiltInType.UInt16:
-                    return decoder.ReadUInt16(fieldName);
-                case BuiltInType.Int32:
-                    return decoder.ReadInt32(fieldName);
-                case BuiltInType.UInt32:
-                    return decoder.ReadUInt32(fieldName);
-                case BuiltInType.Int64:
-                    return decoder.ReadInt64(fieldName);
-                case BuiltInType.UInt64:
-                    return decoder.ReadUInt64(fieldName);
-                case BuiltInType.Float:
-                    return decoder.ReadFloat(fieldName);
-                case BuiltInType.Double:
-                    return decoder.ReadDouble(fieldName);
-                case BuiltInType.String:
-                    return decoder.ReadString(fieldName);
-                case BuiltInType.DateTime:
-                    return decoder.ReadDateTime(fieldName);
-                case BuiltInType.Guid:
-                    return decoder.ReadGuid(fieldName);
-                case BuiltInType.ByteString:
-                    return decoder.ReadByteString(fieldName);
-                case BuiltInType.XmlElement:
-                    return decoder.ReadXmlElement(fieldName);
-                case BuiltInType.NodeId:
-                    return decoder.ReadNodeId(fieldName);
-                case BuiltInType.ExpandedNodeId:
-                    return decoder.ReadExpandedNodeId(fieldName);
-                case BuiltInType.StatusCode:
-                    return decoder.ReadStatusCode(fieldName);
-                case BuiltInType.QualifiedName:
-                    return decoder.ReadQualifiedName(fieldName);
-                case BuiltInType.LocalizedText:
-                    return decoder.ReadLocalizedText(fieldName);
-                case BuiltInType.ExtensionObject:
-                    return decoder.ReadExtensionObject(fieldName);
-                case BuiltInType.DataValue:
-                    return decoder.ReadDataValue(fieldName);
-                case BuiltInType.Enumeration:
-                    return type.IsEnum
-                        ? decoder.ReadEnumerated(fieldName, type)
-                        : decoder.ReadInt32(fieldName);
-                case BuiltInType.DiagnosticInfo:
-                    return decoder.ReadDiagnosticInfo(fieldName);
-                case BuiltInType.Variant:
-                    return decoder.ReadVariant(fieldName);
-                default:
-                    NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
-                    return null;
-            }
-        }
-
-        /// <summary>
-        /// Adjust expected values to encoder specific results.
-        /// </summary>
-        protected object AdjustExpectedBoundaryValues(
-            EncodingType encoderType,
-            BuiltInType builtInType,
-            object value)
-        {
-            if (value == null)
-            {
-                return value;
-            }
-            if (builtInType == BuiltInType.Variant)
-            {
-                // decoder result will be an Int32
-                if (value is Matrix enumMatrix &&
-                    enumMatrix.TypeInfo.BuiltInType == BuiltInType.Enumeration)
-                {
-                    return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions)
-                        .ToArray();
-                }
-            }
-            if (encoderType == EncodingType.Binary)
-            {
-                if (builtInType is BuiltInType.DateTime or BuiltInType.Variant)
-                {
-                    if (value.GetType() == typeof(DateTime))
-                    {
-                        value = AdjustExpectedDateTimeBinaryEncoding((DateTime)value);
-                    }
-
-                    if (value.GetType() == typeof(DateTime[]))
-                    {
-                        var valueArray = (DateTime[])value;
-                        for (int i = 0; i < valueArray.Length; i++)
-                        {
-                            valueArray[i] = AdjustExpectedDateTimeBinaryEncoding(valueArray[i]);
-                        }
-                    }
-                }
-                if (builtInType == BuiltInType.DataValue)
-                {
-                    var dataValue = (DataValue)value;
-                    if (dataValue.Value?.GetType() == typeof(DateTime) ||
-                        dataValue.Value?.GetType() == typeof(DateTime[]))
-                    {
-                        dataValue.Value = AdjustExpectedBoundaryValues(
-                            encoderType,
-                            BuiltInType.DateTime,
-                            dataValue.Value);
-                        return dataValue;
-                    }
-                }
-            }
-
-            if (value is Matrix matrix)
-            {
-                return matrix.ToArray();
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Adjust DateTime results of binary encoder.
-        /// </summary>
-        private static DateTime AdjustExpectedDateTimeBinaryEncoding(DateTime dateTime)
-        {
-            if (dateTime == DateTime.MaxValue || dateTime == DateTime.MinValue)
-            {
-                return dateTime;
-            }
-            dateTime = Utils.ToOpcUaUniversalTime(dateTime);
-            return dateTime <= Utils.TimeBase ? DateTime.MinValue : dateTime;
         }
 
         /// <summary>
@@ -1391,6 +1068,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType encodeableType)
             {
                 return m_inner.TryGetEncodeableType(typeId, out encodeableType);
+            }
+
+            public bool TryGetEncodeableType<T>([NotNullWhen(true)] out IEncodeableType encodeableType)
+            {
+                return m_inner.TryGetEncodeableType<T>(out encodeableType);
             }
 
             private readonly IEncodeableFactory m_inner;

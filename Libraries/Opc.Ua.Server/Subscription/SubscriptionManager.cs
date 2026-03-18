@@ -373,7 +373,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            var createdSubscriptions = new Dictionary<uint, uint[]>();
+            var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
 
             foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
             {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                subscription.GetMonitoredItems(out uint[] monitoredItemsIds, out _);
+                subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
                 createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
             }
 
@@ -929,14 +929,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken cancellationToken = default)
         {
             bool diagnosticsExist = false;
-            var results = new StatusCodeCollection(subscriptionIds.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(subscriptionIds.Count);
+            var results = new List<StatusCode>(subscriptionIds.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(subscriptionIds.Count);
 
-            foreach (uint subscriptionId in subscriptionIds)
+            foreach (uint subscriptionId in subscriptionIds.ToList())
             {
                 try
                 {
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public async Task<PublishResponse> PublishAsync(
             OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken cancellationToken = default)
         {
             // get publish queue for session.
@@ -1031,8 +1031,8 @@ namespace Opc.Ua.Server
             queue.Acknowledge(
                 context,
                 subscriptionAcknowledgements,
-                out StatusCodeCollection acknowledgeResults,
-                out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
+                out ArrayOf<StatusCode> acknowledgeResults,
+                out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
             // update diagnostics.
             if (context.Session != null)
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server
                     {
                         NotificationMessage message = subscription.Publish(
                             context,
-                            out UInt32Collection availableSequenceNumbers,
+                            out ArrayOf<uint> availableSequenceNumbers,
                             out moreNotifications);
 
                         // a null message indicates a false alarm; requeue and wait for the next one.
@@ -1279,14 +1279,14 @@ namespace Opc.Ua.Server
         public void SetPublishingMode(
             OperationContext context,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            ArrayOf<uint> subscriptionIds,
+            out ArrayOf<StatusCode> results,
+            out ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             bool diagnosticsExist = false;
 
-            results = new StatusCodeCollection(subscriptionIds.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(subscriptionIds.Count);
+            var resultList = new List<StatusCode>(subscriptionIds.Count);
+            var diagnosticInfoList = new List<DiagnosticInfo>(subscriptionIds.Count);
 
             for (int ii = 0; ii < subscriptionIds.Count; ii++)
             {
@@ -1303,11 +1303,11 @@ namespace Opc.Ua.Server
                     subscription.SetPublishingMode(context, publishingEnabled);
 
                     // save results.
-                    results.Add(StatusCodes.Good);
+                    resultList.Add(StatusCodes.Good);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(null);
+                        diagnosticInfoList.Add(null);
                     }
                 }
                 catch (Exception e)
@@ -1321,7 +1321,7 @@ namespace Opc.Ua.Server
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
-                    results.Add(result.Code);
+                    resultList.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -1330,16 +1330,18 @@ namespace Opc.Ua.Server
                             context,
                             result,
                             m_logger);
-                        diagnosticInfos.Add(diagnosticInfo);
+                        diagnosticInfoList.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
                 }
 
                 if (!diagnosticsExist)
                 {
-                    diagnosticInfos.Clear();
+                    diagnosticInfoList.Clear();
                 }
             }
+            results = resultList;
+            diagnosticInfos = diagnosticInfoList;
         }
 
         /// <summary>
@@ -1347,12 +1349,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken cancellationToken = default)
         {
-            var results = new TransferResultCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            var results = new List<TransferResult>();
+            var diagnosticInfos = new List<DiagnosticInfo>();
 
             m_logger.LogInformation(
                 "TransferSubscriptions to SessionId={SessionId}, Count={Count}, sendInitialValues={SendInitialValues}",
@@ -1636,12 +1638,12 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
+            out ArrayOf<StatusCode> addResults,
+            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+            out ArrayOf<StatusCode> removeResults,
+            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
         {
             // find subscription.
 
@@ -1670,7 +1672,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1712,7 +1714,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1736,7 +1738,7 @@ namespace Opc.Ua.Server
         public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1773,11 +1775,11 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
+        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
             // find subscription.

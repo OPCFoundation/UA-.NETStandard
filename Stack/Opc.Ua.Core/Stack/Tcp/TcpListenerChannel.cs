@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -50,7 +51,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypeProvider,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
                 contextId,

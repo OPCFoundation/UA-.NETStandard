@@ -39,6 +39,7 @@ using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
@@ -60,6 +61,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal const string MetaDataPublisherId = "PublisherId";
         internal const string MetaDataDataSetWriterId = "DataSetWriterId";
 
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From(1),
+            Variant.From("abc")
+        ];
         [Flags]
         private enum MetaDataFailOptions
         {
@@ -212,7 +218,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.ReplyTo | JsonNetworkMessageContentMask.DataSetClassId
             )]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
-            [Values(1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             jsonNetworkMessageContentMask =
@@ -511,7 +518,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -719,7 +726,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -845,7 +852,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask.Status
             )]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
-            [Values(1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
@@ -1124,7 +1132,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -1330,7 +1338,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // no headers hence the values
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -1868,7 +1876,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 : new ConfigurationVersionDataType();
             if (!hasMetaDataFields)
             {
-                jsonNetworkMessage.DataSetMetaData.Fields = null;
+                jsonNetworkMessage.DataSetMetaData.Fields = default;
             }
 
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
@@ -1878,50 +1886,50 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     case MetaDataFailOptions.MessageId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MessageId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MessageId reason.");
                         break;
                     case MetaDataFailOptions.PublisherId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.PublisherId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing PublisherId reason.");
                         break;
                     case MetaDataFailOptions.DataSetWriterId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.DataSetWriterId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetWriterId reason.");
                         break;
                     case MetaDataFailOptions.NonMetadata:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.DataSetMetaData | MetaDataFailOptions.MessageType,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetMetaData reason.");
                         break;
                     case MetaDataFailOptions.MetaData_Name:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_Name,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Name reason.");
                         break;
                     case MetaDataFailOptions.MetaData_DataSetClassId:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_DataSetClassId,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.DataSetClassId reason.");
                         break;
                     case MetaDataFailOptions.MetaData_ConfigurationVersion:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_ConfigurationVersion,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.ConfigurationVersion reason.");
                         break;
                     case MetaDataFailOptions.MetaData_Fields:
                         Assert.AreEqual(
-                            failOptions,
                             MetaDataFailOptions.MetaData_Fields,
+                            failOptions,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Fields reason.");
                         break;
                 }
@@ -1995,26 +2003,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     {
                         case NetworkMessageFailOptions.MessageId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.MessageId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing MessageId reason.");
                             break;
                         case NetworkMessageFailOptions.MessageType:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.MessageType,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing MessageType reason.");
                             break;
                         case NetworkMessageFailOptions.PublisherId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.PublisherId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing PublisherId reason.");
                             break;
                         case NetworkMessageFailOptions.DataSetClassId:
                             Assert.AreEqual(
-                                failOptions,
                                 NetworkMessageFailOptions.DataSetClassId,
+                                failOptions,
                                 "ValidateMissingNetworkMessageFields should fail due to missing DataSetClassId reason.");
                             break;
                     }
@@ -2136,8 +2144,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dmfo != DataSetMessageFailOptions.Ok)
                 {
                     Assert.AreEqual(
-                        failOptions,
                         DataSetMessageFailOptions.DataSetWriterId,
+                        failOptions,
                         "ValidateMissingDataSetMessagesFields should fail due to missing DataSetWriterId reason.");
                 }
             }
@@ -2328,26 +2336,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     ExpandedNodeId encodedExpandedNodeId =
                         dataValueEncoded.Value is ExpandedNodeId ee ? ee : default;
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     ExpandedNodeId decodedExpandedNodeId =
                         dataValueDecoded.Value is ExpandedNodeId de ? de : default;
+#pragma warning restore CS0618 // Type or member is obsolete
                     if (!encodedExpandedNodeId.IsNull &&
                         !encodedExpandedNodeId.IsAbsolute &&
                         !decodedExpandedNodeId.IsNull &&
                         decodedExpandedNodeId.IsAbsolute)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         dataValueDecoded.Value = ExpandedNodeId.ToNodeId(
                             decodedExpandedNodeId,
                             m_messageContext.NamespaceUris);
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     Assert.AreEqual(
                         dataValueEncoded.Value,
                         dataValueDecoded.Value,
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName,
                         jsonDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // Checks just for DataValue type only
                     if ((jsonDataSetMessage.FieldContentMask &
@@ -2465,7 +2481,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort dataSetWriterIdValue = 0;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoder(jsonMessage, context);
+            using var jsonDecoder = new PubSubJsonDecoder(jsonMessage, context);
             if (jsonDecoder.ReadField(MetaDataMessageId, out object token))
             {
                 messageIdValue = jsonDecoder.ReadString(MetaDataMessageId);
@@ -2665,7 +2681,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = m_messageContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using var jsonDecoder = new JsonDecoder(jsonMessage, context);
+            using var jsonDecoder = new PubSubJsonDecoder(jsonMessage, context);
             if (jsonNetworkMessage.HasNetworkMessageHeader)
             {
                 NetworkMessageFailOptions failOptions = VerifyNetworkMessageEncoding(
@@ -2697,7 +2713,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static NetworkMessageFailOptions VerifyNetworkMessageEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoder jsonDecoder)
+            PubSubJsonDecoder jsonDecoder)
         {
             string publisherIdValue = null;
 
@@ -2764,7 +2780,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static DataSetMessageFailOptions VerifyDataSetMessagesEncoding(
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage,
-            JsonDecoder jsonDecoder)
+            PubSubJsonDecoder jsonDecoder)
         {
             ushort dataSetWriterIdValue = 0;
             uint sequenceNumberValue = 0;
@@ -2790,9 +2806,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messagesListName = NetworkMessageMessages;
                 }
             }
-            else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
+            else if (jsonDecoder.ReadField(PubSubJsonDecoder.RootArrayName, out messagesToken))
             {
-                messagesListName = JsonDecoder.RootArrayName;
+                messagesListName = PubSubJsonDecoder.RootArrayName;
             }
             // else this is a SingleDataSetMessage encoded as the content json
             if (!string.IsNullOrEmpty(messagesListName))
@@ -2826,7 +2842,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
                     }
 
-                    bool wasPushed = jsonDecoder.PushArray(JsonDecoder.RootArrayName, index++);
+                    bool wasPushed = jsonDecoder.PushArray(PubSubJsonDecoder.RootArrayName, index++);
                     if (wasPushed)
                     {
                         if (jsonDecoder.ReadField(DataSetMessageDataSetWriterId, out token))
@@ -2890,6 +2906,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.WrappedValue,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
@@ -2899,6 +2918,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.Value,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 break;
                                             case FieldTypeEncodingMask.RawData:
                                                 decodedFieldValue = DecodeFieldData(
@@ -2944,16 +2966,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     decodedFieldValue = ExpandedNodeId.Parse(
                                                         stringBuilder.ToString());
                                                 }
-                                                // by convention array decoders always return the Array type
-                                                if (decodedFieldValue is Array value &&
-                                                    field.FieldMetaData.ValueRank >= ValueRanks
-                                                        .TwoDimensions)
-                                                {
-                                                    decodedFieldValue = new Matrix(
-                                                        value,
-                                                        (BuiltInType)field.FieldMetaData
-                                                            .BuiltInType);
-                                                }
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
@@ -2962,6 +2976,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     field.FieldMetaData.Name,
                                                     field.Value.Value,
                                                     dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 break;
                                             case FieldTypeEncodingMask.DataValue:
                                                 bool wasPushed2 = jsonDecoder.PushStructure(
@@ -2977,8 +2993,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             jsonDecoder,
                                                             field.FieldMetaData,
                                                             "Value");
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         dataValue = new DataValue(
                                                             new Variant(token));
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     }
                                                     else
                                                     {
@@ -3048,11 +3066,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             .ReadUInt16(
                                                                 "ServerPicoseconds");
                                                     }
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.IsNotNull(
                                                         dataValue.Value,
                                                         "Decoded Field: {0} value should not be null",
                                                         field.FieldMetaData.Name);
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     // ExtendedNodeId namespaceIndex workaround issue
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     if (dataValue
                                                         .Value is ExpandedNodeId expandedNodeId2 &&
                                                         !string.IsNullOrEmpty(
@@ -3069,6 +3090,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty",
                                                             field.FieldMetaData.Name);
 
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         ushort namespaceIndex = Convert.ToUInt16(
                                                             new ServiceMessageContext(jsonDecoder.Context.Telemetry)
                                                                 .NamespaceUris
@@ -3076,6 +3098,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                                     ((ExpandedNodeId)dataValue
                                                                         .Value)
                                                                     .NamespaceUri));
+#pragma warning restore CS0618 // Type or member is obsolete
 
                                                         var stringBuilder = new StringBuilder();
                                                         ExpandedNodeId.Format(
@@ -3086,9 +3109,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             namespaceIndex,
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
+#pragma warning disable CS0618 // Type or member is obsolete
                                                         dataValue.Value = ExpandedNodeId.Parse(
                                                             stringBuilder.ToString());
+#pragma warning restore CS0618 // Type or member is obsolete
                                                     }
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.IsTrue(
                                                         Utils.IsEqual(
                                                             field.Value.Value,
@@ -3097,6 +3126,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         field.FieldMetaData.Name,
                                                         field.Value.Value,
                                                         dataSetPayload[field.FieldMetaData.Name]);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                                                 }
                                                 finally
                                                 {
@@ -3149,7 +3181,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))
                         {
-                            DateTime timeStampValue = jsonDecoder.ReadDateTime(
+                            DateTimeUtc timeStampValue = jsonDecoder.ReadDateTime(
                                 DataSetMessageTimestamp);
                             Assert.AreEqual(
                                 jsonDataSetMessage.Timestamp,
@@ -3182,7 +3214,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field data
         /// </summary>
         private static object DecodeFieldData(
-            JsonDecoder jsonDecoder,
+            PubSubJsonDecoder jsonDecoder,
             FieldMetaData fieldMetaData,
             string fieldName)
         {
@@ -3219,7 +3251,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Decode field by type
         /// </summary>
         private static object DecodeFieldByType(
-            JsonDecoder jsonDecoder,
+            PubSubJsonDecoder jsonDecoder,
             byte builtInType,
             string fieldName)
         {

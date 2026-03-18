@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -54,11 +55,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         private const int kBoolToogleLimit = 2;
         private const int kSimpleInt32Limit = 10000;
 
-        private readonly FieldMetaDataCollection m_simpleFields = [];
-        private readonly FieldMetaDataCollection m_allTypesFields = [];
+        private readonly List<FieldMetaData> m_simpleFields = [];
+        private readonly List<FieldMetaData> m_allTypesFields = [];
 
         private readonly ILogger m_logger;
-        private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
+        private readonly ArrayOf<PublishedDataSetDataType> m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
 
@@ -117,7 +118,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// </summary>
         public void Start()
         {
-            if (m_publishedDataSets != null)
+            if (!m_publishedDataSets.IsNull)
             {
                 // Remember the fields to be updated
                 foreach (PublishedDataSetDataType publishedDataSet in m_publishedDataSets)
@@ -237,7 +238,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 "ByteString",
                 NamespaceIndexAllTypes,
                 new DataValue(
-                    new Variant(new byte[] { 1, 2, 3 }),
+                    new Variant(ByteString.From([1, 2, 3])),
                     StatusCodes.Good,
                     DateTime.UtcNow)
             );
@@ -353,7 +354,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 new NodeId(variable.Name, namespaceIndex),
                 Attributes.Value
             );
-            if (dataValue.Value == null)
+            if (dataValue.WrappedValue.IsNull)
             {
                 return;
             }
@@ -366,40 +367,32 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Boolean:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        bool boolValue = Convert.ToBoolean(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
-                        dataValue.Value = !boolValue;
+                        bool boolValue = (bool)dataValue.WrappedValue.ConvertToBoolean();
+                        dataValue.WrappedValue = !boolValue;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Byte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        byte byteValue = Convert.ToByte(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
-                        dataValue.Value = (byte)(byteValue + 1);
+                        byte byteValue = (byte)dataValue.WrappedValue.ConvertToByte();
+                        dataValue.WrappedValue = (byte)(byteValue + 1);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Int16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToInt16(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        int intIdentifier = (short)dataValue.WrappedValue.ConvertToInt16();
                         Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
-                        dataValue.Value = (short)Interlocked.Increment(ref intIdentifier);
+                        dataValue.WrappedValue = (short)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Int32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int int32Value = Convert.ToInt32(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        int int32Value = (int)dataValue.WrappedValue.ConvertToInt32();
                         if (step > 0)
                         {
                             int32Value += step - 1;
@@ -408,52 +401,48 @@ namespace Quickstarts.ConsoleReferencePublisher
                         {
                             int32Value = 0;
                         }
-                        dataValue.Value = Interlocked.Increment(ref int32Value);
+                        dataValue.WrappedValue = Interlocked.Increment(ref int32Value);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.SByte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToSByte(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        int intIdentifier = (sbyte)dataValue.WrappedValue.ConvertToSByte();
                         Interlocked.CompareExchange(ref intIdentifier, 0, sbyte.MaxValue);
-                        dataValue.Value = (sbyte)Interlocked.Increment(ref intIdentifier);
+                        dataValue.WrappedValue = (sbyte)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.UInt16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToUInt16(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        int intIdentifier = dataValue.WrappedValue.ConvertToUInt16().GetUInt16();
                         Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
-                        dataValue.Value = (ushort)Interlocked.Increment(ref intIdentifier);
+                        dataValue.WrappedValue = (ushort)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.UInt32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        long longIdentifier = Convert.ToUInt32(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        long longIdentifier = dataValue.WrappedValue.ConvertToUInt32().GetUInt32();
                         Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
-                        dataValue.Value = (uint)Interlocked.Increment(ref longIdentifier);
+                        dataValue.WrappedValue = (uint)Interlocked.Increment(ref longIdentifier);
                         valueUpdated = true;
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
                     {
-                        if (dataValue.Value is uint[] values)
+                        if (dataValue.WrappedValue.TryGet(out ArrayOf<uint> values))
                         {
-                            for (int i = 0; i < values.Length; i++)
+                            var valuesList = values.ToList();
+                            for (int i = 0; i < values.Count; i++)
                             {
                                 long longIdentifier = values[i];
                                 Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
-                                values[i] = (uint)Interlocked.Increment(ref longIdentifier);
+                                valuesList[i] = (uint)Interlocked.Increment(ref longIdentifier);
                             }
+                            dataValue.WrappedValue = valuesList.ToArrayOf();
                             valueUpdated = true;
                         }
                     }
@@ -461,48 +450,42 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt64:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        ulong uint64Value = Convert.ToUInt64(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        ulong uint64Value = (ulong)dataValue.WrappedValue.ConvertToUInt64();
                         float longIdentifier = uint64Value + 1;
                         Interlocked.CompareExchange(ref longIdentifier, 0, ulong.MaxValue);
-                        dataValue.Value = (ulong)longIdentifier;
+                        dataValue.WrappedValue = (ulong)longIdentifier;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Float:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        float floatValue = Convert.ToSingle(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        float floatValue = (float)dataValue.WrappedValue.ConvertToFloat();
                         Interlocked.CompareExchange(ref floatValue, 0, float.MaxValue);
-                        dataValue.Value = floatValue + 1;
+                        dataValue.WrappedValue = floatValue + 1;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Double:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        double doubleValue = Convert.ToDouble(
-                            dataValue.Value,
-                            CultureInfo.InvariantCulture);
+                        double doubleValue = (double)dataValue.WrappedValue.ConvertToDouble();
                         Interlocked.CompareExchange(ref doubleValue, 0, double.MaxValue);
-                        dataValue.Value = doubleValue + 1;
+                        dataValue.WrappedValue = doubleValue + 1;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.DateTime:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        dataValue.Value = DateTime.UtcNow;
+                        dataValue.WrappedValue = DateTimeUtc.Now;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Guid:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        dataValue.Value = Uuid.NewUuid();
+                        dataValue.WrappedValue = Uuid.NewUuid();
                         valueUpdated = true;
                     }
                     break;
@@ -511,7 +494,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) %
                             m_aviationAlphabet.Length;
-                        dataValue.Value = m_aviationAlphabet[m_aviationAlphabetIndex];
+                        dataValue.WrappedValue = m_aviationAlphabet[m_aviationAlphabetIndex];
                         valueUpdated = true;
                     }
                     break;

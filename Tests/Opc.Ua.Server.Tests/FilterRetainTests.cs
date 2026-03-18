@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
             alarm.AddSeverityLowLow(context);
             if (addFilterRetain)
             {
-                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm)
+                alarm.SupportsFilteredRetain = new PropertyState<bool>.Implementation<VariantBuilder>(alarm)
                 {
                     Value = filterRetainValue
                 };
@@ -435,43 +435,36 @@ namespace Opc.Ua.Server.Tests
             return alarm;
         }
 
-        private static SimpleAttributeOperandCollection GetSelectFields()
+        private static ArrayOf<SimpleAttributeOperand> GetSelectFields()
         {
-            var simpleAttributeOperands = new SimpleAttributeOperandCollection();
-
             int eventIndexCounter = 0;
-            var desiredEventFields = new Dictionary<int, QualifiedNameCollection>
+            var desiredEventFields = new Dictionary<int, ArrayOf<QualifiedName>>
             {
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventId) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventType) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }] },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.CurrentState)
-                    }
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.EventId) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.EventType) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.Time) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.ActiveState) ] },
+                { eventIndexCounter++, [QualifiedName.From(BrowseNames.Message) ] },
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.CurrentState)
                 ]
                 },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.CurrentState),
-                        QualifiedName.From(BrowseNames.Id)
-                    }
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.CurrentState),
+                    QualifiedName.From(BrowseNames.Id)
                 ]
                 },
-                { eventIndexCounter++, [.. new QualifiedName[]
-                    {
-                        QualifiedName.From(BrowseNames.LimitState),
-                        QualifiedName.From(BrowseNames.LastTransition)
-                    }
+                { eventIndexCounter++, [
+                    QualifiedName.From(BrowseNames.LimitState),
+                    QualifiedName.From(BrowseNames.LastTransition)
                 ]
                 }
             };
 
-            foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
+            var simpleAttributeOperands = new List<SimpleAttributeOperand>();
+            foreach (ArrayOf<QualifiedName> desiredEventField in desiredEventFields.Values)
             {
                 simpleAttributeOperands.Add(
                     new SimpleAttributeOperand
@@ -529,7 +522,10 @@ namespace Opc.Ua.Server.Tests
                 Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High))
             };
 
-            whereClause.Push(FilterOperator.Equals, [eventLevel, desiredEventLevel]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(eventLevel),
+                Variant.FromStructure(desiredEventLevel));
 
             return whereClause;
         }
@@ -549,7 +545,8 @@ namespace Opc.Ua.Server.Tests
 
             whereClause.Push(
                 FilterOperator.Equals,
-                [notOutOfServiceState, desiredOutOfServiceValue]);
+                Variant.FromStructure(notOutOfServiceState),
+                Variant.FromStructure(desiredOutOfServiceValue));
 
             var notSuppressed = new SimpleAttributeOperand
             {
@@ -560,10 +557,12 @@ namespace Opc.Ua.Server.Tests
 
             var desiredSuppressedValue = new LiteralOperand { Value = new Variant(Unsuppressed) };
 
-            whereClause.Push(FilterOperator.Equals, [notSuppressed, desiredSuppressedValue]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(notSuppressed),
+                Variant.FromStructure(desiredSuppressedValue));
 
 #if AddActiveState
-
             var activeState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
@@ -573,13 +572,21 @@ namespace Opc.Ua.Server.Tests
 
             var activeValue = new LiteralOperand { Value = new Variant(Active) };
 
-            whereClause.Push(FilterOperator.Equals, [activeState, activeValue]);
+            whereClause.Push(
+                FilterOperator.Equals,
+                Variant.FromStructure(activeState),
+                Variant.FromStructure(activeValue));
 
-            whereClause.Push(FilterOperator.And, [new ElementOperand(1), new ElementOperand(2)]);
+            whereClause.Push(
+                FilterOperator.And,
+                Variant.FromStructure(new ElementOperand(1)),
+                Variant.FromStructure(new ElementOperand(2)));
 
 #endif
-
-            whereClause.Push(FilterOperator.And, [new ElementOperand(0), new ElementOperand(1)]);
+            whereClause.Push(
+                FilterOperator.And,
+                Variant.FromStructure(new ElementOperand(0)),
+                Variant.FromStructure(new ElementOperand(1)));
 
             return whereClause;
         }

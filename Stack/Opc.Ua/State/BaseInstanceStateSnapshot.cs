@@ -90,28 +90,28 @@ namespace Opc.Ua
         /// <returns>
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
-        public object GetAttributeValue(
+        public Variant GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             uint attributeId,
             NumericRange indexRange)
         {
             if (!typeDefinitionId.IsNull &&
                 !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
             {
-                return null;
+                return default;
             }
 
-            object value = GetAttributeValue(m_snapshot, relativePath, 0, attributeId);
+            Variant value = GetAttributeValue(m_snapshot, relativePath, 0, attributeId);
 
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 StatusCode error = indexRange.ApplyRange(ref value);
 
                 if (StatusCode.IsBad(error))
                 {
-                    value = null;
+                    value = default;
                 }
             }
 
@@ -239,7 +239,7 @@ namespace Opc.Ua
         /// <returns>The value of the attribute for the specified child.</returns>
         private static Variant GetAttributeValue(
             ChildNode node,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             int index,
             uint attributeId)
         {

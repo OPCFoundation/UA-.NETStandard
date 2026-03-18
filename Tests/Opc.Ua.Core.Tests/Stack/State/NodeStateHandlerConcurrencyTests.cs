@@ -656,13 +656,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ServiceResult result = baseVariableState.WriteAttribute(
                     systemContext,
                     Attributes.AccessLevel,
-                    NumericRange.Empty,
+                    default,
                     new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
                 Assert.IsTrue(ServiceResult.IsGood(result));
                 result = baseVariableState.WriteAttribute(
                     systemContext,
                     Attributes.UserAccessLevel,
-                    NumericRange.Empty,
+                    default,
                     new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
                 Assert.IsTrue(ServiceResult.IsGood(result));
             }
@@ -686,7 +686,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ServiceResult writeResult = node.WriteAttribute(
                     systemContext,
                     attribute,
-                    NumericRange.Empty,
+                    default,
                     new DataValue(variant));
 
                 Assert.IsTrue(
@@ -707,7 +707,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             return ServiceResult.Good;
         }

@@ -183,7 +183,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Theory]
-        public async Task GenerateFromDesignFileWithCsharp8Async(string modelDesignFile)
+        public void GenerateFromDesignFileWithCsharp8(string modelDesignFile)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             Dictionary<string, string> generatedText = GenerateCodeFromModel(

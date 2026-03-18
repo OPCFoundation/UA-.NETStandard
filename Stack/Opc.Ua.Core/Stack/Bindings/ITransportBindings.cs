@@ -115,7 +115,7 @@ namespace Opc.Ua.Bindings
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
-            IList<string> baseAddresses,
+            ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider instanceCertificateTypesProvider);

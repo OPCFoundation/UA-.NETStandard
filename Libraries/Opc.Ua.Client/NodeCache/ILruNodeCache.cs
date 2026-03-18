@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,8 +50,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        ValueTask<IReadOnlyList<INode>> GetNodesAsync(
-            IReadOnlyList<NodeId> nodeIds,
+        ValueTask<ArrayOf<INode>> GetNodesAsync(
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -60,15 +59,15 @@ namespace Opc.Ua.Client
         /// </summary>
         ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
-            QualifiedNameCollection browsePath,
+            ArrayOf<QualifiedName> browsePath,
             CancellationToken ct = default);
 
         /// <summary>
         /// Get list of references for a node
         /// </summary>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
-            IReadOnlyList<NodeId> nodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds,
+        ValueTask<ArrayOf<INode>> GetReferencesAsync(
+            ArrayOf<NodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes = true,
             CancellationToken ct = default);
@@ -76,7 +75,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get references for a node
         /// </summary>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+        ValueTask<ArrayOf<INode>> GetReferencesAsync(
             NodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -96,8 +95,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get values of nodes from cache
         /// </summary>
-        ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
-            IReadOnlyList<NodeId> nodeIds,
+        ValueTask<ArrayOf<DataValue>> GetValuesAsync(
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -111,7 +110,7 @@ namespace Opc.Ua.Client
         /// Load the type hierarchy for a list of type ids.
         /// </summary>
         ValueTask LoadTypeHierarchyAsync(
-            IReadOnlyList<NodeId> typeIds,
+            ArrayOf<NodeId> typeIds,
             CancellationToken ct = default);
 
         /// <summary>

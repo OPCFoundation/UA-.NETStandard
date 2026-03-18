@@ -229,7 +229,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The extensions.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public XmlElementCollection Extensions
+        public ArrayOf<XmlElement> Extensions
         {
             get => m_extensions;
             set => m_extensions = value;
@@ -253,7 +253,7 @@ namespace Opc.Ua
         private ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
-        private XmlElementCollection m_extensions;
+        private ArrayOf<XmlElement> m_extensions;
         private List<object> m_extensionObjects;
         private Dictionary<string, object> m_properties;
     }
@@ -757,7 +757,7 @@ namespace Opc.Ua
                 }
 
                 // If both legacy (<ApplicationCertificate>) and modern (<ApplicationCertificates>) elements
-                // are present during deserialization (as a consequence of previous serialization that included both unintentionally), 
+                // are present during deserialization (as a consequence of previous serialization that included both unintentionally),
                 // prefer the modern representation and clear the
                 // deprecated flag when we process the collection below.
 
@@ -1230,10 +1230,10 @@ namespace Opc.Ua
         /// On one base address per supported transport protocol is allowed.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 0)]
-        public StringCollection BaseAddresses
+        public ArrayOf<string> BaseAddresses
         {
             get => m_baseAddresses;
-            set => m_baseAddresses = value ?? [];
+            set => m_baseAddresses = value;
         }
 
         /// <summary>
@@ -1247,10 +1247,10 @@ namespace Opc.Ua
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 1)]
-        public StringCollection AlternateBaseAddresses
+        public ArrayOf<string> AlternateBaseAddresses
         {
             get => m_alternateBaseAddresses;
-            set => m_alternateBaseAddresses = value ?? [];
+            set => m_alternateBaseAddresses = value;
         }
 
         /// <summary>
@@ -1288,8 +1288,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 5)]
         public int MaxQueuedRequestCount { get; set; }
 
-        private StringCollection m_baseAddresses;
-        private StringCollection m_alternateBaseAddresses;
+        private ArrayOf<string> m_baseAddresses;
+        private ArrayOf<string> m_alternateBaseAddresses;
         private ServerSecurityPolicyCollection m_securityPolicies;
     }
 
@@ -1338,11 +1338,10 @@ namespace Opc.Ua
             MaxSubscriptionCount = 100;
             MaxEventQueueSize = 10000;
             // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
-            m_serverProfileArray = new string[] {
-                "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
+            m_serverProfileArray = ["http://opcfoundation.org/UA-Profile/Server/StandardUA2017"];
             ShutdownDelay = 5;
-            m_serverCapabilities = new string[] { "DA" };
-            m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
+            m_serverCapabilities = ["DA"];
+            m_supportedPrivateKeyFormats = ["PFX", "PEM"];
             MaxTrustListSize = 0;
             MultiCastDnsEnabled = false;
             OperationLimits = new OperationLimits();
@@ -1369,10 +1368,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The user token policies.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public UserTokenPolicyCollection UserTokenPolicies
+        public ArrayOf<UserTokenPolicy> UserTokenPolicies
         {
             get => m_userTokenPolicies;
-            set => m_userTokenPolicies = value ?? [];
+            set => m_userTokenPolicies = value;
         }
 
         /// <summary>
@@ -1559,10 +1558,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The array of server profiles.</value>
         [DataMember(IsRequired = false, Order = 29)]
-        public StringCollection ServerProfileArray
+        public ArrayOf<string> ServerProfileArray
         {
             get => m_serverProfileArray;
-            set => m_serverProfileArray = value ?? [];
+            set => m_serverProfileArray = value;
         }
 
         /// <summary>
@@ -1579,10 +1578,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The array of server capabilites.</value>
         [DataMember(IsRequired = false, Order = 31)]
-        public StringCollection ServerCapabilities
+        public ArrayOf<string> ServerCapabilities
         {
             get => m_serverCapabilities;
-            set => m_serverCapabilities = value ?? [];
+            set => m_serverCapabilities = value;
         }
 
         /// <summary>
@@ -1590,10 +1589,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The array of server profiles.</value>
         [DataMember(IsRequired = false, Order = 32)]
-        public StringCollection SupportedPrivateKeyFormats
+        public ArrayOf<string> SupportedPrivateKeyFormats
         {
             get => m_supportedPrivateKeyFormats;
-            set => m_supportedPrivateKeyFormats = value ?? [];
+            set => m_supportedPrivateKeyFormats = value;
         }
 
         /// <summary>
@@ -1662,10 +1661,10 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 42)]
         public int MaxDurableSubscriptionLifetimeInHours { get; set; }
 
-        private UserTokenPolicyCollection m_userTokenPolicies;
-        private StringCollection m_serverProfileArray;
-        private StringCollection m_serverCapabilities;
-        private StringCollection m_supportedPrivateKeyFormats;
+        private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
+        private ArrayOf<string> m_serverProfileArray;
+        private ArrayOf<string> m_serverCapabilities;
+        private ArrayOf<string> m_supportedPrivateKeyFormats;
     }
 
     /// <summary>
@@ -2002,10 +2001,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The well known discovery URLs.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public StringCollection WellKnownDiscoveryUrls
+        public ArrayOf<string> WellKnownDiscoveryUrls
         {
             get => m_wellKnownDiscoveryUrls;
-            set => m_wellKnownDiscoveryUrls = value ?? [];
+            set => m_wellKnownDiscoveryUrls = value;
         }
 
         /// <summary>
@@ -2013,10 +2012,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The endpoint descriptions for central discovery servers.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public EndpointDescriptionCollection DiscoveryServers
+        public ArrayOf<EndpointDescription> DiscoveryServers
         {
             get => m_discoveryServers;
-            set => m_discoveryServers = value ?? [];
+            set => m_discoveryServers = value;
         }
 
         /// <summary>
@@ -2049,8 +2048,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 6)]
         public OperationLimits OperationLimits { get; set; }
 
-        private StringCollection m_wellKnownDiscoveryUrls;
-        private EndpointDescriptionCollection m_discoveryServers;
+        private ArrayOf<string> m_wellKnownDiscoveryUrls;
+        private ArrayOf<EndpointDescription> m_discoveryServers;
     }
 
     /// <summary>
@@ -2170,10 +2169,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The server names.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public LocalizedTextCollection ServerNames
+        public ArrayOf<LocalizedText> ServerNames
         {
             get => m_serverNames;
-            set => m_serverNames = value ?? [];
+            set => m_serverNames = value;
         }
 
         /// <summary>
@@ -2190,7 +2189,7 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public ServerRegistrationCollection ServerRegistrations { get; set; }
 
-        private LocalizedTextCollection m_serverNames;
+        private ArrayOf<LocalizedText> m_serverNames;
     }
 
     /// <summary>
@@ -2251,13 +2250,13 @@ namespace Opc.Ua
         /// </para>
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public StringCollection AlternateDiscoveryUrls
+        public ArrayOf<string> AlternateDiscoveryUrls
         {
             get => m_alternateDiscoveryUrls;
-            set => m_alternateDiscoveryUrls = value ?? [];
+            set => m_alternateDiscoveryUrls = value;
         }
 
-        private StringCollection m_alternateDiscoveryUrls;
+        private ArrayOf<string> m_alternateDiscoveryUrls;
     }
 
     /// <summary>
@@ -2712,10 +2711,10 @@ namespace Opc.Ua
         /// A list of known hosts that can be used for discovery.
         /// </summary>
         [DataMember(Name = "KnownHosts", IsRequired = false, Order = 1)]
-        public StringCollection KnownHosts
+        public ArrayOf<string> KnownHosts
         {
             get => m_knownHosts;
-            set => m_knownHosts = value ?? [];
+            set => m_knownHosts = value;
         }
 
         /// <summary>
@@ -2743,8 +2742,8 @@ namespace Opc.Ua
         public Uri TcpProxyUrl { get; set; }
 
         private string m_filepath;
-        private StringCollection m_knownHosts;
-        private StringCollection m_discoveryUrls;
+        private ArrayOf<string> m_knownHosts;
+        private ArrayOf<string> m_discoveryUrls;
         private List<ConfiguredEndpoint> m_endpoints;
     }
 
@@ -2859,7 +2858,7 @@ namespace Opc.Ua
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public XmlElementCollection Extensions
+        public ArrayOf<XmlElement> Extensions
         {
             get => m_extensions;
             set => m_extensions = value;
@@ -2868,7 +2867,7 @@ namespace Opc.Ua
         private ConfiguredEndpointCollection m_collection;
         private EndpointDescription m_description;
         private EndpointConfiguration m_configuration;
-        private XmlElementCollection m_extensions;
+        private ArrayOf<XmlElement> m_extensions;
     }
 
     /// <summary>

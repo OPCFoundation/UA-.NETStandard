@@ -146,9 +146,9 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                IList<string> names = X509Utils.GetDomainsFromCertificate(certificate);
+                ArrayOf<string> names = X509Utils.GetDomainsFromCertificate(certificate);
 
-                if (names != null && names.Count > 0)
+                if (!names.IsEmpty)
                 {
                     domainNames.AddRange(names);
                     return domainNames;
@@ -171,7 +171,7 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
 
-                if (names != null)
+                if (!names.IsEmpty)
                 {
                     domainNames.AddRange(names);
                     return domainNames;

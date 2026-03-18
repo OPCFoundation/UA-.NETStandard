@@ -53,7 +53,7 @@ namespace Opc.Ua
                 parsedUrl.Path += DiscoverySuffix;
             }
 
-            Server.DiscoveryUrls.Add(parsedUrl.ToString());
+            Server.DiscoveryUrls = Server.DiscoveryUrls.AddItem(parsedUrl.ToString());
 
             EndpointUrl = url;
             Server.ApplicationUri = url;

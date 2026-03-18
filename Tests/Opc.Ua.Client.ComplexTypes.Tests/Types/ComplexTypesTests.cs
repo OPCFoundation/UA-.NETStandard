@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.StructureWithOptionalFields:
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.NotNull(structWithOptionalFieldsType);
-                    Assert.AreEqual(structWithOptionalFieldsType.EncodingMask, 0);
+                    Assert.AreEqual(0, structWithOptionalFieldsType.EncodingMask);
                     Assert.AreEqual(
                         structWithOptionalFieldsType.GetPropertyTypes().Count,
                         propertyBuiltInTypes);
@@ -81,10 +81,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
                     Assert.NotNull(unionType);
-                    Assert.AreEqual(unionType.SwitchField, 0);
+                    Assert.AreEqual(0, unionType.SwitchField);
                     Assert.AreEqual(unionType.GetPropertyTypes().Count, propertyBuiltInTypes);
                     Assert.AreEqual(unionType.GetPropertyCount(), propertyBuiltInTypes);
-                    Assert.Null(unionType.Value);
+                    Assert.IsTrue(unionType.Value.IsNull);
                     break;
             }
             var encodeable = emittedType as IEncodeable;
@@ -121,21 +121,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
-                object obj = baseType[i];
+                Variant obj = baseType[i];
                 if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
-                        Assert.NotNull(obj);
+                        Assert.IsFalse(obj.IsNull);
                     }
                     else
                     {
-                        Assert.Null(obj);
+                        Assert.IsTrue(obj.IsNull);
                     }
                 }
                 else
                 {
-                    Assert.NotNull(obj);
+                    Assert.IsFalse(obj.IsNull);
                 }
             }
         }

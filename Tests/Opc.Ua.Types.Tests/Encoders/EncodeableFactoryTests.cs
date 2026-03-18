@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -824,6 +825,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             public Type Type { get; }
 
+            public XmlQualifiedName XmlName => new(Type.FullName);
+
             public IEncodeable CreateInstance()
             {
                 return (IEncodeable)Activator.CreateInstance(Type);
@@ -852,6 +855,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             public Type Type => typeof(TestEncodeable);
 
+            public XmlQualifiedName XmlName => new(nameof(TestEncodeable));
+
             public IEncodeable CreateInstance()
             {
                 throw new InvalidOperationException("Cannot create instance");
@@ -864,6 +869,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         public class NullReturningEncodeableType : IEncodeableType
         {
             public Type Type => typeof(TestEncodeable);
+
+            public XmlQualifiedName XmlName => new(nameof(TestEncodeable));
 
             public IEncodeable CreateInstance()
             {

@@ -44,11 +44,11 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration, [.. NamespacesUris]);
+            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.MemoryBuffer, Namespaces.MemoryBuffer + "/Instance"];
     }
 
@@ -290,7 +290,7 @@ namespace MemoryBuffer
             }
 
             // index range not supported.
-            if (itemToCreate.ItemToMonitor.ParsedIndexRange != NumericRange.Empty)
+            if (!itemToCreate.ItemToMonitor.ParsedIndexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -304,7 +304,7 @@ namespace MemoryBuffer
             // read initial value.
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.Good
@@ -516,7 +516,7 @@ namespace MemoryBuffer
             {
                 var initialValue = new DataValue
                 {
-                    Value = null,
+                    WrappedValue = default,
                     ServerTimestamp = DateTime.UtcNow,
                     SourceTimestamp = DateTime.MinValue,
                     StatusCode = StatusCodes.Good
@@ -527,7 +527,7 @@ namespace MemoryBuffer
                 ServiceResult error = tag.ReadAttribute(
                     context,
                     datachangeItem.AttributeId,
-                    NumericRange.Empty,
+                    default,
                     default,
                     initialValue);
 

@@ -2092,9 +2092,9 @@ namespace Opc.Ua
             bool domainFound = false;
 
             // check the certificate domains.
-            IList<string> domains = X509Utils.GetDomainsFromCertificate(serverCertificate);
+            ArrayOf<string> domains = X509Utils.GetDomainsFromCertificate(serverCertificate);
 
-            if (domains != null && domains.Count > 0)
+            if (!domains.IsEmpty)
             {
                 string hostname;
                 string dnsHostName = hostname = endpointUrl.IdnHost;
@@ -2106,12 +2106,14 @@ namespace Opc.Ua
                         isLocalHost = true;
                     }
                     else
-                    { // strip domain names from hostname
+                    {
+                        // strip domain names from hostname
                         hostname = dnsHostName.Split('.')[0];
                     }
                 }
                 else
-                { // dnsHostname is a IPv4 or IPv6 address
+                {
+                    // dnsHostname is a IPv4 or IPv6 address
                     // normalize ip addresses, cert parser returns normalized addresses
                     hostname = Utils.NormalizedIPAddress(dnsHostName);
                     if (hostname is "127.0.0.1" or "::1")

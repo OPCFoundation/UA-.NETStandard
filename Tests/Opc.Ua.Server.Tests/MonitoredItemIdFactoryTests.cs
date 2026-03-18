@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests
                             $"An ID was generated that was not greater than the new start value {startValue} after a reset.");
 
                         Assert.That(subsequentIds.Distinct().Count(), Is.EqualTo(subsequentIds.Count),
-                       "Duplicate IDs were found in the set of IDs generated between resets.");
+                            "Duplicate IDs were found in the set of IDs generated between resets.");
                     }
                 }
             }

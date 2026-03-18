@@ -149,12 +149,7 @@ namespace Opc.Ua.PubSub.Configuration
                 return false;
             }
 
-            if (dataSetMetaData.Fields == null)
-            {
-                return false;
-            }
-
-            if (dataSetMetaData.Fields.Count == 0)
+            if (dataSetMetaData.Fields.IsEmpty)
             {
                 return false;
             }
