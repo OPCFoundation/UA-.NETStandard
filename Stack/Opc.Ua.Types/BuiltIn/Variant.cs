@@ -926,6 +926,7 @@ namespace Opc.Ua
         /// <param name="value">The value to store.</param>
         /// <param name="typeInfo">The type information for the value.</param>
         [JsonConstructor]
+        [Obsolete("Use Variant.From or concrete typed constructor.")]
         public Variant(object value, TypeInfo typeInfo)
         {
             VariantHelper.TryCastFrom(value, out Variant variant);
@@ -938,7 +939,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The value to encode within the variant</param>
         [OverloadResolutionPriority(0)]
-        [Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
+        [Obsolete("Use Variant.From or concrete typed constructor.")]
         public Variant(object value)
         {
             VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant);
