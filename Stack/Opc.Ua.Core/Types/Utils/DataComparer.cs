@@ -947,7 +947,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             if (!CompareVariant(new Variant(value1.Elements), new Variant(value2.Elements)))
+#pragma warning restore CS0618 // Type or member is obsolete
             {
                 return false;
             }

@@ -51,7 +51,9 @@ namespace Opc.Ua.UnitTests
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
+#pragma warning disable CS0618 // Type or member is obsolete
             var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
+#pragma warning restore CS0618 // Type or member is obsolete
             var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
             try

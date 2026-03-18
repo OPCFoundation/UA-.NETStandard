@@ -379,7 +379,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="sbyte"/>-arrat value
+        /// Creates a new variant with a <see cref="sbyte"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-array value of the Variant</param>
         public Variant(ArrayOf<sbyte> value)
@@ -389,7 +389,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="byte"/>-arrat value
+        /// Creates a new variant with a <see cref="byte"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-array value of the Variant</param>
         public Variant(ArrayOf<byte> value)
@@ -632,7 +632,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="sbyte"/>-arrat value
+        /// Creates a new variant with a <see cref="sbyte"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-matrix value of the Variant</param>
         public Variant(MatrixOf<sbyte> value)
@@ -644,7 +644,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="byte"/>-arrat value
+        /// Creates a new variant with a <see cref="byte"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-matrix value of the Variant</param>
         public Variant(MatrixOf<byte> value)

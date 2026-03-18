@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                WrappedValue = Variant.From(result),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                WrappedValue = Variant.From(result),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };

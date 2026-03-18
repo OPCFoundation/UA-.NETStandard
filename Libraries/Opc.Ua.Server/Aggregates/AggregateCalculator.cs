@@ -994,7 +994,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static Variant CastToOriginalType(double value, DataValue original)
         {
-            return new Variant(value).ConvertTo(original.WrappedValue.TypeInfo.BuiltInType);
+            return Variant.From(value).ConvertTo(original.WrappedValue.TypeInfo.BuiltInType);
         }
 
         /// <summary>

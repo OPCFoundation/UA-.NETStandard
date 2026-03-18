@@ -454,7 +454,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Variant.From(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //Variant.From(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(s_valueArray0, TypeInfo.Arrays.Enumeration)
+                Variant.FromEnumeration(s_valueArray0)
             ]);
             EncodeDecodeDataValue(
                 encoderType,
@@ -585,12 +585,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
+#pragma warning disable CS0618 // Type or member is obsolete
             Array randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 false,
                 arrayDimension,
                 true);
-            var variant = new Variant(randomData, new TypeInfo(builtInType, 1));
+            var variant = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.OneDimension));
+#pragma warning restore CS0618 // Type or member is obsolete
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,

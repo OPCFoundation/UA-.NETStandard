@@ -57,7 +57,7 @@ namespace Opc.Ua
     /// //  (a) the value is a string, which is "abc123"
     /// //  (b) the statuscode is 0 (zero)
     /// //  (c) the timestamp is 'now'
-    /// DataValue dv = new DataValue(new Variant("abc123"), new StatusCode(0), DateTimeUtc.Now);
+    /// DataValue dv = new DataValue(Variant.From("abc123"), new StatusCode(0), DateTimeUtc.Now);
     ///
     /// </code>
     /// <code lang="Visual Basic">

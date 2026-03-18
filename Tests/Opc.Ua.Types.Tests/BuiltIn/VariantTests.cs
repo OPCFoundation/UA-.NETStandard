@@ -634,10 +634,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             IList source = new List<int> { 1, 2, 3 };
             var typeInfo = TypeInfo.Create(BuiltInType.Int32, ValueRanks.OneDimension);
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(source, typeInfo);
 
             AssertTypeInfo(typeInfo, variant.TypeInfo);
             Assert.That(source, Is.EquivalentTo((int[])variant.Value));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -645,7 +647,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetArray_Succeeds(VariantDescriptor descriptor)
         {
             object values = descriptor.CreateValue();
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
+#pragma warning restore CS0618 // Type or member is obsolete
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), Array(descriptor.ValueType.MakeByRefType()));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
@@ -661,7 +665,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetScalar_ReturnsStoredValue(VariantDescriptor descriptor)
         {
             object value = descriptor.CreateValue();
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(value);
+#pragma warning restore CS0618 // Type or member is obsolete
             MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
@@ -675,7 +681,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetArray_ReturnsStoredValue(VariantDescriptor descriptor)
         {
             object values = descriptor.CreateValue();
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
+#pragma warning restore CS0618 // Type or member is obsolete
             MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
@@ -715,7 +723,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGet_Scalar_Succeeds(VariantDescriptor descriptor)
         {
             object value = descriptor.CreateValue();
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(value);
+#pragma warning restore CS0618 // Type or member is obsolete
             MethodInfo method = typeof(Variant).GetMethods().FirstOrDefault(m =>
             {
                 if (m.Name != nameof(Variant.TryGet))
@@ -748,7 +758,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GenericTryGetArray_Succeeds(VariantDescriptor descriptor)
         {
             object values = descriptor.CreateValue();
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
+#pragma warning restore CS0618 // Type or member is obsolete
             Type elementType = descriptor.ValueType.GetGenericArguments()[0] ?? descriptor.ValueType;
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
                 .MakeGenericMethod(elementType);
@@ -873,7 +885,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectReturnsDefaultForReferenceTypes()
         {
-            var variant = new Variant(null, TypeInfo.Scalars.NodeId);
+            var variant = Variant.CreateDefault(TypeInfo.Scalars.NodeId);
 
             Assert.That(variant.AsBoxedObject(), Is.EqualTo(NodeId.Null));
         }
@@ -882,7 +894,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void VariantNullBehavesAsExpected()
         {
             Assert.That(Variant.Null.IsNull, Is.True);
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(Variant.Null.Value, Is.Null);
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(Variant.Null.GetHashCode(), Is.EqualTo(0));
         }
 
@@ -891,7 +905,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var variant = new Variant(42);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(variant.Value.GetHashCode(), Is.EqualTo(variant.GetHashCode()));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -934,7 +950,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant variant = InvokeVariantFrom(value);
 
             AssertTypeInfo(descriptor.TypeInfo, variant.TypeInfo);
+#pragma warning disable CS0618 // Type or member is obsolete
             AssertValueEquality(value, variant.Value);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [TestCaseSource(nameof(ArrayDescriptorCases))]
@@ -944,7 +962,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant variant = InvokeVariantFrom(value);
 
             AssertTypeInfo(descriptor.TypeInfo, variant.TypeInfo);
+#pragma warning disable CS0618 // Type or member is obsolete
             AssertValueEquality(value, variant.Value);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -957,6 +977,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Test scalar StatusCode creation from uint
             uint statusCodeValue = (uint)StatusCodes.Good;
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(statusCodeValue, TypeInfo.Scalars.StatusCode);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
@@ -980,6 +1001,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var statusCode3 = (StatusCode)variant3.Value;
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(statusCode3.Code, Is.EqualTo(customValue));
         }
 
@@ -1000,9 +1022,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.BadAttributeIdInvalid
             ];
 
-            var variant = new Variant(statusCodeValues, TypeInfo.Arrays.StatusCode);
+            var variant = Variant.From(statusCodeValues);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(variant.Value, Is.Not.Null);
             Assert.That(variant.Value, Is.InstanceOf<StatusCode[]>());
 
@@ -1029,6 +1052,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var singleStatusCode = (StatusCode[])variant3.Value;
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(singleStatusCode.Length, Is.EqualTo(1));
             Assert.That(singleStatusCode[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }

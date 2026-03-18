@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ReferenceServerTests
@@ -477,7 +477,6 @@ namespace Opc.Ua.Server.Tests
         /// Test that ReferenceNodeManager array variables update their SourceTimestamp on read.
         /// </summary>
         [Test]
-        [NonParallelizable]
         public async Task ReferenceNodeManagerArrayVariablesUpdateTimestampOnReadAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -744,7 +743,6 @@ namespace Opc.Ua.Server.Tests
         /// Ensure only a single value per monitored item is returned after ResendData was called.
         /// </summary>
         [Test]
-        [NonParallelizable]
         [TestCase(true, kQueueSize)]
         [TestCase(false, kQueueSize)]
         [TestCase(true, 0U)]
