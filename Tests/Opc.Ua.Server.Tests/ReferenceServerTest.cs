@@ -651,29 +651,28 @@ namespace Opc.Ua.Server.Tests
             // Build an event filter for the base event type.
             var eventFilter = new EventFilter();
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.EventId));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.EventType));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.SourceNode));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.SourceName));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.Time));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.Message));
             eventFilter.AddSelectClause(
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.Severity));
 
-            var monitoredItems = new MonitoredItemCreateRequestCollection
-            {
+            ArrayOf<MonitoredItemCreateRequest> monitoredItems = [
                 new MonitoredItemCreateRequest
                 {
                     ItemToMonitor = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.EventNotifier },
@@ -687,7 +686,7 @@ namespace Opc.Ua.Server.Tests
                         Filter = new ExtensionObject(eventFilter)
                     }
                 }
-            };
+            ];
 
             CreateMonitoredItemsResponse createItemsResponse = await services.CreateMonitoredItemsAsync(
                 requestHeader,
@@ -715,7 +714,7 @@ namespace Opc.Ua.Server.Tests
             await Task.Delay(200).ConfigureAwait(false);
 
             // Publish request to get the event notification
-            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            var acknowledgements = new ArrayOf<SubscriptionAcknowledgement>();
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -724,25 +723,27 @@ namespace Opc.Ua.Server.Tests
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
             Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
 
-            var eventNotification = publishResponse.NotificationMessage.NotificationData[0].Body as EventNotificationList;
+            publishResponse.NotificationMessage.NotificationData[0].TryGetEncodeable(out EventNotificationList eventNotification);
             Assert.IsNotNull(eventNotification);
             Assert.IsTrue(eventNotification.Events.Count > 0);
 
-            EventFieldList targetEvent = eventNotification.Events.FirstOrDefault(x => x.EventFields[5].Value is LocalizedText lt && lt.Text == eventMessage);
+            EventFieldList targetEvent = eventNotification.Events.ToList().FirstOrDefault(
+                x => x.EventFields[5].TryGet(out LocalizedText lt) && lt.Text == eventMessage);
             Assert.IsNotNull(targetEvent, "Did not receive the target event.");
 
-            VariantCollection eventFields = targetEvent.EventFields;
+            ArrayOf<Variant> eventFields = targetEvent.EventFields;
             Assert.AreEqual(7, eventFields.Count); // we requested 7 fields in select clauses
 
-            Assert.IsNotNull(eventFields[0].Value); // EventId
-            Assert.IsNotNull(eventFields[1].Value); // EventType
-            Assert.IsNotNull(eventFields[2].Value); // SourceNode
-            Assert.IsNotNull(eventFields[3].Value); // SourceName
-            Assert.IsNotNull(eventFields[4].Value); // Time
-            var receivedMessage = (LocalizedText)eventFields[5].Value; // Message
-            Assert.IsNotNull(receivedMessage);
+            Assert.IsFalse(eventFields[0].IsNull); // EventId
+            Assert.IsFalse(eventFields[1].IsNull); // EventType
+            Assert.IsFalse(eventFields[2].IsNull); // SourceNode
+            Assert.IsFalse(eventFields[3].IsNull); // SourceName
+            Assert.IsFalse(eventFields[4].IsNull); // Time
+            eventFields[5].TryGet(out LocalizedText receivedMessage); // Message
+            Assert.IsFalse(receivedMessage.IsNull);
             Assert.AreEqual(eventMessage, receivedMessage.Text);
-            Assert.AreEqual((ushort)EventSeverity.Medium, eventFields[6].Value); // Severity
+            eventFields[6].TryGet(out ushort receiveSeverity);
+            Assert.AreEqual((ushort)EventSeverity.Medium, receiveSeverity); // Severity
 
             // Delete subscription
             await services.DeleteSubscriptionsAsync(

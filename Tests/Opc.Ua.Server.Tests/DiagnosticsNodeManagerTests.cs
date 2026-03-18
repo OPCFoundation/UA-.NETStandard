@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
 
             PropertyState getMonitoredItemsOutputArgs = manager.FindPredefinedNode<PropertyState>(VariableIds.Server_GetMonitoredItems_OutputArguments);
             Assert.That(getMonitoredItemsOutputArgs, Is.Not.Null, "GetMonitoredItems output arguments should exist.");
-            Assert.That(getMonitoredItemsOutputArgs.Value, Is.Not.Null, "Output arguments value should be initialized.");
+            Assert.That(getMonitoredItemsOutputArgs.Value.IsNull, Is.False, "Output arguments value should be initialized.");
 
             ResendDataMethodState resendData = manager.FindPredefinedNode<ResendDataMethodState>(MethodIds.Server_ResendData);
             Assert.That(resendData, Is.Not.Null, "ResendData should exist.");
@@ -202,8 +202,8 @@ ObjectIds.Server,
             var subMock = new Mock<ISubscription>();
             subMock.Setup(s => s.Id).Returns(1234);
             subMock.Setup(s => s.SessionId).Returns(new NodeId(1, 1));
-            uint[] serverHandles = [1, 2];
-            uint[] clientHandles = [3, 4];
+            ArrayOf<uint> serverHandles = [1, 2];
+            ArrayOf<uint> clientHandles = [3, 4];
             subMock.Setup(s => s.GetMonitoredItems(out serverHandles, out clientHandles));
 
             m_subscriptionManagerMock.Setup(m => m.GetSubscriptions()).Returns([subMock.Object]);
@@ -217,8 +217,8 @@ ObjectIds.Server,
             var sysContextMock = new Mock<ISessionSystemContext>();
             sysContextMock.Setup(c => c.SessionId).Returns(new NodeId(1, 1));
 
-            var inputs = new VariantCollection { new Variant(1234u) };
-            var outputs = new VariantCollection { Variant.Null, Variant.Null };
+            ArrayOf<Variant> inputs = [new Variant(1234u)];
+            var outputs = new List<Variant> { Variant.Null, Variant.Null };
 
             ServiceResult result = getMonitoredItems.OnCallMethod(
                 sysContextMock.Object,
@@ -227,8 +227,8 @@ ObjectIds.Server,
                 outputs);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(outputs[0].Value, Is.EqualTo(serverHandles));
-            Assert.That(outputs[1].Value, Is.EqualTo(clientHandles));
+            Assert.That(outputs[0].GetUInt32Array(), Is.EqualTo(serverHandles));
+            Assert.That(outputs[1].GetUInt32Array(), Is.EqualTo(clientHandles));
 
             // Test access denied (different session ID)
             sysContextMock.Setup(c => c.SessionId).Returns(new NodeId(2, 1));
@@ -256,8 +256,8 @@ ObjectIds.Server,
             GetMonitoredItemsMethodState getMonitoredItems = manager.FindPredefinedNode<GetMonitoredItemsMethodState>(MethodIds.Server_GetMonitoredItems);
 
             var sysContextMock = new Mock<ISessionSystemContext>();
-            var inputs = new VariantCollection { new Variant(1234u) };
-            var outputs = new VariantCollection { Variant.Null, Variant.Null };
+            ArrayOf<Variant> inputs = [new Variant(1234u)];
+            var outputs = new List<Variant> { Variant.Null, Variant.Null };
 
             ServiceResult result = getMonitoredItems.OnCallMethod(
                 sysContextMock.Object,
@@ -295,8 +295,8 @@ ObjectIds.Server,
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
-            var inputs = new VariantCollection { new Variant(1234u) };
-            var outputs = new VariantCollection();
+            ArrayOf<Variant> inputs = [new Variant(1234u)];
+            var outputs = new List<Variant>();
 
             ServiceResult result = resendData.OnCallMethod(
                 sysContext,
@@ -340,8 +340,8 @@ ObjectIds.Server,
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
-            var inputs = new VariantCollection { new Variant(1234u) };
-            var outputs = new VariantCollection();
+            ArrayOf<Variant> inputs = [new Variant(1234u)];
+            var outputs = new List<Variant>();
 
             ServiceResult result = resendData.OnCallMethod(
                 sysContext,
@@ -416,7 +416,7 @@ ObjectIds.Server,
                 sessionSecDiag,
                 UpdateCallback).ConfigureAwait(false);
 
-            Assert.That(sessionId, Is.Not.Null);
+            Assert.That(sessionId.IsNull, Is.False);
 
             // Add a mock subscription to verify deletion path
             var subDiag = new SubscriptionDiagnosticsDataType { SubscriptionId = 1, SessionId = sessionId };
@@ -425,7 +425,7 @@ ObjectIds.Server,
                 subDiag,
                 UpdateCallback).ConfigureAwait(false);
 
-            Assert.That(subId, Is.Not.Null);
+            Assert.That(subId.IsNull, Is.False);
 
             // Check node exists before deleting
             SessionDiagnosticsObjectState sessionNodeBefore = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId);
@@ -528,10 +528,10 @@ VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary);
                 "OnReadUserRolePermissions should be wired on ServerDiagnosticsSummary.");
 
             // Test OnReadUserRolePermissions (Non-admin context -> PermissionType.None)
-            RolePermissionTypeCollection permissions = null;
+            ArrayOf<RolePermissionType> permissions = default;
             ServiceResult result = summaryNode.OnReadUserRolePermissions(manager.SystemContext, summaryNode, ref permissions);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(permissions, Is.Not.Null);
+            Assert.That(permissions.IsNull, Is.False);
             Assert.That(permissions.Count, Is.GreaterThan(0));
             Assert.That(permissions[0].Permissions, Is.EqualTo((uint)PermissionType.None));
 
@@ -548,7 +548,7 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosti
             Variant arrayValue = default;
             result = sessionArrayNode.OnSimpleReadValue(manager.SystemContext, sessionArrayNode, ref arrayValue);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.Not.Null); // Depends on Variant.FromStructure
+            Assert.That(arrayValue.IsNull, Is.False); // Depends on Variant.FromStructure
 
             // 3. Verify SessionSecurityDiagnosticsArrayState
             SessionSecurityDiagnosticsArrayState sessionSecurityArrayNode = manager.FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
@@ -566,7 +566,7 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityD
                 sessionSecurityArrayNode,
                 ref arrayValue);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.Not.Null);
+            Assert.That(arrayValue.IsNull, Is.False);
 
             // 4. Verify SubscriptionDiagnosticsArrayState
             SubscriptionDiagnosticsArrayState subArrayNode = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
@@ -581,7 +581,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             arrayValue = default;
             result = subArrayNode.OnSimpleReadValue(manager.SystemContext, subArrayNode, ref arrayValue);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.Not.Null);
+            Assert.That(arrayValue.IsNull, Is.False);
         }
 
         [Test]
@@ -642,16 +642,16 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             var opContextAdmin = new OperationContext(reqHeader, channelContext, RequestType.Read, sessionMock.Object);
             var adminContext = new ServerSystemContext(m_serverMock.Object, opContextAdmin);
 
-            RolePermissionTypeCollection permissionsAdmin = null;
+            ArrayOf<RolePermissionType> permissionsAdmin = default;
             summaryNode.OnReadUserRolePermissions(adminContext, summaryNode, ref permissionsAdmin);
-            Assert.That(permissionsAdmin, Is.Not.Null);
+            Assert.That(permissionsAdmin.IsNull, Is.False);
             Assert.That(permissionsAdmin.Count, Is.GreaterThan(0));
             Assert.That(permissionsAdmin[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None),
                 "Admin should have permissions on summary");
 
-            permissionsAdmin = null;
+            permissionsAdmin = default;
             sessionObjectNode.OnReadUserRolePermissions(adminContext, sessionObjectNode, ref permissionsAdmin);
-            Assert.That(permissionsAdmin, Is.Not.Null);
+            Assert.That(permissionsAdmin.IsNull, Is.False);
             Assert.That(permissionsAdmin[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None),
                 "Admin should have permissions on any session");
 
@@ -667,15 +667,15 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 reqHeader, channelContext, RequestType.Read, sessionOwnerMock.Object);
             var ownerContext = new ServerSystemContext(m_serverMock.Object, opContextOwner);
 
-            RolePermissionTypeCollection permissionsOwner = null;
+            ArrayOf<RolePermissionType> permissionsOwner = default;
             summaryNode.OnReadUserRolePermissions(ownerContext, summaryNode, ref permissionsOwner);
-            Assert.That(permissionsOwner, Is.Not.Null);
+            Assert.That(permissionsOwner.IsNull, Is.False);
             Assert.That(permissionsOwner[0].Permissions, Is.EqualTo((uint)PermissionType.None),
                 "Non-admin owner should NOT have overall summary permissions");
 
-            permissionsOwner = null;
+            permissionsOwner = default;
             sessionObjectNode.OnReadUserRolePermissions(ownerContext, sessionObjectNode, ref permissionsOwner);
-            Assert.That(permissionsOwner, Is.Not.Null);
+            Assert.That(permissionsOwner.IsNull, Is.False);
             Assert.That(permissionsOwner[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None),
                 "Owner should have permissions on their own session");
 
@@ -688,9 +688,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 reqHeader, channelContext, RequestType.Read, sessionOtherMock.Object);
             var otherContext = new ServerSystemContext(m_serverMock.Object, opContextOther);
 
-            RolePermissionTypeCollection permissionsOther = null;
+            ArrayOf<RolePermissionType> permissionsOther = default;
             sessionObjectNode.OnReadUserRolePermissions(otherContext, sessionObjectNode, ref permissionsOther);
-            Assert.That(permissionsOther, Is.Not.Null);
+            Assert.That(permissionsOther.IsNull, Is.False);
             Assert.That(permissionsOther[0].Permissions, Is.EqualTo((uint)PermissionType.None),
                 "Other non-admin session should NOT have permissions on this session");
         }
@@ -718,23 +718,25 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 var instanceState = node as BaseInstanceState;
                 if (node.BrowseName.Name == BrowseNames.SessionDiagnostics)
                 {
-                    value = instanceState?.Parent?.BrowseName.Name == "TestSession" ? new Variant(sessionDiag) : new Variant(sessionDiag2);
+                    value = instanceState?.Parent?.BrowseName.Name == "TestSession" ? Variant.FromStructure(sessionDiag) : Variant.FromStructure(sessionDiag2);
                 }
                 else if (node.BrowseName.Name == BrowseNames.SessionSecurityDiagnostics)
                 {
-                    value = instanceState?.Parent?.BrowseName.Name == "TestSession" ? new Variant(sessionSecDiag) : new Variant(sessionSecDiag2);
+                    value = instanceState?.Parent?.BrowseName.Name == "TestSession"
+                        ? Variant.FromStructure(sessionSecDiag)
+                        : Variant.FromStructure(sessionSecDiag2);
                 }
                 else if (node.BrowseName.Name == "100")
                 {
-                    value = new Variant(subDiag); // Subscription node is named after SubscriptionId
+                    value = Variant.FromStructure(subDiag); // Subscription node is named after SubscriptionId
                 }
                 else if (node.BrowseName.Name == "200")
                 {
-                    value = new Variant(subDiag2);
+                    value = Variant.FromStructure(subDiag2);
                 }
                 else
                 {
-                    value = new Variant(new ServerDiagnosticsSummaryDataType());
+                    value = Variant.FromStructure(new ServerDiagnosticsSummaryDataType());
                 }
                 return ServiceResult.Good;
             }
@@ -792,10 +794,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosti
             ServiceResult result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var sessionArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(sessionArray.Length, Is.EqualTo(2));
-            var sessionDiagObj = (SessionDiagnosticsDataType)sessionArray[0].Body;
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionArray), Is.True);
+            Assert.That(sessionArray.Count, Is.EqualTo(2));
+            sessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType sessionDiagObj);
             Assert.That(sessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             SessionSecurityDiagnosticsArrayState sessionSecurityArrayNode = manager.FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
@@ -804,10 +805,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityD
             result = sessionSecurityArrayNode.OnSimpleReadValue(adminContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var sessionSecurityArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(sessionSecurityArray.Length, Is.EqualTo(2));
-            var sessionSecDiagObj = (SessionSecurityDiagnosticsDataType)sessionSecurityArray[0].Body;
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
+            Assert.That(sessionSecurityArray.Count, Is.EqualTo(2));
+            sessionSecurityArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
             Assert.That(sessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             SubscriptionDiagnosticsArrayState subArrayNode = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
@@ -817,10 +817,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(adminContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var subArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(subArray.Length, Is.EqualTo(2));
-            var subDiagObj = (SubscriptionDiagnosticsDataType)subArray[0].Body;
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> subArray), Is.True);
+            Assert.That(subArray.Count, Is.EqualTo(2));
+            subArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType subDiagObj);
             Assert.That(subDiagObj.SubscriptionId, Is.EqualTo(100));
 
             // Test unauthorized non-admin user accessing their own session
@@ -842,10 +841,10 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionArrayNode.OnSimpleReadValue(normalContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var normalSessionArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(normalSessionArray.Length, Is.EqualTo(1));
-            Assert.That(((SessionDiagnosticsDataType)normalSessionArray[0].Body).SessionName, Is.EqualTo("TestSession"));
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
+            Assert.That(normalSessionArray.Count, Is.EqualTo(1));
+            normalSessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType normalSessionDiagObj);
+            Assert.That(normalSessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             manager.ForceDiagnosticsScan();
 
@@ -853,10 +852,10 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionSecurityArrayNode.OnSimpleReadValue(normalContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var normalSessionSecArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(normalSessionSecArray.Length, Is.EqualTo(1));
-            Assert.That(((SessionSecurityDiagnosticsDataType)normalSessionSecArray[0].Body).SessionId, Is.EqualTo(sessionId));
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
+            Assert.That(normalSessionSecArray.Count, Is.EqualTo(1));
+            normalSessionSecArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
+            Assert.That(normalSessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             manager.ForceDiagnosticsScan();
 
@@ -864,10 +863,10 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(normalContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.Value, Is.InstanceOf<ExtensionObject[]>());
-            var normalSubArray = (ExtensionObject[])arrayValue.Value;
-            Assert.That(normalSubArray.Length, Is.EqualTo(1));
-            Assert.That(((SubscriptionDiagnosticsDataType)normalSubArray[0].Body).SessionId, Is.EqualTo(sessionId));
+            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
+            Assert.That(normalSubArray.Count, Is.EqualTo(1));
+            normalSubArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType normalSubDiagObj);
+            Assert.That(normalSubDiagObj.SessionId, Is.EqualTo(sessionId));
 
             // Test if recently scanned just returns Good
             result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
@@ -908,7 +907,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value)
             {
-                value = new Variant(new ServerDiagnosticsSummaryDataType { CurrentSessionCount = 42 });
+                value = Variant.FromStructure(new ServerDiagnosticsSummaryDataType { CurrentSessionCount = 42 });
                 return ServiceResult.Good;
             }
 

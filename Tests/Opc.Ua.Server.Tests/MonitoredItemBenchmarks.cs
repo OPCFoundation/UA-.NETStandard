@@ -40,70 +40,78 @@ namespace Opc.Ua.Server.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var eventFilter = new EventFilter();
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
+            var eventFilter = new EventFilter
             {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.EventId)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.EventType)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.SourceNode)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.SourceName)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.Time)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.ReceiveTime)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.Message)],
-                AttributeId = Attributes.Value
-            });
-            eventFilter.SelectClauses.Add(new SimpleAttributeOperand
-            {
-                TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                BrowsePath = [new QualifiedName(BrowseNames.Severity)],
-                AttributeId = Attributes.Value
-            });
-
-            eventFilter.WhereClause = new ContentFilter();
-            eventFilter.WhereClause.Elements.Add(new ContentFilterElement
-            {
-                FilterOperator = FilterOperator.GreaterThanOrEqual,
-                FilterOperands = [
-                    new ExtensionObject(new SimpleAttributeOperand
+                SelectClauses = [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventId)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventType)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.SourceNode)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.SourceName)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.Time)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.ReceiveTime)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.Message)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
                     {
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = [new QualifiedName(BrowseNames.Severity)],
                         AttributeId = Attributes.Value
-                    }),
-                    new ExtensionObject(new LiteralOperand { Value = new Variant((ushort)100) })
-                ]
-            });
+                    }
+                ],
+
+                WhereClause = new ContentFilter
+                {
+                    Elements = [
+                        new ContentFilterElement
+                        {
+                            FilterOperator = FilterOperator.GreaterThanOrEqual,
+                            FilterOperands = [
+                                new ExtensionObject(new SimpleAttributeOperand
+                                {
+                                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                                    BrowsePath = [new QualifiedName(BrowseNames.Severity)],
+                                    AttributeId = Attributes.Value
+                                }),
+                                new ExtensionObject(new LiteralOperand { Value = Variant.From((ushort)100) })
+                            ]
+                        }
+                    ]
+                }
+            };
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);
