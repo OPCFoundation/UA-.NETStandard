@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
             }
 
             QueuedSubscription subscriptionToPublish;
-            lock (m_subscriptionPublishLock)
+            lock (m_lock)
             {
                 // find the waiting subscription with the highest priority.
                 subscriptionToPublish = GetSubscriptionToPublish();
@@ -117,10 +117,7 @@ namespace Opc.Ua.Server
                 {
                     return Task.FromResult(subscriptionToPublish.Subscription);
                 }
-            }
 
-            lock (m_lock)
-            {
                 // check if queue is full.
                 if (m_queuedRequests.Count >= m_maxRequestCount)
                 {
@@ -150,6 +147,8 @@ namespace Opc.Ua.Server
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<ISubscription> Close()
         {
+            var subscriptions = new List<ISubscription>();
+
             lock (m_lock)
             {
                 // TraceState("SESSION CLOSED");
@@ -164,19 +163,21 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                var subscriptions = new List<ISubscription>(m_queuedSubscriptions.Count);
-
                 foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
                 {
                     subscriptions.Add(entry.Value.Subscription);
-                    entry.Value.Subscription.SessionClosed();
                 }
 
                 // clear the queue.
                 m_queuedSubscriptions.Clear();
-
-                return subscriptions;
             }
+
+            foreach (ISubscription subscription in subscriptions)
+            {
+                subscription.SessionClosed();
+            }
+
+            return subscriptions;
         }
 
         /// <summary>
@@ -375,19 +376,19 @@ namespace Opc.Ua.Server
             if (m_queuedSubscriptions.TryGetValue(subscription.Id,
                 out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-
-                if (moreNotifications)
+                lock (m_lock)
                 {
-                    lock (m_subscriptionPublishLock)
+                    queuedSubscription.Publishing = false;
+
+                    if (moreNotifications)
                     {
                         AssignSubscriptionToRequest(queuedSubscription);
                     }
-                }
-                else
-                {
-                    queuedSubscription.ReadyToPublish = false;
-                    queuedSubscription.Timestamp = DateTime.UtcNow;
+                    else
+                    {
+                        queuedSubscription.ReadyToPublish = false;
+                        queuedSubscription.Timestamp = DateTime.UtcNow;
+                    }
                 }
             }
         }
@@ -399,8 +400,11 @@ namespace Opc.Ua.Server
         {
             if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-                queuedSubscription.ReadyToPublish = true;
+                lock (m_lock)
+                {
+                    queuedSubscription.Publishing = false;
+                    queuedSubscription.ReadyToPublish = true;
+                }
             }
         }
 
@@ -443,9 +447,12 @@ namespace Opc.Ua.Server
                 // assign subscription to request if one is available.
                 if (!subscription.Publishing)
                 {
-                    lock (m_subscriptionPublishLock)
+                    lock (m_lock)
                     {
-                        AssignSubscriptionToRequest(subscription);
+                        if (!subscription.Publishing)
+                        {
+                            AssignSubscriptionToRequest(subscription);
+                        }
                     }
                 }
             }
@@ -663,7 +670,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private readonly Lock m_subscriptionPublishLock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
