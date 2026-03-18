@@ -31,6 +31,9 @@ using System;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
+#pragma warning disable IDE0028 // Simplify collection initialization
+#pragma warning disable IDE0305 // Simplify collection initialization
+
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
@@ -54,26 +57,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.NotNull(extensionObject_Default);
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject_Default.TypeId);
             Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject_Default.Encoding);
-            Assert.Null(extensionObject_Default.Body);
+            Assert.IsTrue(extensionObject_Default.IsNull);
             // Constructor by ExtensionObject
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
             Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject.Encoding);
-            Assert.Null(extensionObject.Body);
+            Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
+            Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
+            Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
+            Assert.IsFalse(extensionObject.TryGetAsJson(out string _));
+            Assert.IsTrue(extensionObject.IsNull);
             // static extensions
-            Assert.True(Ua.ExtensionObject.IsNull(extensionObject));
             Assert.Null(Ua.ExtensionObject.ToEncodeable(default));
             Assert.Null(Ua.ExtensionObject.ToArray(null, typeof(object)));
             Assert.Null(Ua.ExtensionObject.ToList<object>(null));
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.AreEqual(0, extensionObject.GetHashCode());
-            NUnit.Framework.Assert
-                .Throws<ServiceResultException>(() => new ExtensionObject(default, new object()));
+#pragma warning disable CS0618 // Type or member is obsolete
+            NUnit.Framework.Assert.Throws<ServiceResultException>(
+                () => new ExtensionObject(default, new object()));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(
+                () => new ExtensionObject(default, new byte[] { 1, 2, 3 }));
+#pragma warning restore CS0618 // Type or member is obsolete
             // constructor by object
-            byte[] byteArray = [1, 2, 3];
-            extensionObject = new ExtensionObject(default, byteArray);
+            ByteString bytes = [1, 2, 3];
+            extensionObject = new ExtensionObject(default, bytes);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);
             // string extension
@@ -92,16 +102,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ExpandedNodeId.Null.GetHashCode(),
                 extensionObject.TypeId.GetHashCode());
             Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
-            Assert.AreEqual(byteArray, extensionObject.Body);
-            Assert.AreEqual(byteArray.GetHashCode(), extensionObject.Body.GetHashCode());
-            // collection
-            var collection = new ExtensionObjectCollection();
-            Assert.NotNull(collection);
-            collection = new ExtensionObjectCollection(100);
-            Assert.NotNull(collection);
-            collection = [.. collection];
-            Assert.NotNull(collection);
-            collection = CoreUtils.Clone(collection);
+            Assert.AreEqual(bytes, extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default);
             // default value is null
             Assert.That(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject), Is.EqualTo(ExtensionObject.Null));
         }

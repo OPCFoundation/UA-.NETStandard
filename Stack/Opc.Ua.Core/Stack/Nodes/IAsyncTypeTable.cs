@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -94,7 +93,7 @@ namespace Opc.Ua
         /// <returns>List of type identifiers for
         /// <paramref name="typeId"/></returns>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        ValueTask<IList<NodeId>> FindSubTypesAsync(
+        ValueTask<ArrayOf<NodeId>> FindSubTypesAsync(
             ExpandedNodeId typeId,
             CancellationToken ct = default);
 
@@ -303,7 +302,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
+        public ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
             return m_table.FindSubTypesAsync(typeId)
                 .AsTask()

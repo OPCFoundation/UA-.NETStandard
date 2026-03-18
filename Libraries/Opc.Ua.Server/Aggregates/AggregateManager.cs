@@ -152,8 +152,8 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration to use.</param>
         public IAggregateCalculator CreateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)

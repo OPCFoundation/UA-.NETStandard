@@ -178,11 +178,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void Clone()
         {
             var testClone = new TestClone(1);
-            Assert.NotNull(Utils.Clone(testClone));
+            Assert.NotNull(CoreUtils.Clone(testClone));
             var testMemberwiseClone = new TestMemberwiseClone(2);
-            Assert.NotNull(Utils.Clone(testMemberwiseClone));
+            Assert.NotNull(CoreUtils.Clone(testMemberwiseClone));
             var testNoClone = new TestNoClone(3);
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
         }
 
         [Test]
@@ -199,17 +199,17 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var user1 = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()).ToByteString()
             };
             var user1_dupe = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()).ToByteString()
             };
             var user2 = new UserNameIdentityToken
             {
                 UserName = "user2",
-                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray()).ToByteString()
             };
             Assert.True(Utils.IsEqualUserIdentity(user1, user1_dupe));
             Assert.True(Utils.IsEqualUserIdentity(user1, user1));

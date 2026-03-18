@@ -52,6 +52,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal const string MqttAddressUrl = "mqtt://localhost:1883";
         private static List<DateTime> s_publishTimes = [];
 
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From((byte)1),
+            Variant.From((ushort)1),
+            Variant.From((uint)1),
+            Variant.From((ulong)1),
+            Variant.From("abc"),
+        ];
+
         [Test(Description = "Validate PublisherId with PublisherId as parameter")]
         public void ValidateMatrixEncodigWithParameters(
             [Values(
@@ -91,7 +100,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -224,13 +233,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(
-                (byte)1
-            // , (UInt16)1, (UInt32)1, (UInt64)1, "abc"
-            )]
-                object publisherId)
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
+            Variant publisherId = (byte)1;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -340,12 +345,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(
-                (byte)1 /*, (UInt16)1, (UInt32)1, (UInt64)1, "abc"*/
-            )]
-                object publisherId)
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
+            Variant publisherId = (byte)1;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -454,7 +456,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -567,7 +569,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -684,7 +686,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -800,7 +802,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
@@ -905,7 +907,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1018,7 +1020,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1134,7 +1136,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1251,7 +1253,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1363,7 +1365,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1453,7 +1455,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1585,7 +1587,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1752,7 +1754,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         )]
         [Ignore("Max deviation instable in this version.")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [ValueSource(nameof(s_validPublisherIds))] Variant publisherId,
             [Values(100, 1000, 2000)] double metaDataUpdateTime,
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
@@ -2078,26 +2080,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         uadpDataSetMessage.DataSetWriterId);
 
                     // check dataValues values
+#pragma warning disable CS0618 // Type or member is obsolete
                     Assert.IsNotNull(
                         fieldEncoded.Value.Value,
                         "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
                         uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     Assert.IsNotNull(
                         fieldDecoded.Value.Value,
                         "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
                         uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
 
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                     Assert.AreEqual(
                         dataValueEncoded.Value,
                         dataValueDecoded.Value,
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName,
                         uadpDataSetMessage.DataSetWriterId);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // Checks just for DataValue type only
                     if ((uadpDataSetMessage.FieldContentMask &

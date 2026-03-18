@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Server
         public NodeId Id { get; set; }
 
         /// <inheritdoc/>
-        public NodeIdCollection CertificateTypes { get; set; }
+        public ArrayOf<NodeId> CertificateTypes { get; set; }
 
         /// <inheritdoc/>
         public CertificateGroupConfiguration Configuration { get; }
@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Server
                         continue;
                     }
 
-                    CertificateTypes.Add(certificateType);
+                    CertificateTypes = CertificateTypes.AddItem(certificateType);
                     Certificates.TryAdd(certificateType, null);
                 }
                 else
@@ -128,7 +128,7 @@ namespace Opc.Ua.Gds.Server
                         $"Unknown certificate type {certificateTypeString}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
                 }
             }
-            if (CertificateTypes.Count == 0)
+            if (CertificateTypes.IsEmpty)
             {
                 throw new ArgumentException("Please specify at least one valid Certificate Type");
             }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Server
                         NodeId certificateType = CertificateIdentifier.GetCertificateType(
                             certificate);
 
-                        if (CertificateTypes.Any(c => c == certificateType))
+                        if (CertificateTypes.Contains(c => c == certificateType))
                         {
                             if (Certificates[certificateType] != null)
                             {
@@ -248,11 +248,6 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
             }
 
-            if (application.ApplicationNames == null)
-            {
-                throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
-            }
-
             using X509Certificate2 signingKey = await LoadSigningKeyAsync(
                 Certificates[certificateType],
                 null,
@@ -274,12 +269,12 @@ namespace Opc.Ua.Gds.Server
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
 
-            byte[] privateKey;
+            ByteString privateKey;
             if (privateKeyFormat == "PFX")
             {
                 if (privateKeyPassword == null || privateKeyPassword.Length == 0)
                 {
-                    privateKey = certificate.Export(X509ContentType.Pfx);
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx));
                 }
                 else
                 {
@@ -289,12 +284,13 @@ namespace Opc.Ua.Gds.Server
                         passwordString.AppendChar(c);
                     }
                     passwordString.MakeReadOnly();
-                    privateKey = certificate.Export(X509ContentType.Pfx, passwordString);
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx, passwordString));
                 }
             }
             else if (privateKeyFormat == "PEM")
             {
-                privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
+                privateKey = ByteString.From(
+                    PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword));
             }
             else
             {
@@ -337,12 +333,12 @@ namespace Opc.Ua.Gds.Server
 
         public virtual Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default)
         {
             try
             {
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -373,12 +369,12 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default)
         {
             try
             {
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -501,7 +497,7 @@ namespace Opc.Ua.Gds.Server
             Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            var initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
+            X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
 
             //Update TrustedList Store
             await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
@@ -516,7 +512,7 @@ namespace Opc.Ua.Gds.Server
             {
                 await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
                     .ConfigureAwait(false);
-            }   
+            }
 
             return Certificates[certificateType];
         }
@@ -591,7 +587,7 @@ namespace Opc.Ua.Gds.Server
             CancellationToken ct = default)
         {
             bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
-            if(!isCACert)
+            if (!isCACert)
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
@@ -607,12 +603,12 @@ namespace Opc.Ua.Gds.Server
                 X509CRL result = null;
                 if (certCACrl == null || certCACrl.Count == 0)
                 {
-                    result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false); 
+                    result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false);
                     await store.AddCRLAsync(result, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    if(certCACrl.Count > 1)
+                    if (certCACrl.Count > 1)
                     {
                         telemetry?.CreateLogger<CertificateGroup>().LogWarning(
                             "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.",
@@ -663,7 +659,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
 
-            
+
             if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
             {
                 throw new ServiceResultException(

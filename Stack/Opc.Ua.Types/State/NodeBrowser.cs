@@ -116,7 +116,7 @@ namespace Opc.Ua
         {
             lock (DataLock)
             {
-                IReference reference = null;
+                IReference reference;
 
                 // always return the previous pushed reference first.
                 if (m_pushBack != null)

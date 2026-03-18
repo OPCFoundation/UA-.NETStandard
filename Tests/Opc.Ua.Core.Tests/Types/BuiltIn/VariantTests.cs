@@ -119,11 +119,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandom(builtInType);
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant1 = new Variant(randomData);
             Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            var variant2 = new Variant(randomData, TypeInfo.CreateScalar(builtInType));
+            var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.Scalar));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
             var variant3 = new Variant(variant2);
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
             // implicit
         }
@@ -141,18 +143,12 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 useBoundaryValues,
                 100,
                 false);
+#pragma warning disable CS0618 // Type or member is obsolete
             var variant1 = new Variant(randomData);
-            if (builtInType == BuiltInType.Byte)
-            {
-                // Without hint, byte array can not be distinguished from bytestring
-                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
-            }
-            else
-            {
-                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            }
-            var variant2 = new Variant(randomData, TypeInfo.CreateArray(builtInType));
+            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
     }
 }

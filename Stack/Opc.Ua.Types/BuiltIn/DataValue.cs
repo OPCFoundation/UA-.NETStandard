@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -47,7 +46,7 @@ namespace Opc.Ua
     /// <list type="bullet">
     ///     <item><see cref="Variant"/></item>
     ///     <item><see cref="StatusCode"/></item>
-    ///     <item><see cref="DateTime"/> for the Servers Timestamp</item>
+    ///     <item><see cref="DateTimeUtc"/> for the Servers Timestamp</item>
     /// </list>
     /// <br/></para>
     /// </remarks>
@@ -58,7 +57,7 @@ namespace Opc.Ua
     /// //  (a) the value is a string, which is "abc123"
     /// //  (b) the statuscode is 0 (zero)
     /// //  (c) the timestamp is 'now'
-    /// DataValue dv = new DataValue(new Variant("abc123"), new StatusCode(0), DateTime.Now);
+    /// DataValue dv = new DataValue(Variant.From("abc123"), new StatusCode(0), DateTimeUtc.Now);
     ///
     /// </code>
     /// <code lang="Visual Basic">
@@ -67,7 +66,7 @@ namespace Opc.Ua
     /// '  (a) the value is a string, which is "abc123"
     /// '  (b) the statuscode is 0 (zero)
     /// '  (c) the timestamp is 'now'
-    /// Dim dv As DataValue = New DataValue(New Variant("abc123"), New StatusCode(0), DateTime.Now);
+    /// Dim dv As DataValue = New DataValue(New Variant("abc123"), New StatusCode(0), DateTimeUtc.Now);
     ///
     /// </code>
     /// </example>
@@ -81,7 +80,10 @@ namespace Opc.Ua
         /// </summary>
         public DataValue()
         {
-            Initialize();
+            m_value = Variant.Null;
+            StatusCode = StatusCodes.Good;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -100,7 +102,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_value = value.m_value;
+            m_value = value.m_value.Copy();
             StatusCode = value.StatusCode;
             SourceTimestamp = value.SourceTimestamp;
             SourcePicoseconds = value.SourcePicoseconds;
@@ -117,9 +119,10 @@ namespace Opc.Ua
         /// <param name="value">The value to set</param>
         public DataValue(Variant value)
         {
-            Initialize();
-
             m_value = value;
+            StatusCode = StatusCodes.Good;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -128,8 +131,10 @@ namespace Opc.Ua
         /// <param name="statusCode">The StatusCode to set</param>
         public DataValue(StatusCode statusCode)
         {
-            Initialize();
+            m_value = Variant.Null;
             StatusCode = statusCode;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -137,11 +142,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="statusCode">The status code associated with the value.</param>
         /// <param name="serverTimestamp">The timestamp associated with the status code.</param>
-        public DataValue(StatusCode statusCode, DateTime serverTimestamp)
+        public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
-            Initialize();
+            m_value = Variant.Null;
             StatusCode = statusCode;
             ServerTimestamp = serverTimestamp;
+            SourceTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -151,10 +157,10 @@ namespace Opc.Ua
         /// <param name="statusCode">The status code to set</param>
         public DataValue(Variant value, StatusCode statusCode)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
+            SourceTimestamp = DateTimeUtc.MinValue;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -163,17 +169,17 @@ namespace Opc.Ua
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
         /// <param name="sourceTimestamp">The timestamp to set</param>
-        public DataValue(Variant value, StatusCode statusCode, DateTime sourceTimestamp)
+        public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
             SourceTimestamp = sourceTimestamp;
+            ServerTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
-        /// Initializes the object with a value, a status code, a source timestamp and a server timestamp
+        /// Initializes the object with a value, a status code, a source timestamp
+        /// and a server timestamp
         /// </summary>
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
@@ -182,26 +188,13 @@ namespace Opc.Ua
         public DataValue(
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp,
-            DateTime serverTimestamp)
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp)
         {
-            Initialize();
-
             m_value = value;
             StatusCode = statusCode;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = serverTimestamp;
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_value = Variant.Null;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTime.MinValue;
-            ServerTimestamp = DateTime.MinValue;
         }
 
         /// <inheritdoc/>
@@ -227,6 +220,7 @@ namespace Opc.Ua
             {
                 return false;
             }
+
             if (StatusCode != other.StatusCode)
             {
                 return false;
@@ -272,9 +266,7 @@ namespace Opc.Ua
             return !(a == b);
         }
 
-        /// <summary>
-        /// Returns a unique hashcode for the object.
-        /// </summary>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             if (!m_value.IsNull)
@@ -285,20 +277,13 @@ namespace Opc.Ua
             return StatusCode.GetHashCode();
         }
 
-        /// <summary>
-        /// Converts the value to a human readable string.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <param name="format">Not used, ALWAYS specify a null/nothing value</param>
-        /// <param name="formatProvider">The format string, ALWAYS specify a null/nothing value</param>
-        /// <exception cref="FormatException">Thrown when the format is NOT null/nothing</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -326,19 +311,18 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
+        [Obsolete("Use WrappedValue to access The value.")]
         public object Value
         {
-            get => m_value.AsBoxedObject();
-            set => m_value = new Variant(value);
+            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            set => VariantHelper.TryCastFrom(value, out m_value);
         }
 
         /// <summary>
         /// The value of data value.
         /// </summary>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
-#pragma warning disable RCS1085 // Use auto-implemented property
         public Variant WrappedValue
-#pragma warning restore RCS1085 // Use auto-implemented property
         {
             get => m_value;
             set => m_value = value;
@@ -354,7 +338,7 @@ namespace Opc.Ua
         /// The source timestamp associated with the value.
         /// </summary>
         [DataMember(Order = 3, IsRequired = false)]
-        public DateTime SourceTimestamp { get; set; }
+        public DateTimeUtc SourceTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the source timestamp.
@@ -366,7 +350,7 @@ namespace Opc.Ua
         /// The server timestamp associated with the value.
         /// </summary>
         [DataMember(Order = 5, IsRequired = false)]
-        public DateTime ServerTimestamp { get; set; }
+        public DateTimeUtc ServerTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the server timestamp.
@@ -462,9 +446,10 @@ namespace Opc.Ua
         /// Ensures the data value contains a value with the specified type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use WrappedValue and Variant API")]
         public object GetValue(Type expectedType)
         {
-            object value = Value;
+            object value = WrappedValue.AsBoxedObject();
 
             if (expectedType != null && value != null)
             {
@@ -474,9 +459,10 @@ namespace Opc.Ua
                     return null;
                 }
 
-                if (value is ExtensionObject extension)
+                if (value is ExtensionObject extension &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 if (!expectedType.IsInstanceOfType(value))
@@ -503,6 +489,7 @@ namespace Opc.Ua
         /// Throws exception only if there is a type mismatch;
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use WrappedValue and Variant API")]
         public T GetValueOrDefault<T>()
         {
             // return default for a DataValue with bad status code.
@@ -511,23 +498,23 @@ namespace Opc.Ua
                 return default;
             }
 
-            object value = Value;
-            if (value != null)
+            if (!WrappedValue.IsNull)
             {
-                if (value is ExtensionObject extension)
+                if (WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                    encodeable is T typed)
                 {
-                    value = extension.Body;
+                    return typed;
+                }
+                else if (WrappedValue.TryCastTo(out typed))
+                {
+                    return typed;
                 }
 
-                if (value is not T typed)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTypeMismatch,
-                        "DataValue is not of type {0}.",
-                        typeof(T).Name);
-                }
-
-                return typed;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "DataValue is not of type {0}.",
+                    typeof(T).Name);
             }
 
             // a null value for a value type should throw
@@ -546,12 +533,13 @@ namespace Opc.Ua
         /// Gets the value from the data value.
         /// </summary>
         /// <typeparam name="T">The type of object.</typeparam>
-        /// <param name="defaultValue">The default value to return if any error occurs.</param>
+        /// <param name="defaultValue">The default value to return if any error
+        /// occurs.</param>
         /// <returns>The value.</returns>
         /// <remarks>
         /// Does not throw exceptions; returns the caller provided value instead.
-        /// Extracts the body from an ExtensionObject value if it has the correct type.
-        /// Checks the StatusCode and returns an error if not Good.
+        /// Extracts the body from an ExtensionObject value if it has the correct
+        /// type. Checks the StatusCode and returns an error if not Good.
         /// </remarks>
         public T GetValue<T>(T defaultValue)
         {
@@ -560,12 +548,14 @@ namespace Opc.Ua
                 return defaultValue;
             }
 
-            if (Value is T typedValue)
+            if (WrappedValue.TryGet(out ExtensionObject extension) &&
+                extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                encodeable is T typedBody)
             {
-                return typedValue;
+                return typedBody;
             }
 
-            if (Value is ExtensionObject extension && extension.Body is T typedBody)
+            if (WrappedValue.TryCastTo<T>(out typedBody))
             {
                 return typedBody;
             }
@@ -574,87 +564,5 @@ namespace Opc.Ua
         }
 
         private Variant m_value;
-    }
-
-    /// <summary>
-    /// A collection of DataValues.
-    /// </summary>
-    /// <remarks>
-    /// A strongly-typed collection of DataValues.
-    /// </remarks>
-    [CollectionDataContract(
-        Name = "ListOfDataValue",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "DataValue")]
-    public class DataValueCollection : List<DataValue>, ICloneable
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public DataValueCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of <see cref="DataValue"/> objects to pre-populate this new collection with</param>
-        public DataValueCollection(IEnumerable<DataValue> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The max capacity of this collection</param>
-        public DataValueCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">An array of <see cref="DataValue"/> objects to return as a collection</param>
-        public static DataValueCollection ToDataValueCollection(DataValue[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">An array of <see cref="DataValue"/> objects to return as a collection</param>
-        public static implicit operator DataValueCollection(DataValue[] values)
-        {
-            return ToDataValueCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new DataValueCollection(Count);
-
-            foreach (DataValue element in this)
-            {
-                clone.Add(CoreUtils.Clone(element));
-            }
-
-            return clone;
-        }
     }
 }

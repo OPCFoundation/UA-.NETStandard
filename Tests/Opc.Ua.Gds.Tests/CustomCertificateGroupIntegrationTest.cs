@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -116,16 +115,16 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(appId.IsNull, Is.False);
 
                 // GetCertificateGroups should return both the default group and the custom group
-                NodeId[] groups = await m_gdsClient.GDSClient
+                ArrayOf<NodeId> groups = await m_gdsClient.GDSClient
                     .GetCertificateGroupsAsync(appId)
                     .ConfigureAwait(false);
 
                 Assert.That(groups, Is.Not.Null);
-                Assert.That(groups.Length, Is.EqualTo(2),
+                Assert.That(groups.Count, Is.EqualTo(2),
                     "Expected 2 certificate groups: default + custom");
 
                 // Verify that each group's TrustList is accessible
-                foreach (NodeId groupId in groups)
+                foreach (NodeId groupId in groups.ToList())
                 {
                     NodeId trustListId = await m_gdsClient.GDSClient
                         .GetTrustListAsync(appId, groupId)
@@ -159,7 +158,7 @@ namespace Opc.Ua.Gds.Tests
                     .RegisterApplicationAsync(appData.ApplicationRecord)
                     .ConfigureAwait(false);
 
-                NodeId[] groups = await m_gdsClient.GDSClient
+                ArrayOf<NodeId> groups = await m_gdsClient.GDSClient
                     .GetCertificateGroupsAsync(appId)
                     .ConfigureAwait(false);
 
@@ -170,7 +169,7 @@ namespace Opc.Ua.Gds.Tests
                     m_gdsClient.GDSClient.Session.NamespaceUris);
 
                 // Verify the custom group NodeId is among the returned groups
-                NodeId customGroupNodeId = groups.FirstOrDefault(g => !Utils.IsEqual(g, defaultGroupId));
+                NodeId customGroupNodeId = groups.ToList().FirstOrDefault(g => !Utils.IsEqual(g, defaultGroupId));
                 Assert.That(customGroupNodeId, Is.Not.Null,
                     "A group NodeId other than DefaultApplicationGroup must be present");
                 Assert.That(customGroupNodeId.IsNull, Is.False,

@@ -242,7 +242,7 @@ namespace Opc.Ua.Server
 
                     if (ServiceResult.IsBad(error))
                     {
-                        initialValue.Value = null;
+                        initialValue.WrappedValue = default;
                         initialValue.StatusCode = error.StatusCode;
                     }
                 }

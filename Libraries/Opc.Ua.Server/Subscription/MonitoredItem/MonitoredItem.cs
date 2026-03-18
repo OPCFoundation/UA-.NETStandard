@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -132,7 +131,7 @@ namespace Opc.Ua.Server
             {
                 m_calculator = m_server.AggregateManager.CreateCalculator(
                     aggregateFilter.AggregateType,
-                    aggregateFilter.StartTime,
+                    (DateTime)aggregateFilter.StartTime,
                     DateTime.MaxValue,
                     aggregateFilter.ProcessingInterval,
                     aggregateFilter.Stepped,
@@ -211,7 +210,7 @@ namespace Opc.Ua.Server
             {
                 m_calculator = m_server.AggregateManager.CreateCalculator(
                     aggregateFilter.AggregateType,
-                    aggregateFilter.StartTime,
+                    (DateTime)aggregateFilter.StartTime,
                     DateTime.MaxValue,
                     aggregateFilter.ProcessingInterval,
                     aggregateFilter.Stepped,
@@ -244,7 +243,7 @@ namespace Opc.Ua.Server
             NodeId = default;
             AttributeId = 0;
             m_indexRange = null;
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
             DataEncoding = default;
             ClientHandle = 0;
             MonitoringMode = MonitoringMode.Disabled;
@@ -720,7 +719,7 @@ namespace Opc.Ua.Server
                     {
                         m_calculator = m_server.AggregateManager.CreateCalculator(
                             aggregateFilter.AggregateType,
-                            aggregateFilter.StartTime,
+                            (DateTime)aggregateFilter.StartTime,
                             DateTime.MaxValue,
                             aggregateFilter.ProcessingInterval,
                             aggregateFilter.Stepped,
@@ -982,12 +981,11 @@ namespace Opc.Ua.Server
             IFilterTarget instance)
         {
             // fetch the event fields.
-            var fields = new EventFieldList { ClientHandle = ClientHandle, Handle = instance };
-
+            var eventFieldValues = new List<Variant>();
             foreach (SimpleAttributeOperand clause in filter.SelectClauses)
             {
                 // get the value of the attribute (apply localization).
-                object value = instance.GetAttributeValue(
+                Variant value = instance.GetAttributeValue(
                     context,
                     clause.TypeDefinitionId,
                     clause.BrowsePath,
@@ -995,24 +993,29 @@ namespace Opc.Ua.Server
                     clause.ParsedIndexRange);
 
                 // add the value to the list of event fields.
-                if (value != null)
+                if (!value.IsNull)
                 {
                     // translate any localized text.
-                    if (value is LocalizedText text)
+                    if (value.TryGet(out LocalizedText text))
                     {
                         value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }
 
                     // add value.
-                    fields.EventFields.Add(new Variant(value));
+                    eventFieldValues.Add(value);
                 }
                 // add a dummy entry for missing values.
                 else
                 {
-                    fields.EventFields.Add(Variant.Null);
+                    eventFieldValues.Add(Variant.Null);
                 }
             }
-
+            var fields = new EventFieldList
+            {
+                ClientHandle = ClientHandle,
+                Handle = instance,
+                EventFields = eventFieldValues
+            };
             return fields;
         }
 
@@ -1119,7 +1122,7 @@ namespace Opc.Ua.Server
                 if (alarmCondition != null &&
                     alarmCondition.SupportsFilteredRetain != null &&
                     alarmCondition.SupportsFilteredRetain.Value &&
-                    filter.SelectClauses != null)
+                    !filter.SelectClauses.IsNull)
                 {
                     conditionId = alarmCondition.NodeId;
                 }
@@ -1774,14 +1777,10 @@ namespace Opc.Ua.Server
                         }
                         return false;
                     case BuiltInType.XmlElement:
-                        if (value1.TryGet(out XmlElement xml1) && value2.TryGet(out XmlElement xml2))
+                        if (value1.TryGet(out XmlElement xml1) &&
+                            value2.TryGet(out XmlElement xml2))
                         {
-                            if (xml1 == null || xml2 == null)
-                            {
-                                return xml1 == xml2;
-                            }
-
-                            return xml1.OuterXml.Equals(xml2.OuterXml, StringComparison.Ordinal);
+                            return xml1 == xml2;
                         }
                         return false;
                     case BuiltInType.Integer:
@@ -1797,7 +1796,7 @@ namespace Opc.Ua.Server
                         // Other numeric types check deadband if applicable
                         if (deadbandType != DeadbandType.None)
                         {
-                            return !ExceedsDeadband(value1.Value, value2.Value, deadbandType, deadband, range);
+                            return !ExceedsDeadband(value1, value2, deadbandType, deadband, range);
                         }
                         return false;
                 }
@@ -1810,14 +1809,15 @@ namespace Opc.Ua.Server
             {
                 case BuiltInType.Double:
                 {
-                    if (value1.TryGet(out double[] dArray1) && value2.TryGet(out double[] dArray2))
+                    if (value1.TryGet(out ArrayOf<double> dArray1) &&
+                        value2.TryGet(out ArrayOf<double> dArray2))
                     {
-                        if (dArray1.Length != dArray2.Length)
+                        if (dArray1.Count != dArray2.Count)
                         {
                             return false;
                         }
 
-                        for (int ii = 0; ii < dArray1.Length; ii++)
+                        for (int ii = 0; ii < dArray1.Count; ii++)
                         {
                             double d1 = dArray1[ii];
                             double d2 = dArray2[ii];
@@ -1842,14 +1842,15 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.Float:
                 {
-                    if (value1.TryGet(out float[] fArray1) && value2.TryGet(out float[] fArray2))
+                    if (value1.TryGet(out ArrayOf<float> fArray1) &&
+                        value2.TryGet(out ArrayOf<float> fArray2))
                     {
-                        if (fArray1.Length != fArray2.Length)
+                        if (fArray1.Count != fArray2.Count)
                         {
                             return false;
                         }
 
-                        for (int ii = 0; ii < fArray1.Length; ii++)
+                        for (int ii = 0; ii < fArray1.Count; ii++)
                         {
                             float f1 = fArray1[ii];
                             float f2 = fArray2[ii];
@@ -1874,14 +1875,15 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.Variant:
                 {
-                    if (value1.TryGet(out Variant[] vArray1) && value2.TryGet(out Variant[] vArray2))
+                    if (value1.TryGet(out ArrayOf<Variant> vArray1) &&
+                        value2.TryGet(out ArrayOf<Variant> vArray2))
                     {
-                        if (vArray1.Length != vArray2.Length)
+                        if (vArray1.Count != vArray2.Count)
                         {
                             return false;
                         }
 
-                        for (int ii = 0; ii < vArray1.Length; ii++)
+                        for (int ii = 0; ii < vArray1.Count; ii++)
                         {
                             if (!Equals(vArray1[ii], vArray2[ii], deadbandType, deadband, range))
                             {
@@ -1894,26 +1896,20 @@ namespace Opc.Ua.Server
                 }
                 case BuiltInType.XmlElement:
                 {
-                    if (value1.TryGet(out XmlElement[] xArray1) && value2.TryGet(out XmlElement[] xArray2))
+                    if (value1.TryGet(out ArrayOf<XmlElement> xArray1) &&
+                        value2.TryGet(out ArrayOf<XmlElement> xArray2))
                     {
-                        if (xArray1.Length != xArray2.Length)
+                        if (xArray1.Count != xArray2.Count)
                         {
                             return false;
                         }
 
-                        for (int ii = 0; ii < xArray1.Length; ii++)
+                        for (int ii = 0; ii < xArray1.Count; ii++)
                         {
                             XmlElement xml1 = xArray1[ii];
                             XmlElement xml2 = xArray2[ii];
 
-                            if (xml1 == null || xml2 == null)
-                            {
-                                if (xml1 != xml2)
-                                {
-                                    return false;
-                                }
-                            }
-                            else if (!xml1.OuterXml.Equals(xml2.OuterXml, StringComparison.Ordinal))
+                            if (xml1 != xml2)
                             {
                                 return false;
                             }
@@ -1931,22 +1927,22 @@ namespace Opc.Ua.Server
         /// Returns true if the deadband was exceeded.
         /// </summary>
         protected static bool ExceedsDeadband(
-            object value1,
-            object value2,
+            Variant value1,
+            Variant value2,
             DeadbandType deadbandType,
             double deadband,
             double range)
         {
             // cannot convert doubles safely to decimals.
-            if (value1 is double x)
+            if (value1.TryGet(out double x))
             {
-                return ExceedsDeadband((double)x, (double)value2, deadbandType, deadband, range);
+                return ExceedsDeadband(x, value2.GetDouble(), deadbandType, deadband, range);
             }
 
             try
             {
-                decimal decimal1 = Convert.ToDecimal(value1, CultureInfo.InvariantCulture);
-                decimal decimal2 = Convert.ToDecimal(value2, CultureInfo.InvariantCulture);
+                decimal decimal1 = value1.GetDecimal();
+                decimal decimal2 = value2.GetDecimal();
                 decimal baseline = 1;
 
                 if (deadbandType == DeadbandType.Percent)

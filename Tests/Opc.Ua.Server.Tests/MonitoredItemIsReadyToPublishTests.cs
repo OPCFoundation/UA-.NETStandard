@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var mockCalculator = new Mock<IAggregateCalculator>();
-            mockCalculator.Setup(c => c.HasEndTimePassed(It.IsAny<DateTime>())).Returns(true);
+            mockCalculator.Setup(c => c.HasEndTimePassed(It.IsAny<DateTimeUtc>())).Returns(true);
 
             // Setup Aggregate Manager with a custom factory
             ServerMockWrapper serverMockWrapper = CreateServerMock(telemetry);
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests
 
             item.QueueValue(new DataValue(new Variant(1)), null);
 
-            // Set sampling interval to 0. 
+            // Set sampling interval to 0.
             // Logic: m_nextSamplingTime = 0.
             // 0 > now is False.
             // So return True (Normal).

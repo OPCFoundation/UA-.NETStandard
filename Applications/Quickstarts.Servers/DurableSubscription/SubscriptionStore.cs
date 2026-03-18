@@ -133,22 +133,23 @@ namespace Quickstarts.Servers
                 JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
-                object body = jo["Body"].ToObject<object>(serializer);
                 ExpandedNodeId typeId = jo["TypeId"].ToObject<ExpandedNodeId>(serializer);
-                return new ExtensionObject(typeId, body);
+                return new ExtensionObject(typeId, jo["Body"].ToString(Formatting.None));
             }
 
             public override void WriteJson(
-                JsonWriter writer,
+                Newtonsoft.Json.JsonWriter writer,
                 object value,
                 JsonSerializer serializer)
             {
                 var extensionObject = (ExtensionObject)value;
+#pragma warning disable CS0618 // Type or member is obsolete
                 var jo = new JObject
                 {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
                     ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
                 };
+#pragma warning restore CS0618 // Type or member is obsolete
                 jo.WriteTo(writer);
             }
         }
@@ -169,11 +170,15 @@ namespace Quickstarts.Servers
                 var jo = JObject.Load(reader);
                 int begin = jo["Begin"].ToObject<int>(serializer);
                 int end = jo["End"].ToObject<int>(serializer);
+                if (begin == -1)
+                {
+                    return NumericRange.Null;
+                }
                 return new NumericRange(begin, end);
             }
 
             public override void WriteJson(
-                JsonWriter writer,
+                Newtonsoft.Json.JsonWriter writer,
                 object value,
                 JsonSerializer serializer)
             {
@@ -202,11 +207,11 @@ namespace Quickstarts.Servers
                 s_storage_path);
         }
 
-        public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
+        public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
         {
             string filePath = Path.Combine(s_storage_path, kFilename);
 
-            //remove old file
+            // remove old file
             if (File.Exists(filePath))
             {
                 try
@@ -221,7 +226,7 @@ namespace Quickstarts.Servers
             //remove old batches & queues
             if (m_durableMonitoredItemQueueFactory != null)
             {
-                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value);
+                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.ToArray());
                 m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
         }

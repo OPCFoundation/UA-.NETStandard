@@ -168,27 +168,17 @@ namespace Opc.Ua
             new(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
             new(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
             new(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
-            new(
-                BrowseNames.AlarmSuppressionGroupMember,
-                ReferenceTypeIds.AlarmSuppressionGroupMember)
+            new(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember)
         ];
 
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm)
-        {
-            SaveAsNodeSet2(context, ostrm, null);
-        }
-
-        /// <summary>
-        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
-        /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
+        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version = null, DateTime? lastModified = null)
         {
             var nodeSet = new Export.UANodeSet
             {
-                LastModified = DateTime.UtcNow,
+                LastModified = lastModified ?? DateTime.UtcNow,
                 LastModifiedSpecified = true
             };
 

@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using var jsonEncoder = new JsonEncoder(m_context, false);
+            using var jsonEncoder = new JsonEncoder(m_context, JsonEncoderOptions.Compact);
             TestEncoding(jsonEncoder);
             _ = jsonEncoder.CloseAndReturnText();
         }
@@ -192,33 +192,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
-            using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
-                memoryStream,
-                true,
-                StreamSize))
+            int length1 = 0;
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
-                _ = jsonEncoder.Close();
+                length1 = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
-                memoryStream,
-                true,
-                StreamSize))
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 if (toArray)
                 {
-                    int length = jsonEncoder.Close();
-                    Assert.AreEqual(length, memoryStream.Position);
+                    int length2 = jsonEncoder.Close();
+                    Assert.AreEqual(length2 + length1, memoryStream.Position);
                     byte[] result = memoryStream.ToArray();
                     Assert.NotNull(result);
-                    Assert.AreEqual(length, result.Length);
+                    Assert.AreEqual(length2 + length1, result.Length);
                 }
                 else
                 {
@@ -234,23 +223,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int length2;
             stream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length1 = jsonEncoder.Close();
             }
             using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length2 = jsonEncoder.Close();

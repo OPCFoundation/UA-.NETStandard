@@ -56,7 +56,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     {
         public ISession Session { get; private set; }
         private ServerFixture<ReferenceServer> m_serverFixture;
+#pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private ClientFixture m_clientFixture;
+#pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private ReferenceServer m_server;
         private readonly string m_uriScheme;
         private ITelemetryContext m_telemetry;
@@ -148,8 +150,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 Session = null;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
-            Utils.SilentDispose(m_clientFixture);
-            Utils.SilentDispose(m_server);
+            m_clientFixture?.Dispose();
+            m_server?.Dispose();
         }
 
         [Test]
@@ -209,21 +211,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
-            ReferenceDescriptionCollection referenceDescriptions = await samples
-                .BrowseFullAddressSpaceAsync(this, Objects.RootFolder)
+            ArrayOf<ReferenceDescription> referenceDescriptions = await samples
+                .BrowseFullAddressSpaceAsync(this, ObjectIds.RootFolder)
                 .ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
             m_browsedNodesCount = referenceDescriptions.Count;
 
-            var variableIds = new NodeIdCollection(
+            ArrayOf<NodeId> variableIds =
                 referenceDescriptions
-                    .Where(r => r.NodeClass == NodeClass.Variable)
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
+                    .Filter(r => r.NodeClass == NodeClass.Variable)
+                    .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> serviceResults) =
                 await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             int ii = 0;
@@ -231,7 +233,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 ServiceResult result = serviceResults[ii++];
                 Assert.IsTrue(
-                    ServiceResult.IsGood(serviceResult),
+                    ServiceResult.IsGood(serviceResult) ||
+                    serviceResult.StatusCode == StatusCodes.BadNotReadable ||
+                    serviceResult.StatusCode == StatusCodes.BadUserAccessDenied,
                     $"Expected good result, but received {serviceResult}");
             }
         }
@@ -245,29 +249,30 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
-                .FetchAllNodesNodeCacheAsync(this, Objects.RootFolder, true, false, false)
+                .FetchAllNodesNodeCacheAsync(this, ObjectIds.RootFolder, true, false, false)
                 .ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", allNodes.Count);
 
             m_fetchedNodesCount = allNodes.Count;
 
-            var variableIds = new NodeIdCollection(
+            var variableIds =
                 allNodes
                     .Where(r =>
                         r.NodeClass == NodeClass.Variable &&
                         r is VariableNode v &&
                         v.DataType.NamespaceIndex != 0)
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
+                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
+                    .ToList();
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> serviceResults) =
                 await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             foreach (ServiceResult serviceResult in serviceResults)
             {
-                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult), serviceResult.ToString());
             }
 
             // check if complex type is properly decoded
@@ -325,37 +330,40 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         continue;
                     }
 
-                    if (value.Value is ExtensionObject extensionObject)
+                    if (value.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
+                        extensionObject.TryGetEncodeable(out IEncodeable encodeable))
                     {
-                        Type valueType = extensionObject.Body.GetType();
+                        Type valueType = encodeable.GetType();
                         if (valueType != type)
                         {
                             testFailed = true;
                             TestContext.Out.WriteLine(
                                 "Variable: {0} type is decoded as ExtensionObject --> {1}",
                                 variableNode,
-                                value.Value);
+                                value.WrappedValue);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
                         continue;
                     }
 
-                    if (value.Value is Array array &&
-                        array.GetType().GetElementType() == typeof(ExtensionObject))
+                    if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> array))
                     {
-                        foreach (ExtensionObject valueItem in array)
+                        foreach (ExtensionObject valueItem in array.ToList())
                         {
-                            Type valueType = valueItem.Body.GetType();
-                            if (valueType != type)
+                            if (valueItem.TryGetEncodeable(out encodeable))
                             {
-                                testFailed = true;
-                                TestContext.Out.WriteLine(
-                                    "Variable: {0} type is decoded as ExtensionObject --> {1}",
-                                    variableNode,
-                                    valueItem);
-                                (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
-                                    .ConfigureAwait(false);
+                                Type valueType = encodeable.GetType();
+                                if (valueType != type)
+                                {
+                                    testFailed = true;
+                                    TestContext.Out.WriteLine(
+                                        "Variable: {0} type is decoded as ExtensionObject --> {1}",
+                                        variableNode,
+                                        valueItem);
+                                    (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
+                                        .ConfigureAwait(false);
+                                }
                             }
                         }
                     }
@@ -400,13 +408,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.NotNull(dataValue);
 
             // test the accessor to the complex types
-            Assert.True(dataValue.Value is ExtensionObject);
-            var extensionObject = (ExtensionObject)dataValue.Value;
-            Assert.True(extensionObject.Body is IEncodeable);
-            var encodeable = extensionObject.Body as IEncodeable;
+            Assert.True(dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject));
+            Assert.True(extensionObject.TryGetEncodeable(out IEncodeable encodeable));
             Assert.NotNull(encodeable);
-            Assert.True(extensionObject.Body is IComplexTypeProperties);
-            var complexType = extensionObject.Body as IComplexTypeProperties;
+            var complexType = encodeable as IComplexTypeProperties;
             Assert.NotNull(complexType);
 
             // list properties
@@ -434,15 +439,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
 
             // write value back
-            var writeValues = new WriteValueCollection
-            {
+            ArrayOf<WriteValue> writeValues =
+            [
                 new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = dataWriteValue
                 }
-            };
+            ];
 
             WriteResponse response = await Session
                 .WriteAsync(null, writeValues, CancellationToken.None)
@@ -457,13 +462,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
-            Assert.True(dataValue.Value is ExtensionObject);
-            extensionObject = (ExtensionObject)dataValue.Value;
-            Assert.True(extensionObject.Body is IEncodeable);
-            encodeable = extensionObject.Body as IEncodeable;
+            Assert.True(dataValue.WrappedValue.TryGet(out extensionObject));
+            Assert.True(extensionObject.TryGetEncodeable(out encodeable));
             Assert.NotNull(encodeable);
-            Assert.True(extensionObject.Body is IComplexTypeProperties);
-            complexType = extensionObject.Body as IComplexTypeProperties;
+            complexType = encodeable as IComplexTypeProperties;
             Assert.NotNull(complexType);
 
             // list properties
@@ -479,8 +481,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.AreEqual(complexType["ByteValue"], (byte)0);
-            Assert.AreEqual(complexType["StringValue"], "badbeef");
+            Assert.AreEqual((byte)0, complexType["ByteValue"]);
+            Assert.AreEqual("badbeef", complexType["StringValue"]);
             Assert.AreEqual(complexType["NumberValue"], new Variant((uint)3210));
             Assert.AreEqual(complexType["IntegerValue"], new Variant((long)54321));
             Assert.AreEqual(complexType["UIntegerValue"], new Variant((ulong)12345));

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -60,14 +59,12 @@ namespace Opc.Ua
                 Variant value = variable.Value;
                 if (value.IsNull)
                 {
-                    value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
+                    value = TypeInfo.GetDefaultVariantValue(
+                        variable.DataType,
+                        variable.ValueRank);
                 }
                 Value = value;
-
-                if (variable.ArrayDimensions != null)
-                {
-                    ArrayDimensions = [.. variable.ArrayDimensions];
-                }
+                ArrayDimensions = variable.ArrayDimensions;
             }
         }
 
@@ -118,18 +115,13 @@ namespace Opc.Ua
         /// Array dimensions
         /// </summary>
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
-        public UInt32Collection ArrayDimensions
+        public ArrayOf<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
 
             set
             {
                 m_arrayDimensions = value;
-
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
             }
         }
 
@@ -228,47 +220,47 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Value, value.Value))
+            if (Value != value.Value)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DataType, value.DataType))
+            if (DataType != value.DataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ValueRank, value.ValueRank))
+            if (ValueRank != value.ValueRank)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_arrayDimensions, value.m_arrayDimensions))
+            if (m_arrayDimensions != value.m_arrayDimensions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(AccessLevel, value.AccessLevel))
+            if (AccessLevel != value.AccessLevel)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(UserAccessLevel, value.UserAccessLevel))
+            if (UserAccessLevel != value.UserAccessLevel)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(MinimumSamplingInterval, value.MinimumSamplingInterval))
+            if (MinimumSamplingInterval != value.MinimumSamplingInterval)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Historizing, value.Historizing))
+            if (Historizing != value.Historizing)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(AccessLevelEx, value.AccessLevelEx))
+            if (AccessLevelEx != value.AccessLevelEx)
             {
                 return false;
             }
@@ -304,20 +296,10 @@ namespace Opc.Ua
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The array dimensions.</value>
-        IList<uint> IVariableBase.ArrayDimensions
+        ArrayOf<uint> IVariableBase.ArrayDimensions
         {
             get => m_arrayDimensions;
-            set
-            {
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-                else
-                {
-                    m_arrayDimensions = [.. value];
-                }
-            }
+            set => m_arrayDimensions = value;
         }
 
         /// <summary>
@@ -339,7 +321,7 @@ namespace Opc.Ua
                 case Attributes.Historizing:
                     return true;
                 case Attributes.ArrayDimensions:
-                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
+                    return !m_arrayDimensions.IsEmpty;
                 default:
                     return base.SupportsAttribute(attributeId);
             }
@@ -350,7 +332,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
+        protected override Variant Read(uint attributeId)
         {
             switch (attributeId)
             {
@@ -370,15 +352,15 @@ namespace Opc.Ua
                     return AccessLevelEx;
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                    return Value.AsBoxedObject();
+                    return Value;
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
+                    if (m_arrayDimensions.IsEmpty)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
-                    return m_arrayDimensions.ToArray();
+                    return m_arrayDimensions;
                 default:
                     return base.Read(attributeId);
             }
@@ -390,7 +372,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
+        protected override ServiceResult Write(uint attributeId, Variant value)
         {
             switch (attributeId)
             {
@@ -411,7 +393,7 @@ namespace Opc.Ua
                     return ServiceResult.Good;
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                    Value = new Variant(CoreUtils.Clone(value));
+                    Value = value.Copy();
                     return ServiceResult.Good;
                 case Attributes.DataType:
                     var dataType = (NodeId)value;
@@ -436,7 +418,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Good;
                 case Attributes.ArrayDimensions:
-                    m_arrayDimensions = [.. (uint[])value];
+                    m_arrayDimensions = value.GetUInt32Array();
 
                     // ensure number of dimensions is correct.
                     if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != ValueRank)
@@ -451,6 +433,6 @@ namespace Opc.Ua
             }
         }
 
-        private UInt32Collection m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
     }
 }

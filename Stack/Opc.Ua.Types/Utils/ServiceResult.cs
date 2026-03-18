@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -356,11 +355,14 @@ namespace Opc.Ua
                 NamespaceUri = defaultNamespaceUri;
                 LocalizedText = defaultLocalizedText;
             }
+            if (e != null)
+            {
 #if DEBUG
-            AdditionalInfo = BuildExceptionTrace(e);
+                AdditionalInfo = BuildExceptionTrace(e);
 #else
-            AdditionalInfo = e.Message;
+                AdditionalInfo = e.Message;
 #endif
+            }
         }
 
         /// <summary>
@@ -424,7 +426,7 @@ namespace Opc.Ua
         public ServiceResult(
             StatusCode code,
             DiagnosticInfo diagnosticInfo,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             StatusCode = code;
 
@@ -455,12 +457,12 @@ namespace Opc.Ua
         public ServiceResult(
             StatusCode code,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
-            IList<string> stringTable)
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            ArrayOf<string> stringTable)
         {
             StatusCode = code;
 
-            if (index >= 0 && diagnosticInfos != null && index < diagnosticInfos.Count)
+            if (index >= 0 && index < diagnosticInfos.Count)
             {
                 DiagnosticInfo diagnosticInfo = diagnosticInfos[index];
 
@@ -808,9 +810,9 @@ namespace Opc.Ua
         /// <summary>
         /// Looks up a string in a string table.
         /// </summary>
-        private static string LookupString(IList<string> stringTable, int index)
+        private static string LookupString(ArrayOf<string> stringTable, int index)
         {
-            if (index < 0 || stringTable == null || index >= stringTable.Count)
+            if (index < 0 || index >= stringTable.Count)
             {
                 return null;
             }

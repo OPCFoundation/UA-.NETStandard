@@ -11,12 +11,10 @@ The compatibility between the old and the new configuration of client and server
 
 The limitations of the support for ECC certificates are described in the section [Known Limitations](###known-limitations).
 
-
 ## Previous Client and Server application configuration supports only RSA certificates
 
 Up to now, the configuration supported encrypted communication using only the RSA encryption algorithm. That means that the server and client certificates were RSA certificates and there was just one RSA certificate per application needed to be configured.
 The XML tag which contained the RSA certificate to be configured was `<ApplicationCertificate>`. This tag is still used for the RSA certificate configuration in backward compatibility mode as further described below:
-
 
 ```xml
 <!-- The security configuration for the server. -->
@@ -34,7 +32,7 @@ The XML tag which contained the RSA certificate to be configured was `<Applicati
 ## Previous Server application configuration supports only RSA certificates
 
 For Server applications the configuration of the RSA certificate involves also specifying the SecurityPolicies to be supported by the server:
-    
+
 ```xml
     <!-- The security configuration for the server. -->
 <SecurityConfiguration>
@@ -64,7 +62,7 @@ For Server applications the configuration of the RSA certificate involves also s
 
 With the newly introduced support for ECC certificates, the configuration of the server application has been extended to support both RSA and ECC certificates. The XML tag under which both the RSA and ECC certificates are configured is `<ApplicationCertificates>`.
 
-The `<ApplicationCertificate>` tag is still used for the RSA certificate configuration in backward compatibility mode, meaning that old server configurations are still supported, but they cannot simultaneously coexist. 
+The `<ApplicationCertificate>` tag is still used for the RSA certificate configuration in backward compatibility mode, meaning that old server configurations are still supported, but they cannot simultaneously coexist.
 
 The new configuration of the server application is described below:
 
@@ -112,17 +110,17 @@ The new configuration of the server application is described below:
 </SecurityConfiguration>
 ```
 
-This layout of the configuration file allows the server to support both RSA and ECC certificates and allows the server to generate certificates of different types. The `<CertificateTypeString>` tag is used to specify the type of the certificate. 
+This layout of the configuration file allows the server to support both RSA and ECC certificates and allows the server to generate certificates of different types. The `<CertificateTypeString>` tag is used to specify the type of the certificate.
 
-The supported types are: 
- - `RsaSha256`              for RSA certificates
- - `NistP256`               for ECC certificates with NIST P256 curve
- - `NistP384`               for ECC certificates with NIST P384 curve
- - `BrainpoolP256r1`        for ECC certificates with Brainpool P256r1 curve
- - `BrainpoolP384r1`        for ECC certificates with Brainpool P384r1 curve
+The supported types are:
+
+- `RsaSha256`              for RSA certificates
+- `NistP256`               for ECC certificates with NIST P256 curve
+- `NistP384`               for ECC certificates with NIST P384 curve
+- `BrainpoolP256r1`        for ECC certificates with Brainpool P256r1 curve
+- `BrainpoolP384r1`        for ECC certificates with Brainpool P384r1 curve
 
 Additionally, this layout enables the user to select a specific `<SubjectName>` for each certificate. This is useful when the user wants to generate certificates with different `<SubjectName>`s.
-
 
 ## New Server application configuration related to ECC certificates
 
@@ -184,10 +182,10 @@ The Server applications can configure the supported SecurityPolicies in the same
 
 With the introduction of ECC certificates, the `<SecurityPolicies>` section of the configuration file has been extended to support ECC specific SecurityPolicies. The ECC specific SecurityPolicies are the following:
 
- - `http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256`
- - `http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384`
- - `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1`
- - `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1`
+- `http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256`
+- `http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384`
+- `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1`
+- `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1`
 
 If ECC specific SecurityPolicies are specified in the `<SecurityPolicies>` section of the configuration file, then the server will need to support the corresponding ECC certificates configured in the `<ApplicationCertificates>` section of the configuration file with the corresponding `<CertificateTypeString>`s, not having them configured will result in the server not being able to start.
 
@@ -224,18 +222,16 @@ The `<SecurityPolicyUri>` tag can be ommited in the `<UserTokenPolicy>` tag, in 
 
 A situation in which a `<SecurityPolicyUri>` is specified in the `<UserTokenPolicies>` section of the configuration file, but it is not specified in the `<SecurityPolicies>` section of the configuration file is logically incorrect and produces an invalid configuration.
 
-
 ## "Old" Client and Server application configuration format VS "New" Client and Server application configuration format
 
 Client and server applications which use the "old" configuration, will continue to work as before, meaning that the server and client certificates will be RSA certificates and the `<ApplicationCertificate>` tag will be used to configure the RSA certificate. Server applications will have no ECC security policies specified in the `<SecurityPolicies>` section of the configuration file.
 You should be aware that such applications will not be able to support ECC certificates therefore they will not be able to communicate with clients and servers which use ECC certificates.
 
-Client and server applications which use the "new" configuration, are be able to support both RSA and ECC certificates. 
+Client and server applications which use the "new" configuration, are be able to support both RSA and ECC certificates.
 Server and Client applications are be able to support both RSA and ECC security policies by using the `<ApplicationCertificates>` tag to configure the RSA and ECC certificates. The `<SecurityPolicies>` section of the configuration file are still used to configure the supported security policies which include the new ECC policies.
 Additionally the `<UserTokenPolicies>` section of the configuration file can be used to configure the supported security policies for the UserIdentityTokens which also include the new ECC policies.
 
 Combining the "old" and the "new" configuration formats is not supported. That means that the `<ApplicationCertificate>` tag cannot be used in the same configuration file with the `<ApplicationCertificates>` tag.
-
 
 ## Configure GDS for use with ECC Certificates
 
@@ -251,7 +247,7 @@ To configure the Global Discovery Server for use with ECC Certificates the confi
             <CertificateType>RsaSha256ApplicationCertificateType</CertificateType>
 ```
 
-Replace the `<CertificateType>` node of the Default CertificateGroupConfiguration with the `<CertificateTypes>` node. 
+Replace the `<CertificateType>` node of the Default CertificateGroupConfiguration with the `<CertificateTypes>` node.
 This allows the Certificate Group to have multiple CA Certificates for the different Certificate types.
 
 ```xml
@@ -271,19 +267,13 @@ This allows the Certificate Group to have multiple CA Certificates for the diffe
 The old Configuration format is still supported but only supports either RSA or ECC Certificates for a single CertificateGroup.
 The GDS checks on startup if a valid configuration was supplied.
 
-
 ## Known Limitations
 
 Not all curves are supported by all OS platforms and not all .NET implementations offer cryptographic API support for all curve types.
 Due to these limitations, the support for ECC profiles is available starting with the following target platforms: .NET 4.8, .NET standard 2.1 and .NET 5 and above.
 The supported ECC curve types are the following:
 
- - `NistP256`               for ECC certificates with NIST P256 curve
- - `NistP384`               for ECC certificates with NIST P384 curve
- - `BrainpoolP256r1`        for ECC certificates with Brainpool P256r1 curve
- - `BrainpoolP384r1`        for ECC certificates with Brainpool P384r1 curve
-
-
-
-
-        
+- `NistP256`               for ECC certificates with NIST P256 curve
+- `NistP384`               for ECC certificates with NIST P384 curve
+- `BrainpoolP256r1`        for ECC certificates with Brainpool P256r1 curve
+- `BrainpoolP384r1`        for ECC certificates with Brainpool P384r1 curve

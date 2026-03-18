@@ -197,9 +197,10 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -210,6 +211,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
                         try
                         {
@@ -325,7 +327,7 @@ namespace Opc.Ua.Client.Tests
 
                 TestContext.Out.WriteLine($"Reading from {nodeIds.Count} nodes.");
 
-                var nodesToRead = new ReadValueIdCollection();
+                var nodesToRead = new List<ReadValueId>();
                 foreach (NodeId nodeId in nodeIds.Keys)
                 {
                     nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
@@ -408,9 +410,10 @@ namespace Opc.Ua.Client.Tests
                     while (!testCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -421,6 +424,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
                         try
                         {

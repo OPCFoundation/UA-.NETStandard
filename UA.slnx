@@ -103,6 +103,10 @@
     <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />
   </Folder>
+  <Folder Name="/Solution Items/Skills/">
+    <File Path=".github/agents/coverage-test-generator.agent.md" />
+    <File Path=".github/agents/opcua-v16-migration.agent.md" />
+  </Folder>
   <Folder Name="/SourceGeneration/">
     <Project Path="Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />

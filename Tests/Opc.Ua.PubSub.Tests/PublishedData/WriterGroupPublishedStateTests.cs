@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             //Arrange
-            object publisherId = 1;
+            Variant publisherId = 1;
             const ushort writerGroupId = 1;
 
             const string addressUrl = "http://localhost:1883";
@@ -357,6 +357,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData[targetNodeId],
                             "field: '{0}' should not be null",
                             field.FieldMetaData.Name);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             field.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -364,6 +367,12 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             field.FieldMetaData.Name,
                             field.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             lastDataSetField.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -371,11 +380,14 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             lastDataSetField.FieldMetaData.Name,
                             lastDataSetField.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
                 }
                 else
                 {
-                    Assert.AreEqual(keyFrameCount, 1, "keyFrameCount = 1 if dataset is not delta!");
+                    Assert.AreEqual(1, keyFrameCount, "keyFrameCount = 1 if dataset is not delta!");
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
                         Assert.IsNotNull(
@@ -393,6 +405,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData[targetNodeId],
                             "field {0}: should not be null",
                             field.FieldMetaData.Name);
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                         Assert.AreEqual(
                             field.Value.Value,
                             dataStoreData[targetNodeId].Value,
@@ -400,6 +415,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             field.FieldMetaData.Name,
                             field.Value,
                             dataStoreData[targetNodeId].Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
                 }
             }

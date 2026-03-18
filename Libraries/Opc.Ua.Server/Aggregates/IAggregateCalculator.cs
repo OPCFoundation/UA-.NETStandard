@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -60,6 +58,6 @@ namespace Opc.Ua.Server
         /// Returns true if the specified time is later than the end of the current interval.
         /// </summary>
         /// <remarks>Return true if time flows forward and the time is later than the end time.</remarks>
-        bool HasEndTimePassed(DateTime currentTime);
+        bool HasEndTimePassed(DateTimeUtc currentTime);
     }
 }

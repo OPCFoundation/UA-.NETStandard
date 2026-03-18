@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         /// The store shall clean all stored subscriptions, monitoredItems, and only keep the persitent queues for the monitoredItem ids provided
         /// <param name="createdSubscriptions"> key = subscription id, value = monitoredItem ids </param>
         /// </summary>
-        void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions);
+        void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions);
     }
 
     /// <summary>
