@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Read(OperationContext context, double maxAge, IList<ReadValueId> nodesToRead, IList<DataValue> values, IList<ServiceResult> errors)
+        public void Read(OperationContext context, double maxAge, ArrayOf<ReadValueId> nodesToRead, IList<DataValue> values, IList<ServiceResult> errors)
         {
             m_nodeManager.ReadAsync(context, maxAge, nodesToRead, values, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors)
+        public void Write(OperationContext context, ArrayOf<WriteValue> nodesToWrite, IList<ServiceResult> errors)
         {
             m_nodeManager.WriteAsync(context, nodesToWrite, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
         public void HistoryUpdate(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Call(OperationContext context, IList<CallMethodRequest> methodsToCall, IList<CallMethodResult> results, IList<ServiceResult> errors)
+        public void Call(OperationContext context, ArrayOf<CallMethodRequest> methodsToCall, IList<CallMethodResult> results, IList<ServiceResult> errors)
         {
             m_nodeManager.CallAsync(context, methodsToCall, results, errors).AsTask().GetAwaiter().GetResult();
         }
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
@@ -281,45 +281,12 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
-            Dictionary<NodeId, Variant[]> asyncUniqueNodesServiceAttributesCache = null;
-
-            if (targetHandle is NodeHandle nodeHandle &&
-                uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out List<object> attributes) == true)
-            {
-                // Convert sync List<object> (raw attribute values) to async Variant[] format.
-                var variantAttributes = new Variant[attributes.Count];
-                for (int i = 0; i < attributes.Count; i++)
-                {
-                    variantAttributes[i] = new Variant(attributes[i]);
-                }
-
-                asyncUniqueNodesServiceAttributesCache = new Dictionary<NodeId, Variant[]>
-                {
-                    { nodeHandle.NodeId, variantAttributes }
-                };
-            }
-
-            NodeMetadata result = m_nodeManager.GetPermissionMetadataAsync(
-                context, targetHandle, resultMask, asyncUniqueNodesServiceAttributesCache, permissionsOnly)
+            return m_nodeManager.GetPermissionMetadataAsync(
+                context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
                 .AsTask().GetAwaiter().GetResult();
-
-            // Write back: convert async Variant[] back to sync List<object> raw values.
-            if (targetHandle is NodeHandle nodeHandleAfter &&
-                asyncUniqueNodesServiceAttributesCache?.TryGetValue(nodeHandleAfter.NodeId, out Variant[] attributesAfter) == true)
-            {
-                var syncAttributes = new List<object>(attributesAfter.Length);
-                foreach (Variant variant in attributesAfter)
-                {
-                    syncAttributes.Add(variant.Value);
-                }
-
-                uniqueNodesServiceAttributesCache[nodeHandleAfter.NodeId] = syncAttributes;
-            }
-
-            return result;
         }
 
         /// <inheritdoc/>

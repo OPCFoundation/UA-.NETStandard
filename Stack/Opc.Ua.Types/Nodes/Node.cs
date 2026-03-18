@@ -99,9 +99,9 @@ namespace Opc.Ua
             WriteMask = 0;
             UserWriteMask = 0;
             m_rolePermissions = [];
-            m_userRolePermissions = [];
+            UserRolePermissions = [];
             AccessRestrictions = 0;
-            m_references = [];
+            References = [];
         }
 
         /// <summary>
@@ -150,66 +150,33 @@ namespace Opc.Ua
         /// Role permissions
         /// </summary>
         [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
-        public RolePermissionTypeCollection RolePermissions
+        public ArrayOf<RolePermissionType> RolePermissions
         {
             get => m_rolePermissions;
 
             set
             {
                 m_rolePermissions = value;
-
-                if (value == null)
-                {
-                    m_rolePermissions = [];
-                }
             }
         }
 
         /// <summary>
         /// User role permissions
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "UserRolePermissions", IsRequired = false, Order = 9)]
-        public RolePermissionTypeCollection UserRolePermissions
-        {
-            get => m_userRolePermissions;
-
-            set
-            {
-                m_userRolePermissions = value;
-
-                if (value == null)
-                {
-                    m_userRolePermissions = [];
-                }
-            }
-        }
+        public ArrayOf<RolePermissionType> UserRolePermissions { get; set; }
 
         /// <summary>
         /// Access restrictions
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "AccessRestrictions", IsRequired = false, Order = 10)]
         public ushort AccessRestrictions { get; set; }
 
         /// <summary>
         /// References
         /// </summary>
-        /// <remarks />
         [DataMember(Name = "References", IsRequired = false, Order = 11)]
-        public ReferenceNodeCollection References
-        {
-            get => m_references;
-            set
-            {
-                m_references = value;
-
-                if (value == null)
-                {
-                    m_references = [];
-                }
-            }
-        }
+        public ArrayOf<ReferenceNode> References { get; set; }
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Node;
@@ -235,10 +202,10 @@ namespace Opc.Ua
             encoder.WriteLocalizedText("Description", Description);
             encoder.WriteUInt32("WriteMask", WriteMask);
             encoder.WriteUInt32("UserWriteMask", UserWriteMask);
-            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions], typeof(RolePermissionType));
-            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions], typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions]);
+            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions]);
             encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
-            encoder.WriteEncodeableArray("References", [.. References], typeof(ReferenceNode));
+            encoder.WriteEncodeableArray("References", [.. References]);
 
             encoder.PopNamespace();
         }
@@ -249,16 +216,16 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            NodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            NodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             BrowseName = decoder.ReadQualifiedName("BrowseName");
             DisplayName = decoder.ReadLocalizedText("DisplayName");
             Description = decoder.ReadLocalizedText("Description");
             WriteMask = decoder.ReadUInt32("WriteMask");
             UserWriteMask = decoder.ReadUInt32("UserWriteMask");
-            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
-            UserRolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("UserRolePermissions", typeof(RolePermissionType));
+            RolePermissions = decoder.ReadEncodeableArray<RolePermissionType>("RolePermissions");
+            UserRolePermissions = decoder.ReadEncodeableArray<RolePermissionType>("UserRolePermissions");
             AccessRestrictions = decoder.ReadUInt16("AccessRestrictions");
-            References = (ReferenceNodeCollection)decoder.ReadEncodeableArray("References", typeof(ReferenceNode));
+            References = decoder.ReadEncodeableArray<ReferenceNode>("References");
 
             decoder.PopNamespace();
         }
@@ -276,57 +243,57 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
+            if (NodeId != value.NodeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeClass, value.NodeClass))
+            if (NodeClass != value.NodeClass)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BrowseName, value.BrowseName))
+            if (BrowseName != value.BrowseName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DisplayName, value.DisplayName))
+            if (DisplayName != value.DisplayName)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Description, value.Description))
+            if (Description != value.Description)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(WriteMask, value.WriteMask))
+            if (WriteMask != value.WriteMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(UserWriteMask, value.UserWriteMask))
+            if (UserWriteMask != value.UserWriteMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_rolePermissions, value.m_rolePermissions))
+            if (m_rolePermissions != value.m_rolePermissions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_userRolePermissions, value.m_userRolePermissions))
+            if (UserRolePermissions != value.UserRolePermissions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(AccessRestrictions, value.AccessRestrictions))
+            if (AccessRestrictions != value.AccessRestrictions)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_references, value.m_references))
+            if (References != value.References)
             {
                 return false;
             }
@@ -353,9 +320,9 @@ namespace Opc.Ua
             clone.WriteMask = CoreUtils.Clone(WriteMask);
             clone.UserWriteMask = CoreUtils.Clone(UserWriteMask);
             clone.m_rolePermissions = CoreUtils.Clone(m_rolePermissions);
-            clone.m_userRolePermissions = CoreUtils.Clone(m_userRolePermissions);
+            clone.UserRolePermissions = CoreUtils.Clone(UserRolePermissions);
             clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
-            clone.m_references = CoreUtils.Clone(m_references);
+            clone.References = CoreUtils.Clone(References);
 
             return clone;
         }
@@ -609,12 +576,12 @@ namespace Opc.Ua
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            value.WrappedValue = new Variant(Read(attributeId));
+            value.WrappedValue = Read(attributeId);
             value.StatusCode = StatusCodes.Good;
 
             if (attributeId == Attributes.Value)
             {
-                value.SourceTimestamp = DateTime.UtcNow;
+                value.SourceTimestamp = DateTimeUtc.Now;
             }
 
             return ServiceResult.Good;
@@ -647,7 +614,7 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
-                    return Write(attributeId, value.Value);
+                    return Write(attributeId, value.WrappedValue);
             }
         }
 
@@ -730,14 +697,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of an attribute.</returns>
-        protected virtual object Read(uint attributeId)
+        protected virtual Variant Read(uint attributeId)
         {
             switch (attributeId)
             {
                 case Attributes.NodeId:
                     return NodeId;
                 case Attributes.NodeClass:
-                    return NodeClass;
+                    return Variant.From(NodeClass);
                 case Attributes.BrowseName:
                     return BrowseName;
                 case Attributes.DisplayName:
@@ -749,9 +716,9 @@ namespace Opc.Ua
                 case Attributes.UserWriteMask:
                     return UserWriteMask;
                 case Attributes.RolePermissions:
-                    return m_rolePermissions;
+                    return Variant.FromStructure(m_rolePermissions);
                 case Attributes.UserRolePermissions:
-                    return m_userRolePermissions;
+                    return Variant.FromStructure(UserRolePermissions);
                 case Attributes.AccessRestrictions:
                     return AccessRestrictions;
                 default:
@@ -766,7 +733,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of write operation.</returns>
-        protected virtual ServiceResult Write(uint attributeId, object value)
+        protected virtual ServiceResult Write(uint attributeId, Variant value)
         {
             switch (attributeId)
             {
@@ -786,10 +753,10 @@ namespace Opc.Ua
                     UserWriteMask = (uint)value;
                     break;
                 case Attributes.RolePermissions:
-                    m_rolePermissions = (RolePermissionTypeCollection)value;
+                    m_rolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.UserRolePermissions:
-                    m_userRolePermissions = (RolePermissionTypeCollection)value;
+                    UserRolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.AccessRestrictions:
                     AccessRestrictions = (ushort)value;
@@ -803,76 +770,6 @@ namespace Opc.Ua
         }
 
         private ReferenceCollection m_referenceTable;
-        private RolePermissionTypeCollection m_rolePermissions;
-        private RolePermissionTypeCollection m_userRolePermissions;
-        private ReferenceNodeCollection m_references;
-    }
-
-    /// <summary>
-    /// Node collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfNode",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Node")]
-    public class NodeCollection : List<Node>, ICloneable
-    {
-        /// <inheritdoc/>
-        public NodeCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public NodeCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public NodeCollection(IEnumerable<Node> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator NodeCollection(Node[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator Node[](NodeCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (NodeCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new NodeCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
+        private ArrayOf<RolePermissionType> m_rolePermissions;
     }
 }

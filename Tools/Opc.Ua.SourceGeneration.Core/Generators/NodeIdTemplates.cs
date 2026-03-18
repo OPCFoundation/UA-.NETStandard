@@ -148,7 +148,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             public static {{Tokens.IdType}} GetIdentifier(string browseName)
             {
-                return s_nameToId.Value.TryGetValue(browseName, out {{Tokens.IdType}} id) ? id : 0;
+                return s_nameToId.Value.TryGetValue(browseName, out {{Tokens.IdType}} id) ? id : default;
             }
 
             /// <summary>

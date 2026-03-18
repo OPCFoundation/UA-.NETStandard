@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -100,13 +101,15 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // Add a reasonable number of certificates (10)
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 10; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation")
                     .CreateForRSA();
-                normalTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            normalTrustList.TrustedCertificates = trustList;
 
             // This should succeed
             bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(normalTrustList).ConfigureAwait(false);
@@ -123,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
         /// </summary>
         [Test]
         [Order(200)]
-        public async Task WriteTrustListExceedsSizeLimitAsync()
+        public void WriteTrustListExceedsSizeLimit()
         {
             // Create a trust list with a few certificates
             var oversizedTrustList = new TrustListDataType
@@ -135,14 +138,16 @@ namespace Opc.Ua.Gds.Tests
                 IssuerCrls = []
             };
 
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
-                oversizedTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            oversizedTrustList.TrustedCertificates = trustList;
 
             // Calculate the encoded size
             long encodedSize = GetEncodedSize(oversizedTrustList);
@@ -177,14 +182,16 @@ namespace Opc.Ua.Gds.Tests
                 IssuerCrls = []
             };
 
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
-                boundaryTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            boundaryTrustList.TrustedCertificates = trustList;
 
             // Calculate the encoded size
             long encodedSize = GetEncodedSize(boundaryTrustList);
@@ -237,8 +244,9 @@ namespace Opc.Ua.Gds.Tests
                 while (currentSize <= customMaxTrustListSize)
                 {
                     using X509Certificate2 cert =
-                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized", null).CreateForRSA();
-                    oversizedTrustList.TrustedCertificates.Add(cert.RawData);
+                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized").CreateForRSA();
+                    oversizedTrustList.TrustedCertificates =
+                        oversizedTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                     currentSize = GetEncodedSize(oversizedTrustList);
                     certCount++;
                 }
@@ -257,8 +265,11 @@ namespace Opc.Ua.Gds.Tests
                 };
                 for (int i = 0; i < 2; i++)
                 {
-                    using X509Certificate2 cert = CertificateFactory.CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid", null).CreateForRSA();
-                    validTrustList.TrustedCertificates.Add(cert.RawData);
+                    using X509Certificate2 cert = CertificateFactory
+                        .CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid")
+                        .CreateForRSA();
+                    validTrustList.TrustedCertificates =
+                        validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                 }
                 long validSize = GetEncodedSize(validTrustList);
                 Assert.True(validSize < customMaxTrustListSize);
@@ -298,7 +309,7 @@ namespace Opc.Ua.Gds.Tests
         {
             using var stream = new System.IO.MemoryStream();
             using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session.MessageContext, false);
-            encoder.WriteEncodeable(null, trustList, trustList.GetType());
+            encoder.WriteEncodeable(null, trustList);
             return stream.Length;
         }
     }

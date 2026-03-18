@@ -879,7 +879,7 @@ namespace Opc.Ua.Sample
                 }
 
                 // read the attributes.
-                List<object> values = target.ReadAttributes(
+                ArrayOf<Variant> values = target.ReadAttributes(
                     systemContext,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
@@ -901,34 +901,39 @@ namespace Opc.Ua.Sample
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0] != null && values[1] != null)
+
+                if (values[0].TryGet(out uint writeMask) &&
+                    values[1].TryGet(out uint userWriteMask))
                 {
-                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) &
-                        ((uint)values[1]));
+                    metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
+                }
+                if (values[2].TryGet(out NodeId dataType))
+                {
+                    metadata.DataType = dataType;
+                }
+                if (values[3].TryGet(out int valueRank))
+                {
+                    metadata.ValueRank = valueRank;
+                }
+                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                {
+                    metadata.ArrayDimensions = arrayDimensions;
+                }
+                if (values[5].TryGet(out byte accessLevel) &&
+                    values[6].TryGet(out byte userAccessLevel))
+                {
+                    metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
-
-                if (values[3] != null)
+                if (values[7].TryGet(out byte eventNotifier))
                 {
-                    metadata.ValueRank = (int)values[3];
+                    metadata.EventNotifier = eventNotifier;
                 }
 
-                metadata.ArrayDimensions = (IList<uint>)values[4];
-
-                if (values[5] != null && values[6] != null)
+                if (values[8].TryGet(out bool executable) &&
+                    values[9].TryGet(out bool userExecutable))
                 {
-                    metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
-                }
-
-                if (values[7] != null)
-                {
-                    metadata.EventNotifier = (byte)values[7];
-                }
-
-                if (values[8] != null && values[9] != null)
-                {
-                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
+                    metadata.Executable = executable && userExecutable;
                 }
 
                 // get instance references.
@@ -1232,7 +1237,7 @@ namespace Opc.Ua.Sample
         public virtual void Read(
             OperationContext context,
             double maxAge,
-            IList<ReadValueId> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             IList<DataValue> values,
             IList<ServiceResult> errors)
         {
@@ -1267,7 +1272,7 @@ namespace Opc.Ua.Sample
                     // create an initial value.
                     DataValue value = values[ii] = new DataValue();
 
-                    value.Value = null;
+                    value.WrappedValue = default;
                     value.ServerTimestamp = DateTime.UtcNow;
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.Good;
@@ -1355,7 +1360,7 @@ namespace Opc.Ua.Sample
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
@@ -1563,7 +1568,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public virtual void Write(
             OperationContext context,
-            IList<WriteValue> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -1662,7 +1667,7 @@ namespace Opc.Ua.Sample
         public virtual void HistoryUpdate(
             OperationContext context,
             Type detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
@@ -1738,7 +1743,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public virtual void Call(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
@@ -1867,7 +1872,7 @@ namespace Opc.Ua.Sample
         {
             var systemContext = context as ServerSystemContext;
             var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new VariantCollection();
+            var outputArguments = new List<Variant>();
 
             ServiceResult error = method.Call(
                 context,
@@ -1883,6 +1888,8 @@ namespace Opc.Ua.Sample
 
             // check for argument errors.
             bool argumentsValid = true;
+            var inputArgumentResults = new List<StatusCode>();
+            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
 
             for (int jj = 0; jj < argumentErrors.Count; jj++)
             {
@@ -1890,7 +1897,7 @@ namespace Opc.Ua.Sample
 
                 if (argumentError != null)
                 {
-                    result.InputArgumentResults.Add(argumentError.StatusCode);
+                    inputArgumentResults.Add(argumentError.StatusCode);
 
                     if (ServiceResult.IsBad(argumentError))
                     {
@@ -1903,7 +1910,7 @@ namespace Opc.Ua.Sample
                     {
                         if (ServiceResult.IsBad(argumentError))
                         {
-                            result.InputArgumentDiagnosticInfos.Add(
+                            inputArgumentDiagnosticInfos.Add(
                                 new DiagnosticInfo(
                                     argumentError,
                                     systemContext.OperationContext.DiagnosticsMask,
@@ -1913,7 +1920,7 @@ namespace Opc.Ua.Sample
                         }
                         else
                         {
-                            result.InputArgumentDiagnosticInfos.Add(null);
+                            inputArgumentDiagnosticInfos.Add(null);
                         }
                     }
                 }
@@ -1922,14 +1929,14 @@ namespace Opc.Ua.Sample
             // check for validation errors.
             if (!argumentsValid)
             {
+                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must
+                // be empty when StatusCode is Good. Therefore add it only in
+                // the error path
+                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
+                result.InputArgumentResults = inputArgumentResults;
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return result.StatusCode;
             }
-
-            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
-            // Clear diagnostics and argument results if there are no errors.
-            result.InputArgumentDiagnosticInfos.Clear();
-            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;
@@ -2164,7 +2171,7 @@ namespace Opc.Ua.Sample
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
@@ -2416,7 +2423,7 @@ namespace Opc.Ua.Sample
         {
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
@@ -2455,9 +2462,7 @@ namespace Opc.Ua.Sample
             range = null;
 
             // check for valid filter type.
-            filter = requestedFilter.Body as DataChangeFilter;
-
-            if (filter == null)
+            if (!requestedFilter.TryGetEncodeable(out filter))
             {
                 return StatusCodes.BadMonitoredItemFilterUnsupported;
             }
@@ -2587,7 +2592,7 @@ namespace Opc.Ua.Sample
             // read initial value.
             var initialValue = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
@@ -2620,7 +2625,7 @@ namespace Opc.Ua.Sample
             DataChangeFilter filter = null;
             Range range = null;
 
-            if (!ExtensionObject.IsNull(parameters.Filter))
+            if (!parameters.Filter.IsNull)
             {
                 error = ValidateDataChangeFilter(
                     context,
@@ -2804,7 +2809,7 @@ namespace Opc.Ua.Sample
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
@@ -2876,7 +2881,7 @@ namespace Opc.Ua.Sample
             Range range = null;
 
             ServiceResult error;
-            if (!ExtensionObject.IsNull(parameters.Filter))
+            if (!parameters.Filter.IsNull)
             {
                 error = ValidateDataChangeFilter(
                     context,

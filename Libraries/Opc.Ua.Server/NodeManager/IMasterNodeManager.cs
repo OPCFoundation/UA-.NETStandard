@@ -74,11 +74,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+        ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -86,10 +86,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseNextAsync(
+        ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseNextAsync(
             OperationContext context,
             bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -97,9 +97,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
-        ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallAsync(
+        ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> CallAsync(
             OperationContext context,
-            CallMethodRequestCollection methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             double publishingInterval,
             TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
@@ -167,20 +167,20 @@ namespace Opc.Ua.Server
         /// Reads the history of a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
+        ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates the history for a set of nodes.
         /// </summary>
-        ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)> HistoryUpdateAsync(
+        ValueTask<(ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryUpdateAsync(
             OperationContext context,
-            ExtensionObjectCollection historyUpdateDetails,
+            ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default);
@@ -202,11 +202,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
+        ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
         /// Registers a set of node ids.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRegister"/> is <c>null</c>.</exception>
-        void RegisterNodes(OperationContext context, NodeIdCollection nodesToRegister, out NodeIdCollection registeredNodeIds);
+        void RegisterNodes(OperationContext context, ArrayOf<NodeId> nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
 
         /// <summary>
         /// Deletes the specified references.
@@ -318,9 +318,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)> TranslateBrowsePathsToNodeIdsAsync(
+        ValueTask<(ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -345,15 +345,15 @@ namespace Opc.Ua.Server
         /// Unregisters a set of node ids.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToUnregister"/> is <c>null</c>.</exception>
-        void UnregisterNodes(OperationContext context, NodeIdCollection nodesToUnregister);
+        void UnregisterNodes(OperationContext context, ArrayOf<NodeId> nodesToUnregister);
 
         /// <summary>
         /// Writes a set of values.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
-            WriteValueCollection nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default);
     }
 }

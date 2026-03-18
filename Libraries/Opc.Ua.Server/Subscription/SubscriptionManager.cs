@@ -75,6 +75,7 @@ namespace Opc.Ua.Server
             m_subscriptionStore = server.SubscriptionStore;
 
             m_subscriptions = [];
+            m_abandonedSubscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
             m_lastSubscriptionId = BitConverter.ToUInt32(
@@ -372,7 +373,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            var createdSubscriptions = new Dictionary<uint, uint[]>();
+            var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
 
             foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
             {
@@ -392,7 +393,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                subscription.GetMonitoredItems(out uint[] monitoredItemsIds, out _);
+                subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
                 createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
             }
 
@@ -528,17 +529,11 @@ namespace Opc.Ua.Server
                     // mark the subscriptions as abandoned.
                     else
                     {
-                        await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        try
+                        if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
                         {
-                            (m_abandonedSubscriptions ??= []).Add(subscription);
                             m_logger.LogWarning(
                                 "Subscription ABANDONED, Id={SubscriptionId}.",
                                 subscription.Id);
-                        }
-                        finally
-                        {
-                            m_semaphoreSlim.Release();
                         }
                     }
                 }
@@ -699,19 +694,11 @@ namespace Opc.Ua.Server
                 }
 
                 // check for abandoned subscription.
-                if (m_abandonedSubscriptions != null)
+                if (m_abandonedSubscriptions.TryRemove(subscriptionId, out _))
                 {
-                    for (int ii = 0; ii < m_abandonedSubscriptions.Count; ii++)
-                    {
-                        if (m_abandonedSubscriptions[ii].Id == subscriptionId)
-                        {
-                            m_abandonedSubscriptions.RemoveAt(ii);
-                            m_logger.LogWarning(
-                                "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
-                                subscriptionId);
-                            break;
-                        }
-                    }
+                    m_logger.LogWarning(
+                        "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
+                        subscriptionId);
                 }
 
                 // remove subscription.
@@ -942,14 +929,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken cancellationToken = default)
         {
             bool diagnosticsExist = false;
-            var results = new StatusCodeCollection(subscriptionIds.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(subscriptionIds.Count);
+            var results = new List<StatusCode>(subscriptionIds.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(subscriptionIds.Count);
 
-            foreach (uint subscriptionId in subscriptionIds)
+            foreach (uint subscriptionId in subscriptionIds.ToList())
             {
                 try
                 {
@@ -1026,7 +1013,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public async Task<PublishResponse> PublishAsync(
             OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken cancellationToken = default)
         {
             // get publish queue for session.
@@ -1044,8 +1031,8 @@ namespace Opc.Ua.Server
             queue.Acknowledge(
                 context,
                 subscriptionAcknowledgements,
-                out StatusCodeCollection acknowledgeResults,
-                out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
+                out ArrayOf<StatusCode> acknowledgeResults,
+                out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
             // update diagnostics.
             if (context.Session != null)
@@ -1121,7 +1108,7 @@ namespace Opc.Ua.Server
                     {
                         NotificationMessage message = subscription.Publish(
                             context,
-                            out UInt32Collection availableSequenceNumbers,
+                            out ArrayOf<uint> availableSequenceNumbers,
                             out moreNotifications);
 
                         // a null message indicates a false alarm; requeue and wait for the next one.
@@ -1292,14 +1279,14 @@ namespace Opc.Ua.Server
         public void SetPublishingMode(
             OperationContext context,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            ArrayOf<uint> subscriptionIds,
+            out ArrayOf<StatusCode> results,
+            out ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             bool diagnosticsExist = false;
 
-            results = new StatusCodeCollection(subscriptionIds.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(subscriptionIds.Count);
+            var resultList = new List<StatusCode>(subscriptionIds.Count);
+            var diagnosticInfoList = new List<DiagnosticInfo>(subscriptionIds.Count);
 
             for (int ii = 0; ii < subscriptionIds.Count; ii++)
             {
@@ -1316,11 +1303,11 @@ namespace Opc.Ua.Server
                     subscription.SetPublishingMode(context, publishingEnabled);
 
                     // save results.
-                    results.Add(StatusCodes.Good);
+                    resultList.Add(StatusCodes.Good);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(null);
+                        diagnosticInfoList.Add(null);
                     }
                 }
                 catch (Exception e)
@@ -1334,7 +1321,7 @@ namespace Opc.Ua.Server
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
-                    results.Add(result.Code);
+                    resultList.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -1343,16 +1330,18 @@ namespace Opc.Ua.Server
                             context,
                             result,
                             m_logger);
-                        diagnosticInfos.Add(diagnosticInfo);
+                        diagnosticInfoList.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
                 }
 
                 if (!diagnosticsExist)
                 {
-                    diagnosticInfos.Clear();
+                    diagnosticInfoList.Clear();
                 }
             }
+            results = resultList;
+            diagnosticInfos = diagnosticInfoList;
         }
 
         /// <summary>
@@ -1360,12 +1349,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken cancellationToken = default)
         {
-            var results = new TransferResultCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            var results = new List<TransferResult>();
+            var diagnosticInfos = new List<DiagnosticInfo>();
 
             m_logger.LogInformation(
                 "TransferSubscriptions to SessionId={SessionId}, Count={Count}, sendInitialValues={SendInitialValues}",
@@ -1649,12 +1638,12 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
+            out ArrayOf<StatusCode> addResults,
+            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+            out ArrayOf<StatusCode> removeResults,
+            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
         {
             // find subscription.
 
@@ -1683,7 +1672,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1725,7 +1714,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1749,7 +1738,7 @@ namespace Opc.Ua.Server
         public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -1786,11 +1775,11 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
+        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
             // find subscription.
@@ -2061,34 +2050,10 @@ namespace Opc.Ua.Server
 
                 while (true)
                 {
-                    DateTime start = HiResClock.UtcNow;
-
-                    SessionPublishQueue[] queues = null;
-                    ISubscription[] abandonedSubscriptions = null;
-
-                    await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
-                    {
-                        // collect active session queues.
-                        queues = new SessionPublishQueue[m_publishQueues.Count];
-                        m_publishQueues.Values.CopyTo(queues, 0);
-
-                        // collect abandoned subscriptions.
-                        if (m_abandonedSubscriptions != null && m_abandonedSubscriptions.Count > 0)
-                        {
-                            abandonedSubscriptions = new ISubscription[m_abandonedSubscriptions
-                                .Count];
-
-                            for (int ii = 0; ii < abandonedSubscriptions.Length; ii++)
-                            {
-                                abandonedSubscriptions[ii] = m_abandonedSubscriptions[ii];
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        m_semaphoreSlim.Release();
-                    }
+                    // ConcurrentDictionary enumeration is thread-safe and provides a stable
+                    // snapshot for the current pass without taking the manager semaphore.
+                    SessionPublishQueue[] queues = [.. m_publishQueues.Values];
+                    ISubscription[] abandonedSubscriptions = [.. m_abandonedSubscriptions.Values];
 
                     // check the publish timer for each subscription.
                     for (int ii = 0; ii < queues.Length; ii++)
@@ -2097,7 +2062,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check the publish timer for each abandoned subscription.
-                    if (abandonedSubscriptions != null)
+                    if (abandonedSubscriptions.Length > 0)
                     {
                         var subscriptionsToDelete = new List<ISubscription>();
 
@@ -2120,17 +2085,9 @@ namespace Opc.Ua.Server
                         // schedule cleanup on a background thread.
                         if (subscriptionsToDelete.Count > 0)
                         {
-                            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                            try
+                            for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
                             {
-                                for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
-                                {
-                                    m_abandonedSubscriptions.Remove(subscriptionsToDelete[ii]);
-                                }
-                            }
-                            finally
-                            {
-                                m_semaphoreSlim.Release();
+                                m_abandonedSubscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
                             }
 
                             CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
@@ -2327,7 +2284,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxSubscriptionCount;
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscription> m_subscriptions;
-        private List<ISubscription> m_abandonedSubscriptions;
+        private readonly ConcurrentDictionary<uint, ISubscription> m_abandonedSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;

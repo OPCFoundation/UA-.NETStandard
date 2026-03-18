@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-                .Where(b => b is > BuiltInType.Null and <= BuiltInType.DiagnosticInfo)
+                .Where(b => b is > BuiltInType.Null and < BuiltInType.DiagnosticInfo)
                 .Select(b => new TestType(b)))
         {
             { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -184,6 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
 
             ushort nameSpaceIndex = mockResolver.NamespaceUris
                 .GetIndexOrAppend(Namespaces.MockResolverUrl);
@@ -200,7 +201,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "Model",
@@ -211,7 +212,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "Engine",
@@ -222,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
             field = new StructureField
             {
                 Name = "NoOfPassengers",
@@ -233,7 +234,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -267,7 +268,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add type
@@ -304,7 +305,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     carType))
                 {
-                    encoder.WriteEncodeable("Car", car, carType);
+                    encoder.WriteEncodeable("Car", car);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -317,6 +318,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 car);
@@ -337,13 +339,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockArrayTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
@@ -368,7 +371,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -380,7 +383,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -392,7 +395,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -404,7 +407,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -416,7 +419,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             field = new StructureField
             {
@@ -428,7 +431,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -462,7 +465,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add types needed
@@ -477,14 +480,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            arrays["ArrayOfInteger"] = new int[] { 1, 4, 8, 12, 22 };
-            arrays["Array2DOfInteger"] = new int[,]
+            arrays["ArrayOfInteger"] = Variant.From(ArrayOf.Wrapped(1, 4, 8, 12, 22));
+            arrays["Array2DOfInteger"] = Variant.From(new int[,]
             {
                 { 11, 12, 13, 14, 15 },
                 { 21, 22, 23, 24, 25 },
                 { 31, 32, 33, 34, 35 }
-            };
-            arrays["Array3DOfInteger"] = new int[,,]
+            });
+            arrays["Array3DOfInteger"] = Variant.From(new int[,,]
             {
                 {
                     { 11, 12, 13, 14, 15 },
@@ -496,22 +499,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     { 51, 52, 53, 54, 55 },
                     { 61, 62, 63, 64, 65 }
                 }
-            };
-            arrays["ArrayOfNamingRuleType"] = new NamingRuleType[]
-            {
+            });
+            arrays["ArrayOfNamingRuleType"] = Variant.From(
+            [
                 NamingRuleType.Mandatory,
                 NamingRuleType.Optional,
                 NamingRuleType.Constraint
-            };
+            ]);
             // note: an assignement of the Int32[] to an enum type is a supported cast,
             // but the Encode/Decode test would fail because the int/Enum compare different
             // arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
-            arrays["Array2DOfNamingRuleType"] = new NamingRuleType[,]
+            arrays["Array2DOfNamingRuleType"] = Variant.From(new NamingRuleType[,]
             {
                 { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
                 { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
-            };
-            arrays["Array3DOfNamingRuleType"] = new NamingRuleType[,,]
+            }.ToMatrixOf());
+            arrays["Array3DOfNamingRuleType"] = Variant.From(new NamingRuleType[,,]
             {
                 {
                     { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Mandatory },
@@ -524,7 +527,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         NamingRuleType.Constraint },
                     { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
                 }
-            };
+            }.ToMatrixOf());
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -543,7 +546,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     arraysTypes))
                 {
-                    encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
+                    encoder.WriteEncodeable("Arrays", arrays);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -556,6 +559,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 arrays);
@@ -576,7 +580,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockSingleTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             TestType typeDescription,
             bool randomValues,
@@ -586,6 +590,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
 
             var mockResolver = new MockResolver();
@@ -617,7 +622,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 MaxStringLength = 0,
                 IsOptional = false
             };
-            structure.Fields.Add(field);
+            structure.Fields += field;
 
             var dataTypeNode = new DataTypeNode
             {
@@ -651,7 +656,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     TargetId = description.NodeId
                 };
                 mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
-                dataTypeNode.References.Add(reference);
+                dataTypeNode.References += reference;
             }
 
             // add types needed
@@ -667,7 +672,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            object value;
+            Variant value;
             Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
@@ -676,7 +681,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (randomValues)
                     {
-                        value = DataGenerator.GetRandom(builtInType);
+                        value = DataGenerator.GetRandomVariant(builtInType, false);
                     }
                     else
                     {
@@ -685,61 +690,47 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             case BuiltInType.DataValue:
                                 value = new DataValue();
                                 break;
-                            case BuiltInType.DiagnosticInfo:
-                                value = new DiagnosticInfo();
-                                break;
                             default:
-                                value = TypeInfo.GetDefaultValue(builtInType);
+                                value = Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
                                 break;
                         }
                     }
                 }
                 else
                 {
-                    value = Activator.CreateInstance(valueType);
+                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType)));
                 }
             }
             else
             {
                 int[] dimensions = new int[valueRank];
+                for (int ii = 0; ii < dimensions.Length; ii++)
+                {
+                    dimensions[ii] = randomValues ? (DataGenerator.GetRandomInt32() & 3) + 1 : 1;
+                }
                 if (builtInType > 0)
                 {
-                    if (randomValues)
+                    Array array = TypeInfo.CreateArray(builtInType, dimensions);
+                    int[] indices = new int[valueRank];
+                    for (int ii = 0; ii < array.Length; ii++)
                     {
-                        for (int ii = 0; ii < dimensions.Length; ii++)
-                        {
-                            dimensions[ii] = (DataGenerator.GetRandomInt32() & 3) + 1;
-                        }
-                        Array array = TypeInfo.CreateArray(builtInType, dimensions);
-                        int[] indices = new int[valueRank];
-                        for (int ii = 0; ii < array.Length; ii++)
-                        {
-                            object rndValue = DataGenerator.GetRandom(builtInType);
-                            array.SetValue(rndValue, indices);
-                            Iterate(dimensions, indices);
-                        }
-                        value = array;
+                        object rndValue = DataGenerator.GetRandom(builtInType);
+                        array.SetValue(rndValue, indices);
+                        Iterate(dimensions, indices);
                     }
-                    else
-                    {
-                        value = TypeInfo.CreateArray(builtInType, dimensions);
-                    }
+                    value = CreateVariantForMatrixOf(array.GetType().GetElementType(), array);
                 }
                 else
                 {
                     var array = Array.CreateInstance(valueType, dimensions);
-
-                    if (randomValues)
+                    int[] indices = new int[valueRank];
+                    for (int ii = 0; ii < array.Length; ii++)
                     {
-                        int[] indices = new int[valueRank];
-                        for (int ii = 0; ii < array.Length; ii++)
-                        {
-                            array.SetValue(GetRandom(field.DataType), indices);
-                            Iterate(dimensions, indices);
-                        }
+                        array.SetValue(GetRandom(field.DataType), indices);
+                        Iterate(dimensions, indices);
                     }
-
-                    value = array;
+                    // Create a matrix of valueType from array and initialize the variant using Variant.FromStructure
+                    value = CreateVariantForStructureMatrix(valueType, array);
                 }
             }
             testType[field.Name] = value;
@@ -761,7 +752,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     arraysTypes))
                 {
-                    encoder.WriteEncodeable("TestType", testType, arraysTypes);
+                    encoder.WriteEncodeable("TestType", testType);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -774,6 +765,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 memoryStreamType,
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
                 testType);
@@ -931,6 +923,34 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
+        }
+
+        public static Variant CreateVariantForStructureMatrix(Type type, Array array)
+        {
+            return (Variant)typeof(MockResolverTests)
+                .GetMethod(nameof(CreateVariantForStructureMatrixT))
+                .MakeGenericMethod([type])
+                .Invoke(null, [array]);
+        }
+
+        public static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
+        {
+            return Variant.FromStructure<T>(MatrixOf.From<T>(array));
+        }
+
+        public static Variant CreateVariantForMatrixOf(Type type, Array array)
+        {
+            return (Variant)typeof(MockResolverTests)
+                .GetMethod(nameof(CreateVariantForMatrixOfT))
+                .MakeGenericMethod([type])
+                .Invoke(null, [array]);
+        }
+
+        public static Variant CreateVariantForMatrixOfT<T>(Array array)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            return new Variant(MatrixOf.From<T>(array));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
     }
 

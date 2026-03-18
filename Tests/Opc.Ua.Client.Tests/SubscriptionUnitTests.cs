@@ -130,19 +130,24 @@ namespace Opc.Ua.Client.Tests
                         ct
                       ) => new() { SubscriptionId = ++subscriptionIdSeed });
             session
-                .Setup(x => x.SetPublishingModeAsync(It.IsAny<RequestHeader>(), It.IsAny<bool>(), It.IsAny<UInt32Collection>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(x => x.SetPublishingModeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync<
                     RequestHeader,
                     bool,
-                    UInt32Collection,
+                    ArrayOf<uint>,
                     CancellationToken,
                     ISession,
                     SetPublishingModeResponse
                     >((requestHeader, publishingEnabled, subscriptionIds, ct) => new()
                     {
-                        Results = [.. subscriptionIds.Select(id => id > subscriptionIdSeed ? StatusCodes.BadSubscriptionIdInvalid : StatusCodes.Good)],
-                        DiagnosticInfos = [.. subscriptionIds.Select(_ => new DiagnosticInfo())]
+                        Results = [.. subscriptionIds.ConvertAll(id => id > subscriptionIdSeed ?
+                            StatusCodes.BadSubscriptionIdInvalid :
+                            StatusCodes.Good)],
+                        DiagnosticInfos = [.. subscriptionIds.ConvertAll(_ => new DiagnosticInfo())]
                     });
             return session.Object;
         }
@@ -185,7 +190,7 @@ namespace Opc.Ua.Client.Tests
                 //simplified republish emulation
                 if (subscription.Id == subscriptionId && availableSequenceNumbers.Remove(sequenceNumber))
                 {
-                    subscription.SaveMessageInCache(null, messagesToProcess[sequenceNumber]);
+                    subscription.SaveMessageInCache(default, messagesToProcess[sequenceNumber]);
                     return true;
                 }
                 return false;

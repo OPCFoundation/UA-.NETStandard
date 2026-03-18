@@ -43,11 +43,11 @@ namespace Boiler
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new BoilerNodeManager(server, configuration, [.. NamespacesUris]);
+            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.Boiler, Namespaces.Boiler + "Instance"];
     }
 
@@ -142,8 +142,8 @@ namespace Boiler
 
             // Autostart boiler simulation state machine
             MethodState start = boiler.Simulation.Start;
-            VariantCollection inputArguments = [];
-            VariantCollection outputArguments = [];
+            ArrayOf<Variant> inputArguments = [];
+            List<Variant> outputArguments = [];
             var errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
@@ -214,8 +214,8 @@ namespace Boiler
 
                     // Autostart boiler simulation state machine
                     MethodState start = activeNode.Simulation.Start;
-                    VariantCollection inputArguments = [];
-                    VariantCollection outputArguments = [];
+                    ArrayOf<Variant> inputArguments = [];
+                    List<Variant> outputArguments = [];
                     var errors = new List<ServiceResult>();
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
@@ -68,13 +67,13 @@ namespace Alarms
 
                 BaseEventState alarm = GetAlarm();
 
-                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteString();
                 alarm.EventType.Value = new NodeId(
                     alarmTypeIdentifier,
                     GetNameSpaceIndex(alarmTypeIdentifier));
                 alarm.SourceNode.Value = m_trigger.NodeId;
                 alarm.SourceName.Value = m_trigger.SymbolicName;
-                alarm.Time.Value = DateTime.UtcNow;
+                alarm.Time.Value = DateTimeUtc.Now;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
                 alarm.Message.Value = LocalizedText.From(name + " Initialized");
                 alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
@@ -94,10 +93,10 @@ namespace Alarms
             return alarm;
         }
 
-        protected bool IsEvent(byte[] eventId)
+        protected bool IsEvent(ByteString eventId)
         {
             bool isEvent = false;
-            if (GetAlarm().EventId.Value.SequenceEqual(eventId))
+            if (GetAlarm().EventId.Value == eventId)
             {
                 isEvent = true;
             }

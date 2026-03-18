@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 NodeClassMask = 0
             };
 
-            ReferenceDescriptionCollection references =
+            ArrayOf<ReferenceDescription> references =
                 await browser.BrowseAsync(dataTypeSystem).ConfigureAwait(false);
             Assert.NotNull(references);
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             // read all type dictionaries in the type system
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
-            foreach (ReferenceDescription r in references)
+            foreach (ReferenceDescription r in references.ToList())
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
                 logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);

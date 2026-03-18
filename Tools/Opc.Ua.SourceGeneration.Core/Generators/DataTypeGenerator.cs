@@ -157,6 +157,10 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.XmlNamespaceUri,
+                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
+                    dataType.SymbolicName.Namespace));
             AddEncodingIdReplacements(context, dataType);
             return context.Template.Render();
         }
@@ -428,6 +432,14 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            context.Template.AddReplacement(
+                Tokens.ExtraInterfaces,
+                dataType.Service == null ?
+                    string.Empty :
+                    dataType.IsServiceResponse ?
+                        "global::Opc.Ua.IServiceResponse, " :
+                        "global::Opc.Ua.IServiceRequest, ");
+
             Parameter[] fields = GetFields(dataType);
 
             context.Template.AddReplacement(
@@ -587,6 +599,18 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ListOfClonedFields);
 
             context.Template.AddReplacement(
+                Tokens.ListOfChildHashes,
+                DataTypeTemplates.HashProperty,
+                fields,
+                WriteTemplate_ListOfProperties);
+
+            context.Template.AddReplacement(
+                Tokens.ListOfAppendStringFields,
+                DataTypeTemplates.AddPropertyToStringBuilder,
+                fields,
+                WriteTemplate_ListOfProperties);
+
+            context.Template.AddReplacement(
                 Tokens.ListOfSwitchFieldNames,
                 fields,
                 LoadTemplate_ListOfSwitchFields);
@@ -595,13 +619,6 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfEncodingMaskFieldNames,
                 completeListOfFields?.ToArray() ?? fields,
                 LoadTemplate_ListOfEncodingMaskFields);
-
-            context.Template.AddReplacement(
-                Tokens.CollectionClass,
-                DataTypeTemplates.CollectionClass,
-                [dataType],
-                LoadTemplate_CollectionClass,
-                WriteTemplate_CollectionClass);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFieldInitializers,
@@ -622,43 +639,14 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_CollectionClass(ILoadContext context)
-        {
-            if (context.Target is not DataTypeDesign dataType)
-            {
-                return null;
-            }
-
-            if (dataType.NoArraysAllowed)
-            {
-                return null;
-            }
-
-            return context.TemplateString;
-        }
-
-        private bool WriteTemplate_CollectionClass(IWriteContext context)
-        {
-            if (context.Target is not DataTypeDesign dataType)
-            {
-                return false;
-            }
-
-            context.Template.AddReplacement(
-                Tokens.XmlNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
-                    dataType.SymbolicId.Namespace));
-            context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
-
-            return context.Template.Render();
-        }
-
         private TemplateString LoadTemplate_ListOfFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
                 return null;
             }
+
+            var dataType = (DataTypeDesign)field.Parent;
 
             context.Out.WriteLine(
                 "private {0} {1};",
@@ -753,7 +741,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
-            string elementName = null;
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
 
             switch (field.DataTypeNode.BasicDataType)
@@ -780,11 +767,6 @@ namespace Opc.Ua.SourceGeneration
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
                             functionName = "Encodeable";
-                            elementName = field.DataTypeNode.GetDotNetTypeName(
-                                ValueRank.Scalar,
-                                m_context.ModelDesign.TargetNamespace.Value,
-                                m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable);
                             break;
                         }
 
@@ -797,64 +779,8 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        elementName = field.DataTypeNode.GetDotNetTypeName(
-                            ValueRank.Scalar,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable);
                         context.Out.WriteLine(
-                            "encoder.WriteEnumeratedArray({0}, {1}.ToArray(), typeof({2}));",
-                            fieldName,
-                            field.Name,
-                            elementName);
-                        if (isUnion)
-                        {
-                            context.Out.WriteLine("break;");
-                            context.Out.WriteLine("}");
-                        }
-
-                        return null;
-                    }
-
-                    break;
-                case BasicDataType.UserDefined:
-                    if (field.AllowSubTypes)
-                    {
-                        if (field.ValueRank == ValueRank.Array)
-                        {
-                            context.Out.WriteLine("encoder.WriteExtensionObjectArray(");
-                            context.Out.WriteLine("    {0},", fieldName);
-                            context.Out.WriteLine(
-                                "    global::Opc.Ua.ExtensionObjectCollection.ToExtensionObjects({0}));",
-                                field.Name);
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        if (field.ValueRank == ValueRank.Scalar)
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteExtensionObject({0}, new global::Opc.Ua.ExtensionObject({1}));",
-                                fieldName,
-                                field.Name);
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        context.Out.WriteLine(
-                            "encoder.WriteVariant({0}, {1});",
+                            "encoder.WriteEnumeratedArray({0}, {1});",
                             fieldName,
                             field.Name);
                         if (isUnion)
@@ -866,28 +792,76 @@ namespace Opc.Ua.SourceGeneration
                         return null;
                     }
 
-                    functionName = "Encodeable";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable);
+                    break;
+                case BasicDataType.UserDefined:
+                    if (!field.AllowSubTypes)
+                    {
+                        // Write as encodeable as we do not allow sub type values
+                        functionName = "Encodeable";
+                        if (field.ValueRank == ValueRank.Array)
+                        {
+                            context.Out.WriteLine(
+                                "encoder.WriteEncodeableArray({0}, {1});",
+                                fieldName,
+                                field.Name);
+                            if (isUnion)
+                            {
+                                context.Out.WriteLine("break;");
+                                context.Out.WriteLine("}");
+                            }
+                            return null;
+                        }
+                        break;
+                    }
+
+                    // Write as array
+
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
-                            "encoder.WriteEncodeableArray({0}, {1}.ToArray(), typeof({2}));",
+                            "encoder.WriteEncodeableArrayAsExtensionObjects({0}, {1});",
                             fieldName,
-                            field.Name,
-                            elementName);
+                            field.Name);
+                        if (isUnion)
+                        {
+                            context.Out.WriteLine("break;");
+                            context.Out.WriteLine("}");
+                        }
+
+                        return null;
+                    }
+
+                    // Write as scalar
+
+                    if (field.ValueRank == ValueRank.Scalar)
+                    {
+                        context.Out.WriteLine(
+                            "encoder.WriteEncodeableAsExtensionObject({0}, {1});",
+                            fieldName,
+                            field.Name);
 
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
                             context.Out.WriteLine("}");
                         }
+
                         return null;
                     }
-                    break;
+
+                    // Write matrix
+
+                    context.Out.WriteLine(
+                        "encoder.WriteVariant({0}, {1});",
+                        fieldName,
+                        field.Name);
+                    if (isUnion)
+                    {
+                        context.Out.WriteLine("break;");
+                        context.Out.WriteLine("}");
+                    }
+
+                    return null;
             }
 
             if (field.ValueRank == ValueRank.Array)
@@ -897,15 +871,9 @@ namespace Opc.Ua.SourceGeneration
             else if (field.ValueRank != ValueRank.Scalar)
             {
                 functionName = "Variant";
-                elementName = null;
             }
 
             context.Out.Write($"encoder.Write{functionName}({fieldName}, {field.Name}");
-
-            if (elementName != null)
-            {
-                context.Out.Write($", typeof({elementName})");
-            }
 
             context.Out.WriteLine(");");
 
@@ -938,27 +906,26 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            string functionName = field.DataTypeNode.BasicDataType.ToString();
             string valueName = field.Name;
-            string elementName = null;
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
-
+            string typeName = field.ValueRank == ValueRank.Array ? "Array" : string.Empty;
+            string functionName;
             switch (field.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.Number:
                 case BasicDataType.Integer:
                 case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType:
-                    functionName = "Variant";
+                    functionName = "Variant" + typeName;
                     break;
                 case BasicDataType.Structure:
-                    functionName = "ExtensionObject";
+                    functionName = "ExtensionObject" + typeName;
                     break;
                 case BasicDataType.Enumeration:
                     if (field.DataType ==
                         new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
                     {
-                        functionName = "Int32";
+                        functionName = "Int32" + typeName;
                         break;
                     }
 
@@ -967,70 +934,61 @@ namespace Opc.Ua.SourceGeneration
                         if (field.DataTypeNode.BaseTypeNode.SymbolicId ==
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
-                            functionName = "Encodeable";
-                            elementName = field.DataTypeNode.GetDotNetTypeName(
-                                ValueRank.Scalar,
-                                m_context.ModelDesign.TargetNamespace.Value,
-                                m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable);
+                            functionName = CoreUtils.Format(
+                                "Encodeable{0}<{1}>",
+                                typeName,
+                                field.DataTypeNode.GetDotNetTypeName(
+                                    ValueRank.Scalar,
+                                    m_context.ModelDesign.TargetNamespace.Value,
+                                    m_context.ModelDesign.Namespaces,
+                                    nullable: NullableAnnotation.NonNullable));
                             break;
                         }
 
                         var fdt = (DataTypeDesign)field.DataTypeNode.BaseTypeNode;
-                        functionName = fdt.BasicDataType.ToString();
+                        functionName = fdt.BasicDataType.ToString() + typeName;
                         break;
                     }
 
-                    functionName = "Enumerated";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
+                    functionName = CoreUtils.Format(
+                        "Enumerated{0}<{1}>",
+                        typeName,
+                        field.DataTypeNode.GetDotNetTypeName(
+                            ValueRank.Scalar,
+                            m_context.ModelDesign.TargetNamespace.Value,
+                            m_context.ModelDesign.Namespaces,
+                            nullable: NullableAnnotation.NonNullable));
+                    break;
+                case BasicDataType.UserDefined:
+                    if (!field.AllowSubTypes)
+                    {
+                        // Read as encodeable as we do not allow subtype values
+                        functionName = CoreUtils.Format(
+                            "Encodeable{0}<{1}>",
+                            typeName,
+                            field.DataTypeNode.GetDotNetTypeName(
+                            ValueRank.Scalar,
+                            m_context.ModelDesign.TargetNamespace.Value,
+                            m_context.ModelDesign.Namespaces,
+                            nullable: NullableAnnotation.NonNullable));
+                        break;
+                    }
+
+                    context.Out.Write($"{valueName} = ");
+                    string elementName = field.DataTypeNode.GetDotNetTypeName(
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.NonNullable);
-                    break;
-                case BasicDataType.UserDefined:
-                    if (field.AllowSubTypes)
+
+                    // Read array
+
+                    if (field.ValueRank == ValueRank.Array)
                     {
-                        context.Out.Write($"{valueName} = ");
-                        elementName = field.DataTypeNode.GetDotNetTypeName(
-                            ValueRank.Scalar,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable);
-
-                        if (field.ValueRank == ValueRank.Array)
-                        {
-                            context.Out.WriteLine(
-                                $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
-                            context.Out.WriteLine(
-                                $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        if (field.ValueRank == ValueRank.Scalar)
-                        {
-                            context.Out.WriteLine(
-                                $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
-                            context.Out.WriteLine(
-                                $"    decoder.ReadExtensionObject({fieldName}));");
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        context.Out.WriteLine($"decoder.ReadVariant({fieldName});");
+                        context.Out.WriteLine(
+                            $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
+                        context.Out.WriteLine(
+                            $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
 
                         if (isUnion)
                         {
@@ -1041,46 +999,36 @@ namespace Opc.Ua.SourceGeneration
                         return null;
                     }
 
-                    functionName = "Encodeable";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable);
+                    // Read scalar
+
+                    if (field.ValueRank == ValueRank.Scalar)
+                    {
+                        context.Out.WriteLine(
+                            $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
+                        context.Out.WriteLine(
+                            $"    decoder.ReadExtensionObject({fieldName}));");
+
+                        if (isUnion)
+                        {
+                            context.Out.WriteLine("break;");
+                            context.Out.WriteLine("}");
+                        }
+
+                        return null;
+                    }
+
+                    // Matrix or other non-scalar, non-array
+                    functionName = "Variant";
+                    break;
+                default:
+                    functionName = field.DataTypeNode.BasicDataType.ToString() + typeName;
                     break;
             }
-
-            if (field.ValueRank == ValueRank.Array)
-            {
-                functionName += "Array";
-            }
-            else if (field.ValueRank != ValueRank.Scalar)
+            if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
             {
                 functionName = "Variant";
-                elementName = null;
             }
-
-            context.Out.Write("{0} = ", valueName);
-
-            if (elementName != null)
-            {
-                if (field.ValueRank == ValueRank.Array)
-                {
-                    context.Out.Write("({0}Collection)", elementName);
-                }
-                else
-                {
-                    context.Out.Write("({0})", elementName);
-                }
-
-                context.Out.WriteLine(
-                    $"decoder.Read{functionName}({fieldName}, typeof({elementName}));");
-            }
-            else
-            {
-                context.Out.WriteLine($"decoder.Read{functionName}({fieldName});");
-            }
-
+            context.Out.WriteLine("{0} = decoder.Read{1}({2});", valueName, functionName, fieldName);
             if (isUnion)
             {
                 context.Out.WriteLine("break;");
@@ -1110,16 +1058,16 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            if (dataType.IsDotNetEqualityComparable(field.ValueRank))
+            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
             {
                 context.Out.WriteLine(
-                    "if ({0} != value.{0})",
+                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
                     field.GetChildFieldName());
             }
             else
             {
                 context.Out.WriteLine(
-                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
+                    "if ({0} != value.{0})",
                     field.GetChildFieldName());
             }
             context.Out.WriteLine("{");
@@ -1143,7 +1091,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-
             if (dataType.IsUnion)
             {
                 context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
@@ -1233,6 +1180,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             const bool isRequired = false;
+            var dataType = (DataTypeDesign)field.Parent;
             bool emitDefaultValue =
                 !field.DataTypeNode.IsDotNetReferenceType(field.ValueRank);
 
@@ -1295,8 +1243,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (field.Name == "NodeId" &&
-                field.Parent is DataTypeDesign dt &&
-                dt.BaseTypeNode.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
+                dataType.BaseTypeNode.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
             {
                 context.Template.AddReplacement(
                     Tokens.AccessorSymbol,
@@ -1400,7 +1347,7 @@ namespace Opc.Ua.SourceGeneration
             Parameter field,
             ValueRank valueRank,
             DataTypeDesign dataType,
-            XmlElement element)
+            System.Xml.XmlElement element)
         {
             string xml = element?.OuterXml;
             if (string.IsNullOrEmpty(xml))

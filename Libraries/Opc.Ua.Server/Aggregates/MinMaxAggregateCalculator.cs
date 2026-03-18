@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public MinMaxAggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                DateTime currentTime = values[ii].SourceTimestamp;
+                DateTime currentTime = (DateTime)values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values.
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                DateTime currentTime = values[ii].SourceTimestamp;
+                DateTime currentTime = (DateTime)values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values (as determined by the TreatUncertainAsBad parameter).

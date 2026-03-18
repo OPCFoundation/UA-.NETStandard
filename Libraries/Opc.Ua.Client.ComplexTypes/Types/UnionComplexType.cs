@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -107,16 +108,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                if (encoder.UseReversibleEncoding)
-                {
-                    fieldName ??= unionProperty.Name;
-                }
+                fieldName ??= unionProperty.Name;
 
                 EncodeProperty(encoder, fieldName, unionProperty);
-            }
-            else if (!encoder.UseReversibleEncoding)
-            {
-                encoder.WriteString(null, null);
             }
 
             encoder.PopNamespace();
@@ -129,11 +123,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             uint unionSelector = decoder.ReadSwitchField(null, out _);
 
-            // maybe the switch field is implicitly defined by the JSON keys
+            // In verbose encoding the switch field is implicitly defined by the JSON keys
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
-                var fields = new StringCollection();
+                var fields = new List<string>();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (property.IsOptional)
@@ -152,18 +146,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        string fieldName = property.Name;
-
-                        if (isJsonDecoder &&
-                            decoder is IJsonDecoder jsonDecoder &&
-                            jsonDecoder.ReadField("Value", out _))
-                        {
-                            DecodeProperty(jsonDecoder, "Value", property);
-                        }
-                        else
-                        {
-                            DecodeProperty(decoder, fieldName, property);
-                        }
+                        DecodeProperty(decoder, property.Name, property);
                         break;
                     }
                 }
@@ -203,9 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        if (!Utils.IsEqual(
-                            property.GetValue(this),
-                            property.GetValue(valueBaseType)))
+                        if (property.GetValue(this) != property.GetValue(valueBaseType))
                         {
                             return false;
                         }
@@ -229,12 +210,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (--unionSelector == 0)
                         {
-                            object unionProperty = property.GetValue(this);
+                            Variant unionProperty = property.GetValue(this);
                             AppendPropertyValue(
-                                formatProvider,
                                 body,
-                                unionProperty,
-                                property.ValueRank);
+                                unionProperty);
                             break;
                         }
                     }
@@ -269,7 +248,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
-        public override object this[int index]
+        public override Variant this[int index]
         {
             get
             {
@@ -281,7 +260,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     return m_propertyList[(int)m_switchField - 1].GetValue(this);
                 }
-                return null;
+                return default;
             }
             set
             {
@@ -290,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     m_propertyList[index].SetValue(this, value);
                     // note: selector is updated in SetValue by emitted code for union
                     // m_unionSelector = (uint)(index + 1);
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         return;
                     }
@@ -312,7 +291,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector.
         /// Calling set with a null object or an invalid name unselects the union.
         /// </remarks>
-        public override object this[string name]
+        public override Variant this[string name]
         {
             get
             {
@@ -330,7 +309,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return m_propertyList[(int)SwitchField - 1].GetValue(this);
                     }
                 }
-                return null;
+                return default;
             }
             set
             {
@@ -339,7 +318,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     property.SetValue(this, value);
                     // note: selector is updated in SetValue by emitted code for union
                     // m_unionSelector = (uint)(property.Order);
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         return;
                     }
@@ -352,8 +331,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Simple accessor for Union to access current Value.
         /// </summary>
-        public object Value
-            => m_switchField == 0 ? null : m_propertyList[(int)m_switchField - 1].GetValue(this);
+        public Variant Value
+            => m_switchField == 0 ? default : m_propertyList[(int)m_switchField - 1].GetValue(this);
 
         /// <summary>
         /// The selector for the value of the Union.

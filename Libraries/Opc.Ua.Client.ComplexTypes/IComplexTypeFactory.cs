@@ -97,7 +97,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create a property field of a class with get and set.
         /// </summary>
-        void AddField(StructureField field, Type fieldType, int order);
+        void AddField(
+            StructureField field,
+            Type fieldType,
+            int order,
+            bool allowSubTypes,
+            bool isEnum = false);
 
         /// <summary>
         /// The type of the structure of the field.

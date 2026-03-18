@@ -93,7 +93,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            valueId.ParsedIndexRange = NumericRange.Empty;
+            valueId.ParsedIndexRange = default;
 
             // parse the index range if specified.
             if (!string.IsNullOrEmpty(valueId.IndexRange))
@@ -109,13 +109,13 @@ namespace Opc.Ua
             }
             else
             {
-                valueId.ParsedIndexRange = NumericRange.Empty;
+                valueId.ParsedIndexRange = default;
             }
 
             // passed basic validation.
             return null;
         }
 
-        private NumericRange m_parsedIndexRange = NumericRange.Empty;
+        private NumericRange m_parsedIndexRange = default;
     }
 }

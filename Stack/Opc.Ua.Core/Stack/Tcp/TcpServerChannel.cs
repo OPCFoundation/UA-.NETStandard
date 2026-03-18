@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
                 contextId,
@@ -657,18 +657,13 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                request = (OpenSecureChannelRequest)
-                    BinaryDecoder.DecodeMessage(
+                request =
+                    BinaryDecoder.DecodeMessage<OpenSecureChannelRequest>(
                         new ArraySegmentStream(chunksToProcess),
-                        typeof(OpenSecureChannelRequest),
-                        Quotas.MessageContext);
-
-                if (request == null)
-                {
+                        Quotas.MessageContext) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
                         "Could not parse OpenSecureChannel request body.");
-                }
 
                 // check the security mode.
                 if (request.SecurityMode != SecurityMode)
@@ -681,7 +676,7 @@ namespace Opc.Ua.Bindings
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
                 // check the client nonce.
-                token.ClientNonce = request.ClientNonce;
+                token.ClientNonce = request.ClientNonce.ToArray();
                 if (!ValidateNonce(ClientCertificate, token.ClientNonce))
                 {
                     throw ServiceResultException.Create(
@@ -880,7 +875,7 @@ namespace Opc.Ua.Bindings
             response.SecurityToken.TokenId = token.TokenId;
             response.SecurityToken.CreatedAt = token.CreatedAt;
             response.SecurityToken.RevisedLifetime = (uint)token.Lifetime;
-            response.ServerNonce = token.ServerNonce;
+            response.ServerNonce = token.ServerNonce.ToByteString();
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
@@ -964,11 +959,11 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                if (BinaryDecoder.DecodeMessage(
+                CloseSecureChannelRequest request =
+                    BinaryDecoder.DecodeMessage<CloseSecureChannelRequest>(
                         new ArraySegmentStream(chunksToProcess),
-                        typeof(CloseSecureChannelRequest),
-                        Quotas.MessageContext)
-                    is not CloseSecureChannelRequest request)
+                        Quotas.MessageContext);
+                if (request == null)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
@@ -1153,11 +1148,10 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
-                if (BinaryDecoder.DecodeMessage(
-                        new ArraySegmentStream(chunksToProcess),
-                        null,
-                        Quotas.MessageContext)
-                    is not IServiceRequest request)
+                IServiceRequest request = BinaryDecoder.DecodeMessage<IServiceRequest>(
+                    new ArraySegmentStream(chunksToProcess),
+                    Quotas.MessageContext);
+                if (request == null)
                 {
                     SendServiceFault(
                         token,

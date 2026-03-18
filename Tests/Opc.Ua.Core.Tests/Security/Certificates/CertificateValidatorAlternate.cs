@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// A web server to host root CA and CRL
         /// </summary>
-        private IWebServer m_webServer;
+        private WebServer m_webServer;
         private string m_webServerUrl;
         private string m_webServerPath;
         private string m_altCertFilename;
@@ -159,10 +159,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            Utils.SilentDispose(m_rootCert);
-            Utils.SilentDispose(m_rootAltCert);
-            Utils.SilentDispose(m_certValidator);
-            Utils.SilentDispose(m_webServer);
+            m_rootCert?.Dispose();
+            m_rootAltCert?.Dispose();
+            m_validator?.Dispose();
+            m_webServer?.Dispose();
             Directory.Delete(m_webServerPath, true);
         }
 
@@ -245,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// App cert from alternate Root without KeyID.
         /// </summary>
         [Theory]
-        public async Task AlternateRootCertificateWithoutAuthorityKeyIDAsync(
+        public void AlternateRootCertificateWithoutAuthorityKeyID(
             bool rejectUnknownRevocationStatus)
         {
             ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate(
@@ -272,7 +272,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// validate that any combination of AKI is not validated.
         /// </summary>
         [Theory]
-        public async Task AlternateRootCertificateWithAuthorityKeyIDAsync(
+        public void AlternateRootCertificateWithAuthorityKeyID(
             bool subjectKeyIdentifier,
             bool issuerName,
             bool serialNumber)

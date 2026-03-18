@@ -93,15 +93,15 @@ namespace Opc.Ua.Client.Tests
                 .MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
             ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Tests
                         .ConnectAsync(
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
-                            null,
+                            default,
                             new UserIdentity("sysadmin", "demo"u8))
                         .ConfigureAwait(false);
                     Session.DeleteSubscriptionsOnClose = false;
@@ -206,10 +206,10 @@ namespace Opc.Ua.Client.Tests
 
             var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
             Assert.IsNotNull(maxLifetimeCountValue);
-            Assert.IsNotNull(maxLifetimeCountValue.Value);
+            Assert.IsFalse(maxLifetimeCountValue.WrappedValue.IsNull);
             Assert.AreEqual(
                 expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
+                maxLifetimeCountValue.WrappedValue.ConvertToUInt32());
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
@@ -263,14 +263,14 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
             NUnit.Framework.Assert
                 .That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
+            ArrayOf<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
                 .ConfigureAwait(false);
             NUnit.Framework.Assert
                 .That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
             NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
@@ -427,7 +427,7 @@ namespace Opc.Ua.Client.Tests
 
             var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
-            var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
+            var valueTimeStamps = new Dictionary<NodeId, List<DateTimeUtc>>();
 
             var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
@@ -443,7 +443,7 @@ namespace Opc.Ua.Client.Tests
                     };
                     monitoredItem.Notification += (item, _) =>
                     {
-                        List<DateTime> list = valueTimeStamps[nodeId];
+                        List<DateTimeUtc> list = valueTimeStamps[nodeId];
 
                         foreach (DataValue value in item.DequeueValues())
                         {
@@ -458,7 +458,7 @@ namespace Opc.Ua.Client.Tests
             //Add Event Monitored Item
             monitoredItemsList.Add(CreateEventMonitoredItem(100));
 
-            DateTime startTime = DateTime.UtcNow;
+            DateTimeUtc startTime = DateTimeUtc.Now;
 
             subscription.AddItems(monitoredItemsList);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
@@ -468,7 +468,7 @@ namespace Opc.Ua.Client.Tests
                 await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             var subscriptions = new SubscriptionCollection(Session.Subscriptions);
-            DateTime closeTime = DateTime.UtcNow;
+            DateTimeUtc closeTime = DateTimeUtc.Now;
             TestContext.Out.WriteLine("Session Id {0} Closing at {1}",
                 Session.SessionId, closeTime);
             await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
@@ -488,13 +488,13 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(3000).ConfigureAwait(false);
             }
 
-            DateTime restartTime = DateTime.UtcNow;
+            DateTimeUtc restartTime = DateTimeUtc.Now;
 #if !DEBUG_CONNECT_FAILED
             ISession transferSession = await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
-                    null,
+                    default,
                     new UserIdentity("sysadmin", "demo"u8))
                 .ConfigureAwait(false);
 #else // TODO: Remove once failure is understood.
@@ -548,7 +548,7 @@ namespace Opc.Ua.Client.Tests
 
                 await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
-                DateTime completionTime = DateTime.UtcNow;
+                DateTimeUtc completionTime = DateTimeUtc.Now;
 
                 await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
 
@@ -560,13 +560,13 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
 
                 // Validate
-                foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
+                foreach (KeyValuePair<NodeId, List<DateTimeUtc>> pair in valueTimeStamps)
                 {
-                    DateTime previous = startTime;
+                    DateTimeUtc previous = startTime;
 
                     for (int index = 0; index < pair.Value.Count; index++)
                     {
-                        DateTime timestamp = pair.Value[index];
+                        DateTimeUtc timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
                         TestContext.Out.WriteLine(
@@ -606,10 +606,10 @@ namespace Opc.Ua.Client.Tests
 
             var dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
-            Assert.IsNotNull(dataValue.Value);
+            Assert.IsFalse(dataValue.WrappedValue.IsNull);
             Assert.AreEqual(
                 expectedValue,
-                Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
+                dataValue.WrappedValue.ConvertToUInt32());
 
             return modifiedValues;
         }
@@ -647,7 +647,7 @@ namespace Opc.Ua.Client.Tests
             NodeId currentLifetimeCountNodeId = default;
             NodeId publishingIntervalNodeId = default;
 
-            (_, _, ReferenceDescriptionCollection references) = await Session.BrowseAsync(
+            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
                 null,
                 null,
                 serverDiags,
@@ -665,7 +665,7 @@ namespace Opc.Ua.Client.Tests
                 references.Count,
                 subscriptionId);
 
-            foreach (ReferenceDescription reference in references)
+            foreach (ReferenceDescription reference in references.ToList())
             {
                 TestContext.Out
                     .WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
@@ -675,8 +675,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     (
                         _,
-                        byte[] anotherContinuationPoint,
-                        ReferenceDescriptionCollection desiredReferences
+                        ByteString anotherContinuationPoint,
+                        ArrayOf<ReferenceDescription> desiredReferences
                     ) = await Session.BrowseAsync(
                         null,
                         null,
@@ -805,14 +805,16 @@ namespace Opc.Ua.Client.Tests
             whereClause.Push(
                 FilterOperator.Equals,
                 [
-                    new SimpleAttributeOperand
+                    Variant.FromStructure(new SimpleAttributeOperand
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
-                    },
-                    new LiteralOperand {
-                        Value = new Variant(ObjectTypeIds.BaseEventType) }
+                    }),
+                    Variant.FromStructure(new LiteralOperand
+                    {
+                        Value = Variant.From(ObjectTypeIds.BaseEventType)
+                    })
                 ]);
 
             return new MonitoredItem(Session.MessageContext.Telemetry)
@@ -843,11 +845,12 @@ namespace Opc.Ua.Client.Tests
             };
         }
 
-        private static string DateTimeMs(DateTime dateTime)
+        private static string DateTimeMs(DateTimeUtc dateTime)
         {
-            return dateTime.ToLongTimeString() +
+            var dt = dateTime.ToDateTime();
+            return dt.ToLongTimeString() +
                 "." +
-                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
+                dt.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
     }
 }

@@ -150,6 +150,7 @@ The stack supports the following user authentication mechanisms:
 - **X.509 Certificate** - User authentication via X.509 certificates
 
 Additional token types:
+
 - **JWT (JSON Web Tokens)** - Support for issued tokens complying with JWT specification
 
 ## Certificate Types
@@ -157,11 +158,13 @@ Additional token types:
 The stack supports the following certificate types for application authentication:
 
 ### RSA Certificates
+
 - **RsaSha256ApplicationCertificateType** - RSA certificates with SHA-256 signatures
   - Default minimum key size: 2048 bits
   - Recommended for production use
 
 ### ECC Certificates
+
 - **EccNistP256ApplicationCertificateType** - ECC certificates with NIST P-256 curve
 - **EccNistP384ApplicationCertificateType** - ECC certificates with NIST P-384 curve
 - **EccBrainpoolP256r1ApplicationCertificateType** - ECC certificates with Brainpool P-256r1 curve

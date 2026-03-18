@@ -175,6 +175,10 @@ namespace Opc.Ua.SourceGeneration
                     = new {{Tokens.ClassName}}Activator();
 
                 /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
                 public override global::Opc.Ua.IEncodeable CreateInstance()
                 {
                     return new {{Tokens.ClassName}}();
@@ -214,8 +218,11 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public partial class {{Tokens.ClassName}} :
+                global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -300,8 +307,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -309,7 +321,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -326,6 +338,47 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = 43624234;
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -361,8 +414,6 @@ namespace Opc.Ua.SourceGeneration
                 };
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -385,8 +436,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
                 /// <summary>
                 /// The default constructor.
@@ -454,8 +505,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public override bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -463,7 +519,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -471,6 +527,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -495,8 +592,6 @@ namespace Opc.Ua.SourceGeneration
                 };
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -519,8 +614,11 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public partial class {{Tokens.ClassName}} :
+                global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -585,8 +683,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -594,7 +697,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -604,6 +707,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = 43624234;
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -629,8 +773,6 @@ namespace Opc.Ua.SourceGeneration
                 };
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -643,8 +785,11 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
+                {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -700,8 +845,13 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                public virtual bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -709,7 +859,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -717,6 +867,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = 43624234;
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -736,8 +927,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfFields}}
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -750,8 +939,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
                 /// <summary>
                 /// The default constructor.
@@ -811,6 +1000,11 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
                 {
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
                     if (object.ReferenceEquals(this, encodeable))
                     {
                         return true;
@@ -818,7 +1012,7 @@ namespace Opc.Ua.SourceGeneration
 
                     {{Tokens.BrowseName}}? value = encodeable as {{Tokens.BrowseName}};
 
-                    if (value == null)
+                    if (value is null)
                     {
                         return false;
                     }
@@ -826,6 +1020,47 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ListOfComparedFields}}
 
                     return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return left is null ? right is null : left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}}? left, {{Tokens.ClassName}}? right)
+                {
+                    return !(left == right);
+                }
+
+                /// <inheritdoc/>
+                public bool Equals({{Tokens.ClassName}}? other)
+                {
+                    return IsEqual((global::Opc.Ua.IEncodeable)other);
+                }
+
+                /// <inheritdoc/>
+                public override bool Equals(object? obj)
+                {
+                    return IsEqual(obj as global::Opc.Ua.IEncodeable);
+                }
+
+                /// <inheritdoc/>
+                public override int GetHashCode()
+                {
+                    int hashCode = base.GetHashCode();
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
                 }
 
                 /// <inheritdoc/>
@@ -845,8 +1080,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfFields}}
             }
 
-            {{Tokens.CollectionClass}}
-
             """);
 
         /// <summary>
@@ -858,104 +1091,12 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})] {{Tokens.Flags}}
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})] {{Tokens.Flags}}
             public enum {{Tokens.ClassName}}{{Tokens.BasicType}}
             {
                 {{Tokens.ListOfProperties}}
             }
 
-            {{Tokens.CollectionClass}}
-
-            """);
-
-        /// <summary>
-        /// Collection class for data types
-        /// </summary>
-        public static readonly TemplateString CollectionClass = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// A collection of {{Tokens.ClassName}} objects.
-            /// </summary>
-            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.CollectionDataContract(
-                Name = "ListOf{{Tokens.BrowseName}}",
-                Namespace = {{Tokens.XmlNamespaceUri}},
-                ItemName = "{{Tokens.BrowseName}}")]
-            public partial class {{Tokens.ClassName}}Collection :
-                global::System.Collections.Generic.List<{{Tokens.ClassName}}>,
-                global::System.ICloneable
-            {
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection()
-                {
-                }
-
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection(int capacity)
-                    : base(capacity)
-                {
-                }
-
-                /// <inheritdoc/>
-                public {{Tokens.ClassName}}Collection(
-                    global::System.Collections.Generic.IEnumerable<{{Tokens.ClassName}}> collection)
-                    : base(collection)
-                {
-                }
-
-                /// <inheritdoc/>
-                public static implicit operator {{Tokens.ClassName}}Collection({{Tokens.ClassName}}[]? values)
-                {
-                    return To{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static {{Tokens.ClassName}}Collection To{{Tokens.ClassName}}Collection({{Tokens.ClassName}}[]? values)
-                {
-                    if (values != null)
-                    {
-                        return new {{Tokens.ClassName}}Collection(values);
-                    }
-                    return new {{Tokens.ClassName}}Collection();
-                }
-
-                /// <inheritdoc/>
-                public static explicit operator {{Tokens.ClassName}}[]?({{Tokens.ClassName}}Collection? values)
-                {
-                    return From{{Tokens.ClassName}}Collection(values);
-                }
-
-                /// <inheritdoc/>
-                public static {{Tokens.ClassName}}[]? From{{Tokens.ClassName}}Collection({{Tokens.ClassName}}Collection? values)
-                {
-                    if (values != null)
-                    {
-                        return values.ToArray();
-                    }
-                    return null;
-                }
-
-                /// <inheritdoc/>
-                public object Clone()
-                {
-                    return ({{Tokens.ClassName}}Collection)this.MemberwiseClone();
-                }
-
-                /// <inheritdoc/>
-                public new object MemberwiseClone()
-                {
-                    {{Tokens.ClassName}}Collection clone =
-                        new {{Tokens.ClassName}}Collection(this.Count);
-
-                    for (int ii = 0; ii < this.Count; ii++)
-                    {
-                        clone.Add(({{Tokens.ClassName}})global::Opc.Ua.CoreUtils.Clone(this[ii]));
-                    }
-
-                    return clone;
-                }
-            }
             """);
 
         /// <summary>
@@ -999,6 +1140,28 @@ namespace Opc.Ua.SourceGeneration
                     ({{Tokens.TypeName}}){{Tokens.DefaultValue}} :
                     value;
             }
+
+            """);
+
+        /// <summary>
+        /// Hash property template
+        /// </summary>
+        public static readonly TemplateString HashProperty = TemplateString.Parse(
+            $$"""
+            hashCode = (hashCode * 16777619) ^
+                global::System.Collections.Generic.EqualityComparer<{{Tokens.TypeName}}>
+                .Default
+                .GetHashCode({{Tokens.FieldName}});
+            """);
+
+        /// <summary>
+        /// ToString property template
+        /// </summary>
+        public static readonly TemplateString AddPropertyToStringBuilder = TemplateString.Parse(
+            $$"""
+            sb = sb
+                .AppendFormat("{{Tokens.BrowseName}}={0}", {{Tokens.FieldName}})
+                .AppendLine();
 
             """);
 

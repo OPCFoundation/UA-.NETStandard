@@ -289,24 +289,18 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Acknowledge(
             OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
+            out ArrayOf<StatusCode> acknowledgeResults,
+            out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (subscriptionAcknowledgements == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
-            }
-
             bool diagnosticsExist = false;
-            acknowledgeResults = new StatusCodeCollection(subscriptionAcknowledgements.Count);
-            acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(
-                subscriptionAcknowledgements.Count);
+            var acknowledgeResultList = new List<StatusCode>(subscriptionAcknowledgements.Count);
+            var acknowledgeDiagnosticInfoList = new List<DiagnosticInfo>(subscriptionAcknowledgements.Count);
 
             for (int ii = 0; ii < subscriptionAcknowledgements.Count; ii++)
             {
@@ -320,16 +314,16 @@ namespace Opc.Ua.Server
 
                     if (ServiceResult.IsGood(result))
                     {
-                        acknowledgeResults.Add(StatusCodes.Good);
+                        acknowledgeResultList.Add(StatusCodes.Good);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            acknowledgeDiagnosticInfos.Add(null);
+                            acknowledgeDiagnosticInfoList.Add(null);
                         }
                     }
                     else
                     {
-                        acknowledgeResults.Add(result.Code);
+                        acknowledgeResultList.Add(result.Code);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
@@ -339,7 +333,7 @@ namespace Opc.Ua.Server
                                     context,
                                     result,
                                     m_logger);
-                            acknowledgeDiagnosticInfos.Add(diagnosticInfo);
+                            acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }
                     }
@@ -347,7 +341,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     var result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
-                    acknowledgeResults.Add(result.Code);
+                    acknowledgeResultList.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -356,7 +350,7 @@ namespace Opc.Ua.Server
                             context,
                             result,
                             m_logger);
-                        acknowledgeDiagnosticInfos.Add(diagnosticInfo);
+                        acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
                 }
@@ -364,8 +358,10 @@ namespace Opc.Ua.Server
 
             if (!diagnosticsExist)
             {
-                acknowledgeDiagnosticInfos.Clear();
+                acknowledgeDiagnosticInfoList.Clear();
             }
+            acknowledgeResults = acknowledgeResultList;
+            acknowledgeDiagnosticInfos = acknowledgeDiagnosticInfoList;
         }
 
         /// <summary>
