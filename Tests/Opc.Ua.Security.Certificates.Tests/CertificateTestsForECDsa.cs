@@ -115,9 +115,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                     Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
                     Is.EqualTo(eCCurveHash.HashAlgorithmName));
                 // ensure serial numbers are different
-                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                Assert.That(cert.GetSerialNumber(), Is.Not.EqualTo(previousSerialNumber));
                 X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert));
+                Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
                 CheckPEMWriterReader(cert);
             }
         }
@@ -150,15 +150,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(
                 Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
                 Is.EqualTo(eccurveHashPair.HashAlgorithmName));
-            Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
-            Assert.GreaterOrEqual(
+            Assert.That(DateTime.UtcNow, Is.GreaterThanOrEqualTo(cert.NotBefore));
+            Assert.That(
                 DateTime.UtcNow.AddMonths(X509Defaults.LifeTime),
-                cert.NotAfter.ToUniversalTime());
+                Is.GreaterThanOrEqualTo(cert.NotAfter.ToUniversalTime()));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509KeyUsageExtension keyUsage = cert.Extensions.FindExtension<X509KeyUsageExtension>();
             Assert.That(keyUsage, Is.Not.Null);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True, "Verify self signed.");
             CheckPEMWriterReader(cert);
         }
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Is.EqualTo(ecCurveHashPair.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriterReader(cert);
         }
 
@@ -224,10 +224,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509BasicConstraintsExtension basicConstraintsExtension =
                 cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.That(basicConstraintsExtension, Is.Not.Null);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
-            Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
+            Assert.That(basicConstraintsExtension.CertificateAuthority, Is.True);
+            Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriterReader(cert);
         }
 
@@ -254,13 +254,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert1.GetSerialNumber().Length);
-            Assert.GreaterOrEqual(
+                Is.GreaterThanOrEqualTo(cert1.GetSerialNumber().Length));
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Test]
@@ -300,10 +300,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Theory]

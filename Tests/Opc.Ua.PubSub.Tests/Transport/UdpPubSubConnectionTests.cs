@@ -115,13 +115,15 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Get the publisher configuration
             m_publisherConfiguration = m_uaPublisherApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_publisherConfiguration,
+                Is.Not.Null,
                 "m_publisherConfiguration should not be null");
 
             // Get publisher connection
-            Assert.IsFalse(
+            Assert.That(
                 m_publisherConfiguration.Connections.IsEmpty,
+                Is.False,
                 "m_publisherConfiguration.Connections should not be empty");
             m_udpPublisherConnection =
                 m_uaPublisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -159,8 +161,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .PubSubConnectionConfiguration;
             PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration
                 .Connections[0];
-            Assert.IsNotNull(
+            Assert.That(
                 connectionConfiguration,
+                Is.Not.Null,
                 "The UADP connection configuration from UADP connection object is invalid.");
             Assert.That(
                 connectionConfiguration.Name,

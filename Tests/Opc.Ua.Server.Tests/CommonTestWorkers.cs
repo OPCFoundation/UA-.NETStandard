@@ -836,7 +836,7 @@ namespace Opc.Ua.Server.Tests
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
                 Assert.That(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification), Is.True);
                 ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
-                Assert.IsFalse(monitoredItemsCollection.IsEmpty);
+                Assert.That(monitoredItemsCollection.IsEmpty, Is.False);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
@@ -871,7 +871,7 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.IsFalse(publishResponse.MoreNotifications);
+            Assert.That(publishResponse.MoreNotifications, Is.False);
             Assert.That(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId), Is.True);
             Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();

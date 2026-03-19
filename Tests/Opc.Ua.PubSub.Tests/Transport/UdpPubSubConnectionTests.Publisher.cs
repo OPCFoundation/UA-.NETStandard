@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration
                 .WriterGroups[0];
-            Assert.IsNotNull(writerGroup0, "writerGroup0 is null");
+            Assert.That(writerGroup0, Is.Not.Null, "writerGroup0 is null");
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 writerGroup0,
@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
@@ -467,7 +467,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
@@ -568,7 +568,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 createAlways: false);
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,

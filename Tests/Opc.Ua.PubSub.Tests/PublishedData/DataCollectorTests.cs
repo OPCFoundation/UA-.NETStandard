@@ -77,10 +77,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet collectedDataSet = dataCollector.CollectData(
                 pubSubConfiguration.PublishedDataSets[0].Name);
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 collectedDataSet,
-                "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.",
-                pubSubConfiguration.PublishedDataSets[0].Name);
+                Is.Not.Null,
+                $"Cannot collect data therefore the '{pubSubConfiguration.PublishedDataSets[0].Name}' publishedDataSet was not registered correctly.");
         }
 
         [Test(Description = "Validate RemovePublishedDataSet.")]
@@ -96,10 +96,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataCollector.RemovePublishedDataSet(publishedDataSet);
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSet.Name);
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 collectedDataSet,
-                "The '{0}' publishedDataSet was not removed correctly.",
-                publishedDataSet.Name);
+                Is.Null,
+                $"The '{publishedDataSet.Name}' publishedDataSet was not removed correctly.");
         }
 
         [Test(Description = "Validate RemovePublishedDataSet with null parameter.")]
@@ -197,8 +197,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
 
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 publishedDataItems,
+                Is.Not.Null,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
             Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
             Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
@@ -300,8 +301,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 publishedDataItems,
+                Is.Not.Null,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
             Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
             Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
@@ -346,8 +348,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Act
             DataSet collectedDataSet = dataCollector.CollectData(string.Empty);
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 collectedDataSet,
+                Is.Null,
                 "The data collect returns data for unknown DataSetName.");
         }
 

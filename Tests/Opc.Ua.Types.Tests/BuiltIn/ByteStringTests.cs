@@ -142,11 +142,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString1, Is.EqualTo(byteString2));
-            Assert.That(byteString1.Equals(byteString3), Is.False);
+            Assert.That(byteString1, Is.Not.EqualTo(byteString3));
             Assert.That(byteString1, Is.EqualTo(byteString2));
-            Assert.That(byteString1 == byteString3, Is.False);
+            Assert.That(byteString1, Is.Not.EqualTo(byteString3));
             Assert.That(byteString1, Is.EqualTo(byteString2));
-            Assert.That(byteString1 != byteString3, Is.True);
+            Assert.That(byteString1, Is.Not.EqualTo(byteString3));
         }
 
         [Test]
@@ -160,11 +160,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(memory));
             Assert.That(byteString, Is.EqualTo((object)memory));
-            Assert.That(byteString.Equals(differentMemory), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentMemory));
             Assert.That(byteString, Is.EqualTo(memory));
-            Assert.That(byteString == differentMemory, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentMemory));
             Assert.That(byteString, Is.EqualTo(memory));
-            Assert.That(byteString != differentMemory, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentMemory));
         }
 
         [Test]
@@ -178,11 +178,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(array));
             Assert.That(byteString, Is.EqualTo((object)array));
-            Assert.That(byteString.Equals(differentArray), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
             Assert.That(byteString, Is.EqualTo(array));
-            Assert.That(byteString == differentArray, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
             Assert.That(byteString, Is.EqualTo(array));
-            Assert.That(byteString != differentArray, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
         }
 
         [Test]
@@ -195,11 +195,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(array));
-            Assert.That(byteString.Equals(differentArray), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
             Assert.That(byteString, Is.EqualTo(array));
-            Assert.That(byteString == differentArray, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
             Assert.That(byteString, Is.EqualTo(array));
-            Assert.That(byteString != differentArray, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentArray));
         }
 
         [Test]
@@ -229,11 +229,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString.Equals(differentSequence), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString == differentSequence, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString != differentSequence, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
         }
 
         [Test]
@@ -246,11 +246,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString.Equals(differentSequence), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString == differentSequence, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString != differentSequence, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence));
         }
 
         [Test]
@@ -266,17 +266,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(sequence));
             Assert.That(byteString, Is.EqualTo((object)sequence));
-            Assert.That(byteString.Equals(differentSequence1), Is.False);
-            Assert.That(byteString.Equals(differentSequence2), Is.False);
-            Assert.That(byteString.Equals(differentSequence3), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence1));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence2));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence3));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString == differentSequence1, Is.False);
-            Assert.That(byteString == differentSequence2, Is.False);
-            Assert.That(byteString == differentSequence3, Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence1));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence2));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence3));
             Assert.That(byteString, Is.EqualTo(sequence));
-            Assert.That(byteString != differentSequence1, Is.True);
-            Assert.That(byteString != differentSequence2, Is.True);
-            Assert.That(byteString != differentSequence3, Is.True);
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence1));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence2));
+            Assert.That(byteString, Is.Not.EqualTo(differentSequence3));
         }
 
         [Test]
@@ -291,9 +291,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString, Is.EqualTo(sameByteString));
-            Assert.That(byteString.Equals(differentByteString), Is.False);
-            Assert.That(byteString.Equals(nullObject), Is.False);
-            Assert.That(byteString.Equals(notByteString), Is.False);
+            Assert.That(byteString, Is.Not.EqualTo(differentByteString));
+            Assert.That(byteString, Is.Not.EqualTo(nullObject));
+            Assert.That(byteString, Is.Not.EqualTo(notByteString));
         }
 
         [Test]
@@ -333,9 +333,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act & Assert
             Assert.That(byteString1, Is.EqualTo(byteString2));
-            Assert.That(byteString1 != byteString3, Is.True);
+            Assert.That(byteString1, Is.Not.EqualTo(byteString3));
             Assert.That(byteString1, Is.EqualTo(byteString2));
-            Assert.That(byteString1 == byteString3, Is.False);
+            Assert.That(byteString1, Is.Not.EqualTo(byteString3));
         }
 
         [Test]

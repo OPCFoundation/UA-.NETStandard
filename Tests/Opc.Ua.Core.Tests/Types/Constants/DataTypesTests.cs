@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in dataTypeNames)
             {
                 uint id = DataTypes.GetIdentifier(name);
-                Assert.AreNotEqual(0, id);
+                Assert.That(id, Is.Not.EqualTo(0));
             }
         }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             Assert.That(dataTypeId.IsNull, Is.False);
             Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
             Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0));
-            Assert.AreNotEqual(DataTypes.Structure, dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0,
+            Assert.That(dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0, Is.Not.EqualTo(DataTypes.Structure),
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
 

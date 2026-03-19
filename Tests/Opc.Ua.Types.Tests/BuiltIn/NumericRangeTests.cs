@@ -236,7 +236,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(1, 5);
             var range2 = new NumericRange(2, 5);
-            Assert.That(range1.Equals(range2), Is.False);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(1, 5);
             var range2 = new NumericRange(1, 6);
-            Assert.That(range1.Equals(range2), Is.False);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void EqualsObjectReturnsFalseForNull()
         {
             var range = new NumericRange(3, 7);
-            Assert.That(range.Equals(null), Is.False);
+            Assert.That(range, Is.Not.EqualTo(null));
         }
 
         [Test]
@@ -282,7 +282,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(2, 4);
             var range2 = new NumericRange(3, 5);
-            Assert.That(range1 != range2, Is.True);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -615,7 +615,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
             var range = (int[,])value.GetInt32Matrix();
-            Assert.NotNull(range, "Applied range null");
+            Assert.That(range, Is.Not.Null, "Applied range null");
             Assert.That(range.Rank, Is.EqualTo(2));
             Assert.That(range[0, 0], Is.EqualTo(5));
         }

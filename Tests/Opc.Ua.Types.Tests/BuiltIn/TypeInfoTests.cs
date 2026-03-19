@@ -35,6 +35,8 @@ using System.Xml;
 using Moq;
 using NUnit.Framework;
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>
@@ -89,14 +91,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNullReturnsTrueForUnknown()
         {
             TypeInfo unknown = TypeInfo.Unknown;
-            Assert.That(unknown, Is.EqualTo((object)null));
+            Assert.That(unknown.Equals((object)null));
         }
 
         [Test]
         public void EqualsObjectWithNullReturnsFalseForKnown()
         {
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(typeInfo.Equals((object)null), Is.False);
+            Assert.That(typeInfo, Is.Not.EqualTo((object)null));
         }
 
         [Test]
@@ -127,7 +129,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Double, ValueRanks.Scalar);
             var b = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(a != b, Is.True);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]

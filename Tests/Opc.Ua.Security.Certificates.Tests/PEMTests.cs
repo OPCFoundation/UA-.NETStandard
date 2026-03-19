@@ -50,13 +50,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(leaf, Is.Not.Null);
 
             //Act
-            Assert.False(
+            Assert.That(
                 PEMReader.ContainsPrivateKey(file),
+                Is.False,
                 "PEM file should not contain a private key.");
 
             // Remove leaf certificate from the collection
-            Assert.True(
-                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile));
+            Assert.That(
+                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile),
+                Is.True);
 
             Assert.That(updatedFile, Is.Not.Null, "Updated PEM file should not be null.");
             X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(
@@ -106,8 +108,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(leaf, Is.Not.Null);
 
             //Act
-            Assert.True(
+            Assert.That(
                 PEMReader.ContainsPrivateKey(file),
+                Is.True,
                 "PEM file should contain a private key.");
 
             X509Certificate2 newCert = null;
@@ -116,7 +119,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(leaf, file);
 
                 Assert.That(newCert, Is.Not.Null, "New certificate with private key should not be null.");
-                Assert.True(newCert.HasPrivateKey, "New certificate should have a private key.");
+                Assert.That(newCert.HasPrivateKey, Is.True, "New certificate should have a private key.");
             }
             finally
             {

@@ -91,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo;
                 if (depth > DiagnosticInfo.MaxInnerDepth)
                 {
-                    Assert.Null(innerDiagnosticInfo);
+                    Assert.That(innerDiagnosticInfo, Is.Null);
                     break;
                 }
             }

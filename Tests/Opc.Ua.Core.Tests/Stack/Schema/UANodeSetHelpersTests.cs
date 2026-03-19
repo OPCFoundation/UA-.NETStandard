@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(dataType1.Definition.IsUnion, Is.True);
 
             Assert.That(dataType2, Is.Not.Null);
-            Assert.IsFalse(dataType2.Definition.IsUnion);
+            Assert.That(dataType2.Definition.IsUnion, Is.False);
             Assert.That(dataType2.Definition.Field.Length, Is.EqualTo(21));
             Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
             Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Assert.That(dataType1.Definition.IsUnion, Is.True);
 
                 Assert.That(dataType2, Is.Not.Null);
-                Assert.IsFalse(dataType2.Definition.IsUnion);
+                Assert.That(dataType2.Definition.IsUnion, Is.False);
                 Assert.That(dataType2.Definition.Field.Length, Is.EqualTo(21));
                 Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
                 Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
@@ -345,7 +345,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(childObject, Is.Not.Null, "ChildObject should be imported");
 
             // Verify parent-child relationships are NOT established (backward compatibility)
-            Assert.IsNull(childObject.Parent, "ChildObject's Parent should be null by default");
+            Assert.That(childObject.Parent, Is.Null, "ChildObject's Parent should be null by default");
 
             // Verify GetChildren returns empty (backward compatibility)
             var children = new List<BaseInstanceState>();

@@ -830,7 +830,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var third = new Variant(Array(1, 3));
 
             Assert.That(first, Is.EqualTo(second));
-            Assert.That(first.Equals(third), Is.False);
+            Assert.That(first, Is.Not.EqualTo(third));
         }
 
         [Test]
@@ -839,7 +839,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var scalar = new Variant(1);
             var floating = new Variant(1.0f);
 
-            Assert.That(scalar.Equals(floating), Is.False);
+            Assert.That(scalar, Is.Not.EqualTo(floating));
         }
 
         [Test]
@@ -848,8 +848,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant("value");
 
             Assert.That(variant, Is.EqualTo((object)"value"));
-            Assert.That(variant.Equals((object)"other"), Is.False);
-            Assert.That(Variant.Null, Is.EqualTo((object)null));
+            Assert.That(variant, Is.Not.EqualTo((object)"other"));
+            Assert.That(Variant.Null.Equals((object)null));
         }
 
         [Test]
@@ -861,8 +861,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(left, Is.EqualTo(identical));
             Assert.That(left, Is.EqualTo(identical));
-            Assert.That(left == different, Is.False);
-            Assert.That(left != different, Is.True);
+            Assert.That(left, Is.Not.EqualTo(different));
+            Assert.That(left, Is.Not.EqualTo(different));
         }
 
         [Test]
@@ -2208,8 +2208,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant(true);
             Assert.That(v, Is.EqualTo(true));
             Assert.That(v, Is.EqualTo(true));
-            Assert.That(v == false, Is.False);
-            Assert.That(v != false, Is.True);
+            Assert.That(v, Is.Not.EqualTo(false));
+            Assert.That(v, Is.Not.EqualTo(false));
         }
 
         [Test]
@@ -2218,7 +2218,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant((sbyte)-5);
             Assert.That(v, Is.EqualTo((sbyte)-5));
             Assert.That(v, Is.EqualTo((sbyte)-5));
-            Assert.That(v == (sbyte)0, Is.False);
+            Assert.That(v, Is.Not.EqualTo((sbyte)0));
         }
 
         [Test]
@@ -2227,7 +2227,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant((byte)42);
             Assert.That(v, Is.EqualTo((byte)42));
             Assert.That(v, Is.EqualTo((byte)42));
-            Assert.That(v == (byte)0, Is.False);
+            Assert.That(v, Is.Not.EqualTo((byte)0));
         }
 
         [Test]
@@ -2300,7 +2300,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = new Variant("hello");
             Assert.That(v, Is.EqualTo("hello"));
             Assert.That(v, Is.EqualTo("hello"));
-            Assert.That(v == "world", Is.False);
+            Assert.That(v, Is.Not.EqualTo("world"));
         }
 
         [Test]
@@ -3898,7 +3898,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sv = new SerializableVariant(new Variant(42));
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(sv.Equals((SerializableVariant)null), Is.False);
+            Assert.That(sv, Is.Not.EqualTo((SerializableVariant)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -4027,7 +4027,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsTypedOverloadReturnsFalseForTypeMismatch()
         {
             var v = new Variant("hello");
-            Assert.That(v.Equals(42), Is.False);
+            Assert.That(v, Is.Not.EqualTo(42));
         }
 
         [Test]
@@ -4196,7 +4196,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new Variant(42);
             var b = new Variant("42");
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]

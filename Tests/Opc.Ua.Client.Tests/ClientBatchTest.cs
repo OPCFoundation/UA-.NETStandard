@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests
                             .AddNodesAsync(requestHeader, nodesToAdd, CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        Assert.NotNull(response);
+                        Assert.That(response, Is.Not.Null);
                         ArrayOf<AddNodesResult> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Tests
                                 CancellationToken.None)
                             .ConfigureAwait(false);
 
-                        Assert.NotNull(response);
+                        Assert.That(response, Is.Not.Null);
                         ArrayOf<StatusCode> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<StatusCode> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-                        Assert.NotNull(response.ResponseHeader);
+                        Assert.That(response.ResponseHeader, Is.Not.Null);
                         Assert.That(results.Count, Is.EqualTo(nodesTDelete.Count));
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.Tests
                         ArrayOf<StatusCode> results = response.Results;
                         ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-                        Assert.NotNull(response.ResponseHeader);
+                        Assert.That(response.ResponseHeader, Is.Not.Null);
                         Assert.That(results.Count, Is.EqualTo(referencesToDelete.Count));
                         Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
                     });
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.Tests
                 browsePaths,
                 response.ResponseHeader.StringTable,
                 logger);
-            Assert.NotNull(response.ResponseHeader);
+            Assert.That(response.ResponseHeader, Is.Not.Null);
         }
 
         [Theory]

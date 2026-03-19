@@ -104,28 +104,28 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
 
             // uri compare resolves localhost
-            Assert.True(Utils.AreDomainsEqual(uri1, uri1_dupe));
-            Assert.True(Utils.AreDomainsEqual(uri2, uri2_dupe));
-            Assert.True(Utils.AreDomainsEqual(uri2_dupe, uri2));
-            Assert.True(Utils.AreDomainsEqual(uri1, uri1));
-            Assert.True(Utils.AreDomainsEqual(uri2, uri2));
+            Assert.That(Utils.AreDomainsEqual(uri1, uri1_dupe), Is.True);
+            Assert.That(Utils.AreDomainsEqual(uri2, uri2_dupe), Is.True);
+            Assert.That(Utils.AreDomainsEqual(uri2_dupe, uri2), Is.True);
+            Assert.That(Utils.AreDomainsEqual(uri1, uri1), Is.True);
+            Assert.That(Utils.AreDomainsEqual(uri2, uri2), Is.True);
 
             // string compare doesn't resolve localhost
-            Assert.True(Utils.AreDomainsEqual(uri1.ToString(), uri1_dupe.ToString()));
-            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), uri2_dupe.ToString()));
-            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), null));
-            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), null));
-            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), string.Empty));
-            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), string.Empty));
-            Assert.False(Utils.AreDomainsEqual(null, uri1.ToString()));
-            Assert.False(Utils.AreDomainsEqual(null, uri2.ToString()));
-            Assert.False(Utils.AreDomainsEqual(string.Empty, uri1.ToString()));
-            Assert.False(Utils.AreDomainsEqual(string.Empty, uri2.ToString()));
+            Assert.That(Utils.AreDomainsEqual(uri1.ToString(), uri1_dupe.ToString()), Is.True);
+            Assert.That(Utils.AreDomainsEqual(uri2.ToString(), uri2_dupe.ToString()), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri1.ToString(), null), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri2.ToString(), null), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri1.ToString(), string.Empty), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri2.ToString(), string.Empty), Is.False);
+            Assert.That(Utils.AreDomainsEqual(null, uri1.ToString()), Is.False);
+            Assert.That(Utils.AreDomainsEqual(null, uri2.ToString()), Is.False);
+            Assert.That(Utils.AreDomainsEqual(string.Empty, uri1.ToString()), Is.False);
+            Assert.That(Utils.AreDomainsEqual(string.Empty, uri2.ToString()), Is.False);
 
-            Assert.False(Utils.AreDomainsEqual((Uri)null, null));
-            Assert.False(Utils.AreDomainsEqual((string)null, null));
-            Assert.False(Utils.AreDomainsEqual(uri1, uri2));
-            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), uri2.ToString()));
+            Assert.That(Utils.AreDomainsEqual((Uri)null, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((string)null, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri1, uri2), Is.False);
+            Assert.That(Utils.AreDomainsEqual(uri1.ToString(), uri2.ToString()), Is.False);
         }
 
         public class TestClone
@@ -190,10 +190,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var anonymousIdentity1 = new AnonymousIdentityToken();
             var anonymousIdentity2 = new AnonymousIdentityToken();
 
-            Assert.True(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity1));
-            Assert.True(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity2));
-            Assert.False(Utils.IsEqualUserIdentity(anonymousIdentity1, null));
-            Assert.False(Utils.IsEqualUserIdentity(null, anonymousIdentity2));
+            Assert.That(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity1), Is.True);
+            Assert.That(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity2), Is.True);
+            Assert.That(Utils.IsEqualUserIdentity(anonymousIdentity1, null), Is.False);
+            Assert.That(Utils.IsEqualUserIdentity(null, anonymousIdentity2), Is.False);
 
             var user1 = new UserNameIdentityToken
             {
@@ -210,11 +210,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 UserName = "user2",
                 Password = Encoding.ASCII.GetBytes("pass2".ToCharArray()).ToByteString()
             };
-            Assert.True(Utils.IsEqualUserIdentity(user1, user1_dupe));
-            Assert.True(Utils.IsEqualUserIdentity(user1, user1));
-            Assert.False(Utils.IsEqualUserIdentity(user1, user2));
-            Assert.False(Utils.IsEqualUserIdentity(null, user2));
-            Assert.False(Utils.IsEqualUserIdentity(user1, null));
+            Assert.That(Utils.IsEqualUserIdentity(user1, user1_dupe), Is.True);
+            Assert.That(Utils.IsEqualUserIdentity(user1, user1), Is.True);
+            Assert.That(Utils.IsEqualUserIdentity(user1, user2), Is.False);
+            Assert.That(Utils.IsEqualUserIdentity(null, user2), Is.False);
+            Assert.That(Utils.IsEqualUserIdentity(user1, null), Is.False);
         }
 
         /// <summary>

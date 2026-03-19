@@ -185,7 +185,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Hello");
             Assert.That(qn, Is.EqualTo((object)"Hello"));
-            Assert.That(qn.Equals((object)"World"), Is.False);
+            Assert.That(qn, Is.Not.EqualTo((object)"World"));
         }
 
         [Test]
@@ -193,28 +193,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Hello", 1);
             Assert.That(qn, Is.EqualTo((object)new QualifiedName("Hello", 1)));
-            Assert.That(qn.Equals((object)new QualifiedName("Hello", 2)), Is.False);
+            Assert.That(qn, Is.Not.EqualTo((object)new QualifiedName("Hello", 2)));
         }
 
         [Test]
         public void EqualsObjectWithUnrelatedType()
         {
             var qn = new QualifiedName("Test");
-            Assert.That(qn.Equals((object)42), Is.False);
+            Assert.That(qn, Is.Not.EqualTo((object)42));
         }
 
         [Test]
         public void EqualsObjectWithNull()
         {
             var qn = new QualifiedName("Test");
-            Assert.That(qn.Equals((object)null), Is.False);
+            Assert.That(qn, Is.Not.EqualTo((object)null));
         }
 
         [Test]
         public void EqualsStringWithNonZeroNamespaceIndex()
         {
             var qn = new QualifiedName("Hello", 5);
-            Assert.That(qn.Equals("Hello"), Is.False);
+            Assert.That(qn, Is.Not.EqualTo("Hello"));
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Hello");
             Assert.That(qn, Is.EqualTo("Hello"));
-            Assert.That(qn.Equals("World"), Is.False);
+            Assert.That(qn, Is.Not.EqualTo("World"));
         }
 
         [Test]
@@ -230,14 +230,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Hello");
             Assert.That(qn, Is.EqualTo("Hello"));
-            Assert.That(qn == "World", Is.False);
+            Assert.That(qn, Is.Not.EqualTo("World"));
         }
 
         [Test]
         public void OperatorInequalityQualifiedNameString()
         {
             var qn = new QualifiedName("Hello");
-            Assert.That(qn != "World", Is.True);
+            Assert.That(qn, Is.Not.EqualTo("World"));
             Assert.That(qn, Is.EqualTo("Hello"));
         }
 
@@ -521,7 +521,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Ensures NamespaceIndex != 0 always returns false
             var qn = new QualifiedName("Hello", 1);
-            Assert.That(qn.Equals("Hello"), Is.False);
+            Assert.That(qn, Is.Not.EqualTo("Hello"));
         }
 
         [Test]
@@ -529,7 +529,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Tests == operator with non-zero namespace
             var qn = new QualifiedName("Hello", 1);
-            Assert.That(qn == "Hello", Is.False);
+            Assert.That(qn, Is.Not.EqualTo("Hello"));
         }
 
         [Test]
@@ -537,7 +537,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Tests != operator with non-zero namespace
             var qn = new QualifiedName("Hello", 1);
-            Assert.That(qn != "Hello", Is.True);
+            Assert.That(qn, Is.Not.EqualTo("Hello"));
         }
 
         [Test]

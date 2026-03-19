@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     keyFrameCount: Convert.ToUInt32(keyFrameCount));
             }
 
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -130,11 +130,13 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
             Assert.That(publisherConnection, Is.Not.Null, "Publisher first connection should not be null");
 
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0].WriterGroups[0],
+                Is.Not.Null,
                 "publisherConfiguration first writer group of first connection should not be null");
 
             var writerGroupPublishState = new WriterGroupPublishState();
@@ -145,9 +147,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UaNetworkMessage> uaNetworkMessages = null;
@@ -212,9 +214,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     networkMessages,
                     Is.Not.Null,
                     "connection.CreateNetworkMessages shall not be null");
-                Assert.GreaterOrEqual(
+                Assert.That(
                     networkMessages.Count,
-                    1,
+                    Is.GreaterThanOrEqualTo(1),
                     "connection.CreateNetworkMessages should have at least one network message");
 
                 if (pubSubMessageType == PubSubMessageType.Uadp)
@@ -360,10 +362,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData.ContainsKey(targetNodeId),
                             Is.True,
                             $"field name: '{field.FieldMetaData.Name}' should be exists in partial received dataset");
-                        Assert.IsNotNull(
+                        Assert.That(
                             dataStoreData[targetNodeId],
-                            "field: '{0}' should not be null",
-                            field.FieldMetaData.Name);
+                            Is.Not.Null,
+                            $"field: '{field.FieldMetaData.Name}' should not be null");
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -391,10 +393,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     Assert.That(keyFrameCount, Is.EqualTo(1), "keyFrameCount = 1 if dataset is not delta!");
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
-                        Assert.IsNotNull(
+                        Assert.That(
                             field,
-                            "field {0}: should not be null if dataset is not delta!",
-                            field.FieldMetaData.Name);
+                            Is.Not.Null,
+                            $"field {field.FieldMetaData.Name}: should not be null if dataset is not delta!");
                         var targetNodeId = new NodeId(
                             field.FieldMetaData.Name,
                             kNamespaceIndexAllTypes);
@@ -402,10 +404,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             dataStoreData.ContainsKey(targetNodeId),
                             Is.True,
                             $"field name: {field.FieldMetaData.Name} should be exists in partial received dataset");
-                        Assert.IsNotNull(
+                        Assert.That(
                             dataStoreData[targetNodeId],
-                            "field {0}: should not be null",
-                            field.FieldMetaData.Name);
+                            Is.Not.Null,
+                            $"field {field.FieldMetaData.Name}: should not be null");
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete

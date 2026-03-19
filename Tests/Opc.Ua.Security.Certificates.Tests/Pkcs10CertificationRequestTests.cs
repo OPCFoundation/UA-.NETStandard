@@ -68,7 +68,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify signature
             bool isValid = csr.Verify();
-            Assert.True(isValid, "CSR signature should be valid");
+            Assert.That(isValid, Is.True, "CSR signature should be valid");
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify signature
             bool isValid = csr.Verify();
-            Assert.True(isValid, "CSR signature should be valid");
+            Assert.That(isValid, Is.True, "CSR signature should be valid");
 
             // Verify SubjectPublicKeyInfo
             Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Verify signature
 #if NET6_0_OR_GREATER && !SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
             bool isValid = csr.Verify();
-            Assert.True(isValid, "ECDSA CSR signature should be valid");
+            Assert.That(isValid, Is.True, "ECDSA CSR signature should be valid");
 #else
             // ECDSA verification not supported on older frameworks
             Assert.Throws<NotSupportedException>(() => csr.Verify());
@@ -201,7 +201,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Parse should succeed but verification should fail
             var csr = new Pkcs10CertificationRequest(csrData);
             bool isValid = csr.Verify();
-            Assert.False(isValid, "Tampered CSR signature should be invalid");
+            Assert.That(isValid, Is.False, "Tampered CSR signature should be invalid");
         }
 
         /// <summary>
@@ -315,7 +315,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var csr = new Pkcs10CertificationRequest(csrData);
 
                 Assert.That(csr, Is.Not.Null);
-                Assert.True(csr.Verify());
+                Assert.That(csr.Verify(), Is.True);
                 csrList.Add(csr);
             }
 

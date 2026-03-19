@@ -108,9 +108,9 @@ namespace Opc.Ua.Tests
             X509BasicConstraintsExtension basicConstraintsExtension =
                 certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.That(basicConstraintsExtension, Is.Not.Null);
-            Assert.False(basicConstraintsExtension.CertificateAuthority);
-            Assert.True(basicConstraintsExtension.Critical);
-            Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
+            Assert.That(basicConstraintsExtension.CertificateAuthority, Is.False);
+            Assert.That(basicConstraintsExtension.Critical, Is.True);
+            Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
         }
     }
 }

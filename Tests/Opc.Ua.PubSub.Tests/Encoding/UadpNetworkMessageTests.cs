@@ -90,13 +90,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Get the publisher configuration
             m_publisherConfiguration = m_publisherApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_publisherConfiguration,
+                Is.Not.Null,
                 "m_publisherConfiguration should not be null");
 
             // Get first connection
-            Assert.IsFalse(
+            Assert.That(
                 m_publisherConfiguration.Connections.IsEmpty,
+                Is.False,
                 "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
             Assert.That(
@@ -105,11 +107,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
-            Assert.IsFalse(
+            Assert.That(
                 m_publisherConfiguration.Connections[0].WriterGroups.IsEmpty,
+                Is.False,
                 "pubSubConfigConnection.WriterGroups should not be empty");
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
-            Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
+            Assert.That(m_firstWriterGroup, Is.Not.Null, "m_firstWriterGroup should not be null");
 
             // Create a subscriber application
             string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
@@ -122,13 +125,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Get the subscriber configuration
             m_subscriberConfiguration = m_subscriberApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_subscriberConfiguration,
+                Is.Not.Null,
                 "m_subscriberConfiguration should not be null");
 
             // Get first reader group
             m_firstReaderGroup = m_subscriberConfiguration.Connections[0].ReaderGroups[0];
-            Assert.IsNotNull(m_firstWriterGroup, "m_firstReaderGroup should not be null");
+            Assert.That(m_firstWriterGroup, Is.Not.Null, "m_firstReaderGroup should not be null");
 
             m_firstDataSetReadersType = GetFirstDataSetReaders();
         }
@@ -858,9 +862,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private List<DataSetReaderDataType> GetFirstDataSetReaders()
         {
             // Read the first configured ReaderGroup
-            Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
-            Assert.IsFalse(
+            Assert.That(m_firstReaderGroup, Is.Not.Null, "m_firstReaderGroup should not be null");
+            Assert.That(
                 m_firstReaderGroup.DataSetReaders.IsEmpty,
+                Is.False,
                 "m_firstReaderGroup.DataSetReaders should not be empty");
 
             return m_firstReaderGroup.DataSetReaders.ToList();
@@ -961,9 +966,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId)
             {
                 // special case for valid PublisherId type only
-                Assert.AreNotEqual(
-                    uadpNetworkMessageEncode.PublisherId,
+                Assert.That(
                     uadpNetworkMessageDecoded.PublisherId,
+                    Is.Not.EqualTo(uadpNetworkMessageEncode.PublisherId),
                     "PublisherId was not decoded correctly");
             }
         }

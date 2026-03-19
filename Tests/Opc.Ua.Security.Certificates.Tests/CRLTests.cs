@@ -243,7 +243,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using X509Certificate2 issuerPubKey = CertificateFactory.Create(
                 m_issuerCert.RawData);
-            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
 
         /// <summary>
@@ -295,7 +295,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(2));
             using X509Certificate2 issuerPubKey = CertificateFactory.Create(
                 m_issuerCert.RawData);
-            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
 
         /// <summary>

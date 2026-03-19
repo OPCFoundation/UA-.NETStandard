@@ -1058,7 +1058,7 @@ dotnet_diagnostic.UA_NETStandard_1.severity = none
 # Allow public members in fixtures
 dotnet_diagnostic.NUnit1028.severity = suggestion
 
-# TODO: Use new assert style
+# Use new assert style
 dotnet_diagnostic.NUnit2001.severity = suggestion
 dotnet_diagnostic.NUnit2002.severity = suggestion
 dotnet_diagnostic.NUnit2003.severity = suggestion

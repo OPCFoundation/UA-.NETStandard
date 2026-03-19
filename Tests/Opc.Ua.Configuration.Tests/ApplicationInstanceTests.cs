@@ -111,7 +111,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         [Test]
@@ -138,7 +138,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         [Test]
@@ -169,7 +169,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
 
             CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
             X509Certificate2 certificate = await certId
@@ -320,7 +320,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         [Test]
@@ -371,7 +371,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         [Test]
@@ -408,7 +408,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         /// <summary>
@@ -460,7 +460,7 @@ namespace Opc.Ua.Configuration.Tests
 
             bool deleteAfterUse = applicationCertificate.Certificate != null;
 
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
             using (
                 ICertificateStore store =
                     applicationInstance.ApplicationConfiguration.SecurityConfiguration
@@ -518,7 +518,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         public enum InvalidCertType
@@ -591,13 +591,13 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.IsNull(applicationCertificate.Certificate);
+            Assert.That(applicationCertificate.Certificate, Is.Null);
 
             X509Certificate2 publicKey = null;
             using (X509Certificate2 testCert = CreateInvalidCert(certType))
             {
                 Assert.That(testCert, Is.Not.Null);
-                Assert.True(testCert.HasPrivateKey);
+                Assert.That(testCert.HasPrivateKey, Is.True);
                 await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
                     applicationCertificate.StorePath,
@@ -614,7 +614,7 @@ namespace Opc.Ua.Configuration.Tests
                         .CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false);
 
-                    Assert.True(certOK);
+                    Assert.That(certOK, Is.True);
                     Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
                 }
                 else
@@ -689,14 +689,14 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.IsNull(applicationCertificate.Certificate);
+            Assert.That(applicationCertificate.Certificate, Is.Null);
 
             X509Certificate2Collection testCerts = CreateInvalidCertChain(certType);
             if (certType != InvalidCertType.NoIssuer)
             {
                 using X509Certificate2 issuerCert = testCerts[1];
                 Assert.That(issuerCert, Is.Not.Null);
-                Assert.False(issuerCert.HasPrivateKey);
+                Assert.That(issuerCert.HasPrivateKey, Is.False);
                 await issuerCert.AddToStoreAsync(
                     applicationInstance
                         .ApplicationConfiguration
@@ -716,7 +716,7 @@ namespace Opc.Ua.Configuration.Tests
             using (X509Certificate2 testCert = testCerts[0])
             {
                 Assert.That(testCert, Is.Not.Null);
-                Assert.True(testCert.HasPrivateKey);
+                Assert.That(testCert.HasPrivateKey, Is.True);
                 await testCert.AddToStoreAsync(
                     applicationCertificate.StoreType,
                     applicationCertificate.StorePath,
@@ -733,7 +733,7 @@ namespace Opc.Ua.Configuration.Tests
                         .CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false);
 
-                    Assert.True(certOK);
+                    Assert.That(certOK, Is.True);
                     Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
                 }
                 else
@@ -919,7 +919,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.IsNull(applicationCertificate.Certificate);
+            Assert.That(applicationCertificate.Certificate, Is.Null);
 
             if (disableCertificateAutoCreation)
             {
@@ -934,7 +934,7 @@ namespace Opc.Ua.Configuration.Tests
                 bool certOK = await applicationInstance
                     .CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false);
-                Assert.True(certOK);
+                Assert.That(certOK, Is.True);
             }
         }
 
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         /// <summary>
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
 
             // Verify the certificate has multiple URIs
             // Load the certificate to check its URIs
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Configuration.Tests
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
         }
 
         /// <summary>

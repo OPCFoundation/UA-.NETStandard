@@ -75,12 +75,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return;
             }
 
-            Assert.False(testObject.BinaryEncodingId.IsNull);
-            Assert.False(testObject.TypeId.IsNull);
-            Assert.False(testObject.XmlEncodingId.IsNull);
-            Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
-            Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
-            Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
+            Assert.That(testObject.BinaryEncodingId.IsNull, Is.False);
+            Assert.That(testObject.TypeId.IsNull, Is.False);
+            Assert.That(testObject.XmlEncodingId.IsNull, Is.False);
+            Assert.That(testObject.BinaryEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.BinaryEncodingId));
             EncodeDecode(
                 encoderType,
                 jsonEncodingType,

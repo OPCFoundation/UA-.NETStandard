@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.Tests
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.IsFalse(isTypeOf);
+                Assert.That(isTypeOf, Is.False);
                 ArrayOf<NodeId> subTypes = await nodeCache.FindSubTypesAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris))
                     .ConfigureAwait(false);
@@ -558,14 +558,14 @@ namespace Opc.Ua.Client.Tests
                                 INode result4 = await Session.NodeCache.FindAsync(testSet2[0])
                                     .ConfigureAwait(false);
                                 Assert.That(result4, Is.Not.Null);
-                                Assert.True(result4 is VariableNode);
+                                Assert.That(result4, Is.InstanceOf<VariableNode>());
                                 break;
                             case 5:
                                 Node result5 = await Session
                                     .NodeCache.FetchNodeAsync(testSet3[0])
                                     .ConfigureAwait(false);
                                 Assert.That(result5, Is.Not.Null);
-                                Assert.True(result5 is VariableNode);
+                                Assert.That(result5, Is.InstanceOf<VariableNode>());
                                 await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId)
                                     .ConfigureAwait(false);
                                 break;
@@ -577,10 +577,10 @@ namespace Opc.Ua.Client.Tests
                                 var number = new NodeId((int)BuiltInType.Number);
                                 bool isKnown = await Session.NodeCache
                                     .IsKnownAsync(new ExpandedNodeId((int)BuiltInType.Int64)).ConfigureAwait(false);
-                                Assert.True(isKnown);
+                                Assert.That(isKnown, Is.True);
                                 bool isKnown2 = await Session.NodeCache
                                     .IsKnownAsync(TestData.DataTypeIds.ScalarStructureDataType).ConfigureAwait(false);
-                                Assert.True(isKnown2);
+                                Assert.That(isKnown2, Is.True);
                                 NodeId nodeId;
                                 NodeId nodeId2;
                                 nodeId = await Session
@@ -607,15 +607,15 @@ namespace Opc.Ua.Client.Tests
                                 bool isEncodingOf = await Session.NodeCache.IsEncodingOfAsync(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
                                     DataTypeIds.Structure).ConfigureAwait(false);
-                                Assert.False(isEncodingOf);
+                                Assert.That(isEncodingOf, Is.False);
                                 bool isEncodingFor = await Session.NodeCache.IsEncodingForAsync(
                                     DataTypeIds.Structure,
                                     Variant.FromStructure(new TestData.ScalarStructureDataType())).ConfigureAwait(false);
-                                Assert.True(isEncodingFor);
+                                Assert.That(isEncodingFor, Is.True);
                                 bool isEncodingFor2 = await Session.NodeCache.IsEncodingForAsync(
                                     new NodeId((int)BuiltInType.UInt32),
                                     new NodeId((int)BuiltInType.UInteger)).ConfigureAwait(false);
-                                Assert.False(isEncodingFor2);
+                                Assert.That(isEncodingFor2, Is.False);
                                 break;
                             case 9:
                                 // TODO: FindDataTypeId implementation is only producing exceptions and fills the log output

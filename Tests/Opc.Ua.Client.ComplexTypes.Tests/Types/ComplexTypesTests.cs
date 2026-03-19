@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
-                        Assert.IsFalse(obj.IsNull);
+                        Assert.That(obj.IsNull, Is.False);
                     }
                     else
                     {
@@ -134,7 +134,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    Assert.IsFalse(obj.IsNull);
+                    Assert.That(obj.IsNull, Is.False);
                 }
             }
         }

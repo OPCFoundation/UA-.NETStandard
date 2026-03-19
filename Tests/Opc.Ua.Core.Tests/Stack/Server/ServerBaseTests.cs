@@ -393,7 +393,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 for (int v = i + 1; v < filteredBaseAddresses.Count; v++)
                 {
-                    Assert.AreNotEqual(filteredBaseAddresses[i].Url, filteredBaseAddresses[v].Url);
+                    Assert.That(filteredBaseAddresses[v].Url, Is.Not.EqualTo(filteredBaseAddresses[i].Url));
                 }
             }
         }
@@ -444,7 +444,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             foreach (EndpointDescription endpoint in translatedEndpoints)
             {
                 ArrayOf<EndpointDescription> matches = translatedEndpoints.Filter(e => e.EndpointUrl == endpoint.EndpointUrl);
-                Assert.GreaterOrEqual(matches.Count, 1);
+                Assert.That(matches.Count, Is.GreaterThanOrEqualTo(1));
             }
 
             // validate results have matching UserTokenPolicies in baseaddresses

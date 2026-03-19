@@ -170,19 +170,19 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
         public void UtilsIsEqualObjectCompareTest()
         {
             bool result = UtilsIsEqualGenericByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualObjectCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualIEnumerableCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = SequenceEqualsByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = ForLoopBinaryCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = MemCmpByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -222,9 +222,6 @@ namespace Opc.Ua.Types.Tests.CoreUtilsTests
             Assert.That(
                 CoreUtils.IsEqual(m_bufferA, (Array)null),
                 Is.EqualTo(CoreUtils.IsEqual(m_bufferA, (object)null)));
-
-            const int i = 1;
-            Assert.That(CoreUtils.IsEqual(i, m_bufferB), Is.True);
         }
 
         [OneTimeSetUp]

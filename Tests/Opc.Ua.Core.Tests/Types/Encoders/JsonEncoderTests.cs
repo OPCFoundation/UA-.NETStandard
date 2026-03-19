@@ -1723,7 +1723,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
                 out DateTime dateTime);
-            Assert.True(success);
+            Assert.That(success, Is.True);
             DateTimeEncodeStringTest(dateTime);
         }
 
@@ -1813,7 +1813,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "Decoded Xml: {0} {1}",
                 decodedXmlO.ToString("o"),
                 decodedXmlString.ToString("o"));
-            Assert.True(Utils.IsEqual(decodedXmlString, decodedXmlO));
+            Assert.That(Utils.IsEqual(decodedXmlString, decodedXmlO), Is.True);
 
             // ensure decoded values are identical
             bool successString = DateTime.TryParse(
@@ -1826,8 +1826,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
                 out DateTime decodedO);
-            Assert.True(successString);
-            Assert.True(successO);
+            Assert.That(successString, Is.True);
+            Assert.That(successO, Is.True);
 
             TestContext.Out
                 .WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));

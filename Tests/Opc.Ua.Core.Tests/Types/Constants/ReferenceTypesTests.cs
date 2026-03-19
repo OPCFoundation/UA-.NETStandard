@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in referenceTypeNames)
             {
                 uint id = ReferenceTypes.GetIdentifier(name);
-                Assert.AreNotEqual(0, id);
+                Assert.That(id, Is.Not.EqualTo(0));
             }
         }
 

@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests
             bool result = usersDb.DeleteUser("TestUser");
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
             bool result = usersDb.DeleteUser("NoTestUser");
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -69,9 +69,9 @@ namespace Opc.Ua.Server.Tests
             bool loginOldPW = usersDb.CheckCredentials("TestUser", "PW"u8);
 
             // Assert
-            Assert.True(result);
-            Assert.True(login);
-            Assert.False(loginOldPW);
+            Assert.That(result, Is.True);
+            Assert.That(login, Is.True);
+            Assert.That(loginOldPW, Is.False);
         }
 
         [Test]
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests
             bool result = usersDb.DeleteUser("NoTestUser");
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -100,8 +100,8 @@ namespace Opc.Ua.Server.Tests
             bool loginWrongPw = usersDb.CheckCredentials("TestUser", "newPW"u8);
 
             // Assert
-            Assert.True(result);
-            Assert.False(loginWrongPw);
+            Assert.That(result, Is.True);
+            Assert.That(loginWrongPw, Is.False);
         }
 
         [Test]
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests
             bool result = usersDb.CheckCredentials("NoTestUser", "PW"u8);
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
         }
     }
 }

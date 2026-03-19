@@ -427,8 +427,8 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.IsNotNull(firstReadResponse);
-            Assert.IsNotNull(firstReadResponse.Results);
+            Assert.That(firstReadResponse, Is.Not.Null);
+            Assert.That(firstReadResponse.Results.IsNull, Is.False);
             Assert.That(firstReadResponse.Results.Count, Is.EqualTo(1));
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server.Tests
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
             // Verify the timestamp is recent (not startup time)
-            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.SubtractMilliseconds(1000),
+            Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
                 "SourceTimestamp should be close to the read time, not the server startup time");
 
             // Wait a bit to ensure time difference
@@ -454,8 +454,8 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.IsNotNull(secondReadResponse);
-            Assert.IsNotNull(secondReadResponse.Results);
+            Assert.That(secondReadResponse, Is.Not.Null);
+            Assert.That(secondReadResponse.Results.IsNull, Is.False);
             Assert.That(secondReadResponse.Results.Count, Is.EqualTo(1));
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -464,11 +464,11 @@ namespace Opc.Ua.Server.Tests
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
 
             // Verify the second timestamp is more recent than the first
-            Assert.Greater(secondValue.SourceTimestamp, firstValue.SourceTimestamp,
+            Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
                 "SourceTimestamp should be updated on each read");
 
             // Verify the second timestamp is recent
-            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.SubtractMilliseconds(1000),
+            Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeSecondRead.SubtractMilliseconds(1000)),
                 "SourceTimestamp should be close to the second read time");
         }
 
@@ -504,8 +504,8 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.IsNotNull(firstReadResponse);
-            Assert.IsNotNull(firstReadResponse.Results);
+            Assert.That(firstReadResponse, Is.Not.Null);
+            Assert.That(firstReadResponse.Results.IsNull, Is.False);
             Assert.That(firstReadResponse.Results.Count, Is.EqualTo(1));
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -514,7 +514,7 @@ namespace Opc.Ua.Server.Tests
                 firstValue.SourceTimestamp, firstValue.ServerTimestamp);
 
             // Verify the timestamp is recent (not startup time)
-            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.SubtractMilliseconds(1000),
+            Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
                 "Array SourceTimestamp should be close to the read time, not the server startup time");
 
             // Wait a bit to ensure time difference
@@ -531,8 +531,8 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.IsNotNull(secondReadResponse);
-            Assert.IsNotNull(secondReadResponse.Results);
+            Assert.That(secondReadResponse, Is.Not.Null);
+            Assert.That(secondReadResponse.Results.IsNull, Is.False);
             Assert.That(secondReadResponse.Results.Count, Is.EqualTo(1));
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -541,11 +541,11 @@ namespace Opc.Ua.Server.Tests
                 secondValue.SourceTimestamp, secondValue.ServerTimestamp);
 
             // Verify the second timestamp is more recent than the first
-            Assert.Greater(secondValue.SourceTimestamp, firstValue.SourceTimestamp,
+            Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
                 "Array SourceTimestamp should be updated on each read");
 
             // Verify the second timestamp is recent
-            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.SubtractMilliseconds(1000),
+            Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeSecondRead.SubtractMilliseconds(1000)),
                 "Array SourceTimestamp should be close to the second read time");
         }
 
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Server.Tests
             foreach (DataValue dataValue in readResponse.Results)
             {
                 TypeInfo typeInfo = dataValue.WrappedValue.TypeInfo;
-                Assert.False(typeInfo.IsUnknown);
+                Assert.That(typeInfo.IsUnknown, Is.False);
                 Variant value = m_generator.GetRandomScalar(typeInfo.BuiltInType);
                 modifiedValues.Add(new DataValue { WrappedValue = value });
             }
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Server.Tests
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.IsFalse(readResponse.Results[0].WrappedValue.IsNull);
+            Assert.That(readResponse.Results[0].WrappedValue.IsNull, Is.False);
 
             byte eventNotifier = (byte)readResponse.Results[0].WrappedValue;
 
@@ -1156,14 +1156,14 @@ namespace Opc.Ua.Server.Tests
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
-                Assert.That((eventNotifier & EventNotifiers.HistoryRead) != 0,
-                    Is.True,
+                Assert.That((eventNotifier & EventNotifiers.HistoryRead),
+                    Is.Not.EqualTo(0),
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
-            Assert.That((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
-                Is.True,
+            Assert.That((eventNotifier & EventNotifiers.SubscribeToEvents),
+                Is.Not.EqualTo(0),
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
 
@@ -1261,8 +1261,8 @@ namespace Opc.Ua.Server.Tests
             logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
-            Assert.That((accessLevel & AccessLevels.HistoryRead) != 0,
-                Is.True,
+            Assert.That((accessLevel & AccessLevels.HistoryRead),
+                Is.Not.EqualTo(0),
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
@@ -1304,21 +1304,21 @@ namespace Opc.Ua.Server.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode),
                 Is.True,
                 $"History read should succeed, but got: {result.StatusCode}");
-            Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
+            Assert.That(result.HistoryData.IsNull, Is.False, "HistoryData should not be null");
 
             // Verify we got HistoryData back
             if (result.HistoryData.TryGetEncodeable(out HistoryData historyData))
             {
                 logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
-                Assert.IsFalse(historyData.DataValues.IsNull, "DataValues should not be null");
-                Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
+                Assert.That(historyData.DataValues.IsNull, Is.False, "DataValues should not be null");
+                Assert.That(historyData.DataValues.Count, Is.GreaterThan(0), "Should have at least one historical value");
 
                 // Verify the data values have proper timestamps
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
                     Assert.That(dataValue, Is.Not.Null, "DataValue should not be null");
-                    Assert.That(dataValue.ServerTimestamp != DateTimeUtc.MinValue,
-                        Is.True,
+                    Assert.That(dataValue.ServerTimestamp,
+                        Is.Not.EqualTo(DateTimeUtc.MinValue),
                         "DataValue should have a valid ServerTimestamp");
                 }
             }

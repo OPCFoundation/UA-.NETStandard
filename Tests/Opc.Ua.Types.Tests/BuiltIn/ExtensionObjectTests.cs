@@ -59,18 +59,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(extensionObject_Default.IsNull, Is.True);
             // Constructor by ExtensionObject
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
-            Assert.That(extensionObject.IsNull, Is.False);
             Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
-            Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
-            Assert.IsFalse(extensionObject.TryGetAsBinary(out ByteString _));
-            Assert.IsFalse(extensionObject.TryGetAsXml(out XmlElement _));
-            Assert.IsFalse(extensionObject.TryGetAsJson(out string _));
+            Assert.That(extensionObject.TryGetEncodeable(out IEncodeable enc), Is.False);
+            Assert.That(extensionObject.TryGetAsBinary(out ByteString _), Is.False);
+            Assert.That(extensionObject.TryGetAsXml(out XmlElement _), Is.False);
+            Assert.That(extensionObject.TryGetAsJson(out string _), Is.False);
             Assert.That(extensionObject.IsNull, Is.True);
             // static extensions
-            Assert.Null(ExtensionObject.ToEncodeable(default));
-            Assert.Null(ExtensionObject.ToArray(null, typeof(object)));
-            Assert.Null(ExtensionObject.ToList<object>(null));
+            Assert.That(ExtensionObject.ToEncodeable(default), Is.Null);
+            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
+            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.GetHashCode(), Is.EqualTo(0));

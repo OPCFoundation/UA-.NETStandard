@@ -595,7 +595,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc1 = new StatusCode(0x80010000);
             object sc2 = new StatusCode(0x80020000);
-            Assert.That(sc1.Equals(sc2), Is.False);
+            Assert.That(sc1, Is.Not.EqualTo(sc2));
         }
 
         [Test]
@@ -611,7 +611,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010005);
             object code = (uint)0x80010006;
-            Assert.That(sc.Equals(code), Is.False);
+            Assert.That(sc, Is.Not.EqualTo(code));
         }
 
         [Test]
@@ -636,7 +636,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010005);
             Assert.That(sc, Is.EqualTo(0x80010005));
-            Assert.That(sc.Equals(0x80010006), Is.False);
+            Assert.That(sc, Is.Not.EqualTo(0x80010006));
         }
 
         [Test]
@@ -742,7 +742,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc1 = new StatusCode(0x80010000);
             var sc2 = new StatusCode(0x80020000);
-            Assert.That(sc1 != sc2, Is.True);
+            Assert.That(sc1, Is.Not.EqualTo(sc2));
         }
 
         [Test]
@@ -750,14 +750,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(0x80010005);
             Assert.That(sc, Is.EqualTo(0x80010005));
-            Assert.That(sc == 0x80010006, Is.False);
+            Assert.That(sc, Is.Not.EqualTo(0x80010006));
         }
 
         [Test]
         public void InequalityOperatorUintComparesByFullCode()
         {
             var sc = new StatusCode(0x80010005);
-            Assert.That(sc != 0x80010006, Is.True);
+            Assert.That(sc, Is.Not.EqualTo(0x80010006));
             Assert.That(sc, Is.EqualTo(0x80010005));
         }
 

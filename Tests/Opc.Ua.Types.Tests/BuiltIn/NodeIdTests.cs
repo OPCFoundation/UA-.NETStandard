@@ -133,8 +133,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nodeGuid1, Is.EqualTo((NodeId)id1));
             Assert.That(nodeGuid1, Is.EqualTo(id1));
             Assert.That(nodeGuid1, Is.EqualTo(id1));
-            Assert.That(nodeGuid1.Equals(id2), Is.False);
-            Assert.That(nodeGuid1 == id2, Is.False);
+            Assert.That(nodeGuid1, Is.Not.EqualTo(id2));
+            Assert.That(nodeGuid1, Is.Not.EqualTo(id2));
 
             Assert.Throws<ServiceResultException>(
                 () => _ = NodeId.Create(123, "urn:xyz", null));
@@ -297,7 +297,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Equals(nodeIdBasedDataValue, dataValue);
             Assert.That(comparisonResult1c, Is.False); // assert fails
             int comparisonResult2 = nodeId.CompareTo(dataValue);
-            Assert.That(comparisonResult2 == 0, Is.False); // assert fails - this is the root cause for the previous assertion failures
+            Assert.That(comparisonResult2, Is.Not.EqualTo(0)); // assert fails - this is the root cause for the previous assertion failures
 
             Assert.That(nodeIdBasedDataValue.WrappedValue.GetNodeId(), Is.EqualTo(nodeId));
         }
@@ -1285,10 +1285,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectNull()
         {
             NodeId nullId = NodeId.Null;
-            Assert.That(nullId, Is.EqualTo((object)null));
+            Assert.That(nullId.Equals((object)null));
 
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.Equals((object)null), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo((object)null));
         }
 
         [Test]
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId, Is.EqualTo((object)42));
-            Assert.That(nodeId.Equals((object)(-1)), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo((object)(-1)));
         }
 
         [Test]
@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectUnknownType()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.Equals((object)3.14), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo((object)3.14));
         }
 
         [Test]
@@ -1367,7 +1367,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // after type check)
             var a = new NodeId("test", 0);
             var b = new NodeId(42u, 0);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -1375,7 +1375,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             var absolute = new ExpandedNodeId(42u, "http://test.org/");
-            Assert.That(nodeId.Equals(absolute), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo(absolute));
         }
 
         [Test]
@@ -1391,17 +1391,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId, Is.EqualTo(42u));
-            Assert.That(nodeId.Equals(99u), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo(99u));
         }
 
         [Test]
         public void EqualsUintMismatchedType()
         {
             var stringId = new NodeId("test", 0);
-            Assert.That(stringId.Equals(42u), Is.False);
+            Assert.That(stringId, Is.Not.EqualTo(42u));
 
             var nsId = new NodeId(42u, 2);
-            Assert.That(nsId.Equals(42u), Is.False);
+            Assert.That(nsId, Is.Not.EqualTo(42u));
         }
 
         [Test]
@@ -1410,14 +1410,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             Assert.That(nodeId, Is.EqualTo(guid));
-            Assert.That(nodeId.Equals(Guid.NewGuid()), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo(Guid.NewGuid()));
         }
 
         [Test]
         public void EqualsGuidMismatchedType()
         {
             var numericId = new NodeId(42u);
-            Assert.That(numericId.Equals(Guid.NewGuid()), Is.False);
+            Assert.That(numericId, Is.Not.EqualTo(Guid.NewGuid()));
         }
 
         [Test]
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsByteStringMismatchedType()
         {
             var numericId = new NodeId(42u);
-            Assert.That(numericId.Equals(new ByteString(new byte[] { 1 })), Is.False);
+            Assert.That(numericId, Is.Not.EqualTo(new ByteString(new byte[] { 1 })));
         }
 
         [Test]
@@ -1440,17 +1440,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId("hello", 0);
             Assert.That(nodeId, Is.EqualTo("hello"));
-            Assert.That(nodeId.Equals("world"), Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo("world"));
         }
 
         [Test]
         public void EqualsStringMismatchedType()
         {
             var numericId = new NodeId(42u);
-            Assert.That(numericId.Equals("test"), Is.False);
+            Assert.That(numericId, Is.Not.EqualTo("test"));
 
             var nsId = new NodeId("test", 2);
-            Assert.That(nsId.Equals("test"), Is.False);
+            Assert.That(nsId, Is.Not.EqualTo("test"));
         }
 
         [Test]
@@ -1465,14 +1465,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId, Is.EqualTo((object)42u));
-            Assert.That(nodeId == (object)99u, Is.False);
+            Assert.That(nodeId, Is.Not.EqualTo((object)99u));
         }
 
         [Test]
         public void OperatorNotEqualsObject()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId != (object)99u, Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo((object)99u));
             Assert.That(nodeId, Is.EqualTo((object)42u));
         }
 
@@ -1489,7 +1489,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             var expanded = new ExpandedNodeId(99u);
-            Assert.That(nodeId != expanded, Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo(expanded));
         }
 
         [Test]
@@ -1503,7 +1503,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorNotEqualsUint()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId != 99u, Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo(99u));
         }
 
         [Test]
@@ -1518,7 +1518,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorNotEqualsByteString()
         {
             var nodeId = new NodeId(new ByteString(new byte[] { 1 }));
-            Assert.That(nodeId != new ByteString(new byte[] { 2 }), Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo(new ByteString(new byte[] { 2 })));
         }
 
         [Test]
@@ -1533,7 +1533,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorNotEqualsGuid()
         {
             var nodeId = new NodeId(Guid.NewGuid());
-            Assert.That(nodeId != Guid.Empty, Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo(Guid.Empty));
         }
 
         [Test]
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorNotEqualsString()
         {
             var nodeId = new NodeId("test", 0);
-            Assert.That(nodeId != "other", Is.True);
+            Assert.That(nodeId, Is.Not.EqualTo("other"));
         }
         [Test]
         public void TryGetIdentifierUintFalseForNonNumeric()

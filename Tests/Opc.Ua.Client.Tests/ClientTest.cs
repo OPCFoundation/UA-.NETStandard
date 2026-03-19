@@ -532,7 +532,7 @@ namespace Opc.Ua.Client.Tests
             // Channel handling checked for TcpTransportChannel only
             if (channel is TcpTransportChannel tcp)
             {
-                Assert.IsNull(tcp.Socket);
+                Assert.That(tcp.Socket, Is.Null);
             }
         }
 
@@ -592,11 +592,11 @@ namespace Opc.Ua.Client.Tests
                 });
 
             bool timeout = quitEvent.WaitOne(connectTimeout);
-            Assert.True(timeout);
+            Assert.That(timeout, Is.True);
 
             if (reconnectAbort)
             {
-                Assert.IsNull(reconnectHandler.Session);
+                Assert.That(reconnectHandler.Session, Is.Null);
             }
             else
             {
@@ -610,7 +610,7 @@ namespace Opc.Ua.Client.Tests
             reconnectHandler.Dispose();
             session.Dispose();
 
-            Assert.Less(0, sessionClosing);
+            Assert.That(sessionClosing, Is.GreaterThanOrEqualTo(0));
         }
 
         [Theory]
@@ -739,7 +739,7 @@ namespace Opc.Ua.Client.Tests
             // test by reading a value
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value1);
+            Assert.That(value1, Is.Not.Null);
 
             // save the channel to close it later
             ITransportChannel channel1 = session1.TransportChannel;
@@ -772,7 +772,7 @@ namespace Opc.Ua.Client.Tests
             // test by reading a value
             ServerStatusDataType value2 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value2);
+            Assert.That(value2, Is.Not.Null);
             Assert.That(value2.State, Is.EqualTo(value1.State));
 
             if (!closeChannel)
@@ -787,7 +787,7 @@ namespace Opc.Ua.Client.Tests
             // test by reading a value
             ServerStatusDataType value3 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value3);
+            Assert.That(value3, Is.Not.Null);
             Assert.That(value3.State, Is.EqualTo(value1.State));
 
             // close the session, keep the channel open
@@ -873,7 +873,7 @@ namespace Opc.Ua.Client.Tests
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value1);
+            Assert.That(value1, Is.Not.Null);
 
             // save the session configuration
             var stream = new MemoryStream();
@@ -914,7 +914,7 @@ namespace Opc.Ua.Client.Tests
 
             ServerStatusDataType value2 = await session2.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value2);
+            Assert.That(value2, Is.Not.Null);
 
             await Task.Delay(500).ConfigureAwait(false);
 
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Client.Tests
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value1);
+            Assert.That(value1, Is.Not.Null);
 
             // hook callback to renew the user identity
             session1.RenewUserIdentity += (_, _) => userIdentityPW;
@@ -1060,14 +1060,14 @@ namespace Opc.Ua.Client.Tests
 
             // validate new Session Ids are used and also UserName PW identity token is
             // injected as renewed token
-            Assert.AreNotEqual(session1.SessionId, session2.SessionId);
+            Assert.That(session2.SessionId, Is.Not.EqualTo(session1.SessionId));
             Assert.That(session2.Identity.TokenType, Is.EqualTo(userIdentityPW.TokenType));
-            Assert.AreNotEqual(session1.SessionId, session3.SessionId);
+            Assert.That(session3.SessionId, Is.Not.EqualTo(session1.SessionId));
             Assert.That(session3.Identity.TokenType, Is.EqualTo(userIdentityPW.TokenType));
 
             ServerStatusDataType value2 = await session2.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value2);
+            Assert.That(value2, Is.Not.Null);
 
             session1.DeleteSubscriptionsOnClose = true;
             await session1.CloseAsync(1000).ConfigureAwait(false);
@@ -1200,9 +1200,9 @@ namespace Opc.Ua.Client.Tests
             {
                 DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
                 Assert.That(dataValue, Is.Not.Null);
-                Assert.IsFalse(dataValue.WrappedValue.IsNull);
-                Assert.AreNotEqual(DateTime.MinValue, dataValue.SourceTimestamp);
-                Assert.AreNotEqual(DateTime.MinValue, dataValue.ServerTimestamp);
+                Assert.That(dataValue.WrappedValue.IsNull, Is.False);
+                Assert.That(dataValue.SourceTimestamp, Is.Not.EqualTo(DateTime.MinValue));
+                Assert.That(dataValue.ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
             }
         }
 
@@ -1254,8 +1254,8 @@ namespace Opc.Ua.Client.Tests
             var dataTypeNode = (DataTypeNode)node;
             Assert.That(dataTypeNode, Is.Not.Null);
             ExtensionObject dataTypeDefinition = dataTypeNode.DataTypeDefinition;
-            Assert.False(dataTypeDefinition.IsNull);
-            Assert.True(dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureDefinition));
+            Assert.That(dataTypeDefinition.IsNull, Is.False);
+            Assert.That(dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureDefinition), Is.True);
             Assert.That(
                 structureDefinition.DefaultEncodingId,
                 Is.EqualTo(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary));
@@ -1467,15 +1467,15 @@ namespace Opc.Ua.Client.Tests
 
             (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) =
                 await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
-            Assert.False(nodeCollection.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(nodeCollection.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(nodeCollection.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
             (nodeCollection, errors) = await Session.ReadNodesAsync(
                 nodes, NodeClass.Unspecified).ConfigureAwait(false);
-            Assert.False(nodeCollection.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(nodeCollection.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(nodeCollection.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
@@ -1507,14 +1507,14 @@ namespace Opc.Ua.Client.Tests
             (ArrayOf<DataValue> values, errors) = await Session.ReadValuesAsync(nodes)
                 .ConfigureAwait(false);
 
-            Assert.False(values.IsNull);
+            Assert.That(values.IsNull, Is.False);
             Assert.That(values.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
             (values, errors) = await Session.ReadValuesAsync(variableNodes)
                 .ConfigureAwait(false);
 
-            Assert.False(values.IsNull);
+            Assert.That(values.IsNull, Is.False);
             Assert.That(values.Count, Is.EqualTo(variableNodes.Count));
             Assert.That(errors.Count, Is.EqualTo(variableNodes.Count));
         }
@@ -1541,16 +1541,16 @@ namespace Opc.Ua.Client.Tests
             (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) = await Session
                 .ReadNodesAsync(nodes, true)
                 .ConfigureAwait(false);
-            Assert.False(nodeCollection.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(nodeCollection.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(nodeCollection.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
             (nodeCollection, errors) = await Session
                 .ReadNodesAsync(nodes, NodeClass.Unspecified, true)
                 .ConfigureAwait(false);
-            Assert.False(nodeCollection.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(nodeCollection.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(nodeCollection.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
@@ -1581,15 +1581,15 @@ namespace Opc.Ua.Client.Tests
 
             (ArrayOf<DataValue> values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
 
-            Assert.False(values.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(values.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(values.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
             (values, errors) = await Session.ReadValuesAsync(variableNodes).ConfigureAwait(false);
 
-            Assert.False(values.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(values.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(values.Count, Is.EqualTo(variableNodes.Count));
             Assert.That(errors.Count, Is.EqualTo(variableNodes.Count));
         }
@@ -1651,7 +1651,7 @@ namespace Opc.Ua.Client.Tests
                 transferSession = await ClientFixture
                     .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
                     .ConfigureAwait(false);
-                Assert.AreNotEqual(Session.SessionId, transferSession.SessionId);
+                Assert.That(transferSession.SessionId, Is.Not.EqualTo(Session.SessionId));
 
                 requestHeader = new RequestHeader
                 {
@@ -1792,8 +1792,8 @@ namespace Opc.Ua.Client.Tests
 
                     // Get the AdditionalHeader from the request
                     ExtensionObject additionalHeader = request.RequestHeader.AdditionalHeader;
-                    Assert.False(additionalHeader.IsNull);
-                    Assert.True(additionalHeader.TryGetEncodeable(out AdditionalParametersType additionalParams));
+                    Assert.That(additionalHeader.IsNull, Is.False);
+                    Assert.That(additionalHeader.TryGetEncodeable(out AdditionalParametersType additionalParams), Is.True);
 
                     // Simulate extraction
                     ActivityContext extractedContext = TestExtractActivityContextFromParameters(additionalParams);
@@ -1831,25 +1831,25 @@ namespace Opc.Ua.Client.Tests
 
             (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) =
                 await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
-            Assert.False(nodeCollection.IsNull);
-            Assert.False(errors.IsNull);
+            Assert.That(nodeCollection.IsNull, Is.False);
+            Assert.That(errors.IsNull, Is.False);
             Assert.That(nodeCollection.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors.Count, Is.EqualTo(nodes.Count));
 
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors2) =
                 await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
-            Assert.False(values.IsNull);
-            Assert.False(errors2.IsNull);
+            Assert.That(values.IsNull, Is.False);
+            Assert.That(errors2.IsNull, Is.False);
             Assert.That(values.Count, Is.EqualTo(nodes.Count));
             Assert.That(errors2.Count, Is.EqualTo(nodes.Count));
 
             ArrayOf<VariableNode> variableNodes = nodeCollection.ConvertAll(n => (VariableNode)n);
-            Assert.False(variableNodes.IsNull);
+            Assert.That(variableNodes.IsNull, Is.False);
 
             // test build info contains the equal values as the properties
             (values[0].WrappedValue.TryGet(out ExtensionObject eo) ? eo : default)
                 .TryGetEncodeable(out BuildInfo buildInfo);
-            Assert.NotNull(buildInfo);
+            Assert.That(buildInfo, Is.Not.Null);
             Assert.That((string)values[1].WrappedValue, Is.EqualTo(buildInfo.ProductName));
             Assert.That((string)values[2].WrappedValue, Is.EqualTo(buildInfo.ProductUri));
             Assert.That((string)values[3].WrappedValue, Is.EqualTo(buildInfo.ManufacturerName));
@@ -1903,7 +1903,7 @@ namespace Opc.Ua.Client.Tests
                 ServerStatusDataType value1 =
                     await session1.ReadValueAsync<ServerStatusDataType>(
                         VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                Assert.NotNull(value1);
+                Assert.That(value1, Is.Not.Null);
             }
         }
 
@@ -1957,7 +1957,7 @@ namespace Opc.Ua.Client.Tests
 
                 ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                Assert.NotNull(value1);
+                Assert.That(value1, Is.Not.Null);
             }
         }
 
@@ -2034,7 +2034,7 @@ namespace Opc.Ua.Client.Tests
                     ServerStatusDataType value1 =
                         await session1.ReadValueAsync<ServerStatusDataType>(
                         VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                    Assert.NotNull(value1);
+                    Assert.That(value1, Is.Not.Null);
                 }
             }
         }
@@ -2097,7 +2097,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         /// <summary>
@@ -2125,7 +2125,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         /// <summary>
@@ -2153,7 +2153,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         /// <summary>
@@ -2183,7 +2183,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         /// <summary>
@@ -2241,7 +2241,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
-            Assert.IsFalse(success);
+            Assert.That(success, Is.False);
         }
 
         /// <summary>
@@ -2269,7 +2269,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
-            Assert.IsFalse(success);
+            Assert.That(success, Is.False);
         }
 
         /// <summary>
@@ -2297,7 +2297,7 @@ namespace Opc.Ua.Client.Tests
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
-            Assert.IsFalse(success);
+            Assert.That(success, Is.False);
         }
 
         /// <summary>
@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Client.Tests
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
 
-            Assert.IsFalse(success);
+            Assert.That(success, Is.False);
         }
 
         /// <summary>
@@ -2347,8 +2347,8 @@ namespace Opc.Ua.Client.Tests
         {
             if (serverLimit != 0)
             {
-                Assert.GreaterOrEqual(serverLimit, clientLimit);
-                Assert.NotZero(clientLimit);
+                Assert.That(serverLimit, Is.GreaterThanOrEqualTo(clientLimit));
+                Assert.That(clientLimit, Is.Not.Zero);
             }
         }
     }

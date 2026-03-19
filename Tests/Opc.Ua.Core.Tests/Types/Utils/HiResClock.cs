@@ -86,17 +86,17 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
             Assert.LessOrEqual(1000, HiResClock.Frequency);
-            Assert.False(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.False);
             Assert.LessOrEqual(1.0, TimeSpan.TicksPerMillisecond);
             HiResClock.Disabled = true;
-            Assert.True(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.True);
             Assert.That(HiResClock.Frequency, Is.EqualTo(TimeSpan.TicksPerSecond));
             Assert.That(HiResClock.TicksPerMillisecond, Is.EqualTo(TimeSpan.TicksPerMillisecond));
             HiResClock.Disabled = false;
-            Assert.True(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.True);
             HiResClock.Reset();
             HiResClock.Disabled = false;
-            Assert.False(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.False);
         }
 
         /// <summary>

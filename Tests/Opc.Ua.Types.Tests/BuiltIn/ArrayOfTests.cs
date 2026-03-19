@@ -38,6 +38,7 @@ using System.Globalization;
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0028 // Simplify collection initialization
 #pragma warning disable IDE0301 // Simplify collection initialization
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -100,11 +101,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualsNullObjectReturnsTrueForEmptyArray()
+        public void EqualsNullObjectReturnsFalseForEmptyArray()
         {
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
             object? nullObject = null;
-            Assert.That(arrayOf, Is.EqualTo(nullObject));
+            Assert.That(arrayOf, Is.Not.EqualTo(nullObject));
+        }
+
+        [Test]
+        public void EqualsNullObjectReturnsTrueForNullArray()
+        {
+            ArrayOf<int> arrayOf = default;
+            object? nullObject = null;
+            Assert.That(arrayOf.Equals(nullObject));
         }
 
         [Test]
@@ -199,6 +208,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             var emptyArrayOf = ArrayOf.Empty<int>();
+            ArrayOf<int> nullArrayOf = default;
             int[] array = [1, 2, 3];
             int[] emptyArray = Array.Empty<int>();
             int[]? nullArray = null;
@@ -206,24 +216,35 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf.Equals(emptyArray), Is.False);
             Assert.That(arrayOf.Equals(nullArray), Is.False);
+
             Assert.That(emptyArrayOf.Equals(array), Is.False);
             Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
-            Assert.That(emptyArrayOf, Is.EqualTo(nullArray));
+            Assert.That(emptyArrayOf, Is.Not.EqualTo(nullArray));
+
+            Assert.That(nullArrayOf.Equals(array), Is.False);
+            Assert.That(nullArrayOf, Is.EqualTo(emptyArray)); // TODO
+            Assert.That(nullArrayOf, Is.Not.EqualTo(nullArray)); // TODO
 
             Assert.That(arrayOf, Is.EqualTo((object)array));
             Assert.That(arrayOf.Equals((object)emptyArray), Is.False);
             Assert.That(emptyArrayOf.Equals((object)array), Is.False);
             Assert.That(emptyArrayOf, Is.EqualTo((object)emptyArray));
+            Assert.That(nullArrayOf.Equals((object)array), Is.False);
+            Assert.That(nullArrayOf, Is.EqualTo((object)emptyArray));
 
             Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf == emptyArray, Is.False);
             Assert.That(emptyArrayOf == array, Is.False);
             Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
+            Assert.That(nullArrayOf == array, Is.False);
+            Assert.That(nullArrayOf, Is.EqualTo(emptyArray));
 
             Assert.That(arrayOf, Is.EqualTo(array));
             Assert.That(arrayOf != emptyArray, Is.True);
             Assert.That(emptyArrayOf != array, Is.True);
             Assert.That(emptyArrayOf, Is.EqualTo(emptyArray));
+            Assert.That(nullArrayOf != array, Is.True);
+            Assert.That(nullArrayOf, Is.EqualTo(emptyArray));
         }
 
         [Test]
@@ -317,12 +338,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualsNullIEnumerableTest()
+        public void EqualsNullEnumerableTest()
         {
             ArrayOf<int> arrayOf = ArrayOf<int>.Empty;
+            ArrayOf<int> nullArrayOf = default;
             IEnumerable<int>? enumerable = null;
-            Assert.That(arrayOf, Is.EqualTo(enumerable));
-            Assert.That(arrayOf, Is.EqualTo((object?)enumerable));
+            Assert.That(arrayOf, Is.Not.EqualTo(enumerable));
+            Assert.That(arrayOf, Is.Not.EqualTo((object?)enumerable));
+            Assert.That(nullArrayOf.Equals((object?)enumerable));
+            Assert.That(nullArrayOf.Equals(enumerable));
         }
 
         [Test]

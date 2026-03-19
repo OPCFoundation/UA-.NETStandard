@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -139,11 +139,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -178,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -265,7 +267,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -275,11 +277,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -314,7 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -379,7 +383,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -389,11 +393,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -426,7 +432,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -492,7 +498,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -502,11 +508,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -541,7 +549,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -608,7 +616,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -618,11 +626,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -660,7 +670,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -727,7 +737,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -737,11 +747,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -778,7 +790,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -844,7 +856,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -854,11 +866,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
             var uaNetworkMessage =
                 connection.CreateNetworkMessages(
@@ -884,7 +898,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -950,7 +964,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -960,11 +974,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -999,7 +1015,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -1066,7 +1082,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1076,11 +1092,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -1117,7 +1135,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -1184,7 +1202,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1194,11 +1212,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -1236,7 +1256,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -1299,7 +1319,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1309,11 +1329,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(connection, Is.Not.Null, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -1350,7 +1372,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
@@ -1416,7 +1438,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1428,11 +1450,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0].WriterGroups[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
@@ -1441,9 +1465,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
@@ -1509,7 +1533,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
                     0);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1521,11 +1545,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0].WriterGroups[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
@@ -1535,9 +1561,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
@@ -1576,9 +1602,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
@@ -1646,7 +1672,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
                     0);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
@@ -1658,11 +1684,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0],
+                Is.Not.Null,
                 "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(
+            Assert.That(
                 publisherConfiguration.Connections[0].WriterGroups[0],
+                Is.Not.Null,
                 "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
@@ -1671,9 +1699,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
@@ -1712,9 +1740,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
@@ -1750,9 +1778,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 networkMessages,
                 Is.Not.Null,
                 "After MetaDataVersion change - connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 networkMessages.Count,
-                1,
+                Is.GreaterThanOrEqualTo(1),
                 "After MetaDataVersion change - connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
@@ -1821,7 +1849,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
                     0);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // create the mock IMqttPubSubConnection that will bje used to monitor hpw often the metadata will be sent
             var mockConnection = new Mock<IMqttPubSubConnection>();

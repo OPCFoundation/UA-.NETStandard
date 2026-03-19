@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(diagnosticInfo.InnerDiagnosticInfo, Is.Null);
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(diagnosticInfo, Is.EqualTo(null));
+            Assert.That(diagnosticInfo.Equals(null));
 #pragma warning restore CA1508 // Avoid dead conditional code
             Assert.That(diagnosticInfo.IsNullDiagnosticInfo, Is.True);
         }
@@ -313,9 +313,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             var stringTable = new StringTable();
-            const DiagnosticsMasks mask = DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode;
-
-            
+            const DiagnosticsMasks mask =
+                DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode;
 
             // Navigate to the deepest inner diagnostic info
             DiagnosticInfo innermost = new DiagnosticInfo(current, mask, true, stringTable, s_logger);
@@ -390,7 +389,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test");
             var di2 = new DiagnosticInfo(99, 2, 3, 4, "test");
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -399,7 +398,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test");
             var di2 = new DiagnosticInfo(1, 99, 3, 4, "test");
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -408,7 +407,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test");
             var di2 = new DiagnosticInfo(1, 2, 99, 4, "test");
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -417,7 +416,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test");
             var di2 = new DiagnosticInfo(1, 2, 3, 99, "test");
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -426,7 +425,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "alpha");
             var di2 = new DiagnosticInfo(1, 2, 3, 4, "beta");
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -435,7 +434,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerStatusCode = StatusCodes.Good };
             var di2 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerStatusCode = StatusCodes.Bad };
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -457,7 +456,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var di1 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerDiagnosticInfo = inner1 };
             var di2 = new DiagnosticInfo(1, 2, 3, 4, "test") { InnerDiagnosticInfo = inner2 };
 
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]
@@ -470,7 +469,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
 
             // di1 has no inner (returns false on line 578)
-            Assert.That(di1.Equals(di2), Is.False);
+            Assert.That(di1, Is.Not.EqualTo(di2));
         }
 
         [Test]

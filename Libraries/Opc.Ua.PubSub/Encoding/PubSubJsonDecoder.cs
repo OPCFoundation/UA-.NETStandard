@@ -1176,51 +1176,51 @@ namespace Opc.Ua.PubSub.Encoding
                         switch (builtInType)
                         {
                             case BuiltInType.Boolean:
-                                return elements2.Cast<bool>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<bool>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.SByte:
-                                return elements2.Cast<sbyte>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<sbyte>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Byte:
-                                return elements2.Cast<byte>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<byte>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Int16:
-                                return elements2.Cast<short>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<short>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.UInt16:
-                                return elements2.Cast<ushort>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<ushort>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Int32:
-                                return elements2.Cast<int>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<int>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.UInt32:
-                                return elements2.Cast<uint>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<uint>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Int64:
-                                return elements2.Cast<long>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<long>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.UInt64:
-                                return elements2.Cast<ulong>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<ulong>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Float:
-                                return elements2.Cast<float>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<float>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Double:
-                                return elements2.Cast<double>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<double>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.String:
-                                return elements2.Cast<string>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<string>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.DateTime:
-                                return elements2.Cast<DateTimeUtc>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<DateTimeUtc>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Guid:
-                                return elements2.Cast<Uuid>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<Uuid>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.ByteString:
-                                return elements2.Cast<ByteString>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<ByteString>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.XmlElement:
-                                return elements2.Cast<XmlElement>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<XmlElement>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.NodeId:
-                                return elements2.Cast<NodeId>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<NodeId>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.ExpandedNodeId:
-                                return elements2.Cast<ExpandedNodeId>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<ExpandedNodeId>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.StatusCode:
-                                return elements2.Cast<StatusCode>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<StatusCode>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.QualifiedName:
-                                return elements2.Cast<QualifiedName>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<QualifiedName>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.LocalizedText:
-                                return elements2.Cast<LocalizedText>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<LocalizedText>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.DataValue:
-                                return elements2.Cast<DataValue>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<DataValue>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Enumeration:
-                                return Variant.FromEnumeration(elements2.Cast<int>().ToMatrixOf(dimensions.ToArray()));
+                                return Variant.FromEnumeration(elements2.Cast<int>().ToMatrixOf([.. dimensions]));
                             case BuiltInType.Variant:
                             {
                                 if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
@@ -1237,10 +1237,10 @@ namespace Opc.Ua.PubSub.Encoding
                                     }
                                     return new Variant(new Matrix(newElements, builtInType, [.. dimensions]));
                                 }
-                                return elements2.Cast<Variant>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<Variant>().ToMatrixOf([.. dimensions]);
                             }
                             case BuiltInType.ExtensionObject:
-                                return elements2.Cast<ExtensionObject>().ToMatrixOf(dimensions.ToArray());
+                                return elements2.Cast<ExtensionObject>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Null:
                             case BuiltInType.Number:
                             case BuiltInType.Integer:

@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 
 #pragma warning disable IDE0301 // Simplify collection initialization
+#pragma warning disable NUnit4002 // Use Specific constraint
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -136,7 +137,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var memory = new ReadOnlyMemory<int>(array);
             int[] dimensions = [4, 1];
             var matrix2 = new MatrixOf<int>(memory, dimensions);
-            Assert.That(matrix1.Equals(matrix2), Is.False);
+            Assert.That(matrix1, Is.Not.EqualTo(matrix2));
         }
 
         [Test]
@@ -168,25 +169,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var matrix = MatrixOf<int>.CreateFromArray(
                 new int[,] { { 1, 2 }, { 3, 4 } });
-            Assert.That(matrix.Equals((Array?)null), Is.False);
-            Assert.That(matrix.Equals((object?)null), Is.False);
+            Assert.That(matrix, Is.Not.EqualTo((Array?)null));
+            Assert.That(matrix, Is.Not.EqualTo((object?)null));
         }
 
         [Test]
         public void EmptyEqualsNullArrayTest()
         {
             MatrixOf<int> matrix = MatrixOf<int>.Empty;
-            Assert.That(matrix.Equals((Array?)null), Is.False);
-            Assert.That(matrix.Equals((object?)null), Is.False);
-            Assert.That(matrix.Equals(MatrixOf<int>.Null), Is.False);
+            Assert.That(matrix, Is.Not.EqualTo((Array?)null));
+            Assert.That(matrix, Is.Not.EqualTo((object?)null));
+            Assert.That(matrix, Is.Not.EqualTo(MatrixOf<int>.Null));
         }
 
         [Test]
         public void NullEqualsNullArrayTest()
         {
-            MatrixOf<int> matrix = MatrixOf<int>.Null;
-            Assert.That(matrix, Is.EqualTo((Array?)null));
-            Assert.That(matrix, Is.EqualTo((object?)null));
+            MatrixOf<int> matrix = default;
+            Assert.That(matrix.Equals((Array?)null));
+            Assert.That(matrix.Equals((object?)null));
             Assert.That(matrix, Is.EqualTo(MatrixOf<int>.Null));
         }
 

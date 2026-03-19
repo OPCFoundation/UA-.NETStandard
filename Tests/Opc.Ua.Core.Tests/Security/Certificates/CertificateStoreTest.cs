@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
             Assert.That(appCertificate, Is.Not.Null);
-            Assert.True(appCertificate.HasPrivateKey);
+            Assert.That(appCertificate.HasPrivateKey, Is.True);
             await appCertificate.AddToStoreAsync(
                 CertificateStoreType.X509Store,
                 storePath,
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
-            Assert.False(publicKey.HasPrivateKey);
+            Assert.That(publicKey.HasPrivateKey, Is.False);
 
             var id = new CertificateIdentifier
             {
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 password: null,
                 telemetry: telemetry).ConfigureAwait(false);
             Assert.That(privateKey, Is.Not.Null);
-            Assert.True(privateKey.HasPrivateKey);
+            Assert.That(privateKey.HasPrivateKey, Is.True);
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             X509Certificate2 appCertificate = GetTestCert();
             Assert.That(appCertificate, Is.Not.Null);
-            Assert.True(appCertificate.HasPrivateKey);
+            Assert.That(appCertificate.HasPrivateKey, Is.True);
 
             char[] password = Uuid.NewUuid().ToString().ToCharArray();
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using X509Certificate2 publicKey = CertificateFactory.Create(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
-            Assert.False(publicKey.HasPrivateKey);
+            Assert.That(publicKey.HasPrivateKey, Is.False);
 
             var id = new CertificateIdentifier
             {
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2 nullKey = await id.LoadPrivateKeyAsync(
                     password: null,
                     telemetry: telemetry).ConfigureAwait(false);
-                Assert.IsNull(nullKey);
+                Assert.That(nullKey, Is.Null);
             }
 
             {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     "123".ToCharArray(),
                     telemetry: telemetry)
                     .ConfigureAwait(false);
-                Assert.IsNull(nullKey);
+                Assert.That(nullKey, Is.Null);
             }
 
             {
@@ -202,7 +202,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     new CertificatePasswordProvider("123".ToCharArray()),
                     telemetry: telemetry)
                     .ConfigureAwait(false);
-                Assert.IsNull(nullKey);
+                Assert.That(nullKey, Is.Null);
             }
 
             X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             Assert.That(privateKey, Is.Not.Null);
-            Assert.True(privateKey.HasPrivateKey);
+            Assert.That(privateKey.HasPrivateKey, Is.True);
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false);
 
                 Assert.That(cert, Is.Not.Null);
-                Assert.True(cert.HasPrivateKey);
+                Assert.That(cert.HasPrivateKey, Is.True);
 
                 // remove leaf cert
                 await store.DeleteAsync("14A630438BF775E19169D3279069BBF20419EF84")
@@ -364,15 +364,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false);
 
                 Assert.That(cert, Is.Not.Null);
-                Assert.True(cert.HasPrivateKey);
+                Assert.That(cert.HasPrivateKey, Is.True);
 
                 // remove leaf cert
                 await store.DeleteAsync("14A630438BF775E19169D3279069BBF20419EF84")
                     .ConfigureAwait(false);
 
                 //ensure private key is removed
-                Assert.False(
-                    File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"));
+                Assert.That(
+                    File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"),
+                    Is.False);
             }
             finally
             {
@@ -413,13 +414,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             x509Store.Open(storePath);
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.False(x509Store.SupportsCRLs);
+                Assert.That(x509Store.SupportsCRLs, Is.False);
                 Assert
                     .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
             }
             else
             {
-                Assert.True(x509Store.SupportsCRLs);
+                Assert.That(x509Store.SupportsCRLs, Is.True);
             }
         }
 
@@ -438,7 +439,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var x509Store = new X509CertificateStore(telemetry);
             x509Store.Open(storePath);
 
-            Assert.True(x509Store.SupportsCRLs);
+            Assert.That(x509Store.SupportsCRLs, Is.True);
 
             //add issuer to store
             await x509Store.AddAsync(GetTestCert()).ConfigureAwait(false);
@@ -557,7 +558,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             //check the right crl was deleted
             Assert.That(crlsAfterFirstDelete.Count, Is.EqualTo(1));
-            Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
+            Assert.That(crlsAfterFirstDelete.FirstOrDefault(c => c == crl), Is.Null);
 
             //make shure IsRevoked can't find crl anymore
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
@@ -728,7 +729,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 default,
                 false);
-            Assert.Null(resultThumbprintAndNonMatchingSubject);
+            Assert.That(resultThumbprintAndNonMatchingSubject, Is.Null);
 
             // Test that exact match is done if CN is in subject name and
             // subject name is substring of other subject names

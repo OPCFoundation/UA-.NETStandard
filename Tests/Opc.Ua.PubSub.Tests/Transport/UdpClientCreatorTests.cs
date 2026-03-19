@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
                 $"{Utils.UriSchemeOpcUdp}:{m_urlHostName}:{kDiscoveryPortNo}",
                 logger);
-            Assert.IsNull(ipEndPoint, "Url scheme is not corect!");
+            Assert.That(ipEndPoint, Is.Null, "Url scheme is not corect!");
         }
 
         [Test(Description = "Invalidate url Hostname value")]
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
                 $"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}",
                 logger);
-            Assert.IsNull(ipEndPoint, "Url hostname is not corect!");
+            Assert.That(ipEndPoint, Is.Null, "Url hostname is not corect!");
         }
 
         [Test(Description = "Invalidate url Port number value")]
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(
                 $"{m_urlScheme}{m_urlHostName}: 0",
                 logger);
-            Assert.IsNull(ipEndPoint, "Url port number is wrong");
+            Assert.That(ipEndPoint, Is.Null, "Url port number is wrong");
         }
 
         [Test(Description = "Validate url hostname as ip address value")]
@@ -183,20 +183,21 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration = publisherApplication
                 .UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Check publisher connections
-            Assert.IsFalse(
+            Assert.That(
                 publisherConfiguration.Connections.IsEmpty,
+                Is.False,
                 "publisherConfiguration.Connections should not be empty");
 
             PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];
-            Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
+            Assert.That(publisherConnection1, Is.Not.Null, "publisherConnection1 should not be null");
 
             var networkAddressUrlState1 =
                 ExtensionObject.ToEncodeable(
                     publisherConnection1.Address) as NetworkAddressUrlDataType;
-            Assert.IsNotNull(networkAddressUrlState1, "networkAddressUrlState1 is null");
+            Assert.That(networkAddressUrlState1, Is.Not.Null, "networkAddressUrlState1 is null");
 
             IPEndPoint configuredEndPoint1 = UdpClientCreator.GetEndPoint(
                 networkAddressUrlState1.Url,
@@ -214,19 +215,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             UdpClient udpClient1 = udpClients1[0];
             Assert.That(
-                udpClient1 is UdpClientMulticast,
-                Is.True,
-                "udpClient1 was configured as UdpClientMulticast");
+                udpClient1,
+Is.InstanceOf<UdpClientMulticast>());
             Assert.That(udpClient1.Client, Is.Not.Null, "udpClient1 client socket should not be null");
             Assert.That(udpClient1.Client.LocalEndPoint, Is.Not.Null, "udpClient1 IP address is empty");
 
             PubSubConnectionDataType publisherConnection2 = publisherConfiguration.Connections[1];
-            Assert.IsNotNull(publisherConnection2, "publisherConnection2 should not be null");
+            Assert.That(publisherConnection2, Is.Not.Null, "publisherConnection2 should not be null");
 
             var networkAddressUrlState2 =
                 ExtensionObject.ToEncodeable(
                     publisherConnection2.Address) as NetworkAddressUrlDataType;
-            Assert.IsNotNull(networkAddressUrlState2, "networkAddressUrlState2 is null");
+            Assert.That(networkAddressUrlState2, Is.Not.Null, "networkAddressUrlState2 is null");
 
             IPEndPoint configuredEndPoint2 = UdpClientCreator.GetEndPoint(
                 networkAddressUrlState2.Url,
@@ -244,9 +244,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             UdpClient udpClient2 = udpClients2[0];
             Assert.That(
-                udpClient2 is UdpClientBroadcast,
-                Is.True,
-                "udpClient2 was configured as UdpClientBroadcast");
+                udpClient2,
+Is.InstanceOf<UdpClientBroadcast>());
             Assert.That(udpClient2.Client, Is.Not.Null, "udpClient1 client socket should not be null");
             Assert.That(udpClient2.Client.LocalEndPoint, Is.Not.Null, "udpClient2 IP address is empty");
 
@@ -266,12 +265,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 udpClientEndPoint2.Address.ToString(),
                 Is.EqualTo(udpClientEndPoint1.Address.ToString()),
                 $"udpClientEndPoint1 IP address: {udpClientEndPoint1.Address.ToString()} should match udpClientEndPoint2 IP Address {udpClientEndPoint2.Address.ToString()}");
-            Assert.AreNotEqual(
-                udpClientEndPoint1.Port,
+            Assert.That(
                 udpClientEndPoint2.Port,
-                "udpClientEndPoint1 port number: {0} should not match udpClientEndPoint1 port number: {1}",
-                udpClientEndPoint1.Port,
-                udpClientEndPoint2.Port);
+                Is.Not.EqualTo(udpClientEndPoint1.Port),
+                $"udpClientEndPoint1 port number: {udpClientEndPoint1.Port} should not match udpClientEndPoint1 port number: {udpClientEndPoint2.Port}");
         }
 
         private static string ReplaceLastIpByte(string ipAddress, string lastIpByte)

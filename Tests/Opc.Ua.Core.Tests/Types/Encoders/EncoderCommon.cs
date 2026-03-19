@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void TearDown()
         {
             // ensure after every test that the Null NodeId was not modified
-            Assert.True(NodeId.Null.IsNull);
+            Assert.That(NodeId.Null.IsNull, Is.True);
         }
 
         /// <summary>

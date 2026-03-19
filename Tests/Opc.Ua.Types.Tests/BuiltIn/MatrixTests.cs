@@ -66,7 +66,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 TypeInfo.GetBuiltInType(new NodeId((int)BuiltInType.Int32)));
             var toArray = matrix.ToArray();
             Assert.That(toArray, Is.EqualTo(testArray));
-            Assert.True(CoreUtils.IsEqual(testArray, toArray));
+            Assert.That(CoreUtils.IsEqual(testArray, toArray), Is.True);
         }
     }
 }

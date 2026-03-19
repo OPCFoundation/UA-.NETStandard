@@ -298,8 +298,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
             Assert.That(response.Results.Count, Is.EqualTo(m_smallReadValueIds.Count));
         }
 
@@ -339,8 +339,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
             Assert.That(response.Results.Count, Is.EqualTo(m_mediumReadValueIds.Count));
         }
 
@@ -381,8 +381,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
             Assert.That(response.Results.Count, Is.EqualTo(m_largeReadValueIds.Count));
         }
 
@@ -429,8 +429,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -489,8 +489,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
             Assert.Greater(response.Results.Count, 0);
         }
 
@@ -522,8 +522,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -556,8 +556,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
@@ -852,7 +852,7 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(response);
+                    Assert.That(response, Is.Not.Null);
 
                     await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                     session.Dispose();

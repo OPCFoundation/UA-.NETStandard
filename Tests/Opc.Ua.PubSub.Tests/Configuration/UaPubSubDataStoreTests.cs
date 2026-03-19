@@ -113,8 +113,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 readDataValue,
+                Is.Null,
                 "Returned DataValue for written nodeId and attribute is NOT null");
         }
 

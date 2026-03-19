@@ -146,23 +146,23 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(list[0]);
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
-            Assert.True(subscription.ChangesPending);
+            Assert.That(subscription.ChangesPending, Is.True);
             Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = Session.AddSubscription(subscription);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             await subscription.CreateAsync().ConfigureAwait(false);
 
             // add state
@@ -193,10 +193,10 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItems(list2);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-            Assert.False(subscription.PublishingEnabled);
+            Assert.That(subscription.PublishingEnabled, Is.False);
             await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
-            Assert.True(subscription.PublishingEnabled);
-            Assert.False(subscription.PublishingStopped);
+            Assert.That(subscription.PublishingEnabled, Is.True);
+            Assert.That(subscription.PublishingStopped, Is.False);
 
             subscription.Priority = 200;
             await subscription.ModifyAsync().ConfigureAwait(false);
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.Tests
             subscription.RemoveItem(list2[0]);
 
             result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.Tests
 
             TestContext.Out.WriteLine("{0} value changes.", valueChanges);
 
-            Assert.GreaterOrEqual(valueChanges, 10);
+            Assert.That(valueChanges, Is.GreaterThanOrEqualTo(10));
 
             foreach (Subscription subscription in Session.Subscriptions)
             {
@@ -290,7 +290,7 @@ namespace Opc.Ua.Client.Tests
 
             bool result = await Session.RemoveSubscriptionsAsync(subscriptions)
                 .ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Theory]
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client.Tests
             foreach (Subscription s in subscriptionList)
             {
                 bool boolResult = Session.AddSubscription(s);
-                Assert.True(boolResult);
+                Assert.That(boolResult, Is.True);
                 await s.CreateAsync().ConfigureAwait(false);
                 int publishInterval = (int)s.CurrentPublishingInterval;
                 TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
@@ -418,7 +418,7 @@ namespace Opc.Ua.Client.Tests
             foreach (Subscription s in subscriptionList)
             {
                 bool result = await Session.RemoveSubscriptionAsync(s).ConfigureAwait(false);
-                Assert.True(result);
+                Assert.That(result, Is.True);
             }
 
             TestContext.Out.WriteLine($"Number of notifications: {totalNotifications:N0}");
@@ -534,7 +534,7 @@ namespace Opc.Ua.Client.Tests
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value1);
+            Assert.That(value1, Is.Not.Null);
 
             var originSubscriptions = new SubscriptionCollection(kTestSubscriptions);
             int[] originSubscriptionCounters = new int[kTestSubscriptions];
@@ -719,7 +719,7 @@ namespace Opc.Ua.Client.Tests
                     ServerStatusDataType result =
                         await session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                    Assert.NotNull(result);
+                    Assert.That(result, Is.Not.Null);
                 }
             }
             finally
@@ -733,7 +733,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             Assert.That(session1ConfigChanged, Is.EqualTo(0));
-            Assert.Less(0, session2ConfigChanged);
+            Assert.That(session2ConfigChanged, Is.GreaterThanOrEqualTo(0));
         }
 
         [Test]
@@ -779,7 +779,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.ThrowsAsync<ServiceResultException>(
                     () => subscription.CreateAsync());
                 bool result = Session.AddSubscription(subscription);
-                Assert.True(result);
+                Assert.That(result, Is.True);
                 await subscription.CreateAsync().ConfigureAwait(false);
                 int publishInterval = (int)subscription.CurrentPublishingInterval;
 
@@ -795,9 +795,9 @@ namespace Opc.Ua.Client.Tests
             while (stopwatch.ElapsedMilliseconds < testWaitTime)
             {
                 // use the sample server default for max publish request count
-                Assert.GreaterOrEqual(
+                Assert.That(
                     Math.Max(maxServerPublishRequest, subscriptions),
-                    Session.GoodPublishRequestCount,
+                    Is.GreaterThanOrEqualTo(Session.GoodPublishRequestCount),
                     "No. of Good Publish Requests shall be at max count of subscriptions");
                 await Task.Delay(100).ConfigureAwait(false);
             }
@@ -806,7 +806,7 @@ namespace Opc.Ua.Client.Tests
             {
                 bool result = await Session.RemoveSubscriptionAsync(subscription)
                     .ConfigureAwait(false);
-                Assert.True(result);
+                Assert.That(result, Is.True);
             }
         }
 
@@ -986,7 +986,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     // graceful close
                     StatusCode close = await originSession.CloseAsync().ConfigureAwait(false);
-                    Assert.True(ServiceResult.IsGood(close));
+                    Assert.That(ServiceResult.IsGood(close), Is.True);
                 }
                 else
                 {
@@ -1217,8 +1217,8 @@ namespace Opc.Ua.Client.Tests
                 else
                 {
                     // dynamic nodes, expect changes in target counters
-                    Assert.Less(0, testCounter[jj]);
-                    Assert.Less(0, testFastDataCounter[jj]);
+                    Assert.That(testCounter[jj], Is.GreaterThanOrEqualTo(0));
+                    Assert.That(testFastDataCounter[jj], Is.GreaterThanOrEqualTo(0));
                 }
             }
 
@@ -1226,12 +1226,12 @@ namespace Opc.Ua.Client.Tests
 
             // close sessions
             StatusCode closeResult = await targetSession.CloseAsync().ConfigureAwait(false);
-            Assert.True(ServiceResult.IsGood(closeResult));
+            Assert.That(ServiceResult.IsGood(closeResult), Is.True);
 
             if (originSessionOpen)
             {
                 closeResult = await originSession.CloseAsync().ConfigureAwait(false);
-                Assert.True(ServiceResult.IsGood(closeResult));
+                Assert.That(ServiceResult.IsGood(closeResult), Is.True);
             }
 
             // cleanup
@@ -1306,15 +1306,15 @@ namespace Opc.Ua.Client.Tests
             };
 
             bool result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
 
             await subscription.CreateAsync().ConfigureAwait(false);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-            Assert.False(subscription.PublishingEnabled);
+            Assert.That(subscription.PublishingEnabled, Is.False);
             await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
-            Assert.True(subscription.PublishingEnabled);
-            Assert.False(subscription.PublishingStopped);
+            Assert.That(subscription.PublishingEnabled, Is.True);
+            Assert.That(subscription.PublishingStopped, Is.False);
 
             subscription.Priority = 55;
             await subscription.ModifyAsync().ConfigureAwait(false);
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Client.Tests
 
             TestContext.Out.WriteLine("Call ResendData.");
             bool resendData = await subscription.ResendDataAsync().ConfigureAwait(false);
-            Assert.True(resendData);
+            Assert.That(resendData, Is.True);
 
             await Task.Delay(delay).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Call ConditionRefresh.");
             bool conditionRefresh =
                 await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            Assert.True(conditionRefresh);
+            Assert.That(conditionRefresh, Is.True);
 
             ServiceResultException sre =
                 Assert.ThrowsAsync<ServiceResultException>(() =>
@@ -1357,7 +1357,7 @@ namespace Opc.Ua.Client.Tests
 
             result = await Session.RemoveSubscriptionAsync(
                 subscription).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         private async Task CreateSubscriptionsAsync(

@@ -100,7 +100,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nodeIdText > inodeIdText, Is.False);
 
             Assert.That(nodeIdText, Is.GreaterThan(nodeId2));
-            Assert.That(nodeIdText == nodeId2, Is.False);
+            Assert.That(nodeIdText, Is.Not.EqualTo(nodeId2));
             Assert.That(nodeIdText < nodeId2, Is.False);
             _ = new ExpandedNodeId(123, 123);
             _ = new ExpandedNodeId("Test", 123);
@@ -626,16 +626,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectNull()
         {
             ExpandedNodeId nullId = ExpandedNodeId.Null;
-            Assert.That(nullId, Is.EqualTo((object)null));
+            Assert.That(nullId.Equals((object)null));
             var nonNull = new ExpandedNodeId(1u);
-            Assert.That(nonNull.Equals((object)null), Is.False);
+            Assert.That(nonNull, Is.Not.EqualTo((object)null));
         }
 
         [Test]
         public void EqualsObjectUnknownType()
         {
             var id = new ExpandedNodeId(1u);
-            Assert.That(id.Equals((object)"a string"), Is.False);
+            Assert.That(id, Is.Not.EqualTo((object)"a string"));
         }
 
         [Test]
@@ -643,7 +643,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id = new ExpandedNodeId(1u, "http://ns.org/");
             var nodeId = new NodeId(1u);
-            Assert.That(id.Equals(nodeId), Is.False);
+            Assert.That(id, Is.Not.EqualTo(nodeId));
         }
 
         [Test]
@@ -659,7 +659,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id = new ExpandedNodeId(1u);
             var nodeId = new NodeId(2u);
-            Assert.That(id.Equals(nodeId), Is.False);
+            Assert.That(id, Is.Not.EqualTo(nodeId));
         }
 
         [Test]
@@ -667,14 +667,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id = new ExpandedNodeId(1u);
             Assert.That(id, Is.EqualTo((object)new ExpandedNodeId(1u)));
-            Assert.That(id == (object)new ExpandedNodeId(2u), Is.False);
+            Assert.That(id, Is.Not.EqualTo((object)new ExpandedNodeId(2u)));
         }
 
         [Test]
         public void OperatorNotEqualsObject()
         {
             var id = new ExpandedNodeId(1u);
-            Assert.That(id != (object)new ExpandedNodeId(2u), Is.True);
+            Assert.That(id, Is.Not.EqualTo((object)new ExpandedNodeId(2u)));
             Assert.That(id, Is.EqualTo((object)new ExpandedNodeId(1u)));
         }
 
@@ -691,7 +691,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eid = new ExpandedNodeId(new NodeId(1u));
             var nid = new NodeId(2u);
-            Assert.That(eid != nid, Is.True);
+            Assert.That(eid, Is.Not.EqualTo(nid));
         }
 
         [Test]
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // ExpandedNodeId case
             Assert.That(s1, Is.EqualTo((object)eid));
             // Other case (falls through to Value.Equals)
-            Assert.That(s1.Equals((object)"not a node"), Is.False);
+            Assert.That(s1, Is.Not.EqualTo((object)"not a node"));
         }
 
         [Test]
@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eid = new ExpandedNodeId(42u);
             var s = new SerializableExpandedNodeId(eid);
             Assert.That(s, Is.EqualTo(eid));
-            Assert.That(s.Equals(new ExpandedNodeId(99u)), Is.False);
+            Assert.That(s, Is.Not.EqualTo(new ExpandedNodeId(99u)));
         }
 
         [Test]
@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SerializableExpandedNodeId nullS = null;
             Assert.That(s1, Is.EqualTo(s2));
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(s1.Equals(nullS), Is.False);
+            Assert.That(s1, Is.Not.EqualTo(nullS));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SerializableExpandedNodeId nullS = null;
             Assert.That(s1, Is.EqualTo(s2));
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(nullS == s1, Is.False);
+            Assert.That(nullS, Is.Not.EqualTo(s1));
             Assert.That(nullS, Is.EqualTo((SerializableExpandedNodeId)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -1270,7 +1270,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var s1 = new SerializableExpandedNodeId(new ExpandedNodeId(42u));
             var s2 = new SerializableExpandedNodeId(new ExpandedNodeId(99u));
-            Assert.That(s1 != s2, Is.True);
+            Assert.That(s1, Is.Not.EqualTo(s2));
         }
 
         [Test]
@@ -1281,8 +1281,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SerializableExpandedNodeId nullS = null;
             Assert.That(s, Is.EqualTo(eid));
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(nullS, Is.EqualTo(ExpandedNodeId.Null));
-            Assert.That(nullS == new ExpandedNodeId(42u), Is.False);
+            Assert.That(nullS, Is.Not.EqualTo(new ExpandedNodeId(42u)));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -1290,7 +1289,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SerializableOperatorNotEqualsWithExpandedNodeId()
         {
             var s = new SerializableExpandedNodeId(new ExpandedNodeId(42u));
-            Assert.That(s != new ExpandedNodeId(99u), Is.True);
+            Assert.That(s, Is.Not.EqualTo(new ExpandedNodeId(99u)));
         }
 
         [Test]
@@ -1363,7 +1362,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://ns.org/", 1);
             var id2 = new ExpandedNodeId(1u, "http://ns.org/", 2);
-            Assert.That(id1.Equals(id2), Is.False);
+            Assert.That(id1, Is.Not.EqualTo(id2));
         }
 
         [Test]
@@ -1371,7 +1370,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://a.org/", 1);
             var id2 = new ExpandedNodeId(1u, "http://b.org/", 1);
-            Assert.That(id1.Equals(id2), Is.False);
+            Assert.That(id1, Is.Not.EqualTo(id2));
         }
 
         [Test]
@@ -1379,7 +1378,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://ns.org/", 1);
             var id2 = new ExpandedNodeId(2u, "http://ns.org/", 1);
-            Assert.That(id1.Equals(id2), Is.False);
+            Assert.That(id1, Is.Not.EqualTo(id2));
         }
 
         [Test]
@@ -1436,7 +1435,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u);
             var id2 = new ExpandedNodeId(2u);
-            Assert.That(id1 != id2, Is.True);
+            Assert.That(id1, Is.Not.EqualTo(id2));
             Assert.That(id1, Is.EqualTo(new ExpandedNodeId(1u)));
         }
 

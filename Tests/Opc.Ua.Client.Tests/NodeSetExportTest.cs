@@ -366,7 +366,7 @@ namespace Opc.Ua.Client.Tests
                     // Check that variables don't have values
                     foreach (UAVariable variable in nodeSet.Items.OfType<UAVariable>())
                     {
-                        Assert.IsNull(variable.Value, "Value should not be exported with Default options");
+                        Assert.That(variable.Value, Is.Null, "Value should not be exported with Default options");
                     }
                 }
 

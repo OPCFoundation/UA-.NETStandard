@@ -155,7 +155,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void EqualsReferenceNodeWithNullReturnsFalse()
         {
             ReferenceNode node = CreateNode();
-            Assert.That(node.Equals((ReferenceNode)null), Is.False);
+            Assert.That(node, Is.Not.EqualTo((ReferenceNode)null));
         }
 
         [Test]
@@ -171,7 +171,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(99, false, 100);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             ReferenceNode b = CreateNode(42, false, 100);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -187,7 +187,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 200);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -228,7 +228,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             object b = CreateNode();
-            Assert.That(a == b, Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -236,7 +236,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             object b = CreateNode();
-            Assert.That(a != b, Is.True);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]

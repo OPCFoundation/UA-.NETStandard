@@ -268,8 +268,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             await Task.Delay(1500).ConfigureAwait(false);
             Assert.That(
-                validator.RejectedStore.EnumerateAsync().GetAwaiter().GetResult().Count,
-                Is.EqualTo(m_appSelfSignedCerts.Count),
+                validator.RejectedStore.EnumerateAsync().GetAwaiter().GetResult(),
+                Has.Count.EqualTo(m_appSelfSignedCerts.Count),
                 "All self signed certs shall be contained in the RejectedStore");
 
             // add auto approver
@@ -340,8 +340,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
                 }
                 Assert.That(
-                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)).Count,
-                    Is.EqualTo(m_appSelfSignedCerts.Count));
+                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)),
+                    Has.Count.EqualTo(m_appSelfSignedCerts.Count));
                 CertificateValidator certValidator = validator.Update();
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -356,8 +356,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 Assert.That(
-                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)).Count,
-                    Is.EqualTo(m_appSelfSignedCerts.Count));
+                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)),
+                    Has.Count.EqualTo(m_appSelfSignedCerts.Count));
             }
         }
 
@@ -381,7 +381,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2Collection certificates = await validator
                 .IssuerStore.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.That(certificates.Count, Is.EqualTo(m_appSelfSignedCerts.Count));
+            Assert.That(certificates, Has.Count.EqualTo(m_appSelfSignedCerts.Count));
 
             CertificateValidator certValidator = validator.Update();
             certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
@@ -417,9 +417,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(
+                Assert.That(
                     m_caChain.Length + kNumberOfRejectCertsHistory + 1,
-                    certificates.Count);
+                    Is.GreaterThanOrEqualTo(certificates.Count));
 
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -434,7 +434,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, certificates.Count);
+                Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
                 // override with the same content
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -454,25 +454,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, certificates.Count);
+                Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
                 // test setter if overflow certs are not deleted
                 certValidator.MaxRejectedCertificates = 300;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, certificates.Count);
+                Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
                 // test setter if overflow certs are deleted
                 certValidator.MaxRejectedCertificates = 3;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(3, certificates.Count);
+                Assert.That(certificates, Has.Count.LessThanOrEqualTo(3));
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.LessOrEqual(0, certificates.Count);
+                Assert.That(certificates.Count, Is.EqualTo(0));
 
                 // ensure no certs are added to the rejected store
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.LessOrEqual(0, certificates.Count);
+                Assert.That(certificates.Count, Is.EqualTo(0));
             }
             finally
             {
@@ -514,8 +514,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             Assert.That(
-                validator.TrustedStore.EnumerateAsync().Result.Count,
-                Is.EqualTo(m_appSelfSignedCerts.Count));
+                validator.TrustedStore.EnumerateAsync().Result,
+                Has.Count.EqualTo(m_appSelfSignedCerts.Count));
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
             Assert.That(cert, Is.Not.Null);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
+            Assert.That(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject), Is.True);
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
             Assert.That(cert, Is.Not.Null);
-            Assert.True(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject));
+            Assert.That(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject), Is.True);
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
@@ -1247,7 +1247,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             cert = new X509Certificate2(cert);
             Assert.That(cert, Is.Not.Null);
-            Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Subject));
+            Assert.That(X509Utils.CompareDistinguishedName(subject, cert.Subject), Is.True);
             var validator = TemporaryCertValidator.Create(telemetry);
             if (!trusted)
             {
@@ -1353,7 +1353,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 else
                 {
-                    Assert.Null(innerResult);
+                    Assert.That(innerResult, Is.Null);
                 }
             }
             else if (trusted)
@@ -1389,7 +1389,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetCAConstraint(0)
                 .CreateForRSA();
 
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
@@ -1407,7 +1407,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
             if (trusted)
             {
-                Assert.Null(innerResult);
+                Assert.That(innerResult, Is.Null);
             }
             else
             {
@@ -1451,7 +1451,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAPublicKey(certBase.GetRSAPublicKey())
                 .CreateForRSA(generator);
 
-            Assert.False(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.False);
             var validator = TemporaryCertValidator.Create(telemetry);
             if (trusted)
             {
@@ -1535,7 +1535,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                Assert.Null(innerResult);
+                Assert.That(innerResult, Is.Null);
             }
 
             // approve suppression of smaller key
@@ -1589,7 +1589,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     serviceResultException.Message);
                 Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
-                Assert.Null(innerResult);
+                Assert.That(innerResult, Is.Null);
             }
         }
 
@@ -1629,7 +1629,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     serviceResultException.Message);
                 Assert.That(serviceResultException.InnerResult, Is.Not.Null);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
-                Assert.Null(innerResult);
+                Assert.That(innerResult, Is.Null);
             }
 
             // override the autoaccept flag, always approve

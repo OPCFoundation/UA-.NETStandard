@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Is.EqualTo(3),
                 "uaPubSubApplication.PubSubConnections count");
             var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
-            Assert.That(connection.Publishers != null, Is.True, "connection.Publishers is null");
+            Assert.That(connection.Publishers, Is.Not.EqualTo(null), "connection.Publishers is null");
             Assert.That(connection.Publishers.Count, Is.EqualTo(1), "connection.Publishers count is not 2");
             int index = 0;
             foreach (IUaPublisher publisher in connection.Publishers)

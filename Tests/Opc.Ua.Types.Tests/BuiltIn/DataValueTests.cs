@@ -132,7 +132,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(dv.Equals((object)null), Is.False);
+            Assert.That(dv, Is.Not.EqualTo((object)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -167,7 +167,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(new Variant(42));
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(dv.Equals((DataValue)null), Is.False);
+            Assert.That(dv, Is.Not.EqualTo((DataValue)null));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42), StatusCodes.Good);
             var dv2 = new DataValue(new Variant(42), StatusCodes.Bad);
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -186,7 +186,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42)) { ServerTimestamp = new DateTimeUtc(2024, 1, 1) };
             var dv2 = new DataValue(new Variant(42)) { ServerTimestamp = new DateTimeUtc(2025, 1, 1) };
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -195,7 +195,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42)) { SourceTimestamp = new DateTimeUtc(2024, 1, 1) };
             var dv2 = new DataValue(new Variant(42)) { SourceTimestamp = new DateTimeUtc(2025, 1, 1) };
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42)) { ServerPicoseconds = 100 };
             var dv2 = new DataValue(new Variant(42)) { ServerPicoseconds = 200 };
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -213,7 +213,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42)) { SourcePicoseconds = 100 };
             var dv2 = new DataValue(new Variant(42)) { SourcePicoseconds = 200 };
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv1 = new DataValue(new Variant(42));
             var dv2 = new DataValue(new Variant(99));
 
-            Assert.That(dv1.Equals(dv2), Is.False);
+            Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
 
         [Test]
@@ -261,7 +261,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var b = new DataValue();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a == b, Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -272,7 +272,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue b = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a == b, Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -291,7 +291,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var a = new DataValue(new Variant(1));
             var b = new DataValue(new Variant(2));
 
-            Assert.That(a != b, Is.True);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]

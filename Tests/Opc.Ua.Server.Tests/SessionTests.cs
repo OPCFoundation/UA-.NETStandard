@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests
                     Is.EqualTo(totalBefore + 1),
                     "TotalRequestCount should increment for all request types.");
 
-                Assert.IsFalse(eventRaised, $"SessionDiagnosticsChanged event must NOT be raised for request type {requestType}.");
+                Assert.That(eventRaised, Is.False, $"SessionDiagnosticsChanged event must NOT be raised for request type {requestType}.");
             }
             finally
             {

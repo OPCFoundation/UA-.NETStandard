@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void DiscoveryEndPointUrls(string urlString)
         {
             var uri = new Uri(urlString);
-            Assert.True(uri.IsWellFormedOriginalString());
+            Assert.That(uri.IsWellFormedOriginalString(), Is.True);
 
             var uriBuilder = new UriBuilder
             {

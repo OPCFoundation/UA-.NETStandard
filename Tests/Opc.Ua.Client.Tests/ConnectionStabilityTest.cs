@@ -422,9 +422,9 @@ namespace Opc.Ua.Client.Tests
                 // Assertions
                 Assert.That(allNodesReceivedData, Is.True, "Not all nodes received expected data");
                 Assert.That(errors.Count, Is.EqualTo(0), $"Test encountered {errors.Count} errors");
-                Assert.GreaterOrEqual(
+                Assert.That(
                     totalNotifications,
-                    expectedMinNotifications,
+                    Is.GreaterThanOrEqualTo(expectedMinNotifications),
                     "Total notifications received is less than expected minimum");
 
                 TestContext.Out.WriteLine("Connection stability test PASSED");

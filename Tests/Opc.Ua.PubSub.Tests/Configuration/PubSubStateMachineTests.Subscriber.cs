@@ -311,8 +311,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .FindStateForObject(datasetReader);
             Assert.That(psState, Is.EqualTo(PubSubState.Disabled));
             Assert.That(conState, Is.EqualTo(PubSubState.Paused));
-            Assert.That(rgState == PubSubState.Paused, Is.True);
-            Assert.That(conState == PubSubState.Paused, Is.True);
+            Assert.That(rgState, Is.EqualTo(PubSubState.Paused));
+            Assert.That(conState, Is.EqualTo(PubSubState.Paused));
             Assert.That(dsrState, Is.EqualTo(PubSubState.Paused));
 
             // Bring pubSub to Enabled

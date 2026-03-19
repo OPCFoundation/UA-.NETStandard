@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests
                 bool result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
-                Assert.IsFalse(result);
+                Assert.That(result, Is.False);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 IAsyncNodeManager[] registeredManagers = [.. sut.NamespaceManagers[
                     server.CurrentInstance.NamespaceUris.GetIndex(ns)
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests
                 bool result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
 
                 //-- Assert
-                Assert.IsFalse(result);
+                Assert.That(result, Is.False);
                 Assert
                     .That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 

@@ -169,19 +169,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void UtilsIsEqualObjectCompareTest()
         {
             bool result = UtilsIsEqualGenericByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualObjectCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualIEnumerableCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = SequenceEqualsByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = ForLoopBinaryCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = MemCmpByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]

@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.True(result.IsEmpty);
+            Assert.That(result.IsEmpty, Is.True);
         }
 
         [Test]
@@ -248,7 +248,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.Null(result);
+            Assert.That(result, Is.Null);
             context.Verify();
         }
 
@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.True(result.IsEmpty);
+            Assert.That(result.IsEmpty, Is.True);
         }
 
         [Test]
@@ -523,7 +523,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, false, default)
@@ -534,7 +534,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -652,7 +652,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -663,7 +663,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -737,7 +737,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -748,7 +748,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result1.Count, Is.EqualTo(1));
-            Assert.True(result2.IsEmpty);
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Client.Tests
             bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
             context.Verify();
         }
 
@@ -1070,13 +1070,13 @@ namespace Opc.Ua.Client.Tests
             bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
 
             // Act
             result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
             context.Verify();
         }
 

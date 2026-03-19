@@ -50,12 +50,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var localizedText = new LocalizedText(translations);
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale");
-            Assert.IsNull(
+            Assert.That(localizedText.IsMultiLanguage, Is.False, "Should not be mul locale");
+            Assert.That(
                 localizedText.Translations,
+                Is.Null,
                 "Translations should be null for empty dictionary");
-            Assert.IsNull(localizedText.Text, "Text should be null for empty dictionary");
-            Assert.IsNull(localizedText.Locale, "Locale should be null for empty dictionary");
+            Assert.That(localizedText.Text, Is.Null, "Text should be null for empty dictionary");
+            Assert.That(localizedText.Locale, Is.Null, "Locale should be null for empty dictionary");
         }
 
         [Test]
@@ -68,7 +69,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var localizedText = new LocalizedText(translations);
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale for single entry");
+            Assert.That(localizedText.IsMultiLanguage, Is.False, "Should not be mul locale for single entry");
             Assert.That(localizedText.Locale, Is.EqualTo("fr-FR"), "Locale should be 'fr-FR'");
             Assert.That(localizedText.Text, Is.EqualTo("Bonjour"), "Text should be 'Bonjour'");
             Assert.That(
@@ -166,7 +167,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Filtered returned only fr locale as mul
             LocalizedText mulFr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray5);
-            Assert.IsFalse(mulFr.IsMultiLanguage, "Should not be mul locale because only one locale matched.");
+            Assert.That(mulFr.IsMultiLanguage, Is.False, "Should not be mul locale because only one locale matched.");
             Assert.That(mulFr.Translations.Count, Is.EqualTo(1), "Translations should have 1 entries");
             Assert.That(mulFr.Translations["fr-FR"], Is.EqualTo("Bonjour"));
         }
@@ -178,7 +179,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var localizedText = new LocalizedText("de-DE", "Hallo");
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale");
+            Assert.That(localizedText.IsMultiLanguage, Is.False, "Should not be mul locale");
 
             //found locale returned
             LocalizedText singleDE = localizedText.FilterByPreferredLocales(s_preferredLocales);

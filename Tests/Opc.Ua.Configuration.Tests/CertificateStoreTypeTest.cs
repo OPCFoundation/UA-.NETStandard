@@ -100,7 +100,7 @@ namespace Opc.Ua.Configuration.Tests
 
             bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
-            Assert.True(certOK);
+            Assert.That(certOK, Is.True);
 
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));

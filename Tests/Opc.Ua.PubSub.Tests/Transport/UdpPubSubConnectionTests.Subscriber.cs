@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     configurationFile,
                     m_messageContext.Telemetry);
 
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
             Assert.That(broadcastIPAddress, Is.Not.Null, "broadcastIPAddress is null");
@@ -281,7 +281,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -309,7 +309,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -392,7 +392,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             //set address and create subscriber
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -424,7 +424,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             //set address and create publisher
             var publisherAddress = new NetworkAddressUrlDataType
@@ -538,7 +538,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             //set address and create subscriber
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -571,7 +571,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -657,7 +657,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -686,7 +686,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -764,7 +764,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -792,7 +792,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -868,7 +868,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -896,7 +896,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -1051,21 +1051,20 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                     Assert.That(message.PublisherId.IsNull, Is.False);
                     Assert.That(message.DataSetWriterId, Is.Not.Null);
-                    Assert.IsNotNull(message.DataSetMetaData);
-                    Assert.IsNotNull(message.DataSetMetaData.Fields);
+                    Assert.That(message.DataSetMetaData, Is.Not.Null);
+                    Assert.That(message.DataSetMetaData.Fields.IsNull, Is.False);
                     Assert.That(message.DataSetMetaData.Fields.Count, Is.GreaterThan(0));
 
-                    Assert.IsNotNull(message.DataSetMetaData.Name);
-                    Assert.IsNotNull(message.DataSetMetaData.ConfigurationVersion);
+                    Assert.That(message.DataSetMetaData.Name, Is.Not.Null);
+                    Assert.That(message.DataSetMetaData.ConfigurationVersion, Is.Not.Null);
 
                     for (int i = 0; i < message.DataSetMetaData.Fields.Count; i++)
                     {
                         FieldMetaData field = message.DataSetMetaData.Fields[i];
-                        Assert.IsNotNull(field.Name);
-                        Assert.IsNotNull(field.DataType);
-                        Assert.IsNotNull(field.ValueRank);
-                        Assert.IsNotNull(field.TypeId);
-                        Assert.IsNotNull(field.Properties);
+                        Assert.That(field.Name, Is.Not.Null);
+                        Assert.That(field.DataType.IsNull, Is.False);
+                        Assert.That(field.TypeId.IsNull, Is.False);
+                        Assert.That(field.Properties.IsNull, Is.False);
                     }
                 }
                 m_shutdownEvent.Set();
@@ -1086,10 +1085,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 foreach (EndpointDescription ep in e.PublisherEndpoints)
                 {
-                    Assert.IsNotNull(ep.SecurityMode);
-                    Assert.IsNotEmpty(ep.SecurityPolicyUri);
-                    Assert.IsNotEmpty(ep.EndpointUrl);
-                    Assert.IsNotNull(ep.Server);
+                    Assert.That(ep.SecurityPolicyUri, Is.Not.Empty);
+                    Assert.That(ep.EndpointUrl, Is.Not.Empty);
+                    Assert.That(ep.Server, Is.Not.Null);
                 }
                 m_shutdownEvent.Set();
             }
@@ -1283,21 +1281,20 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     WriterGroupDataType config = e.DataSetWriterConfiguration;
 
-                    Assert.IsNotEmpty(config.Name);
-                    Assert.IsNotNull(config.SecurityKeyServices);
-                    Assert.IsNotNull(config.GroupProperties);
-                    Assert.IsNotNull(config.SecurityMode);
-                    Assert.IsNotNull(config.TransportSettings);
-                    Assert.IsNotNull(config.MessageSettings);
-                    Assert.IsNotEmpty(config.HeaderLayoutUri);
-                    Assert.IsFalse(config.DataSetWriters.IsNull);
+                    Assert.That(config.Name, Is.Not.Empty);
+                    Assert.That(config.SecurityKeyServices.IsNull, Is.False);
+                    Assert.That(config.GroupProperties.IsNull, Is.False);
+                    Assert.That(config.TransportSettings.IsNull, Is.False);
+                    Assert.That(config.MessageSettings.IsNull, Is.False);
+                    Assert.That(config.HeaderLayoutUri, Is.Not.Empty);
+                    Assert.That(config.DataSetWriters.IsNull, Is.False);
 
                     foreach (DataSetWriterDataType writer in config.DataSetWriters)
                     {
-                        Assert.IsNotEmpty(writer.Name);
-                        Assert.IsNotNull(writer.DataSetWriterProperties);
-                        Assert.IsNotNull(writer.MessageSettings);
-                        Assert.IsNotEmpty(writer.DataSetName);
+                        Assert.That(writer.Name, Is.Not.Empty);
+                        Assert.That(writer.DataSetWriterProperties.IsNull, Is.False);
+                        Assert.That(writer.MessageSettings.IsNull, Is.False);
+                        Assert.That(writer.DataSetName, Is.Not.Empty);
                     }
                     m_shutdownEvent.Set();
                 }
