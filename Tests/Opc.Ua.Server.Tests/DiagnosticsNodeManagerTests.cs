@@ -206,7 +206,8 @@ ObjectIds.Server,
             ArrayOf<uint> clientHandles = [3, 4];
             subMock.Setup(s => s.GetMonitoredItems(out serverHandles, out clientHandles));
 
-            m_subscriptionManagerMock.Setup(m => m.GetSubscriptions()).Returns([subMock.Object]);
+            ISubscription outSub = subMock.Object;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(true);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -247,7 +248,8 @@ ObjectIds.Server,
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
             SetupServerMock();
 
-            m_subscriptionManagerMock.Setup(m => m.GetSubscriptions()).Returns(System.Array.Empty<ISubscription>());
+            ISubscription outSub = null;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(false);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -279,7 +281,8 @@ ObjectIds.Server,
             subMock.Setup(s => s.SessionId).Returns(new NodeId(1, 1));
             subMock.Setup(s => s.ResendData(It.IsAny<OperationContext>()));
 
-            m_subscriptionManagerMock.Setup(m => m.GetSubscriptions()).Returns([subMock.Object]);
+            ISubscription outSub = subMock.Object;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(true);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -324,7 +327,8 @@ ObjectIds.Server,
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
             SetupServerMock();
 
-            m_subscriptionManagerMock.Setup(m => m.GetSubscriptions()).Returns(System.Array.Empty<ISubscription>());
+            ISubscription outSub = null;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(false);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();

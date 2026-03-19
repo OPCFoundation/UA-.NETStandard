@@ -739,10 +739,10 @@ namespace Opc.Ua.Server.Tests
             Assert.IsFalse(eventFields[2].IsNull); // SourceNode
             Assert.IsFalse(eventFields[3].IsNull); // SourceName
             Assert.IsFalse(eventFields[4].IsNull); // Time
-            eventFields[5].TryGet(out LocalizedText receivedMessage); // Message
+            Assert.That(eventFields[5].TryGet(out LocalizedText receivedMessage), Is.True); // Message
             Assert.IsFalse(receivedMessage.IsNull);
             Assert.AreEqual(eventMessage, receivedMessage.Text);
-            eventFields[6].TryGet(out ushort receiveSeverity);
+            Assert.That(eventFields[6].TryGet(out ushort receiveSeverity), Is.True);
             Assert.AreEqual((ushort)EventSeverity.Medium, receiveSeverity); // Severity
 
             // Delete subscription

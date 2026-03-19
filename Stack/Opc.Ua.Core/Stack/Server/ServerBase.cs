@@ -1669,6 +1669,23 @@ namespace Opc.Ua
 
                     m_queue.Writer.Complete();
 
+                    // Wait for all worker threads to complete
+                    Task[] workerTasks;
+                    lock (m_workers)
+                    {
+                        workerTasks = [.. m_workers];
+                    }
+                    
+                    try
+                    {
+                        Task.WaitAll(workerTasks, TimeSpan.FromSeconds(5));
+                    }
+                    catch (AggregateException)
+                    {
+                        // Ignore exceptions during shutdown
+                    }
+
+                    // Now drain any remaining requests from the queue
                     while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
                     {
                         request.OperationCompleted(null, StatusCodes.BadServerHalted);

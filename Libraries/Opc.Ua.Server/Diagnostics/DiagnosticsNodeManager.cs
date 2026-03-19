@@ -262,29 +262,26 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription subscription))
             {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (context is ISessionSystemContext session &&
-                        subscription.SessionId != session.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    subscription.GetMonitoredItems(
-                        out ArrayOf<uint> serverHandles,
-                        out ArrayOf<uint> clientHandles);
-
-                    outputArguments[0] = serverHandles;
-                    outputArguments[1] = clientHandles;
-
-                    return ServiceResult.Good;
-                }
+                return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            return StatusCodes.BadSubscriptionIdInvalid;
+            if (context is ISessionSystemContext session &&
+                subscription.SessionId != session.SessionId)
+            {
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            subscription.GetMonitoredItems(
+                out ArrayOf<uint> serverHandles,
+                out ArrayOf<uint> clientHandles);
+
+            outputArguments[0] = serverHandles;
+            outputArguments[1] = clientHandles;
+
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -306,24 +303,21 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription subscription))
             {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (context is not ServerSystemContext session ||
-                        subscription.SessionId != session.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    subscription.ResendData(session.OperationContext);
-
-                    return ServiceResult.Good;
-                }
+                return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            return StatusCodes.BadSubscriptionIdInvalid;
+            if (context is not ServerSystemContext session ||
+                subscription.SessionId != session.SessionId)
+            {
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            subscription.ResendData(session.OperationContext);
+
+            return ServiceResult.Good;
         }
 
         /// <summary>
