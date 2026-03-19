@@ -33,7 +33,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -48,10 +49,19 @@ namespace Quickstarts.Servers
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
 
-        private static readonly JsonSerializerSettings s_settings = new()
+        private static readonly JsonSerializerOptions s_settings = new()
         {
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Uses equality which does not work with Variant.
-            TypeNameHandling = TypeNameHandling.All
+            Converters =
+            {
+                new SubscriptionStore.DateTimeUtcConverter(),
+                new SubscriptionStore.ArrayOfConverterFactory(),
+                new SubscriptionStore.NodeIdConverter(),
+                new SubscriptionStore.ExpandedNodeIdConverter(),
+                new SubscriptionStore.StatusCodeConverter(),
+                new SubscriptionStore.VariantConverter()
+            },
+            ReferenceHandler = ReferenceHandler.IgnoreCycles,
+            WriteIndented = false
         };
 
         private const string kQueueDirectory = "Queues";
@@ -132,9 +142,9 @@ namespace Quickstarts.Servers
         /// </summary>
         /// <param name="ids">the MonitoredItem ids of the queues to store</param>
         [RequiresUnreferencedCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         [RequiresDynamicCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
         {
             string targetPath = Path.Combine(baseDirectory, kQueueDirectory);
@@ -152,7 +162,7 @@ namespace Quickstarts.Servers
                         out DurableDataChangeMonitoredItemQueue queue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(
+                        string result = JsonSerializer.Serialize(
                             queue.ToStorableQueue(),
                             s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
@@ -164,7 +174,7 @@ namespace Quickstarts.Servers
                         out DurableEventMonitoredItemQueue eventQueue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(
+                        string result = JsonSerializer.Serialize(
                             eventQueue.ToStorableQueue(),
                             s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
@@ -190,9 +200,9 @@ namespace Quickstarts.Servers
         /// Restore an Event queue
         /// </summary>
         [RequiresUnreferencedCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         [RequiresDynamicCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
         {
             try
@@ -208,7 +218,7 @@ namespace Quickstarts.Servers
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(
+                StorableEventQueue template = JsonSerializer.Deserialize<StorableEventQueue>(
                     result,
                     s_settings);
 
@@ -228,9 +238,9 @@ namespace Quickstarts.Servers
         /// Restore a DataChange queue
         /// </summary>
         [RequiresUnreferencedCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         [RequiresDynamicCode(
-            "Uses Newtonsoft.Json reflection-based serialization.")]
+            "Uses System.Text.Json reflection-based serialization.")]
         public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
         {
             try
@@ -246,7 +256,7 @@ namespace Quickstarts.Servers
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(
+                StorableDataChangeQueue template = JsonSerializer.Deserialize<StorableDataChangeQueue>(
                     result,
                     s_settings);
 

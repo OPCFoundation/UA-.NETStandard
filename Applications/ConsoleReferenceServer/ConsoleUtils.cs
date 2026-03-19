@@ -37,7 +37,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Mono.Options;
+using System.CommandLine;
+using System.CommandLine.Help;
 using Opc.Ua;
 using Serilog;
 using Serilog.Events;
@@ -287,81 +288,54 @@ namespace Quickstarts
     public static class ConsoleUtils
     {
         /// <summary>
-        /// Process a command line of the console sample application.
+        /// Merges environment variables into the argument list for System.CommandLine.
         /// </summary>
-        /// <exception cref="ErrorExitException"></exception>
-        public static string ProcessCommandLine(
+        /// <remarks>
+        /// Converts environment settings to command line flags
+        /// because in some environments (e.g. docker cloud) it is
+        /// the only supported way to pass arguments.
+        /// </remarks>
+        public static string[] MergeEnvironmentArgs(
             string[] args,
-            Mono.Options.OptionSet options,
-            ref bool showHelp,
             string environmentPrefix,
-            bool noExtraArgs = true,
-            TextWriter output = null)
+            Command command)
         {
-            output ??= Console.Out;
-
 #if NET5_0_OR_GREATER
-            // Convert environment settings to command line flags
-            // because in some environments (e.g. docker cloud) it is
-            // the only supported way to pass arguments.
             IConfigurationRoot config = new ConfigurationBuilder()
                 .AddEnvironmentVariables(environmentPrefix + "_")
                 .Build();
 
             List<string> argslist = [.. args];
-            foreach (Option option in options)
+            foreach (Option option in command.Options)
             {
-                string[] names = option.GetNames();
-                string longest = names.MaxBy(s => s.Length);
-                if (longest != null && longest.Length >= 3)
+                if (option is HelpOption or VersionOption)
                 {
-                    string envKey = config[longest.ToUpperInvariant()];
+                    continue;
+                }
+
+                string name = option.Name.TrimStart('-');
+                if (name.Length >= 3)
+                {
+                    string envKey = config[name.ToUpperInvariant()];
                     if (envKey != null)
                     {
-                        if (string.IsNullOrWhiteSpace(envKey) ||
-                            option.OptionValueType == OptionValueType.None)
+                        if (string.IsNullOrWhiteSpace(envKey))
                         {
-                            argslist.Add("--" + longest);
+                            argslist.Add("--" + name);
                         }
                         else
                         {
-                            argslist.Add("--" + longest + "=" + envKey);
+                            argslist.Add("--" + name);
+                            argslist.Add(envKey);
                         }
                     }
                 }
             }
-            args = [.. argslist];
+
+            return [.. argslist];
+#else
+            return args;
 #endif
-
-            IList<string> extraArgs = null;
-            try
-            {
-                extraArgs = options.Parse(args);
-                if (noExtraArgs)
-                {
-                    foreach (string extraArg in extraArgs)
-                    {
-                        output.WriteLine("Error: Unknown option: {0}", extraArg);
-                        showHelp = true;
-                    }
-                }
-            }
-            catch (OptionException e)
-            {
-                output.WriteLine(e.Message);
-                showHelp = true;
-            }
-
-            if (showHelp)
-            {
-                options.WriteOptionDescriptions(output);
-                throw new ErrorExitException(
-                    "Invalid Commandline or help requested.",
-                    ExitCode.ErrorInvalidCommandLine
-                );
-            }
-
-            return extraArgs.FirstOrDefault();
         }
 
         /// <summary>

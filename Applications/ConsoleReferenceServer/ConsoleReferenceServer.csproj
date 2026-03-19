@@ -10,8 +10,7 @@
     <RootNamespace>Quickstarts</RootNamespace>
     <UserSecretsId>46345736-a30f-4466-b3bb-42548ecfaacc</UserSecretsId>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
-    <!-- Suppress IL2104 from third-party packages that are not trim-compatible -->
-    <NoWarn Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">$(NoWarn);IL2104</NoWarn>
+
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />
@@ -29,7 +28,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
-    <PackageReference Include="Mono.Options" />
+    <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Expressions" />
     <PackageReference Include="Serilog.Sinks.Console" />

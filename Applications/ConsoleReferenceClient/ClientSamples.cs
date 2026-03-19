@@ -39,7 +39,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -1370,25 +1369,26 @@ namespace Quickstarts
             }
 
             // prettify
-            using var stringWriter = new StringWriter();
             try
             {
-                using var stringReader = new StringReader(textbuffer);
-                var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter)
+                using var doc = System.Text.Json.JsonDocument.Parse(textbuffer);
+                using var stream = new MemoryStream();
+                using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions
                 {
-                    Formatting = Formatting.Indented,
-                    Culture = CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
+                    Indented = true
+                }))
+                {
+                    doc.WriteTo(writer);
+                }
+                return Encoding.UTF8.GetString(stream.ToArray());
             }
             catch (Exception ex)
             {
+                using var stringWriter = new StringWriter();
                 stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
                 stringWriter.WriteLine(textbuffer);
                 throw;
             }
-            return stringWriter.ToString();
         }
 
         /// <summary>

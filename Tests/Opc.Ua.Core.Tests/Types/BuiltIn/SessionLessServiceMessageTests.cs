@@ -1,4 +1,5 @@
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -47,13 +48,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 result = jsonEncoder.CloseAndReturnText();
             }
 
-            var jObject = JObject.Parse(result);
+            var jObject = JsonNode.Parse(result);
             Assert.IsNotNull(jObject);
-            uint version = jObject["UriVersion"].ToObject<uint>();
+            uint version = (uint)jObject["UriVersion"];
             Assert.AreEqual(uriVersion, version);
-            JToken serverUrisToken = jObject["ServerUris"];
+            JsonNode serverUrisToken = jObject["ServerUris"];
             Assert.IsNotNull(serverUrisToken);
-            string[] serverUrisEncoded = serverUrisToken.ToObject<string[]>();
+            string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString());
             Assert.IsNotNull(serverUrisEncoded);
             Assert.AreEqual(1, serverUrisEncoded.Length);
             Assert.Contains(expectedServerUri, serverUrisEncoded);

@@ -38,8 +38,8 @@ using System.Text;
 using System.Threading;
 using System.Xml;
 using Microsoft.IO;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
@@ -72,6 +72,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kMaxArrayLength = 1024 * 64;
         protected const int kTestBlockSize = 0x1000;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
+
+        private static readonly JsonSerializerOptions s_prettifyOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected IServiceMessageContext Context { get; private set; }
@@ -427,14 +434,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Result:");
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings
-                {
-                    CommentHandling = CommentHandling.Ignore,
-                    LineInfoHandling = LineInfoHandling.Ignore
-                };
-                var resultParsed = JObject.Parse(result, jsonLoadSettings);
-                var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                var resultParsed = JsonNode.Parse(result);
+                var expectedParsed = JsonNode.Parse(expected);
+                bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }
             catch
@@ -519,18 +521,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             try
             {
-                using var stringWriter = new StringWriter();
-                using var stringReader = new StringReader(json);
-                using var jsonReader = new JsonTextReader(stringReader);
-                using var jsonWriter = new JsonTextWriter(stringWriter)
-                {
-                    FloatFormatHandling = FloatFormatHandling.String,
-                    StringEscapeHandling = StringEscapeHandling.EscapeHtml,
-                    Formatting = Newtonsoft.Json.Formatting.Indented,
-                    Culture = System.Globalization.CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
-                string formattedJson = stringWriter.ToString();
+                var jsonDocument = JsonDocument.Parse(json);
+                string formattedJson = JsonSerializer.Serialize(jsonDocument, s_prettifyOptions);
                 if (outputFormatted)
                 {
                     TestContext.Out.WriteLine(formattedJson);

@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -402,9 +402,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
             var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -517,9 +517,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
             var context = new ServiceMessageContext(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -635,8 +635,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext(telemetry);
@@ -726,8 +726,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext(telemetry);
@@ -845,8 +845,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext(telemetry);
@@ -966,8 +966,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext(telemetry);
@@ -999,3 +999,4 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
     }
 }
+
