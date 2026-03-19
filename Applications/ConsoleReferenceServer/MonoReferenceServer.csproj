@@ -21,7 +21,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.CommandLine" Version="2.0.5" />
+    <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Quickstarts.MonoReferenceServer.Config.xml">

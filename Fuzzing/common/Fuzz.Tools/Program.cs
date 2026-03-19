@@ -28,10 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using Mono.Options;
+using System.CommandLine;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -53,75 +52,62 @@ namespace Opc.Ua.Fuzzing
             string applicationName = typeof(Program).Assembly.GetName().Name;
 
             Console.WriteLine($"OPC UA {applicationName}");
-            string usage = $"Usage: {applicationName}.exe [OPTIONS]";
 
-            bool showHelp = false;
-            bool playback = false;
-            bool testcases = false;
-            bool stacktrace = false;
+            var playbackOption = new Option<bool>("--playback", "-p") { Description = "playback crashes found by afl-fuzz and libfuzzer" };
+            var testcasesOption = new Option<bool>("--testcases", "-t") { Description = "create test cases for fuzzing" };
+            var stacktraceOption = new Option<bool>("--stacktrace", "-s") { Description = "show stacktrace with playback" };
 
-            var options = new Mono.Options.OptionSet
+            var rootCommand = new RootCommand($"Usage: {applicationName}.exe [OPTIONS]")
             {
-                usage,
-                { "h|help", "show this message and exit", h => showHelp = h != null },
-                {
-                    "p|playback",
-                    "playback crashes found by afl-fuzz and libfuzzer",
-                    p => playback = p != null },
-                { "t|testcases", "create test cases for fuzzing", t => testcases = t != null },
-                { "s|stacktrace", "show stacktrace with playback", s => stacktrace = s != null }
+                playbackOption,
+                testcasesOption,
+                stacktraceOption
             };
 
-            var telemetry = new Logging();
-            telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
+            rootCommand.SetAction((parseResult) =>
+            {
+                bool playback = parseResult.GetValue(playbackOption);
+                bool testcases = parseResult.GetValue(testcasesOption);
+                bool stacktrace = parseResult.GetValue(stacktraceOption);
 
-            // TODO: this loads opc ua assembly, but this should not be needed.
-            // but otherwise encoderfactory currently does not get all types.
-            var temp = new AlarmConditionState(null);
+                var telemetry = new Logging();
+                telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
 
-            IList<string> extraArgs = null;
-            try
-            {
-                extraArgs = options.Parse(args);
-            }
-            catch (OptionException e)
-            {
-                Console.WriteLine(e.Message);
-                showHelp = true;
-            }
+                // TODO: this loads opc ua assembly, but this should not be needed.
+                // but otherwise encoderfactory currently does not get all types.
+                var temp = new AlarmConditionState(null);
 
-            if (testcases)
-            {
-                Testcases.Run(DefaultTestcasesFolder, telemetry);
-            }
-            else if (playback)
-            {
-                foreach (string encoderType in Testcases.TestcaseEncoderSuffixes)
+                if (testcases)
                 {
-                    Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType[1..]);
-                    Playback.Run(
-                        DefaultTestcasesFolder + encoderType + Path.DirectorySeparatorChar,
-                        stacktrace,
-                        telemetry);
+                    Testcases.Run(DefaultTestcasesFolder, telemetry);
                 }
-                Console.WriteLine("--- afl-fuzz crash findings ---");
-                Playback.Run(DefaultFindingsCrashFolder, stacktrace, telemetry);
-                Console.WriteLine("--- afl-fuzz timeout findings ---");
-                Playback.Run(DefaultFindingsHangsFolder, stacktrace, telemetry);
-                Console.WriteLine("--- libfuzzer crashes ---");
-                Playback.Run(DefaultLibFuzzerCrashes, stacktrace, telemetry);
-                Console.WriteLine("--- libfuzzer timeouts ---");
-                Playback.Run(DefaultLibFuzzerHangs, stacktrace, telemetry);
-            }
-            else
-            {
-                showHelp = true;
-            }
+                else if (playback)
+                {
+                    foreach (string encoderType in Testcases.TestcaseEncoderSuffixes)
+                    {
+                        Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType[1..]);
+                        Playback.Run(
+                            DefaultTestcasesFolder + encoderType + Path.DirectorySeparatorChar,
+                            stacktrace,
+                            telemetry);
+                    }
+                    Console.WriteLine("--- afl-fuzz crash findings ---");
+                    Playback.Run(DefaultFindingsCrashFolder, stacktrace, telemetry);
+                    Console.WriteLine("--- afl-fuzz timeout findings ---");
+                    Playback.Run(DefaultFindingsHangsFolder, stacktrace, telemetry);
+                    Console.WriteLine("--- libfuzzer crashes ---");
+                    Playback.Run(DefaultLibFuzzerCrashes, stacktrace, telemetry);
+                    Console.WriteLine("--- libfuzzer timeouts ---");
+                    Playback.Run(DefaultLibFuzzerHangs, stacktrace, telemetry);
+                }
+                else
+                {
+                    Console.WriteLine("No action specified. Use --help for usage information.");
+                }
+            });
 
-            if (showHelp)
-            {
-                options.WriteOptionDescriptions(Console.Out);
-            }
+            ParseResult parseResult = rootCommand.Parse(args);
+            parseResult.Invoke(new InvocationConfiguration());
         }
     }
 }

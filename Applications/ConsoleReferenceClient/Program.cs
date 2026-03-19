@@ -41,6 +41,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using System.CommandLine;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -57,7 +58,7 @@ namespace Quickstarts.ConsoleReferenceClient
             Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
-        public static async Task Main(string[] args)
+        public static Task<int> Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Client");
 
@@ -71,245 +72,170 @@ namespace Quickstarts.ConsoleReferenceClient
             // The application name and config file names
             const string applicationName = "ConsoleReferenceClient";
             const string configSectionName = "Quickstarts.ReferenceClient";
-            string usage = $"Usage: dotnet {applicationName}.dll [OPTIONS]";
 
             // command line options
-            bool showHelp = false;
-            bool autoAccept = false;
-            string username = null;
-            byte[] userpassword = null;
-            string userCertificateThumbprint = null;
-            byte[] userCertificatePassword = null;
-            bool logConsole = false;
-            bool appLog = false;
-            bool fileLog = false;
-            bool renewCertificate = false;
-            bool loadTypes = false;
-            bool managedbrowseall = false;
-            bool browseall = false;
-            bool fetchall = false;
-            bool jsonvalues = false;
-            bool verbose = false;
-            bool subscribe = false;
-            bool noSecurity = false;
-            byte[] pfxPassword = null;
-            int timeout = Timeout.Infinite;
-            string logFile = null;
-            string reverseConnectUrlString = null;
-            bool leakChannels = false;
-            bool forever = false;
-            bool enableDurableSubscriptions = false;
-            bool exportNodes = false;
-
-            var options = new Mono.Options.OptionSet
+            var autoAcceptOption = new Option<bool>("--autoaccept", "-a")
             {
-                usage,
-                { "h|help", "show this message and exit", h => showHelp = h != null },
-                {
-                    "a|autoaccept",
-                    "auto accept certificates (for testing only)",
-                    a => autoAccept = a != null },
-                {
-                    "nsec|nosecurity",
-                    "select endpoint with security NONE, least secure if unavailable",
-                    s => noSecurity = s != null
-                },
-                {
-                    "un|username=",
-                    "the name of the user identity for the connection",
-                    u => username = u },
-                {
-                    "up|userpassword=",
-                    "the password of the user identity for the connection",
-                    u => userpassword = Encoding.UTF8.GetBytes(u) },
-                {
-                    "uc|usercertificate=",
-                    "the thumbprint of the user certificate for the user identity",
-                    u => userCertificateThumbprint = u
-                },
-                {
-                    "ucp|usercertificatepassword=",
-                    "the password of the user certificate for the user identity",
-                    u => userCertificatePassword = Encoding.UTF8.GetBytes(u)
-                },
-                { "c|console", "log to console", c => logConsole = c != null },
-                { "l|log", "log app output", c => appLog = c != null },
-                { "f|file", "log to file", f => fileLog = f != null },
-                {
-                    "p|password=",
-                    "optional password for private key",
-                    p => pfxPassword = Encoding.UTF8.GetBytes(p)
-                },
-                { "r|renew", "renew application certificate", r => renewCertificate = r != null },
-                {
-                    "t|timeout=",
-                    "timeout in seconds to exit application",
-                    (int t) => timeout = t * 1000 },
-                {
-                    "logfile=",
-                    "custom file name for log output",
-                    l =>
-                    {
-                        if (l != null)
-                        {
-                            logFile = l;
-                        }
-                    }
-                },
-                {
-                    "lt|loadtypes",
-                    "Load custom types",
-                    lt =>
-                    {
-                        if (lt != null)
-                        {
-                            loadTypes = true;
-                        }
-                    }
-                },
-                {
-                    "m|managedbrowseall",
-                    "Browse all references using the MangedBrowseAsync method",
-                    m =>
-                    {
-                        if (m != null)
-                        {
-                            managedbrowseall = true;
-                        }
-                    }
-                },
-                {
-                    "b|browseall",
-                    "Browse all references",
-                    b =>
-                    {
-                        if (b != null)
-                        {
-                            browseall = true;
-                        }
-                    }
-                },
-                {
-                    "e|export",
-                    "Export all fetched nodes into Nodeset2 xml per default",
-                    e =>
-                    {
-                        if (e != null)
-                        {
-                            exportNodes = true;
-                        }
-                    }
-                },
-                {
-                    "fa|fetchall",
-                    "Fetch all nodes",
-                    f =>
-                    {
-                        if (f != null)
-                        {
-                            fetchall = true;
-                        }
-                    }
-                },
-                {
-                    "j|json",
-                    "Output all Values as JSON",
-                    j =>
-                    {
-                        if (j != null)
-                        {
-                            jsonvalues = true;
-                        }
-                    }
-                },
-                {
-                    "v|verbose",
-                    "Verbose output",
-                    v =>
-                    {
-                        if (v != null)
-                        {
-                            verbose = true;
-                        }
-                    }
-                },
-                {
-                    "s|subscribe",
-                    "Subscribe",
-                    s =>
-                    {
-                        if (s != null)
-                        {
-                            subscribe = true;
-                        }
-                    }
-                },
-                {
-                    "rc|reverseconnect=",
-                    "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)",
-                    url => reverseConnectUrlString = url
-                },
-                {
-                    "forever",
-                    "run inner connect/disconnect loop forever",
-                    f =>
-                    {
-                        if (f != null)
-                        {
-                            forever = true;
-                        }
-                    }
-                },
-                {
-                    "leakchannels",
-                    "Leave a channel leak open when disconnecting a session.",
-                    l =>
-                    {
-                        if (l != null)
-                        {
-                            leakChannels = true;
-                        }
-                    }
-                },
-                {
-                    "ds|durablesubscription",
-                    "SetDurableSubscription example",
-                    ds =>
-                    {
-                        if (ds != null)
-                        {
-                            enableDurableSubscriptions = true;
-                        }
-                    }
-                }
+                Description = "auto accept certificates (for testing only)"
+            };
+            var noSecurityOption = new Option<bool>("--nosecurity", "--nsec")
+            {
+                Description = "select endpoint with security NONE, least secure if unavailable"
+            };
+            var usernameOption = new Option<string>("--username", "--un")
+            {
+                Description = "the name of the user identity for the connection"
+            };
+            var userPasswordOption = new Option<string>("--userpassword", "--up")
+            {
+                Description = "the password of the user identity for the connection"
+            };
+            var userCertificateOption = new Option<string>("--usercertificate", "--uc")
+            {
+                Description = "the thumbprint of the user certificate for the user identity"
+            };
+            var userCertificatePasswordOption = new Option<string>("--usercertificatepassword", "--ucp")
+            {
+                Description = "the password of the user certificate for the user identity"
+            };
+            var consoleOption = new Option<bool>("--console", "-c") { Description = "log to console" };
+            var logOption = new Option<bool>("--log", "-l") { Description = "log app output" };
+            var fileOption = new Option<bool>("--file", "-f") { Description = "log to file" };
+            var passwordOption = new Option<string>("--password", "-p")
+            {
+                Description = "optional password for private key"
+            };
+            var renewOption = new Option<bool>("--renew", "-r")
+            {
+                Description = "renew application certificate"
+            };
+            var timeoutOption = new Option<int>("--timeout", "-t")
+            {
+                Description = "timeout in seconds to exit application",
+                DefaultValueFactory = _ => Timeout.Infinite
+            };
+            var logFileOption = new Option<string>("--logfile")
+            {
+                Description = "custom file name for log output"
+            };
+            var loadTypesOption = new Option<bool>("--loadtypes", "--lt")
+            {
+                Description = "Load custom types"
+            };
+            var managedBrowseAllOption = new Option<bool>("--managedbrowseall", "-m")
+            {
+                Description = "Browse all references using the MangedBrowseAsync method"
+            };
+            var browseAllOption = new Option<bool>("--browseall", "-b")
+            {
+                Description = "Browse all references"
+            };
+            var exportOption = new Option<bool>("--export", "-e")
+            {
+                Description = "Export all fetched nodes into Nodeset2 xml per default"
+            };
+            var fetchAllOption = new Option<bool>("--fetchall", "--fa")
+            {
+                Description = "Fetch all nodes"
+            };
+            var jsonOption = new Option<bool>("--json", "-j")
+            {
+                Description = "Output all Values as JSON"
+            };
+            var verboseOption = new Option<bool>("--verbose", "-v") { Description = "Verbose output" };
+            var subscribeOption = new Option<bool>("--subscribe", "-s") { Description = "Subscribe" };
+            var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
+            {
+                Description = "Connect using the reverse connect endpoint. (e.g. --rc opc.tcp://localhost:65300)"
+            };
+            var foreverOption = new Option<bool>("--forever")
+            {
+                Description = "run inner connect/disconnect loop forever"
+            };
+            var leakChannelsOption = new Option<bool>("--leakchannels")
+            {
+                Description = "Leave a channel leak open when disconnecting a session."
+            };
+            var durableSubscriptionOption = new Option<bool>("--durablesubscription", "--ds")
+            {
+                Description = "SetDurableSubscription example"
+            };
+            var serverUrlArgument = new Argument<string>("serverUrl")
+            {
+                Description = "The OPC UA server URL to connect to",
+                DefaultValueFactory = _ => "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
             };
 
-            ReverseConnectManager reverseConnectManager = null;
-            using var telemetry = new ConsoleTelemetry();
-            ILogger logger = LoggerUtils.Null.Logger;
-            try
+            var rootCommand = new RootCommand($"Usage: dotnet {applicationName}.dll [OPTIONS] [serverUrl]")
             {
-                // parse command line and set options
-                string extraArg = ConsoleUtils.ProcessCommandLine(
-                    args,
-                    options,
-                    ref showHelp,
-                    "REFCLIENT",
-                    false
-                );
+                autoAcceptOption,
+                noSecurityOption,
+                usernameOption,
+                userPasswordOption,
+                userCertificateOption,
+                userCertificatePasswordOption,
+                consoleOption,
+                logOption,
+                fileOption,
+                passwordOption,
+                renewOption,
+                timeoutOption,
+                logFileOption,
+                loadTypesOption,
+                managedBrowseAllOption,
+                browseAllOption,
+                exportOption,
+                fetchAllOption,
+                jsonOption,
+                verboseOption,
+                subscribeOption,
+                reverseConnectOption,
+                foreverOption,
+                leakChannelsOption,
+                durableSubscriptionOption,
+                serverUrlArgument
+            };
 
-                // connect Url?
-                var serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
-                if (!string.IsNullOrEmpty(extraArg))
-                {
-                    serverUrl = new Uri(extraArg);
-                }
+            rootCommand.SetAction(async (parseResult, cancellationToken) =>
+            {
+                bool autoAccept = parseResult.GetValue(autoAcceptOption);
+                bool noSecurity = parseResult.GetValue(noSecurityOption);
+                string username = parseResult.GetValue(usernameOption);
+                byte[] userpassword = parseResult.GetValue(userPasswordOption) is string upStr ? Encoding.UTF8.GetBytes(upStr) : null;
+                string userCertificateThumbprint = parseResult.GetValue(userCertificateOption);
+                byte[] userCertificatePassword = parseResult.GetValue(userCertificatePasswordOption) is string ucpStr ? Encoding.UTF8.GetBytes(ucpStr) : null;
+                bool logConsole = parseResult.GetValue(consoleOption);
+                bool appLog = parseResult.GetValue(logOption);
+                bool fileLog = parseResult.GetValue(fileOption);
+                byte[] pfxPassword = parseResult.GetValue(passwordOption) is string pfxStr ? Encoding.UTF8.GetBytes(pfxStr) : null;
+                bool renewCertificate = parseResult.GetValue(renewOption);
+                int timeout = parseResult.GetValue(timeoutOption);
+                if (timeout > 0) { timeout *= 1000; }
+                string logFile = parseResult.GetValue(logFileOption);
+                bool loadTypes = parseResult.GetValue(loadTypesOption);
+                bool managedbrowseall = parseResult.GetValue(managedBrowseAllOption);
+                bool browseall = parseResult.GetValue(browseAllOption);
+                bool exportNodes = parseResult.GetValue(exportOption);
+                bool fetchall = parseResult.GetValue(fetchAllOption);
+                bool jsonvalues = parseResult.GetValue(jsonOption);
+                bool verbose = parseResult.GetValue(verboseOption);
+                bool subscribe = parseResult.GetValue(subscribeOption);
+                string reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
+                bool forever = parseResult.GetValue(foreverOption);
+                bool leakChannels = parseResult.GetValue(leakChannelsOption);
+                bool enableDurableSubscriptions = parseResult.GetValue(durableSubscriptionOption);
+                var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
 
-                // log console output to logger
-                if (logConsole && appLog)
+                ReverseConnectManager reverseConnectManager = null;
+                using var telemetry = new ConsoleTelemetry();
+                ILogger logger = LoggerUtils.Null.Logger;
+                try
                 {
-                    logger = telemetry.CreateLogger("Main");
-                }
+                    // log console output to logger
+                    if (logConsole && appLog)
+                    {
+                        logger = telemetry.CreateLogger("Main");
+                    }
 
                 // Define the UA Client application
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -779,15 +705,21 @@ namespace Quickstarts.ConsoleReferenceClient
                 } while (!quit);
 
                 Console.WriteLine("Client stopped.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"{ex.Message}");
-            }
-            finally
-            {
-                Utils.SilentDispose(reverseConnectManager);
-            }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"{ex.Message}");
+                }
+                finally
+                {
+                    Utils.SilentDispose(reverseConnectManager);
+                }
+            });
+
+            args = ConsoleUtils.MergeEnvironmentArgs(args, "REFCLIENT", rootCommand);
+            ParseResult cmdParseResult = rootCommand.Parse(args);
+            return cmdParseResult
+                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
         }
 
         /// <summary>

@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Mono.Options;
+using System.CommandLine;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
@@ -66,147 +66,117 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             Console.WriteLine("OPC UA Console Reference Subscriber");
 
             // command line options
-            bool showHelp = false;
-            bool useMqttJson = true;
-            bool useMqttUadp = false;
-            bool useUdpUadp = false;
-            string subscriberUrl = null;
+            var mqttJsonOption = new Option<bool>("--mqtt_json", "-m") { Description = "Use MQTT with Json encoding Profile. This is the default option." };
+            var mqttUadpOption = new Option<bool>("--mqtt_uadp", "-p") { Description = "Use MQTT with UADP encoding Profile." };
+            var udpUadpOption = new Option<bool>("--udp_uadp", "-u") { Description = "Use UDP with UADP encoding Profile" };
+            var subscriberUrlOption = new Option<string>("--subscriber_url", "--url") { Description = "Subscriber Url Address" };
 
-            var options = new Mono.Options.OptionSet
+            var rootCommand = new RootCommand("OPC UA Console Reference Subscriber")
             {
-                { "h|help", "Show usage information", v => showHelp = v != null },
-                {
-                    "m|mqtt_json",
-                    "Use MQTT with Json encoding Profile. This is the default option.",
-                    v => useMqttJson = v != null
-                },
-                {
-                    "p|mqtt_uadp",
-                    "Use MQTT with UADP encoding Profile.",
-                    v => useMqttUadp = v != null },
-                { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
-                { "url|subscriber_url=", "Subscriber Url Address", v => subscriberUrl = v }
+                mqttJsonOption,
+                mqttUadpOption,
+                udpUadpOption,
+                subscriberUrlOption
             };
 
-            List<string> extraArgs;
-            try
+            rootCommand.SetAction((parseResult) =>
             {
-                extraArgs = options.Parse(args);
-                if (extraArgs.Count > 0)
+                bool useMqttUadp = parseResult.GetValue(mqttUadpOption);
+                bool useUdpUadp = parseResult.GetValue(udpUadpOption);
+                string subscriberUrl = parseResult.GetValue(subscriberUrlOption);
+
+                try
                 {
-                    foreach (string extraArg in extraArgs)
+                    var telemetry = new ConsoleTelemetry();
+
+                    PubSubConfigurationDataType pubSubConfiguration = null;
+                    if (useUdpUadp)
                     {
-                        Console.WriteLine("Error: Unknown option: {0}", extraArg);
-                        showHelp = true;
-                    }
-                }
-            }
-            catch (OptionException e)
-            {
-                Console.WriteLine(e.Message);
-                showHelp = true;
-            }
+                        // set default UDP Subscriber Url to local multicast if not sent in args.
+                        if (string.IsNullOrEmpty(subscriberUrl))
+                        {
+                            subscriberUrl = "opc.udp://239.0.0.1:4840";
+                        }
 
-            if (showHelp)
-            {
-                Console.WriteLine("Usage: dotnet ConsoleReferenceSubscriber.dll [OPTIONS]");
-                Console.WriteLine();
-
-                Console.WriteLine("Options:");
-                options.WriteOptionDescriptions(Console.Out);
-                return;
-            }
-            try
-            {
-                var telemetry = new ConsoleTelemetry();
-                // telemetry.AddFileOutput("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferenceSubscriber.log.txt");
-                // Utils.SetTraceMask(Utils.TraceMasks.Error);
-                // Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-
-                PubSubConfigurationDataType pubSubConfiguration = null;
-                if (useUdpUadp)
-                {
-                    // set default UDP Subscriber Url to local multicast if not sent in args.
-                    if (string.IsNullOrEmpty(subscriberUrl))
-                    {
-                        subscriberUrl = "opc.udp://239.0.0.1:4840";
-                    }
-
-                    // Create configuration using UDP protocol and UADP Encoding
-                    pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp(subscriberUrl);
-                    Console.WriteLine(
-                        "The Pubsub Connection was initialized using UDP & UADP Profile.");
-                }
-                else
-                {
-                    // set default MQTT Broker Url to localhost if not sent in args.
-                    if (string.IsNullOrEmpty(subscriberUrl))
-                    {
-                        subscriberUrl = "mqtt://localhost:1883";
-                    }
-
-                    if (useMqttUadp)
-                    {
-                        // Create configuration using MQTT protocol and UADP Encoding
-                        pubSubConfiguration = CreateSubscriberConfiguration_MqttUadp(subscriberUrl);
+                        // Create configuration using UDP protocol and UADP Encoding
+                        pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp(subscriberUrl);
                         Console.WriteLine(
-                            "The PubSub Connection was initialized using MQTT & UADP Profile.");
+                            "The Pubsub Connection was initialized using UDP & UADP Profile.");
                     }
                     else
                     {
-                        // Create configuration using MQTT protocol and JSON Encoding
-                        pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
-                        Console.WriteLine(
-                            "The PubSub Connection was initialized using MQTT & JSON Profile.");
-                    }
-                }
-
-                // Create the UA Publisher application
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
-                {
-                    // Subscribte to RawDataReceived event
-                    uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
-
-                    // Subscribte to DataReceived event
-                    uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;
-
-                    // Subscribte to MetaDataReceived event
-                    uaPubSubApplication.MetaDataReceived
-                        += UaPubSubApplication_MetaDataDataReceived;
-
-                    uaPubSubApplication.ConfigurationUpdating
-                        += UaPubSubApplication_ConfigurationUpdating;
-
-                    // Start the publisher
-                    uaPubSubApplication.Start();
-
-                    Console.WriteLine("Subscriber Started. Press Ctrl-C to exit...");
-
-                    var quitEvent = new ManualResetEvent(false);
-                    try
-                    {
-                        Console.CancelKeyPress += (sender, eArgs) =>
+                        // set default MQTT Broker Url to localhost if not sent in args.
+                        if (string.IsNullOrEmpty(subscriberUrl))
                         {
-                            quitEvent.Set();
-                            eArgs.Cancel = true;
-                        };
+                            subscriberUrl = "mqtt://localhost:1883";
+                        }
+
+                        if (useMqttUadp)
+                        {
+                            // Create configuration using MQTT protocol and UADP Encoding
+                            pubSubConfiguration = CreateSubscriberConfiguration_MqttUadp(subscriberUrl);
+                            Console.WriteLine(
+                                "The PubSub Connection was initialized using MQTT & UADP Profile.");
+                        }
+                        else
+                        {
+                            // Create configuration using MQTT protocol and JSON Encoding
+                            pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
+                            Console.WriteLine(
+                                "The PubSub Connection was initialized using MQTT & JSON Profile.");
+                        }
                     }
-                    catch
+
+                    // Create the UA Publisher application
+                    using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                     {
+                        // Subscribte to RawDataReceived event
+                        uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
+
+                        // Subscribte to DataReceived event
+                        uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;
+
+                        // Subscribte to MetaDataReceived event
+                        uaPubSubApplication.MetaDataReceived
+                            += UaPubSubApplication_MetaDataDataReceived;
+
+                        uaPubSubApplication.ConfigurationUpdating
+                            += UaPubSubApplication_ConfigurationUpdating;
+
+                        // Start the publisher
+                        uaPubSubApplication.Start();
+
+                        Console.WriteLine("Subscriber Started. Press Ctrl-C to exit...");
+
+                        var quitEvent = new ManualResetEvent(false);
+                        try
+                        {
+                            Console.CancelKeyPress += (sender, eArgs) =>
+                            {
+                                quitEvent.Set();
+                                eArgs.Cancel = true;
+                            };
+                        }
+                        catch
+                        {
+                        }
+
+                        // wait for timeout or Ctrl-C
+                        quitEvent.WaitOne();
                     }
 
-                    // wait for timeout or Ctrl-C
-                    quitEvent.WaitOne();
+                    Console.WriteLine("Program ended.");
+                    Console.WriteLine("Press any key to finish...");
+                    Console.ReadKey();
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            });
 
-                Console.WriteLine("Program ended.");
-                Console.WriteLine("Press any key to finish...");
-                Console.ReadKey();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            ParseResult parseResult = rootCommand.Parse(args);
+            parseResult.Invoke(new InvocationConfiguration());
         }
 
         /// <summary>

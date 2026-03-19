@@ -44,7 +44,7 @@ namespace Quickstarts.ReferenceServer
     /// </summary>
     public static class Program
     {
-        public static async Task<int> Main(string[] args)
+        public static Task<int> Main(string[] args)
         {
             Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 
@@ -68,12 +68,25 @@ namespace Quickstarts.ReferenceServer
             var fileOption = new Option<bool>("--file", "-f") { Description = "log to file" };
             var passwordOption = new Option<string>("--password", "-p") { Description = "optional password for private key" };
             var renewOption = new Option<bool>("--renew", "-r") { Description = "renew application certificate" };
-            var timeoutOption = new Option<int>("--timeout", "-t") { Description = "timeout in seconds to exit application", DefaultValueFactory = _ => -1 };
+            var timeoutOption = new Option<int>("--timeout", "-t")
+            {
+                Description = "timeout in seconds to exit application",
+                DefaultValueFactory = _ => -1
+            };
             var shadowConfigOption = new Option<bool>("--shadowconfig", "-s") { Description = "create configuration in pki root" };
-            var samplingGroupsOption = new Option<bool>("--samplinggroups", "--sg") { Description = "use the sampling group mechanism in the Reference Node Manager" };
+            var samplingGroupsOption = new Option<bool>("--samplinggroups", "--sg")
+            {
+                Description = "use the sampling group mechanism in the Reference Node Manager"
+            };
             var cttOption = new Option<bool>("--ctt") { Description = "CTT mode, use to preset alarms for CTT testing." };
-            var provisionOption = new Option<bool>("--provision") { Description = "start server in provisioning mode with limited namespace for certificate provisioning" };
-            var reverseConnectOption = new Option<string>("--reverseconnect", "--rc") { Description = "Connect to the specified client endpoint for reverse connect. (e.g. --rc opc.tcp://localhost:65300)" };
+            var provisionOption = new Option<bool>("--provision")
+            {
+                Description = "start server in provisioning mode with limited namespace for certificate provisioning"
+            };
+            var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
+            {
+                Description = "Connect to the specified client endpoint for reverse connect. (e.g. --rc opc.tcp://localhost:65300)"
+            };
 
             var rootCommand = new RootCommand(
                 Utils.IsRunningOnMono()
@@ -242,7 +255,8 @@ namespace Quickstarts.ReferenceServer
 
             args = ConsoleUtils.MergeEnvironmentArgs(args, "REFSERVER", rootCommand);
             ParseResult parseResult = rootCommand.Parse(args);
-            return await parseResult.InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
+            return parseResult
+                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
         }
     }
 }
