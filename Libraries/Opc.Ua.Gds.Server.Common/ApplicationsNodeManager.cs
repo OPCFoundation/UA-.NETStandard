@@ -1841,7 +1841,7 @@ namespace Opc.Ua.Gds.Server
                     ));
             }
             else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
+                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
                 certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
@@ -1854,7 +1854,7 @@ namespace Opc.Ua.Gds.Server
             {
                 // Create a new custom certificate group node in the address space
                 // for any group whose Id does not match one of the three predefined groups.
-                CertificateGroupFolderState certGroupsFolder = FindPredefinedNode<Ua.CertificateGroupFolderState>(
+                CertificateGroupFolderState certGroupsFolder = FindPredefinedNode<CertificateGroupFolderState>(
                     ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris));
 
                 if (certGroupsFolder == null)
@@ -1864,7 +1864,7 @@ namespace Opc.Ua.Gds.Server
                         "CertificateGroups folder node was not found in the address space.");
                 }
 
-                var customGroupNode = new Ua.CertificateGroupState(certGroupsFolder);
+                var customGroupNode = new CertificateGroupState(certGroupsFolder);
                 customGroupNode.Create(
                     SystemContext,
                     NodeId.Null,

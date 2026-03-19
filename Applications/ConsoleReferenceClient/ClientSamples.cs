@@ -1544,7 +1544,7 @@ namespace Quickstarts
             if (e.AcknowledgementsToSend.Count > 0)
             {
                 // defer latest sequence numbers
-                var deferredItems = e
+                List<SubscriptionAcknowledgement> deferredItems = e
                     .AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber)
                     .Take(ackDelay)
                     .ToList();

@@ -34,7 +34,6 @@ using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -204,15 +203,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 if (toArray)
                 {
                     int length2 = jsonEncoder.Close();
-                    Assert.AreEqual(length2 + length1, memoryStream.Position);
+                    Assert.That(memoryStream.Position, Is.EqualTo(length2 + length1));
                     byte[] result = memoryStream.ToArray();
-                    Assert.NotNull(result);
-                    Assert.AreEqual(length2 + length1, result.Length);
+                    Assert.That(result, Is.Not.Null);
+                    Assert.That(result.Length, Is.EqualTo(length2 + length1));
                 }
                 else
                 {
                     string result = jsonEncoder.CloseAndReturnText();
-                    Assert.NotNull(result);
+                    Assert.That(result, Is.Not.Null);
                 }
             }
         }
@@ -241,9 +240,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (testResult)
             {
                 string result = Encoding.UTF8.GetString(stream.ToArray());
-                Assert.NotNull(result);
-                Assert.AreEqual(length1 * 2, length2);
-                Assert.AreEqual(length2, result.Length);
+                Assert.That(result, Is.Not.Null);
+                Assert.That(length2, Is.EqualTo(length1 * 2));
+                Assert.That(result.Length, Is.EqualTo(length2));
             }
         }
 

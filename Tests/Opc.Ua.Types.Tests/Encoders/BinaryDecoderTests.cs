@@ -258,7 +258,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             int position = decoder.Position;
 
             // Assert
-            Assert.That(position, Is.EqualTo(0));
+            Assert.That(position, Is.Zero);
             stream.Dispose();
         }
 
@@ -288,7 +288,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Create a fresh decoder with byte array (which uses MemoryStream)
             var decoder2 = new BinaryDecoder(buffer, messageContext);
             // This decoder uses a seekable stream, so Position should work
-            Assert.That(decoder2.Position, Is.EqualTo(0));
+            Assert.That(decoder2.Position, Is.Zero);
         }
 
         [Test]
@@ -312,7 +312,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Test that position works correctly with normal streams
             var normalStream = new MemoryStream(buffer);
             var decoder2 = new BinaryDecoder(normalStream, messageContext, leaveOpen: true);
-            Assert.That(decoder2.Position, Is.EqualTo(0));
+            Assert.That(decoder2.Position, Is.Zero);
             normalStream.Dispose();
         }
 
@@ -329,7 +329,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             int position = decoder.Position;
 
             // Assert
-            Assert.That(position, Is.EqualTo(0));
+            Assert.That(position, Is.Zero);
         }
 
         [Test]
@@ -684,7 +684,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -701,7 +701,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -838,7 +838,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(resultArray.IsNull, Is.False);
             Assert.That(resultArray.Count, Is.EqualTo(2));
             Assert.That(resultArray[0], Is.EqualTo((ushort)65535));
-            Assert.That(resultArray[1], Is.EqualTo((ushort)0));
+            Assert.That(resultArray[1], Is.Zero);
         }
 
         [Test]
@@ -1214,7 +1214,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             MatrixOf<int> resultMatrix = result.GetInt32Matrix();
             Assert.That(resultMatrix.IsNull, Is.False);
             Assert.That(resultMatrix.Dimensions.Length, Is.EqualTo(1));
-            Assert.That(resultMatrix.Count, Is.EqualTo(0));
+            Assert.That(resultMatrix.Count, Is.Zero);
         }
 
         [Test]
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 TypeInfo.Create(BuiltInType.Int32, ValueRanks.Scalar));
 
             // Assert
-            Assert.That(result.GetInt32(99), Is.EqualTo(0));
+            Assert.That(result.GetInt32(99), Is.Zero);
         }
 
         [Test]
@@ -1315,7 +1315,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             uint result = decoder.ReadSwitchField(null, out string fieldName);
 
             // Assert
-            Assert.That(result, Is.EqualTo(0U));
+            Assert.That(result, Is.Zero);
             Assert.That(fieldName, Is.Null);
         }
 
@@ -1592,7 +1592,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             float result = decoder.ReadFloat(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(0.0f));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -2306,7 +2306,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString result = decoder.ReadByteString(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(default(ByteString)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -2324,7 +2324,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Span.ToArray().Length, Is.EqualTo(0));
+            Assert.That(result.Span.ToArray(), Is.Empty);
         }
 
         [Test]
@@ -2340,7 +2340,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ByteString result = decoder.ReadByteString(10);
 
             // Assert
-            Assert.That(result, Is.EqualTo(default(ByteString)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -2454,7 +2454,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.TryGetIdentifier(out uint identifier), Is.True);
             Assert.That(identifier, Is.EqualTo(5u));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -2776,7 +2776,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].Name, Is.EqualTo("Name1"));
-            Assert.That(result[0].NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result[0].NamespaceIndex, Is.Zero);
             Assert.That(result[1].Name, Is.EqualTo("Name2"));
             Assert.That(result[1].NamespaceIndex, Is.EqualTo(1));
         }
@@ -2961,7 +2961,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3006,7 +3006,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3053,7 +3053,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(127));
-            Assert.That(result[1], Is.EqualTo(0));
+            Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.EqualTo(-128));
         }
 
@@ -3087,7 +3087,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3120,7 +3120,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3205,7 +3205,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(65535));
-            Assert.That(result[1], Is.EqualTo(0));
+            Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.EqualTo(1));
         }
 
@@ -3223,7 +3223,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3316,7 +3316,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3363,7 +3363,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(9223372036854775807));
-            Assert.That(result[1], Is.EqualTo(0));
+            Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.EqualTo(-9223372036854775808));
         }
 
@@ -3381,7 +3381,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3473,7 +3473,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(1.23456).Within(0.000001));
             Assert.That(result[1], Is.EqualTo(-7.89012).Within(0.000001));
-            Assert.That(result[2], Is.EqualTo(0.0).Within(0.000001));
+            Assert.That(result[2], Is.Zero.Within(0.000001));
         }
 
         [Test]
@@ -3506,7 +3506,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3547,7 +3547,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3689,7 +3689,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3765,7 +3765,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3805,7 +3805,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3878,7 +3878,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
-            Assert.That(result[0].Code, Is.EqualTo(0u));
+            Assert.That(result[0].Code, Is.Zero);
             Assert.That(result[1].Code, Is.EqualTo(0x80010000u));
             Assert.That(result[2].Code, Is.EqualTo(0x40020000u));
         }
@@ -3955,7 +3955,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             StatusCode result = decoder.ReadStatusCode(null);
 
             // Assert
-            Assert.That(result.Code, Is.EqualTo(0u));
+            Assert.That(result.Code, Is.Zero);
             Assert.That(StatusCode.IsGood(result), Is.True);
         }
 
@@ -4354,7 +4354,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -4372,7 +4372,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.False);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -4742,7 +4742,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObject(null);
 
             // Assert
-            Assert.That(result.TryGetAsBinary(out ByteString bs), Is.EqualTo(true));
+            Assert.That(result.TryGetAsBinary(out ByteString bs), Is.True);
             Assert.That(bs.Length, Is.EqualTo(1));
         }
 
@@ -4760,7 +4760,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -4853,7 +4853,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(resultArray.IsNull, Is.False);
             Assert.That(resultArray.Count, Is.EqualTo(2));
             Assert.That(resultArray[0], Is.EqualTo(uint.MaxValue));
-            Assert.That(resultArray[1], Is.EqualTo(0u));
+            Assert.That(resultArray[1], Is.Zero);
         }
 
         [Test]
@@ -4929,9 +4929,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<bool> resultArray = result.GetBooleanArray();
             Assert.That(resultArray.IsNull, Is.False);
             Assert.That(resultArray.Count, Is.EqualTo(3));
-            Assert.That(resultArray[0], Is.EqualTo(true));
-            Assert.That(resultArray[1], Is.EqualTo(false));
-            Assert.That(resultArray[2], Is.EqualTo(true));
+            Assert.That(resultArray[0], Is.True);
+            Assert.That(resultArray[1], Is.False);
+            Assert.That(resultArray[2], Is.True);
         }
 
         [Test]
@@ -5799,7 +5799,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Assert.That(decoder.Position, Is.EqualTo(0));
+            Assert.That(decoder.Position, Is.Zero);
             decoder.ReadInt32(null);
 
             // Assert

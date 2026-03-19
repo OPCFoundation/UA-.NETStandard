@@ -32,7 +32,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using StatusCodeConstants = Opc.Ua.Types.StatusCodes;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
@@ -53,7 +53,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             SurrogateTestData.AssertScalarContractEqual(instance, clone);
         }
-
 
         [Test]
         public void SerializerSupportsArrayOfSurrogates()
@@ -415,89 +414,92 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SurrogateScalarContract expected,
             SurrogateScalarContract actual)
         {
-            Assert.IsNotNull(actual);
+            Assert.That(actual, Is.Not.Null);
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
-                Assert.IsTrue(CoreUtils.IsEqual(expected.NodeId, actual.NodeId), "NodeId mismatch");
-                Assert.IsTrue(
+                Assert.That(CoreUtils.IsEqual(expected.NodeId, actual.NodeId), Is.True, "NodeId mismatch");
+                Assert.That(
                     CoreUtils.IsEqual(expected.ExpandedNodeId, actual.ExpandedNodeId),
+                    Is.True,
                     "ExpandedNodeId mismatch");
-                Assert.AreEqual(expected.Uuid, actual.Uuid, "Uuid mismatch");
-                Assert.AreEqual(expected.StatusCode, actual.StatusCode, "StatusCode mismatch");
-                Assert.IsTrue(
+                Assert.That(actual.Uuid, Is.EqualTo(expected.Uuid), "Uuid mismatch");
+                Assert.That(actual.StatusCode, Is.EqualTo(expected.StatusCode), "StatusCode mismatch");
+                Assert.That(
                     CoreUtils.IsEqual(expected.QualifiedName, actual.QualifiedName),
+                    Is.True,
                     "QualifiedName mismatch");
-                Assert.IsTrue(CoreUtils.IsEqual(expected.Variant, actual.Variant), "Variant mismatch");
-                Assert.IsTrue(
+                Assert.That(CoreUtils.IsEqual(expected.Variant, actual.Variant), Is.True, "Variant mismatch");
+                Assert.That(
                     CoreUtils.IsEqual(expected.LocalizedText, actual.LocalizedText),
+                    Is.True,
                     "LocalizedText mismatch");
-            });
+            }
         }
 
         public static void AssertArrayOfContractEqual(
             SurrogateArrayOfContract expected,
             SurrogateArrayOfContract actual)
         {
-            Assert.IsNotNull(actual);
+            Assert.That(actual, Is.Not.Null);
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
-                Assert.AreEqual(expected.NodeIds, actual.NodeIds,
+                Assert.That(actual.NodeIds, Is.EqualTo(expected.NodeIds),
                     "NodeIds mismatch");
-                Assert.AreEqual(expected.ExpandedNodeIds, actual.ExpandedNodeIds,
+                Assert.That(actual.ExpandedNodeIds, Is.EqualTo(expected.ExpandedNodeIds),
                     "ExpandedNodeIds mismatch");
-                Assert.AreEqual(expected.Uuids, actual.Uuids,
+                Assert.That(actual.Uuids, Is.EqualTo(expected.Uuids),
                     "Uuids mismatch");
-                Assert.AreEqual(expected.StatusCodes, actual.StatusCodes,
+                Assert.That(actual.StatusCodes, Is.EqualTo(expected.StatusCodes),
                     "StatusCodes mismatch");
-                Assert.AreEqual(expected.QualifiedNames, actual.QualifiedNames,
+                Assert.That(actual.QualifiedNames, Is.EqualTo(expected.QualifiedNames),
                     "QualifiedNames mismatch");
-                Assert.AreEqual(expected.Variants, actual.Variants,
+                Assert.That(actual.Variants, Is.EqualTo(expected.Variants),
                     "Variants mismatch");
-                Assert.AreEqual(expected.LocalizedTexts, actual.LocalizedTexts,
+                Assert.That(actual.LocalizedTexts, Is.EqualTo(expected.LocalizedTexts),
                     "LocalizedTexts mismatch");
-            });
+            }
         }
 
         public static void AssertMatrixOfContractEqual(
             SurrogateMatrixOfContract expected,
             SurrogateMatrixOfContract actual)
         {
-            Assert.IsNotNull(actual);
+            Assert.That(actual, Is.Not.Null);
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
-                Assert.AreEqual(expected.NodeIds, actual.NodeIds,
+                Assert.That(actual.NodeIds, Is.EqualTo(expected.NodeIds),
                     "NodeIds mismatch");
-                Assert.AreEqual(expected.ExpandedNodeIds, actual.ExpandedNodeIds,
+                Assert.That(actual.ExpandedNodeIds, Is.EqualTo(expected.ExpandedNodeIds),
                     "ExpandedNodeIds mismatch");
-                Assert.AreEqual(expected.Uuids, actual.Uuids,
+                Assert.That(actual.Uuids, Is.EqualTo(expected.Uuids),
                     "Uuids mismatch");
-                Assert.AreEqual(expected.StatusCodes, actual.StatusCodes,
+                Assert.That(actual.StatusCodes, Is.EqualTo(expected.StatusCodes),
                     "StatusCodes mismatch");
-                Assert.AreEqual(expected.QualifiedNames, actual.QualifiedNames,
+                Assert.That(actual.QualifiedNames, Is.EqualTo(expected.QualifiedNames),
                     "QualifiedNames mismatch");
-                Assert.AreEqual(expected.Variants, actual.Variants,
+                Assert.That(actual.Variants, Is.EqualTo(expected.Variants),
                     "Variants mismatch");
-                Assert.AreEqual(expected.LocalizedTexts, actual.LocalizedTexts,
+                Assert.That(actual.LocalizedTexts, Is.EqualTo(expected.LocalizedTexts),
                     "LocalizedTexts mismatch");
-            });
+            }
         }
 
         public static void AssertGraphContractEqual(
             SurrogateGraphContract expected,
             SurrogateGraphContract actual)
         {
-            Assert.IsNotNull(actual);
+            Assert.That(actual, Is.Not.Null);
 
             AssertScalarContractEqual(expected.Scalars, actual.Scalars);
             AssertArrayOfContractEqual(expected.Arrays, actual.Arrays);
             AssertMatrixOfContractEqual(expected.Matrices, actual.Matrices);
 
-            Assert.AreEqual(
-                expected.AdditionalScalars.Length,
+            Assert.That(
                 actual.AdditionalScalars.Length,
+                Is.EqualTo(expected.AdditionalScalars.Length),
                 "AdditionalScalars length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalScalars.Length; ii++)
@@ -505,9 +507,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 AssertScalarContractEqual(expected.AdditionalScalars[ii], actual.AdditionalScalars[ii]);
             }
 
-            Assert.AreEqual(
-                expected.AdditionalArrays.Length,
+            Assert.That(
                 actual.AdditionalArrays.Length,
+                Is.EqualTo(expected.AdditionalArrays.Length),
                 "AdditionalArrays length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalArrays.Length; ii++)
@@ -517,9 +519,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     actual.AdditionalArrays[ii]);
             }
 
-            Assert.AreEqual(
-                expected.AdditionalMatrices.Length,
+            Assert.That(
                 actual.AdditionalMatrices.Length,
+                Is.EqualTo(expected.AdditionalMatrices.Length),
                 "AdditionalMatrices length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalMatrices.Length; ii++)

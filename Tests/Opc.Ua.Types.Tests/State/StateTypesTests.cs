@@ -32,7 +32,6 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.State
 {
@@ -81,9 +80,9 @@ namespace Opc.Ua.Types.Tests.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
-            Assert.NotNull(testObject);
+            Assert.That(testObject, Is.Not.Null);
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
-            Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
+            Assert.That(context.NamespaceUris.GetIndexOrAppend(OpcUa), Is.Zero);
             testObject.Create(context, new NodeId(1000), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
             testObject.Dispose();
         }

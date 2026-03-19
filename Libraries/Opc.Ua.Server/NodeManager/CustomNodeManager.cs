@@ -1079,7 +1079,6 @@ namespace Opc.Ua.Server
                     DisplayName = target.DisplayName
                 };
 
-
                 if (values[0].TryGet(out uint writeMask) &&
                     values[1].TryGet(out uint userWriteMask))
                 {

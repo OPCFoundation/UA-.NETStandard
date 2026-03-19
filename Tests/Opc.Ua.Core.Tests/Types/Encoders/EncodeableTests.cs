@@ -32,7 +32,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -69,19 +68,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-            Assert.NotNull(testObject);
+            Assert.That(testObject, Is.Not.Null);
 
             if (testObject.BinaryEncodingId.IsNull)
             {
                 return;
             }
 
-            Assert.False(testObject.BinaryEncodingId.IsNull);
-            Assert.False(testObject.TypeId.IsNull);
-            Assert.False(testObject.XmlEncodingId.IsNull);
-            Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
-            Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
-            Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
+            Assert.That(testObject.BinaryEncodingId.IsNull, Is.False);
+            Assert.That(testObject.TypeId.IsNull, Is.False);
+            Assert.That(testObject.XmlEncodingId.IsNull, Is.False);
+            Assert.That(testObject.BinaryEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.BinaryEncodingId));
             EncodeDecode(
                 encoderType,
                 jsonEncodingType,
@@ -142,15 +141,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
                 case EncodingType.Xml:
                     string xml = Encoding.UTF8.GetString(buffer);
-                    Assert.IsTrue(
+                    Assert.That(
                         xml.Contains(
                             "<Array xmlns=\"urn:This:is:another:namespace\">",
-                            StringComparison.Ordinal));
+                            StringComparison.Ordinal),
+                        Is.True);
                     break;
                 case EncodingType.Binary:
                     break;
                 default:
-                    NUnit.Framework.Assert.Fail($"Encoder type {encoderType} not supported.");
+                    Assert.Fail($"Encoder type {encoderType} not supported.");
                     break;
             }
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
-            Assert.AreEqual(expected, result, encodeInfo);
+            Assert.That(result, Is.EqualTo(expected), encodeInfo);
         }
 
         [Theory]
@@ -243,9 +243,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
 
-            Assert.AreEqual(
-                expected,
+            Assert.That(
                 result,
+                Is.EqualTo(expected),
                 $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.");
         }
 

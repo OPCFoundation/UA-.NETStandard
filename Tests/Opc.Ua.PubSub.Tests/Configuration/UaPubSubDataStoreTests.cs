@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -67,13 +66,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 readDataValue,
+                Is.Not.Null,
                 "Returned DataValue for written nodeId and attribute is null");
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                readDataValue.Value,
+            Assert.That(
                 value,
+                Is.EqualTo(readDataValue.Value),
                 "Read after write returned different value");
 #pragma warning restore CS0618 // Type or member is obsolete
         }
@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(default));
         }
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>(() =>
                 dataStore.WritePublishedDataItem(
                     NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));
@@ -113,8 +113,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 readDataValue,
+                Is.Null,
                 "Returned DataValue for written nodeId and attribute is NOT null");
         }
 
@@ -125,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(default));
         }
 
@@ -135,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Arrange
             var dataStore = new UaPubSubDataStore();
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>(() =>
                 dataStore.ReadPublishedDataItem(
                     NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));

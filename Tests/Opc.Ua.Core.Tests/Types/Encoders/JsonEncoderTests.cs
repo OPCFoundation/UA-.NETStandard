@@ -38,7 +38,6 @@ using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -78,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const long kInt64Value = -123456789123456;
         private const ulong kUInt64Value = 123456789123456;
 
-        private static readonly Uuid s_nodeIdGuid = new Uuid(new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D"));
+        private static readonly Uuid s_nodeIdGuid = new(new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D"));
         private static readonly ByteString s_byteString = ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9]);
         private static readonly string s_byteString64 = s_byteString.ToBase64();
 
@@ -971,7 +970,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Three),
                 TestEnumType.Three.ToString("d"),
-                $"""
+                """
                 "3"
                 """
                 // TODO: $""" "{TestEnumType.Three}_{TestEnumType.Three:d}" """
@@ -980,7 +979,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Ten),
                 $"{TestEnumType.Ten:d}",
-                $"""
+                """
                 "10"
                 """
                 // TODO: $""" "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}" """
@@ -1086,7 +1085,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
@@ -1097,7 +1096,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
             m_context = null;
             m_memoryStream.Dispose();
@@ -1118,8 +1117,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestEncoding(jsonEncoder);
             string result = jsonEncoder.CloseAndReturnText();
 
-            Assert.IsNotEmpty(result);
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Empty);
+            Assert.That(result, Is.Not.Null);
             TestContext.Out.WriteLine("Result:");
             _ = PrettifyAndValidateJson(result);
         }
@@ -1166,7 +1165,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Use a constructor with external Stream,
         /// keep the stream open for more encodings.
         /// </summary>
-        public void ConstructorStream(MemoryStream memoryStream)
+        private void ConstructorStream(MemoryStream memoryStream)
         {
             var context = new ServiceMessageContext(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
@@ -1174,7 +1173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 
@@ -1185,10 +1184,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
-            Assert.AreEqual(result1, result2);
+            Assert.That(result2, Is.EqualTo(result1));
 
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
@@ -1197,10 +1196,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
-                Assert.AreEqual(result1, result3);
+                Assert.That(result3, Is.EqualTo(result1));
             }
         }
 
@@ -1231,7 +1230,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 #else
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 #endif
@@ -1243,10 +1242,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
-            Assert.AreEqual(result1, result2);
+            Assert.That(result2, Is.EqualTo(result1));
 
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
@@ -1255,10 +1254,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
-                Assert.AreEqual(result1, result3);
+                Assert.That(result3, Is.EqualTo(result1));
             }
         }
 
@@ -1289,7 +1288,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 #else
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 #endif
@@ -1301,10 +1300,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
-            Assert.AreEqual(result1, result2);
+            Assert.That(result2, Is.EqualTo(result1));
 
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
@@ -1313,10 +1312,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
-                Assert.AreEqual(result1, result3);
+                Assert.That(result3, Is.EqualTo(result1));
             }
         }
 
@@ -1359,7 +1358,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1385,7 +1384,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1421,7 +1420,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1487,7 +1486,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 encodedXml = PrettifyAndValidateXml(ms.ToArray());
             }
-            NUnit.Framework.Assert.That(encodedXml, Is.EqualTo(expectedXml));
+            Assert.That(encodedXml, Is.EqualTo(expectedXml));
 
             // Decode from XML
             ExtensionObject extensionObjectFromXml;
@@ -1504,9 +1503,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
                 decoder.PopNamespace();
             }
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 extensionObjectFromXml.TryGetEncodeable(out IEncodeable resultEncodeable), Is.True);
-            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
 
             // Encode to JSON
             string encodedJson;
@@ -1525,7 +1524,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded Json:");
                 _ = PrettifyAndValidateJson(encodedJson);
             }
-            NUnit.Framework.Assert.That(encodedJson, Is.EqualTo(expectedJson));
+            Assert.That(encodedJson, Is.EqualTo(expectedJson));
 
             // Decode from JSON: requires custom context
             ExtensionObject extensionObjectFromJson;
@@ -1533,9 +1532,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 extensionObjectFromJson = decoder.ReadExtensionObject("Test");
             }
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 extensionObjectFromJson.TryGetEncodeable(out resultEncodeable), Is.True);
-            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
         }
 
         /// <summary>
@@ -1566,7 +1565,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {
@@ -1625,7 +1624,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1657,7 +1656,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1689,7 +1688,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
-            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1724,7 +1723,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
                 out DateTime dateTime);
-            Assert.True(success);
+            Assert.That(success, Is.True);
             DateTimeEncodeStringTest(dateTime);
         }
 
@@ -1742,7 +1741,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string stringifiedExpandedNodeId = expandedNodeId.ToString();
             TestContext.Out.WriteLine(stringifiedExpandedNodeId);
-            Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodeId);
+            Assert.That(stringifiedExpandedNodeId, Is.EqualTo(expectedNodeIdString));
         }
 
         /// <summary>
@@ -1773,7 +1772,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        public void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
+        private void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
         {
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
@@ -1788,8 +1787,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #else
             string resultO = DateTimeHelper.ConvertUniversalTimeToString((DateTime)testDateTime);
 #endif
-            Assert.NotNull(resultString);
-            Assert.NotNull(resultO);
+            Assert.That(resultString, Is.Not.Null);
+            Assert.That(resultO, Is.Not.Null);
 
             TestContext.Out.WriteLine(
                 """Encoded: "o": {0} "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK": {1}""",
@@ -1797,24 +1796,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 resultString);
 
             // last char is always 'Z', Utc time
-            Assert.AreEqual('Z', resultString[^1]);
-            Assert.AreEqual('Z', resultO[^1]);
+            Assert.That(resultString[^1], Is.EqualTo('Z'));
+            Assert.That(resultO[^1], Is.EqualTo('Z'));
 
-            Assert.AreEqual(resultString, resultO);
+            Assert.That(resultO, Is.EqualTo(resultString));
 
             var decodedXmlString = XmlConvert.ToDateTime(
                 resultString,
                 XmlDateTimeSerializationMode.Utc);
             var decodedXmlO = XmlConvert.ToDateTime(resultO, XmlDateTimeSerializationMode.Utc);
 
-            Assert.NotNull(decodedXmlString);
-            Assert.NotNull(decodedXmlO);
+            Assert.That(decodedXmlString, Is.Not.EqualTo(DateTime.MinValue));
+            Assert.That(decodedXmlO, Is.Not.EqualTo(DateTime.MinValue));
 
             TestContext.Out.WriteLine(
                 "Decoded Xml: {0} {1}",
                 decodedXmlO.ToString("o"),
                 decodedXmlString.ToString("o"));
-            Assert.True(Utils.IsEqual(decodedXmlString, decodedXmlO));
+            Assert.That(Utils.IsEqual(decodedXmlString, decodedXmlO), Is.True);
 
             // ensure decoded values are identical
             bool successString = DateTime.TryParse(
@@ -1827,13 +1826,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
                 out DateTime decodedO);
-            Assert.True(successString);
-            Assert.True(successO);
+            Assert.That(successString, Is.True);
+            Assert.That(successO, Is.True);
 
             TestContext.Out
                 .WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));
-            Assert.AreEqual(decodedO, decodedString);
-            Assert.AreEqual(testDateTime, decodedO);
+            Assert.That(decodedString, Is.EqualTo(decodedO));
+            Assert.That(decodedO, Is.EqualTo(testDateTime));
         }
 
         /// <summary>
@@ -1904,7 +1903,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {

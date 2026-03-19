@@ -377,7 +377,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
         [Obsolete("Use GetEndpointsAsync instead.")]
-        public virtual ArrayOf<EndpointDescription> GetEndpoints(ArrayOf<String> profileUris)
+        public virtual ArrayOf<EndpointDescription> GetEndpoints(ArrayOf<string> profileUris)
         {
             GetEndpoints(
                 null,
@@ -431,7 +431,7 @@ namespace Opc.Ua
         /// <param name="serverUris">The collection of server URIs.</param>
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<ArrayOf<ApplicationDescription>> FindServersAsync(
-            ArrayOf<String> serverUris,
+            ArrayOf<string> serverUris,
             CancellationToken ct = default)
         {
             FindServersResponse response = await FindServersAsync(
@@ -451,7 +451,7 @@ namespace Opc.Ua
         public virtual ArrayOf<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            ArrayOf<String> serverCapabilityFilter,
+            ArrayOf<string> serverCapabilityFilter,
             out DateTimeUtc lastCounterResetTime)
         {
             FindServersOnNetwork(
@@ -474,7 +474,7 @@ namespace Opc.Ua
             )> FindServersOnNetworkAsync(
                 uint startingRecordId,
                 uint maxRecordsToReturn,
-                ArrayOf<String> serverCapabilityFilter,
+                ArrayOf<string> serverCapabilityFilter,
                 CancellationToken ct = default)
         {
             FindServersOnNetworkResponse response = await FindServersOnNetworkAsync(

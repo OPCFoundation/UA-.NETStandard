@@ -45,9 +45,9 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node();
             Assert.That(node, Is.Not.Null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Unspecified));
-            Assert.That(node.WriteMask, Is.EqualTo(0u));
-            Assert.That(node.UserWriteMask, Is.EqualTo(0u));
-            Assert.That(node.AccessRestrictions, Is.EqualTo((ushort)0));
+            Assert.That(node.WriteMask, Is.Zero);
+            Assert.That(node.UserWriteMask, Is.Zero);
+            Assert.That(node.AccessRestrictions, Is.Zero);
             Assert.That(node.References.IsNull, Is.False);
             Assert.That(node.RolePermissions.IsNull, Is.False);
             Assert.That(node.UserRolePermissions.IsNull, Is.False);
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandleProperty()
         {
             var node = new Node();
-            object handle = new object();
+            object handle = new();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }
@@ -302,7 +302,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DataLockReturnsSelf()
         {
             var node = new Node();
-            Assert.That(((ILocalNode)node).DataLock, Is.SameAs(node));
+            Assert.That(node.DataLock, Is.SameAs(node));
         }
 
         [Test]

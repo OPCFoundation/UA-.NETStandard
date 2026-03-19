@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             bool result = reader.ReadBoolean(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(false));
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -189,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             byte result = reader.ReadByte(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(byte)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -563,7 +563,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             double result = reader.ReadDouble(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(double)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -579,7 +579,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""Json"""));
             double result = reader.ReadDouble(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(double)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -919,7 +919,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             float result = reader.ReadFloat(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(float)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -935,7 +935,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""Json"""));
             float result = reader.ReadFloat(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(float)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             short result = reader.ReadInt16(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(short)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1041,7 +1041,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             int result = reader.ReadInt32(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(int)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("-1.234"));
             long result = reader.ReadInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(0L));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""xabc"""));
             long result = reader.ReadInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(long)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1089,7 +1089,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("[]"));
             long result = reader.ReadInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(long)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1113,7 +1113,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             long result = reader.ReadInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(long)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1477,7 +1477,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{}"));
             sbyte result = reader.ReadSByte(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(sbyte)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1533,7 +1533,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("1234"));
             string result = reader.ReadString(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(null));
+            Assert.That(result, Is.Null);
         }
 
         [Test]
@@ -1541,7 +1541,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("false"));
             string result = reader.ReadString(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(null));
+            Assert.That(result, Is.Null);
         }
 
         [Test]
@@ -1848,7 +1848,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             ushort result = reader.ReadUInt16(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ushort)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1896,7 +1896,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             uint result = reader.ReadUInt32(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(uint)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1938,7 +1938,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("1.234"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ulong)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1946,7 +1946,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("-1234"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ulong)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1954,7 +1954,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""xabc"""));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ulong)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1962,7 +1962,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("[]"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ulong)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -1986,7 +1986,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("{ }"));
             ulong result = reader.ReadUInt64(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(default(ulong)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]

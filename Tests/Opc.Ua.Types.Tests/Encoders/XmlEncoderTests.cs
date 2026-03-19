@@ -5644,7 +5644,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Check encode result against expected XML value
             Match m = REValue().Match(actualXmlValue);
             Assert.That(m.Success, Is.True);
-            Assert.That(m.Groups.Count, Is.EqualTo(2));
+            Assert.That(m.Groups, Has.Count.EqualTo(2));
             Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
 
             // Decode
@@ -5691,7 +5691,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Check encode result against expected XML value
             Match m = REValue().Match(actualXmlValue);
             Assert.That(m.Success, Is.True);
-            Assert.That(m.Groups.Count, Is.EqualTo(2));
+            Assert.That(m.Groups, Has.Count.EqualTo(2));
             Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
 
             // Decode
@@ -7047,11 +7047,11 @@ namespace Opc.Ua.Types.Tests.Encoders
 
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [GeneratedRegex(@"Value>([^<]*)<")]
-        internal static partial Regex REValue();
+        private static partial Regex REValue();
 #else
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
-        internal static Regex REValue()
+        private static Regex REValue()
         {
             return new Regex("Value>([^<]*)<");
         }

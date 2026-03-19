@@ -265,9 +265,10 @@ namespace Opc.Ua
             }
 
             // convert the browse names to node ids.
-            var relativePath = new RelativePath();
-            relativePath.Elements = elements;
-            return relativePath;
+            return new RelativePath
+            {
+                Elements = elements
+            };
         }
 
         /// <summary>
@@ -335,9 +336,10 @@ namespace Opc.Ua
             }
 
             // convert the browse names to node ids.
-            var relativePath = new RelativePath();
-            relativePath.Elements = elements;
-            return relativePath;
+            return new RelativePath
+            {
+                Elements = elements
+            };
         }
     }
 }

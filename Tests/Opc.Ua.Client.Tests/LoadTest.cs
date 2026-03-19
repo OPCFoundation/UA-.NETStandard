@@ -36,7 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -121,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -165,7 +164,7 @@ namespace Opc.Ua.Client.Tests
                                 {
                                     if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
                                     {
-                                        NUnit.Framework.Assert.Fail(
+                                        Assert.Fail(
                                             "Monitored item reported bad status code: " +
                                             dv.DiagnosticInfo.InnerStatusCode +
                                             dv.DiagnosticInfo.LocalizedText);
@@ -273,11 +272,11 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                Assert.IsTrue(allNodesReceivedChanges, "Not all nodes received all value changes.");
-                // Looser verification to allow for network delays
+                Assert.That(allNodesReceivedChanges, Is.True, "Not all nodes received all value changes.");
+                // Allow for network delays
                 double receiveRatio = (double)receivedNotifications / expectedNotifications;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
-                Assert.Greater(receiveRatio, 0.99, "The overall notification receive ratio is too low.");
+                Assert.That(receiveRatio, Is.GreaterThan(0.99), "The overall notification receive ratio is too low.");
             }
             finally
             {
@@ -323,7 +322,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Reading from {nodeIds.Count} nodes.");
@@ -484,9 +483,9 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                NUnit.Framework.Assert.That(readErrors.Count, Is.EqualTo(0), "There were read errors.");
-                NUnit.Framework.Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
-                NUnit.Framework.Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
+                Assert.That(readErrors.Count, Is.Zero, "There were read errors.");
+                Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
+                Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
             }
             finally
             {

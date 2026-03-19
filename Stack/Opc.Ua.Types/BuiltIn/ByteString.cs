@@ -839,7 +839,7 @@ namespace Opc.Ua
         /// </summary>
         public static ByteString Create(ReadOnlySpan<byte> bytes)
         {
-            return ByteString.From(bytes);
+            return From(bytes);
         }
 
         private const int kStackLimit = 64;

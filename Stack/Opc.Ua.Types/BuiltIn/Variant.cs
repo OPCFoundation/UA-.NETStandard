@@ -7067,7 +7067,7 @@ namespace Opc.Ua
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean & rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean && rhs.m_union.Boolean;
                 case BuiltInType.Byte:
                     return lhs.m_union.Byte & rhs.m_union.Byte;
                 case BuiltInType.SByte:
@@ -7077,7 +7077,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 & rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
+                    return FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 & rhs.m_union.Int32;
                 case BuiltInType.UInt32:
@@ -7101,7 +7101,7 @@ namespace Opc.Ua
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean | rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean || rhs.m_union.Boolean;
                 case BuiltInType.Byte:
                     return lhs.m_union.Byte | rhs.m_union.Byte;
                 case BuiltInType.SByte:
@@ -7111,7 +7111,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 | rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
+                    return FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 | rhs.m_union.Int32;
                 case BuiltInType.UInt32:
@@ -8177,7 +8177,7 @@ namespace Opc.Ua
             /// <see cref="Matrix"/> object as-is too the PubSub
             /// library still uses this behavior.
             /// </summary>
-            LegacyWithMatrix,
+            LegacyWithMatrix
         }
     }
 }

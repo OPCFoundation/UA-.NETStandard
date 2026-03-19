@@ -34,7 +34,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -125,34 +124,34 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             NodeId n0 = decoder.ReadNodeId("D0");
-            Assert.AreEqual(0, (int)n0.NamespaceIndex);
-            Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
+            Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             NodeId n1 = decoder.ReadNodeId("D1");
-            Assert.AreEqual(
-                (int)n1.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index)));
-            Assert.AreEqual(Get(NumericIds, index), n1.TryGetIdentifier(out uint id1) ? id1 : 0);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
+                Is.EqualTo((int)n1.NamespaceIndex));
+            Assert.That(n1.TryGetIdentifier(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
 
             NodeId n2 = decoder.ReadNodeId("D2");
-            Assert.AreEqual(
-                (int)n2.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)));
-            Assert.AreEqual(Get(StringIds, index), n2.TryGetIdentifier(out string id3) ? id3 : string.Empty);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
+                Is.EqualTo((int)n2.NamespaceIndex));
+            Assert.That(n2.TryGetIdentifier(out string id3) ? id3 : string.Empty, Is.EqualTo(Get(StringIds, index)));
 
             NodeId n3 = decoder.ReadNodeId("D3");
-            Assert.AreEqual(
-                (int)n3.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)));
-            Assert.AreEqual(Get(GuidIds, index), n3.TryGetIdentifier(out Guid id4) ? id4 : Guid.Empty);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
+                Is.EqualTo((int)n3.NamespaceIndex));
+            Assert.That(n3.TryGetIdentifier(out Guid id4) ? id4 : Guid.Empty, Is.EqualTo(Get(GuidIds, index)));
 
             NodeId n4 = decoder.ReadNodeId("D4");
-            Assert.AreEqual(
-                (int)n4.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
-            Assert.AreEqual(
-                Get(OpaqueIds, index).ToHexString(),
-                (n4.TryGetIdentifier(out ByteString id5) ? id5 : ByteString.Empty).ToHexString());
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
+                Is.EqualTo((int)n4.NamespaceIndex));
+            Assert.That(
+                (n4.TryGetIdentifier(out ByteString id5) ? id5 : ByteString.Empty).ToHexString(),
+                Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
         }
 
         private static void CheckDecodedExpandedNodeIds(
@@ -161,159 +160,159 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
-            Assert.AreEqual(0, (int)n0.ServerIndex);
-            Assert.AreEqual(0, (int)n0.NamespaceIndex);
-            Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
+            Assert.That((int)n0.ServerIndex, Is.Zero);
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
+            Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
-            Assert.AreEqual(0, (int)n1.ServerIndex);
+            Assert.That((int)n1.ServerIndex, Is.Zero);
 
             string uri = Get(NamespaceUris, index);
             int ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n1.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n1.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n1.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n1.NamespaceIndex));
             }
 
-            Assert.AreEqual(Get(NumericIds, index), n1.TryGetIdentifier(out uint id1) ? id1 : 0);
+            Assert.That(n1.TryGetIdentifier(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
 
             ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
-            Assert.AreEqual(0, (int)n2.ServerIndex);
+            Assert.That((int)n2.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n2.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n2.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n2.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n2.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(StringIds, index),
-                n2.TryGetIdentifier(out string guid3) ? guid3 : null);
+            Assert.That(
+                n2.TryGetIdentifier(out string guid3) ? guid3 : null,
+                Is.EqualTo(Get(StringIds, index)));
 
             ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
-            Assert.AreEqual(0, (int)n3.ServerIndex);
+            Assert.That((int)n3.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n3.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n3.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n3.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n3.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(GuidIds, index),
-                n3.TryGetIdentifier(out Guid id3) ? id3 : Guid.Empty);
+            Assert.That(
+                n3.TryGetIdentifier(out Guid id3) ? id3 : Guid.Empty,
+                Is.EqualTo(Get(GuidIds, index)));
 
             ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
-            Assert.AreEqual(0, (int)n4.ServerIndex);
+            Assert.That((int)n4.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n4.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n4.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n4.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n4.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(OpaqueIds, index).ToHexString(),
-                (n4.TryGetIdentifier(out ByteString id4) ? id4 : default).ToHexString());
+            Assert.That(
+                (n4.TryGetIdentifier(out ByteString id4) ? id4 : default).ToHexString(),
+                Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
 
             ExpandedNodeId n5 = decoder.ReadExpandedNodeId("D5");
-            Assert.AreEqual(
-                (int)n5.ServerIndex,
-                context.ServerUris.GetIndex(Get(ServerUris, index)));
+            Assert.That(
+                context.ServerUris.GetIndex(Get(ServerUris, index)),
+                Is.EqualTo((int)n5.ServerIndex));
 
             uri = Get(NamespaceUris, index);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n5.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n5.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n5.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n5.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(NumericIds, index),
-                n5.TryGetIdentifier(out uint id5) ? id5 : 0);
+            Assert.That(
+                n5.TryGetIdentifier(out uint id5) ? id5 : 0,
+                Is.EqualTo(Get(NumericIds, index)));
 
             ExpandedNodeId n6 = decoder.ReadExpandedNodeId("D6");
-            Assert.AreEqual(
-                (int)n6.ServerIndex,
-                context.ServerUris.GetIndex(Get(ServerUris, index + 1)));
+            Assert.That(
+                context.ServerUris.GetIndex(Get(ServerUris, index + 1)),
+                Is.EqualTo((int)n6.ServerIndex));
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n6.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n6.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n6.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n6.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(StringIds, index),
-                n6.TryGetIdentifier(out string id6) ? id6 : null);
+            Assert.That(
+                n6.TryGetIdentifier(out string id6) ? id6 : null,
+                Is.EqualTo(Get(StringIds, index)));
 
             ExpandedNodeId n7 = decoder.ReadExpandedNodeId("D7");
-            Assert.AreEqual(
-                (int)n7.ServerIndex,
-                context.ServerUris.GetIndex(Get(ServerUris, index + 2)));
+            Assert.That(
+                context.ServerUris.GetIndex(Get(ServerUris, index + 2)),
+                Is.EqualTo((int)n7.ServerIndex));
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n7.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n7.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n7.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n7.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(GuidIds, index),
-                n7.TryGetIdentifier(out Guid id7) ? id7 : Guid.Empty);
+            Assert.That(
+                n7.TryGetIdentifier(out Guid id7) ? id7 : Guid.Empty,
+                Is.EqualTo(Get(GuidIds, index)));
 
             ExpandedNodeId n8 = decoder.ReadExpandedNodeId("D8");
-            Assert.AreEqual(
-                (int)n8.ServerIndex,
-                context.ServerUris.GetIndex(Get(ServerUris, index + 3)));
+            Assert.That(
+                context.ServerUris.GetIndex(Get(ServerUris, index + 3)),
+                Is.EqualTo((int)n8.ServerIndex));
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
             if (ns < 0)
             {
-                Assert.AreEqual(n8.NamespaceUri, uri);
+                Assert.That(uri, Is.EqualTo(n8.NamespaceUri));
             }
             else
             {
-                Assert.AreEqual(n8.NamespaceIndex, ns);
+                Assert.That(ns, Is.EqualTo(n8.NamespaceIndex));
             }
 
-            Assert.AreEqual(
-                Get(OpaqueIds, index).ToHexString(),
-                (n8.TryGetIdentifier(out ByteString id8) ? id8 : default).ToHexString());
+            Assert.That(
+                (n8.TryGetIdentifier(out ByteString id8) ? id8 : default).ToHexString(),
+                Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
         }
 
         private static void CheckDecodedQualfiiedNames(
@@ -322,32 +321,32 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             QualifiedName n0 = decoder.ReadQualifiedName("D0");
-            Assert.AreEqual(0, (int)n0.NamespaceIndex);
-            Assert.AreEqual("ServerStatus", n0.Name);
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
+            Assert.That(n0.Name, Is.EqualTo("ServerStatus"));
 
             QualifiedName n1 = decoder.ReadQualifiedName("D1");
-            Assert.AreEqual(
-                (int)n1.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index)));
-            Assert.AreEqual("N1", n1.Name);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
+                Is.EqualTo((int)n1.NamespaceIndex));
+            Assert.That(n1.Name, Is.EqualTo("N1"));
 
             QualifiedName n2 = decoder.ReadQualifiedName("D2");
-            Assert.AreEqual(
-                (int)n2.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)));
-            Assert.AreEqual("N2", n2.Name);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
+                Is.EqualTo((int)n2.NamespaceIndex));
+            Assert.That(n2.Name, Is.EqualTo("N2"));
 
             QualifiedName n3 = decoder.ReadQualifiedName("D3");
-            Assert.AreEqual(
-                (int)n3.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)));
-            Assert.AreEqual("N3", n3.Name);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
+                Is.EqualTo((int)n3.NamespaceIndex));
+            Assert.That(n3.Name, Is.EqualTo("N3"));
 
             QualifiedName n4 = decoder.ReadQualifiedName("D4");
-            Assert.AreEqual(
-                (int)n4.NamespaceIndex,
-                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
-            Assert.AreEqual("N4", n4.Name);
+            Assert.That(
+                context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
+                Is.EqualTo((int)n4.NamespaceIndex));
+            Assert.That(n4.Name, Is.EqualTo("N4"));
         }
 
         [Test]
@@ -436,7 +435,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
             string actual = EncoderCommon.PrettifyAndValidateJson(encoder.CloseAndReturnText(), true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -582,7 +581,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string actual = EncoderCommon.PrettifyAndValidateJson(
                 encoder.CloseAndReturnText(), true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -674,7 +673,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -695,18 +694,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a1 = v1.GetInt64Matrix();
-            Assert.AreEqual(2, a1.Dimensions.Length);
-            Assert.AreEqual(6, a1.Count);
-            Assert.AreEqual(2, a1.Dimensions[0]);
-            Assert.AreEqual(3, a1.Dimensions[1]);
+            Assert.That(a1.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(a1.Count, Is.EqualTo(6));
+            Assert.That(a1.Dimensions[0], Is.EqualTo(2));
+            Assert.That(a1.Dimensions[1], Is.EqualTo(3));
 
             Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a2 = v2.GetInt64Matrix();
-            Assert.AreEqual(3, a2.Dimensions.Length);
-            Assert.AreEqual(6, a2.Count);
-            Assert.AreEqual(1, a2.Dimensions[0]);
-            Assert.AreEqual(2, a2.Dimensions[1]);
-            Assert.AreEqual(3, a2.Dimensions[2]);
+            Assert.That(a2.Dimensions.Length, Is.EqualTo(3));
+            Assert.That(a2.Count, Is.EqualTo(6));
+            Assert.That(a2.Dimensions[0], Is.EqualTo(1));
+            Assert.That(a2.Dimensions[1], Is.EqualTo(2));
+            Assert.That(a2.Dimensions[2], Is.EqualTo(3));
         }
 
         [Test]
@@ -755,7 +754,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -794,25 +793,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
-            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
-            Assert.IsNotNull(range);
-            Assert.AreEqual(0, range.Low);
-            Assert.AreEqual(9876.5432, range.High);
+            Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
+            Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
+            Assert.That(range, Is.Not.Null);
+            Assert.That(range.Low, Is.Zero);
+            Assert.That(range.High, Is.EqualTo(9876.5432));
 
             Variant v1 = decoder.ReadVariant("D1");
-            Assert.AreEqual(BuiltInType.ExtensionObject, v1.TypeInfo.BuiltInType);
+            Assert.That(v1.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
 
             eo = v1.GetExtensionObject();
-            Assert.IsNotNull(eo);
-            Assert.AreEqual(
-                Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
-                eo.TypeId.ToString());
+            Assert.That(eo.IsNull, Is.False);
+            Assert.That(
+                eo.TypeId.ToString(),
+                Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
-            Assert.IsNotNull(record);
-            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
+            Assert.That(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(record, Is.Not.Null);
+            Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
         }
 
         [Test]
@@ -873,7 +872,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -914,25 +913,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
-            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
-            Assert.IsNotNull(range);
-            Assert.AreEqual(0, range.Low);
-            Assert.AreEqual(9876.5432, range.High);
+            Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
+            Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
+            Assert.That(range, Is.Not.Null);
+            Assert.That(range.Low, Is.Zero);
+            Assert.That(range.High, Is.EqualTo(9876.5432));
 
             Variant v1 = decoder.ReadVariant("D1");
-            Assert.AreEqual(BuiltInType.ExtensionObject, v1.TypeInfo.BuiltInType);
+            Assert.That(v1.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
 
             eo = v1.GetExtensionObject();
-            Assert.IsNotNull(eo);
-            Assert.AreEqual(
-                Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
-                eo.TypeId.ToString());
+            Assert.That(eo.IsNull, Is.False);
+            Assert.That(
+                eo.TypeId.ToString(),
+                Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
-            Assert.IsNotNull(record);
-            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
+            Assert.That(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(record, Is.Not.Null);
+            Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
         }
 
         [Test]
@@ -995,7 +994,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
-            Assert.AreEqual(expected, actual);
+            Assert.That(actual, Is.EqualTo(expected));
         }
     }
 }

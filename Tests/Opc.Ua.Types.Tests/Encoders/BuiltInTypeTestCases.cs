@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Tests
             }
         }
 
-        public static System.Collections.IEnumerable ScalarVariants
+        public static IEnumerable ScalarVariants
         {
             get
             {
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Tests
             }
         }
 
-        public static System.Collections.IEnumerable ArrayVariants
+        public static IEnumerable ArrayVariants
         {
             get
             {
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Tests
             }
         }
 
-        public static System.Collections.IEnumerable MatrixVariants
+        public static IEnumerable MatrixVariants
         {
             get
             {

@@ -212,7 +212,7 @@ namespace Opc.Ua.Types.Tests.State
 
             // Exercise DeepGetHashCode - verifies the code path runs without error
             int hash = method.DeepGetHashCode();
-            Assert.That(hash, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero.Or.Zero);
             method.Dispose();
         }
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.Types.Tests.State
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             method.Export(m_context, table);
 
-            Assert.That(table.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(table, Is.Not.Empty);
             method.Dispose();
         }
 

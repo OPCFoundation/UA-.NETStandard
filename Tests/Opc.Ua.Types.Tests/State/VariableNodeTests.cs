@@ -45,12 +45,12 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(vn, Is.Not.Null);
             Assert.That(vn.Value, Is.EqualTo(Variant.Null));
             Assert.That(vn.DataType, Is.EqualTo(NodeId.Null));
-            Assert.That(vn.ValueRank, Is.EqualTo(0));
-            Assert.That(vn.AccessLevel, Is.EqualTo((byte)0));
-            Assert.That(vn.UserAccessLevel, Is.EqualTo((byte)0));
-            Assert.That(vn.MinimumSamplingInterval, Is.EqualTo(0.0));
+            Assert.That(vn.ValueRank, Is.Zero);
+            Assert.That(vn.AccessLevel, Is.Zero);
+            Assert.That(vn.UserAccessLevel, Is.Zero);
+            Assert.That(vn.MinimumSamplingInterval, Is.Zero);
             Assert.That(vn.Historizing, Is.True);
-            Assert.That(vn.AccessLevelEx, Is.EqualTo(0u));
+            Assert.That(vn.AccessLevelEx, Is.Zero);
             Assert.That(vn.ArrayDimensions.IsNull, Is.False);
         }
 

@@ -34,7 +34,6 @@ using System.Reflection;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -80,11 +79,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(ReadRequestEncoding),
                     out IEncodeableType encodeableType);
-                Assert.Null(encodeableType);
+                Assert.That(encodeableType, Is.Null);
                 _ = m_builder.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
                     out encodeableType);
-                Assert.NotNull(encodeableType);
+                Assert.That(encodeableType, Is.Not.Null);
             }
         }
 
@@ -101,11 +100,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(ReadRequestEncoding),
                     out IEncodeableType encodeableType);
-                Assert.Null(encodeableType);
+                Assert.That(encodeableType, Is.Null);
                 _ = m_encodeableFactory.TryGetEncodeableType(
                     new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary),
                     out encodeableType);
-                Assert.NotNull(encodeableType);
+                Assert.That(encodeableType, Is.Not.Null);
             }
         }
 
@@ -116,9 +115,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Assert
-            Assert.NotNull(factory);
-            Assert.NotNull(factory.KnownTypeIds);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(factory, Is.Not.Null);
+            Assert.That(factory.KnownTypeIds, Is.Not.Null);
+            Assert.That(factory.KnownTypeIds.Any(), Is.True);
         }
 
         [Test]
@@ -131,7 +130,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEnumerable<ExpandedNodeId> knownTypes = factory.KnownTypeIds;
 
             // Assert
-            Assert.NotNull(knownTypes);
+            Assert.That(knownTypes, Is.Not.Null);
             // Note: Since Create() pre-loads types, we expect many types, not 0
             Assert.Greater(knownTypes.Count(), 0);
         }
@@ -147,8 +146,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool result = factory.TryGetEncodeableType(unknownTypeId, out IEncodeableType encodeableType);
 
             // Assert
-            Assert.False(result);
-            Assert.Null(encodeableType);
+            Assert.That(result, Is.False);
+            Assert.That(encodeableType, Is.Null);
         }
 
         [Test]
@@ -161,7 +160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Assert
-            Assert.NotNull(builder);
+            Assert.That(builder, Is.Not.Null);
         }
 
         [Test]
@@ -177,8 +176,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             bool found = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType encodeableType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -195,8 +194,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             bool found = factory.TryGetEncodeableType(typeId, out IEncodeableType encodeableType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -208,7 +207,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             IEncodeableFactoryBuilder result = builder.AddEncodeableType(typeof(TestEncodeable));
-            Assert.AreSame(builder, result);
+            Assert.That(result, Is.SameAs(builder));
         }
 
         [Test]
@@ -220,7 +219,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             IEncodeableFactoryBuilder result = builder.AddEncodeableType(new ExpandedNodeId(100000), typeof(TestEncodeable));
-            Assert.AreSame(builder, result);
+            Assert.That(result, Is.SameAs(builder));
         }
 
         [Test]
@@ -237,10 +236,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundInFactory = factory.TryGetEncodeableType(typeId, out IEncodeableType factoryType);
 
             // Assert
-            Assert.True(foundInBuilder);
-            Assert.AreEqual(typeof(TestEncodeable), builderType.Type);
-            Assert.False(foundInFactory);
-            Assert.Null(factoryType);
+            Assert.That(foundInBuilder, Is.True);
+            Assert.That(builderType.Type, Is.EqualTo(typeof(TestEncodeable)));
+            Assert.That(foundInFactory, Is.False);
+            Assert.That(factoryType, Is.Null);
         }
 
         [Test]
@@ -258,8 +257,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             bool found = factory.TryGetEncodeableType(typeId, out IEncodeableType encodeableType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -273,7 +272,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder result = builder.AddEncodeableTypes(null);
 
             // Assert
-            Assert.AreSame(builder, result);
+            Assert.That(result, Is.SameAs(builder));
         }
 
         [Test]
@@ -290,8 +289,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert - Should add our test types
             bool foundTest = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType);
-            Assert.True(foundTest);
-            Assert.AreEqual(typeof(TestEncodeable), testType.Type);
+            Assert.That(foundTest, Is.True);
+            Assert.That(testType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -308,12 +307,12 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert - Should add our concrete test types but skip abstract and no-default-constructor types
             int addedTypes = factory.KnownTypeIds.Count() - knownTypesCount;
-            Assert.Greater(addedTypes, 0); // Should have added some types
+            Assert.That(addedTypes, Is.GreaterThan(0)); // Should have added some types
 
             // Verify abstract types are not added
-            Assert.False(factory.TryGetEncodeableType(new ExpandedNodeId(110000), out _));
-            Assert.False(factory.TryGetEncodeableType(new ExpandedNodeId(110001), out _));
-            Assert.False(factory.TryGetEncodeableType(new ExpandedNodeId(110002), out _));
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110000), out _), Is.False);
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110001), out _), Is.False);
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110002), out _), Is.False);
         }
 
         [Test]
@@ -329,8 +328,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert - Should be able to find by JSON encoding ID
             bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType jsonType);
-            Assert.True(foundByJson);
-            Assert.AreEqual(typeof(TestJsonEncodeable), jsonType.Type);
+            Assert.That(foundByJson, Is.True);
+            Assert.That(jsonType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
         }
 
         [Test]
@@ -349,9 +348,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundTest = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType);
             bool foundJsonTest = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out _);
 
-            Assert.True(foundTest);
-            Assert.True(foundJsonTest);
-            Assert.AreEqual(typeof(TestEncodeable), testType.Type);
+            Assert.That(foundTest, Is.True);
+            Assert.That(foundJsonTest, Is.True);
+            Assert.That(testType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -399,8 +398,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Assert
-            Assert.AreEqual(0, exceptions.Count, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(exceptions, Is.Empty, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0));
         }
 
         [Test]
@@ -416,16 +415,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Assert
-            Assert.NotNull(clonedFactory);
-            Assert.AreNotSame(factory, clonedFactory);
+            Assert.That(clonedFactory, Is.Not.Null);
+            Assert.That(clonedFactory, Is.Not.SameAs(factory));
 
             // Should have same types
             bool originalHasType = factory.TryGetEncodeableType(typeId, out IEncodeableType originalType);
             bool clonedHasType = clonedFactory.TryGetEncodeableType(typeId, out IEncodeableType clonedType);
 
-            Assert.True(originalHasType);
-            Assert.True(clonedHasType);
-            Assert.AreEqual(originalType, clonedType);
+            Assert.That(originalHasType, Is.True);
+            Assert.That(clonedHasType, Is.True);
+            Assert.That(clonedType, Is.EqualTo(originalType));
         }
 
         [Test]
@@ -441,16 +440,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             var clonedFactory = (EncodeableFactory)concreteFactory.MemberwiseClone();
 
             // Assert
-            Assert.NotNull(clonedFactory);
-            Assert.AreNotSame(factory, clonedFactory);
+            Assert.That(clonedFactory, Is.Not.Null);
+            Assert.That(clonedFactory, Is.Not.SameAs(factory));
 
             // Should have same types
             bool originalHasType = factory.TryGetEncodeableType(typeId, out IEncodeableType originalType);
             bool clonedHasType = clonedFactory.TryGetEncodeableType(typeId, out IEncodeableType clonedType);
 
-            Assert.True(originalHasType);
-            Assert.True(clonedHasType);
-            Assert.AreEqual(originalType, clonedType);
+            Assert.That(originalHasType, Is.True);
+            Assert.That(clonedHasType, Is.True);
+            Assert.That(clonedType, Is.EqualTo(originalType));
         }
 
         [Test]
@@ -473,8 +472,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool originalHasNewType = factory.TryGetEncodeableType(newTypeId, out _);
             bool clonedHasNewType = clonedFactory.TryGetEncodeableType(newTypeId, out _);
 
-            Assert.True(originalHasNewType);
-            Assert.False(clonedHasNewType);
+            Assert.That(originalHasNewType, Is.True);
+            Assert.That(clonedHasNewType, Is.False);
         }
 
         [Test]
@@ -485,7 +484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null types gracefully rather than throwing
-            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType((Type)null));
+            Assert.DoesNotThrow(() => builder.AddEncodeableType((Type)null));
         }
 
         [Test]
@@ -496,7 +495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null NodeIds gracefully rather than throwing
-            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
+            Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
         }
 
         [Test]
@@ -512,7 +511,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - No new types should be added
-            Assert.AreEqual(initialCount, factory.KnownTypeIds.Count());
+            Assert.That(factory.KnownTypeIds.Count(), Is.EqualTo(initialCount));
         }
 
         [Test]
@@ -526,7 +525,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - Should not throw
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableTypes(Assembly.GetExecutingAssembly());
                 builder.Commit();
@@ -545,7 +544,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - Should have many OPC UA types
-            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count()); // OPC UA has many built-in types
+            Assert.That(factory.KnownTypeIds.Count(), Is.EqualTo(kNumberOfBootstrapFactoryEntries)); // OPC UA has many built-in types
         }
 
         [Test]
@@ -555,11 +554,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Assert - Create() should return factory with preloaded types
-            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.That(factory.KnownTypeIds.Count(), Is.EqualTo(kNumberOfBootstrapFactoryEntries));
 
             // Should be able to find common OPC UA types like ReadRequest
             var knownTypesList = factory.KnownTypeIds.ToList();
-            Assert.Greater(knownTypesList.Count, 0);
+            Assert.That(knownTypesList, Is.Not.Empty);
         }
 
         [Test]
@@ -573,8 +572,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool found = factory.TryGetEncodeableType(readRequestEncodingId, out IEncodeableType encodeableType);
 
             // Assert
-            Assert.True(found);
-            Assert.AreEqual(typeof(Argument), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(Argument)));
         }
 
         [Test]
@@ -596,10 +595,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundWithNs = factory.TryGetEncodeableType(typeIdWithDefaultNs, out IEncodeableType typeWithNs);
             bool foundWithoutNs = factory.TryGetEncodeableType(typeIdWithoutNs, out IEncodeableType typeWithoutNs);
 
-            Assert.True(foundWithNs);
-            Assert.False(foundWithoutNs);
-            Assert.AreEqual(typeof(TestEncodeable), typeWithNs.Type);
-            Assert.Null(typeWithoutNs);
+            Assert.That(foundWithNs, Is.True);
+            Assert.That(foundWithoutNs, Is.False);
+            Assert.That(typeWithNs.Type, Is.EqualTo(typeof(TestEncodeable)));
+            Assert.That(typeWithoutNs, Is.Null);
         }
 
         [Test]
@@ -610,8 +609,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert
-            NUnit.Framework.Assert.DoesNotThrow(builder.Commit);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0); // Should have pre-loaded types
+            Assert.DoesNotThrow(builder.Commit);
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0)); // Should have pre-loaded types
         }
 
         [Test]
@@ -631,15 +630,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType typeByJsonId);
             bool foundByType = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType typeByTypeId);
 
-            Assert.True(foundByType);
-            Assert.True(foundByBinary);
-            Assert.True(foundByXml);
-            Assert.True(foundByJson);
+            Assert.That(foundByType, Is.True);
+            Assert.That(foundByBinary, Is.True);
+            Assert.That(foundByXml, Is.True);
+            Assert.That(foundByJson, Is.True);
 
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByTypeId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByBinaryId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByXmlId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByJsonId.Type);
+            Assert.That(typeByTypeId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByBinaryId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByXmlId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByJsonId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
         }
 
         [Test]
@@ -657,10 +656,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundFirst = factory.TryGetEncodeableType(new ExpandedNodeId(9200), out IEncodeableType firstType);
             bool foundSecond = factory.TryGetEncodeableType(new ExpandedNodeId(9201), out IEncodeableType secondType);
 
-            Assert.True(foundFirst);
-            Assert.True(foundSecond);
-            Assert.AreEqual(typeof(TestEncodeable), firstType.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), secondType.Type);
+            Assert.That(foundFirst, Is.True);
+            Assert.That(foundSecond, Is.True);
+            Assert.That(firstType.Type, Is.EqualTo(typeof(TestEncodeable)));
+            Assert.That(secondType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
         }
 
         [Test]
@@ -673,8 +672,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool result = factory.TryGetEncodeableType(default, out IEncodeableType encodeableType);
 
             // Assert
-            Assert.False(result);
-            Assert.Null(encodeableType);
+            Assert.That(result, Is.False);
+            Assert.That(encodeableType, Is.Null);
         }
 
         [Test]
@@ -687,8 +686,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool result = factory.TryGetEncodeableType(ExpandedNodeId.Null, out IEncodeableType encodeableType);
 
             // Assert
-            Assert.False(result);
-            Assert.Null(encodeableType);
+            Assert.That(result, Is.False);
+            Assert.That(encodeableType, Is.Null);
         }
 
         /// <summary>
@@ -892,8 +891,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             bool found = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType resultType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), resultType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -906,7 +905,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             IEncodeableFactoryBuilder result = builder.AddEncodeableType(encodeableType);
-            Assert.AreSame(builder, result);
+            Assert.That(result, Is.SameAs(builder));
         }
 
         [Test]
@@ -924,8 +923,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             bool found = factory.TryGetEncodeableType(typeId, out IEncodeableType resultType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), resultType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -939,7 +938,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             IEncodeableFactoryBuilder result = builder.AddEncodeableType(typeId, encodeableType);
-            Assert.AreSame(builder, result);
+            Assert.That(result, Is.SameAs(builder));
         }
 
         [Test]
@@ -950,7 +949,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType((IEncodeableType)null));
         }
 
@@ -963,7 +962,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeable));
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType(default, encodeableType));
         }
 
@@ -976,7 +975,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(50002);
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType(typeId, (IEncodeableType)null));
         }
 
@@ -989,7 +988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var faultyType = new FaultyEncodeableType();
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<InvalidOperationException>(
+            Assert.Throws<InvalidOperationException>(
                 () => builder.AddEncodeableType(faultyType));
         }
 
@@ -1002,7 +1001,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullReturningType = new NullReturningEncodeableType();
 
             // Act & Assert
-            NUnit.Framework.Assert.Throws<InvalidOperationException>(
+            Assert.Throws<InvalidOperationException>(
                 () => builder.AddEncodeableType(nullReturningType));
         }
 
@@ -1015,7 +1014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithoutXml));
 
             // Act & Assert - Should not throw even if XmlEncodingId throws NotSupportedException
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();
@@ -1023,8 +1022,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Should still be able to find by other encoding IDs
             bool found = factory.TryGetEncodeableType(new ExpandedNodeId(120000), out IEncodeableType resultType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeableWithoutXml), resultType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeableWithoutXml)));
         }
 
         [Test]
@@ -1036,7 +1035,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithoutJson));
 
             // Act & Assert - Should not throw even if JsonEncodingId throws NotSupportedException
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();
@@ -1044,8 +1043,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Should still register other encoding IDs
             bool found = factory.TryGetEncodeableType(new ExpandedNodeId(130000), out IEncodeableType resultType);
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeableWithoutJson), resultType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeableWithoutJson)));
         }
 
         [Test]
@@ -1066,15 +1065,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundByXml = factory.TryGetEncodeableType(new ExpandedNodeId(100002), out IEncodeableType typeByXmlId);
             bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType typeByJsonId);
 
-            Assert.True(foundByType);
-            Assert.True(foundByBinary);
-            Assert.True(foundByXml);
-            Assert.True(foundByJson);
+            Assert.That(foundByType, Is.True);
+            Assert.That(foundByBinary, Is.True);
+            Assert.That(foundByXml, Is.True);
+            Assert.That(foundByJson, Is.True);
 
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByTypeId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByBinaryId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByXmlId.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), typeByJsonId.Type);
+            Assert.That(typeByTypeId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByBinaryId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByXmlId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(typeByJsonId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
         }
 
         [Test]
@@ -1093,9 +1092,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool foundWithoutNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000), out IEncodeableType typeWithoutNs);
             bool foundWithNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000, Namespaces.OpcUa), out _);
 
-            Assert.True(foundWithoutNs);
-            Assert.False(foundWithNs);
-            Assert.AreEqual(typeof(TestEncodeableWithDefaultNamespace), typeWithoutNs.Type);
+            Assert.That(foundWithoutNs, Is.True);
+            Assert.That(foundWithNs, Is.False);
+            Assert.That(typeWithoutNs.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 
         [Test]
@@ -1112,8 +1111,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool found = builder.TryGetEncodeableType(new ExpandedNodeId(60000), out IEncodeableType encodeableType);
 
             // Assert
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestEncodeable), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -1134,8 +1133,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool found = builder.TryGetEncodeableType(typeId, out IEncodeableType encodeableType);
 
             // Assert - Should prefer builder's type over factory's type
-            Assert.True(found);
-            Assert.AreEqual(typeof(TestJsonEncodeable), encodeableType.Type);
+            Assert.That(found, Is.True);
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
         }
 
         /// <summary>
@@ -1235,8 +1234,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - Our test types should be registered
-            Assert.True(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType));
-            Assert.AreEqual(typeof(TestEncodeable), testType.Type);
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType), Is.True);
+            Assert.That(testType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -1254,7 +1253,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - Should have only the core OPC UA types in this assembl
-            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.That(factory.KnownTypeIds.Count(), Is.EqualTo(kNumberOfBootstrapFactoryEntries));
         }
 
         [Test]
@@ -1271,13 +1270,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             builder.Commit();
 
             // Assert - All types should be accessible
-            Assert.True(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType type1));
-            Assert.True(factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType type2));
-            Assert.True(factory.TryGetEncodeableType(new ExpandedNodeId(99999), out IEncodeableType type3));
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType type1), Is.True);
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType type2), Is.True);
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(99999), out IEncodeableType type3), Is.True);
 
-            Assert.AreEqual(typeof(TestEncodeable), type1.Type);
-            Assert.AreEqual(typeof(TestJsonEncodeable), type2.Type);
-            Assert.AreEqual(typeof(TestEncodeableWithDefaultNamespace), type3.Type);
+            Assert.That(type1.Type, Is.EqualTo(typeof(TestEncodeable)));
+            Assert.That(type2.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(type3.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 
         [Test]
@@ -1291,7 +1290,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithNullIds));
 
             // Act & Assert - Should not throw
-            NUnit.Framework.Assert.DoesNotThrow(() =>
+            Assert.DoesNotThrow(() =>
             {
                 builder.AddEncodeableType(encodeableType);
                 builder.Commit();
@@ -1299,7 +1298,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Should not be findable since all IDs are null
             bool found = factory.TryGetEncodeableType(ExpandedNodeId.Null, out _);
-            Assert.False(found);
+            Assert.That(found, Is.False);
         }
 
         [Test]
@@ -1320,15 +1319,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             bool found2 = factory.TryGetEncodeableType(nonExistentId, out IEncodeableType type2);
 
             // Assert
-            Assert.True(found1);
-            Assert.NotNull(type1);
-            Assert.AreEqual(typeof(Argument), type1.Type);
+            Assert.That(found1, Is.True);
+            Assert.That(type1, Is.Not.Null);
+            Assert.That(type1.Type, Is.EqualTo(typeof(Argument)));
 
-            Assert.False(found2);
-            Assert.Null(type2);
+            Assert.That(found2, Is.False);
+            Assert.That(type2, Is.Null);
 
             // Verify we have a substantial number of types (mentioned as ~1.5k in comments)
-            Assert.AreEqual(kNumberOfBootstrapFactoryEntries, factory.KnownTypeIds.Count());
+            Assert.That(factory.KnownTypeIds.Count(), Is.EqualTo(kNumberOfBootstrapFactoryEntries));
         }
 
         private IEncodeableFactoryBuilder m_builder;

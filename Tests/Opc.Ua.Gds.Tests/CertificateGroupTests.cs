@@ -7,7 +7,6 @@ using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -49,12 +48,12 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(
                     "This is not the ValidSubjectName for my CertificateGroup",
                     certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, default),
                 Throws.TypeOf<ArgumentNullException>());
         }
@@ -78,14 +77,14 @@ namespace Opc.Ua.Gds.Tests
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificate);
+            Assert.That(certificate, Is.Not.Null);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.IsTrue(certs.Count == 1);
+            Assert.That(certs.Count == 1, Is.True);
         }
 
         [Test]
@@ -107,7 +106,7 @@ namespace Opc.Ua.Gds.Tests
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificate);
+            Assert.That(certificate, Is.Not.Null);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
@@ -131,13 +130,13 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.IsTrue(certs.Count >= 1);
+            Assert.That(certs.Count >= 1, Is.True);
             X509Certificate2 signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCert).ConfigureAwait(false);
             X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
-            Assert.NotNull(crl);
+            Assert.That(crl, Is.Not.Null);
             Assert.That(crl.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
         }
 
@@ -173,15 +172,15 @@ namespace Opc.Ua.Gds.Tests
                         configuration.SubjectName,
                         certificateGroup.CertificateTypes[0])
                     .ConfigureAwait(false);
-                Assert.NotNull(certificate);
+                Assert.That(certificate, Is.Not.Null);
                 crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
-                Assert.IsNotNull(crls);
+                Assert.That(crls, Is.Not.Null);
                 Assert.That(crls.Count, Is.EqualTo(1));
                 X509CRL crl2 = await CertificateGroup
                     .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
                     .ConfigureAwait(false);
-                Assert.IsNotNull(crl2);
-                Assert.That(crls.First().RawData.SequenceEqual(crl2.RawData));
+                Assert.That(crl2, Is.Not.Null);
+                Assert.That(crls[0].RawData.SequenceEqual(crl2.RawData));
                 var id = new CertificateIdentifier
                 {
                     Thumbprint = certificate.Thumbprint,
@@ -194,7 +193,7 @@ namespace Opc.Ua.Gds.Tests
                .CreateForRSA();
                 await store.AddAsync(signedCert).ConfigureAwait(false);
                 X509CRL crlWithRevokedCert = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
-                Assert.NotNull(crlWithRevokedCert);
+                Assert.That(crlWithRevokedCert, Is.Not.Null);
                 Assert.That(crlWithRevokedCert.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
                 X509CRL crlWithRevokedCert2 = await CertificateGroup
                     .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
@@ -214,7 +213,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
             X509CRL crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
             Assert.That(crl, Is.Not.Null);
-            Assert.That(crl.RevokedCertificates.Count, Is.EqualTo(0));
+            Assert.That(crl.RevokedCertificates.Count, Is.Zero);
         }
 
         [Test]
@@ -236,7 +235,7 @@ namespace Opc.Ua.Gds.Tests
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificate);
+            Assert.That(certificate, Is.Not.Null);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
@@ -260,14 +259,14 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.IsTrue(certs.Count >= 1);
+            Assert.That(certs.Count >= 1, Is.True);
             X509Certificate2 signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
             X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCACert).ConfigureAwait(false);
-            Assert.NotNull(crl);
+            Assert.That(crl, Is.Not.Null);
             Assert.That(crl.RevokedCertificates.Any(el => el.SerialNumber == signedCACert.SerialNumber));
         }
 
@@ -290,7 +289,7 @@ namespace Opc.Ua.Gds.Tests
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificate);
+            Assert.That(certificate, Is.Not.Null);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
             var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
@@ -314,7 +313,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.IsTrue(certs.Count >= 1);
+            Assert.That(certs.Count >= 1, Is.True);
             X509Certificate2 signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
@@ -354,7 +353,7 @@ namespace Opc.Ua.Gds.Tests
                     cgConfiguration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificate);
+            Assert.That(certificate, Is.Not.Null);
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
@@ -363,10 +362,10 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
-                Assert.IsTrue(certs.Count == 1);
+                Assert.That(certs.Count == 1, Is.True);
                 X509CRLCollection crls = await trustedStore.EnumerateCRLsAsync(certificate)
                     .ConfigureAwait(false);
-                Assert.AreEqual(1, crls.Count);
+                Assert.That(crls.Count, Is.EqualTo(1));
             }
 
             X509Certificate2 certificateUpdated = await certificateGroup
@@ -374,7 +373,7 @@ namespace Opc.Ua.Gds.Tests
                     cgConfiguration.SubjectName,
                     certificateGroup.CertificateTypes[0])
                 .ConfigureAwait(false);
-            Assert.NotNull(certificateUpdated);
+            Assert.That(certificateUpdated, Is.Not.Null);
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
@@ -383,11 +382,11 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
-                Assert.IsTrue(certs.Count == 1);
+                Assert.That(certs.Count == 1, Is.True);
                 X509CRLCollection crls = await trustedStore
                     .EnumerateCRLsAsync(certificateUpdated)
                     .ConfigureAwait(false);
-                Assert.AreEqual(1, crls.Count);
+                Assert.That(crls.Count, Is.EqualTo(1));
             }
         }
 

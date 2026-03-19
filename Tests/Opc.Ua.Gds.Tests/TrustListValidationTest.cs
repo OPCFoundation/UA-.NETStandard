@@ -32,7 +32,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -113,12 +112,12 @@ namespace Opc.Ua.Gds.Tests
 
             // This should succeed
             bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(normalTrustList).ConfigureAwait(false);
-            Assert.False(requireReboot);
+            Assert.That(requireReboot, Is.False);
 
             // Read it back to verify
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.IsNotNull(readTrustList);
-            Assert.AreEqual(normalTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+            Assert.That(readTrustList, Is.Not.Null);
+            Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(normalTrustList.TrustedCertificates.Count));
         }
 
         /// <summary>
@@ -161,8 +160,8 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList, maxTrustListSize).ConfigureAwait(false));
 
-            Assert.IsNotNull(ex);
-            Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, ex.StatusCode);
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             TestContext.Out.WriteLine($"Expected exception caught: {ex.Message}");
         }
 
@@ -203,12 +202,12 @@ namespace Opc.Ua.Gds.Tests
 
             // This should succeed
             bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(boundaryTrustList, maxTrustListSize).ConfigureAwait(false);
-            Assert.False(requireReboot);
+            Assert.That(requireReboot, Is.False);
 
             // Read it back
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.IsNotNull(readTrustList);
-            Assert.AreEqual(boundaryTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+            Assert.That(readTrustList, Is.Not.Null);
+            Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(boundaryTrustList.TrustedCertificates.Count));
         }
 
         /// <summary>
@@ -254,7 +253,7 @@ namespace Opc.Ua.Gds.Tests
 
                 ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, ex.StatusCode);
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 TestContext.Out.WriteLine("Successfully caught exception for writing oversized trust list to server.");
 
                 // 2. Test writing a valid trust list (under the server's limit)
@@ -272,24 +271,24 @@ namespace Opc.Ua.Gds.Tests
                         validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                 }
                 long validSize = GetEncodedSize(validTrustList);
-                Assert.True(validSize < customMaxTrustListSize);
+                Assert.That(validSize < customMaxTrustListSize, Is.True);
                 TestContext.Out.WriteLine($"Valid trust list created with size {validSize}");
 
                 bool reboot = await m_pushClient.PushClient.UpdateTrustListAsync(validTrustList).ConfigureAwait(false);
-                Assert.False(reboot);
+                Assert.That(reboot, Is.False);
                 TestContext.Out.WriteLine("Successfully wrote valid trust list to server.");
 
                 // 3. Test reading the trust list with a client limit that is too small
                 ServiceResultException exRead = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.ReadTrustListAsync(TrustListMasks.TrustedCertificates, (uint)validSize - 1).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, exRead.StatusCode);
+                Assert.That(exRead.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 TestContext.Out.WriteLine("Successfully caught exception for reading trust list with small client limit.");
 
                 // 4. Test reading with a sufficient client limit
                 TrustListDataType readTrustList = await m_pushClient.PushClient
                     .ReadTrustListAsync(TrustListMasks.TrustedCertificates, (uint)validSize).ConfigureAwait(false);
-                Assert.IsNotNull(readTrustList);
-                Assert.AreEqual(validTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+                Assert.That(readTrustList, Is.Not.Null);
+                Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(validTrustList.TrustedCertificates.Count));
                 TestContext.Out.WriteLine("Successfully read trust list with sufficient client limit.");
             }
             finally

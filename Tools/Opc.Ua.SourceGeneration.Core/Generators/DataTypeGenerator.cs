@@ -646,8 +646,6 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            var dataType = (DataTypeDesign)field.Parent;
-
             context.Out.WriteLine(
                 "private {0} {1};",
                 field.DataTypeNode.GetDotNetTypeName(

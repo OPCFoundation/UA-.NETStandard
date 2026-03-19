@@ -34,7 +34,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -98,7 +97,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
@@ -147,7 +146,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void DecodeCRLs(CRLAsset crlAsset)
         {
             var x509Crl = new X509CRL(crlAsset.Crl);
-            Assert.NotNull(x509Crl);
+            Assert.That(x509Crl, Is.Not.Null);
             TestContext.Out.WriteLine($"CRLAsset:   {x509Crl.Issuer}");
             string crlInfo = WriteCRL(x509Crl);
             TestContext.Out.WriteLine(crlInfo);
@@ -215,36 +214,36 @@ namespace Opc.Ua.Security.Certificates.Tests
                 i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
             }
             var x509Crl = new X509CRL(i509Crl.RawData);
-            Assert.NotNull(x509Crl);
-            Assert.NotNull(x509Crl.CrlExtensions);
-            Assert.NotNull(x509Crl.RevokedCertificates);
-            Assert.AreEqual(m_issuerCert.SubjectName.RawData, x509Crl.IssuerName.RawData);
-            Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
-            Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
+            Assert.That(x509Crl, Is.Not.Null);
+            Assert.That(x509Crl.CrlExtensions, Is.Not.Null);
+            Assert.That(x509Crl.RevokedCertificates, Is.Not.Null);
+            Assert.That(x509Crl.IssuerName.RawData, Is.EqualTo(m_issuerCert.SubjectName.RawData));
+            Assert.That(x509Crl.ThisUpdate, Is.EqualTo(crlBuilder.ThisUpdate));
+            Assert.That(x509Crl.NextUpdate, Is.EqualTo(crlBuilder.NextUpdate));
 
             if (empty)
             {
-                Assert.AreEqual(0, x509Crl.RevokedCertificates.Count);
+                Assert.That(x509Crl.RevokedCertificates.Count, Is.Zero);
             }
             else
             {
-                Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
-                Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
-                Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
+                Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+                Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
+                Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
             }
 
             if (noExtensions)
             {
-                Assert.AreEqual(0, x509Crl.CrlExtensions.Count);
+                Assert.That(x509Crl.CrlExtensions.Count, Is.Zero);
             }
             else
             {
-                Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
+                Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(2));
             }
 
             using X509Certificate2 issuerPubKey = CertificateFactory.Create(
                 m_issuerCert.RawData);
-            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
 
         /// <summary>
@@ -284,19 +283,19 @@ namespace Opc.Ua.Security.Certificates.Tests
                 ix509Crl = crlBuilder.CreateSignature(generator);
             }
             var x509Crl = new X509CRL(ix509Crl);
-            Assert.NotNull(x509Crl);
-            Assert.NotNull(x509Crl.CrlExtensions);
-            Assert.NotNull(x509Crl.RevokedCertificates);
-            Assert.AreEqual(m_issuerCert.SubjectName.RawData, x509Crl.IssuerName.RawData);
-            Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
-            Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
-            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
-            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
-            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
-            Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
+            Assert.That(x509Crl, Is.Not.Null);
+            Assert.That(x509Crl.CrlExtensions, Is.Not.Null);
+            Assert.That(x509Crl.RevokedCertificates, Is.Not.Null);
+            Assert.That(x509Crl.IssuerName.RawData, Is.EqualTo(m_issuerCert.SubjectName.RawData));
+            Assert.That(x509Crl.ThisUpdate, Is.EqualTo(crlBuilder.ThisUpdate));
+            Assert.That(x509Crl.NextUpdate, Is.EqualTo(crlBuilder.NextUpdate));
+            Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+            Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
+            Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
+            Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(2));
             using X509Certificate2 issuerPubKey = CertificateFactory.Create(
                 m_issuerCert.RawData);
-            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
 
         /// <summary>
@@ -327,7 +326,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlEncoded = crlBuilder.Encode();
-            Assert.NotNull(crlEncoded);
+            Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
 
             // Generate a CRL with dates up-to 2050
@@ -343,7 +342,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             crlEncoded = crlBuilder.Encode();
-            Assert.NotNull(crlEncoded);
+            Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
 
@@ -384,24 +383,24 @@ namespace Opc.Ua.Security.Certificates.Tests
             CrlBuilder crlBuilder,
             byte[] crlEncoded)
         {
-            Assert.NotNull(crlEncoded);
+            Assert.That(crlEncoded, Is.Not.Null);
             var x509Crl = new X509CRL();
             x509Crl.DecodeCrl(crlEncoded);
-            Assert.NotNull(x509Crl);
-            Assert.NotNull(x509Crl.CrlExtensions);
-            Assert.NotNull(x509Crl.RevokedCertificates);
-            Assert.AreEqual(crlBuilder.IssuerName.RawData, x509Crl.IssuerName.RawData);
-            NUnit.Framework.Assert.That(
+            Assert.That(x509Crl, Is.Not.Null);
+            Assert.That(x509Crl.CrlExtensions, Is.Not.Null);
+            Assert.That(x509Crl.RevokedCertificates, Is.Not.Null);
+            Assert.That(x509Crl.IssuerName.RawData, Is.EqualTo(crlBuilder.IssuerName.RawData));
+            Assert.That(
                 crlBuilder.ThisUpdate,
                 Is.EqualTo(x509Crl.ThisUpdate).Within(TimeSpan.FromSeconds(1)));
-            NUnit.Framework.Assert.That(
+            Assert.That(
                 crlBuilder.NextUpdate,
                 Is.EqualTo(x509Crl.NextUpdate).Within(TimeSpan.FromSeconds(1)));
-            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
-            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
-            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
-            Assert.AreEqual(1, x509Crl.CrlExtensions.Count);
-            Assert.AreEqual(hash, x509Crl.HashAlgorithmName);
+            Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+            Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
+            Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
+            Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(1));
+            Assert.That(x509Crl.HashAlgorithmName, Is.EqualTo(hash));
         }
 
         private X509Certificate2 m_issuerCert;

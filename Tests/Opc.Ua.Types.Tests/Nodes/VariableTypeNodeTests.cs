@@ -111,15 +111,14 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.VariableType));
             // VariableType-specific properties should remain at defaults
             Assert.That(node.Value.IsNull, Is.True);
-            Assert.That(node.ValueRank, Is.EqualTo(0));
+            Assert.That(node.ValueRank, Is.Zero);
         }
 
         [Test]
         public void ArrayDimensionsSetNonNullValue()
         {
             var node = new VariableTypeNode();
-            ArrayOf<uint> dims = [3, 5, 7];
-            node.ArrayDimensions = dims;
+            node.ArrayDimensions = [3, 5, 7];
 
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
             Assert.That(node.ArrayDimensions[0], Is.EqualTo(3));
@@ -600,7 +599,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var deserialized = (VariableTypeNode)serializer.ReadObject(stream);
 
             Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.IsAbstract, Is.EqualTo(false));
+            Assert.That(deserialized.IsAbstract, Is.False);
             Assert.That(deserialized.ValueRank, Is.EqualTo(3));
         }
 

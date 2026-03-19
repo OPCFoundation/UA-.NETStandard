@@ -29,7 +29,6 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -58,10 +57,10 @@ namespace Opc.Ua.Server.Tests
         public async Task StartServerAsync(string uriScheme)
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
-            Assert.NotNull(fixture);
+            Assert.That(fixture, Is.Not.Null);
             fixture.UriScheme = uriScheme;
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-            Assert.NotNull(server);
+            Assert.That(server, Is.Not.Null);
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
         }

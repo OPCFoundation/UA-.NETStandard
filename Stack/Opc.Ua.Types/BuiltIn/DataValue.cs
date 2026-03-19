@@ -555,7 +555,7 @@ namespace Opc.Ua
                 return typedBody;
             }
 
-            if (WrappedValue.TryCastTo<T>(out typedBody))
+            if (WrappedValue.TryCastTo(out typedBody))
             {
                 return typedBody;
             }

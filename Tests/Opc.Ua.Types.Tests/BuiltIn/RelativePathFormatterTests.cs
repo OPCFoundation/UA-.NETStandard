@@ -959,7 +959,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // TargetName has namespace index 0, should be skipped
             formatter.TranslateNamespaceIndexes(currentTable, targetTable);
 
-            Assert.That(formatter.Elements[0].TargetName.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(formatter.Elements[0].TargetName.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -995,7 +995,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void RoundTripWithEscapedCharacters()
         {
-            string original = "/Node&/A";
+            const string original = "/Node&/A";
             var parsed = RelativePathFormatter.Parse(original);
 
             Assert.That(parsed.Elements[0].TargetName.Name, Is.EqualTo("Node/A"));
@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(result.Elements, Has.Count.EqualTo(1));
             Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo("123abc"));
-            Assert.That(result.Elements[0].TargetName.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.Elements[0].TargetName.NamespaceIndex, Is.Zero);
         }
 
         [Test]
