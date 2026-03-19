@@ -555,25 +555,25 @@ namespace Opc.Ua.Client.Tests
                             // Build an event filter for the base event type.
                             var eventFilter = new EventFilter();
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.EventId));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.EventType));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.SourceNode));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.SourceName));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.Time));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.Message));
                             eventFilter.AddSelectClause(
-                                ObjectTypes.BaseEventType,
+                                ObjectTypeIds.BaseEventType,
                                 QualifiedName.From(BrowseNames.Severity));
 
                             // Monitor the Server node for events.
@@ -591,9 +591,9 @@ namespace Opc.Ua.Client.Tests
                                 Interlocked.Add(ref eventsReceived, notification.Events.Count);
                                 foreach (EventFieldList fieldList in notification.Events)
                                 {
-                                    if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].Value is DateTime eventTime)
+                                    if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGet(out DateTimeUtc eventTime))
                                     {
-                                        TimeSpan delay = DateTime.UtcNow - eventTime.ToUniversalTime();
+                                        TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
                                         Interlocked.Add(ref totalDelayTicks, delay.Ticks);
                                     }
                                 }
