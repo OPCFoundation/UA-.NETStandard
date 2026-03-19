@@ -428,19 +428,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(keyUsage, Is.Not.Null);
             TestContext.Out.WriteLine(keyUsage.Format(true));
             Assert.That(keyUsage.Critical, Is.True);
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment,
                 Is.EqualTo((int)X509KeyUsageFlags.DataEncipherment));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DigitalSignature),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DigitalSignature,
                 Is.EqualTo((int)X509KeyUsageFlags.DigitalSignature));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign),
-                Is.EqualTo((signedCert ? 0 : (int)X509KeyUsageFlags.KeyCertSign)));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign,
+                Is.EqualTo(signedCert ? 0 : (int)X509KeyUsageFlags.KeyCertSign));
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment,
                 Is.EqualTo((int)X509KeyUsageFlags.KeyEncipherment));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.NonRepudiation),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.NonRepudiation,
                 Is.EqualTo((int)X509KeyUsageFlags.NonRepudiation));
 
             // enhanced key usage
@@ -554,18 +554,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(keyUsage, Is.Not.Null);
             TestContext.Out.WriteLine(keyUsage.Format(true));
             Assert.That(keyUsage.Critical, Is.True);
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign,
                 Is.EqualTo((int)X509KeyUsageFlags.CrlSign));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DigitalSignature),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DigitalSignature,
                 Is.EqualTo((int)X509KeyUsageFlags.DigitalSignature));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign),
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign,
                 Is.EqualTo((int)X509KeyUsageFlags.KeyCertSign));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment), Is.EqualTo(0));
-            Assert.That(((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.NonRepudiation), Is.EqualTo(0));
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.NonRepudiation, Is.Zero);
 
             // enhanced key usage
             X509EnhancedKeyUsageExtension enhancedKeyUsage = cert

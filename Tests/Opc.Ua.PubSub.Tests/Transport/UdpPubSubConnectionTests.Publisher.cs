@@ -66,9 +66,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             IPAddress unicastIPAddress = localhost.Address;
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -162,9 +162,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -261,9 +261,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpMulticastIp);
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -362,9 +362,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
@@ -382,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -468,9 +468,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
@@ -488,7 +488,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -569,9 +569,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             PubSubConfigurationDataType publisherConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configurationFile, telemetry);
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
-            Assert.Greater(
+            Assert.That(
                 publisherConfiguration.Connections.Count,
-                1,
+                Is.GreaterThan(1),
                 "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
@@ -589,7 +589,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;

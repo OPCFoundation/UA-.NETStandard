@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             var collection = new NodeStateCollection();
             Assert.That(collection, Is.Not.Null);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -110,7 +110,7 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(view);
             bool removed = collection.Remove(view);
             Assert.That(removed, Is.True);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
             view.Dispose();
         }
 
@@ -155,7 +155,7 @@ namespace Opc.Ua.Types.Tests.State
                 new ViewState { NodeId = new NodeId(51) }
             };
             collection.Clear();
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]

@@ -35,7 +35,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Assert
             Assert.That(certs, Is.Not.Null, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
+            Assert.That(certs, Is.Not.Empty, "Certificates collection should not be empty.");
             Assert.That(certs.Count, Is.EqualTo(3), "Expected 3 certificates in the collection.");
             Assert.That(
                 certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0],
@@ -64,7 +64,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(
                 updatedFile);
             Assert.That(updatedCerts, Is.Not.Null, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(updatedCerts, "Certificates collection should not be empty.");
+            Assert.That(updatedCerts, Is.Not.Empty, "Certificates collection should not be empty.");
             Assert.That(updatedCerts.Count, Is.EqualTo(2), "Expected 2 certificates in the collection.");
             //root
             Assert.That(
@@ -78,7 +78,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(
                 updatedCerts.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)
                     .Count,
-                Is.EqualTo(0));
+                Is.Zero);
         }
 
         [Test]
@@ -99,7 +99,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Assert
             Assert.That(certs, Is.Not.Null, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
+            Assert.That(certs, Is.Not.Empty, "Certificates collection should not be empty.");
             Assert.That(certs.Count, Is.EqualTo(1), "Expected 1 certificate in the collection.");
             X509Certificate2 leaf = certs.Find(
                 X509FindType.FindBySerialNumber,

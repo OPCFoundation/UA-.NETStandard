@@ -665,7 +665,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(text);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(parsed.Operations, Is.Not.Empty);
             var literalOps = parsed.Operations.Where(op => op.Type == ParsedTemplateString.OpType.Literal).ToList();
             Assert.That(literalOps, Has.Count.GreaterThanOrEqualTo(1));
         }
@@ -2205,7 +2205,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(operations, Is.Not.Null);
-            Assert.That(operations.Count, Is.GreaterThan(0));
+            Assert.That(operations, Is.Not.Empty);
             Assert.That(operations.Any(op => op.Item == rawString), Is.True);
         }
 

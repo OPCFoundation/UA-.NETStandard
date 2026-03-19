@@ -382,13 +382,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 parsedEndpointUrl,
                 BaseAddresses);
             Assert.That(filteredBaseAddresses, Is.Not.Null);
-            Assert.Greater(filteredBaseAddresses.Count, 0);
+            Assert.That(filteredBaseAddresses, Is.Not.Empty);
             TestContext.Out.WriteLine($"Filtered endpoints: {filteredBaseAddresses.Count}");
             foreach (BaseAddress baseaddress in filteredBaseAddresses)
             {
                 TestContext.Out.WriteLine($"Endpoint: {baseaddress.Url}");
             }
-            Assert.Greater(filteredBaseAddresses.Count, 0);
+            Assert.That(filteredBaseAddresses, Is.Not.Empty);
             for (int i = 0; i < filteredBaseAddresses.Count; i++)
             {
                 for (int v = i + 1; v < filteredBaseAddresses.Count; v++)
@@ -426,14 +426,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
             }
-            Assert.Greater(BaseAddressCount, 0);
+            Assert.That(BaseAddressCount, Is.GreaterThan(0));
             ArrayOf<EndpointDescription> translatedEndpoints = TranslateEndpointDescriptions(
                 parsedEndpointUrl,
                 baseAddresses,
                 m_endpoints,
                 m_serverDescription);
             Assert.That(translatedEndpoints.IsNull, Is.False);
-            Assert.Greater(translatedEndpoints.Count, 0);
+            Assert.That(translatedEndpoints.Count, Is.GreaterThan(0));
             foreach (EndpointDescription endpoint in translatedEndpoints)
             {
                 TestContext.Out.WriteLine(
@@ -473,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                                  translatedEndpoint.UserIdentityTokens);
                      });
 
-                Assert.Greater(matches.Count, 0);
+                Assert.That(matches.Count, Is.GreaterThan(0));
                 EndpointDescription firstMatch = matches[0];
                 Assert.That(
                     translatedEndpoint.UserIdentityTokens.Count,
@@ -525,7 +525,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 }
                 if (translatedEndpointUrl.Scheme == Utils.UriSchemeOpcHttps)
                 {
-                    Assert.That(translatedEndpointUrl.Port % 10, Is.EqualTo(0));
+                    Assert.That(translatedEndpointUrl.Port % 10, Is.Zero);
                 }
                 else if (translatedEndpointUrl.Scheme == Utils.UriSchemeOpcTcp)
                 {

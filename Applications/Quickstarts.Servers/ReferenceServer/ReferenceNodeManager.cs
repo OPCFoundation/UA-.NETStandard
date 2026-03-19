@@ -4212,7 +4212,7 @@ namespace Quickstarts.ReferenceServer
             var variable = node as MultiStateDiscreteState;
 
             // verify data type.
-            var typeInfo = TypeInfo.IsInstanceOfDataType(
+            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -4295,7 +4295,7 @@ namespace Quickstarts.ReferenceServer
             var variable = node as AnalogItemState;
 
             // verify data type.
-            var typeInfo = TypeInfo.IsInstanceOfDataType(
+            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,

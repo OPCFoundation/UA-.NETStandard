@@ -31,9 +31,9 @@ using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using AttributesToSave = Opc.Ua.NodeState.AttributesToSave;
+
 namespace Opc.Ua.Types.Tests.State
 {
-
     /// <summary>
     /// Tests for BaseVariableState.
     /// </summary>

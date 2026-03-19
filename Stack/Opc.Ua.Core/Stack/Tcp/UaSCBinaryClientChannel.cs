@@ -922,7 +922,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    var fault = ServiceResult.Create(
+                    ServiceResult fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
                         "An unexpected error occurred while connecting to the server.");

@@ -29,8 +29,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(localizedText.Locale, Is.EqualTo("mul"), "Locale should be 'mul'");
             Assert.That(localizedText.Text, Is.Not.Null, "Text should not be null");
             Assert.That(
-                localizedText.Translations.Count,
-                Is.EqualTo(2),
+                localizedText.Translations,
+                Has.Count.EqualTo(2),
                 "Translations should have 2 entries");
             Assert.That(localizedText.Translations["en-US"], Is.EqualTo("Hello"));
             Assert.That(localizedText.Translations["de-DE"], Is.EqualTo("Hallo"));
@@ -73,8 +73,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(localizedText.Locale, Is.EqualTo("fr-FR"), "Locale should be 'fr-FR'");
             Assert.That(localizedText.Text, Is.EqualTo("Bonjour"), "Text should be 'Bonjour'");
             Assert.That(
-                localizedText.Translations.Count,
-                Is.EqualTo(1),
+                localizedText.Translations,
+                Has.Count.EqualTo(1),
                 "Translations should have 1 entry");
             Assert.That(localizedText.Translations["fr-FR"], Is.EqualTo("Bonjour"));
         }
@@ -99,8 +99,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 "Text should match the input JSON exactly");
             Assert.That(localizedText.Translations, Is.Not.Null, "Translations should not be null");
             Assert.That(
-                localizedText.Translations.Count,
-                Is.EqualTo(3),
+                localizedText.Translations,
+                Has.Count.EqualTo(3),
                 "Translations should have 3 entries");
             Assert.That(localizedText.Translations["en-US"], Is.EqualTo("Hello"));
             Assert.That(localizedText.Translations["de-DE"], Is.EqualTo("Hallo"));
@@ -150,7 +150,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // All locales returned
             LocalizedText mul = localizedText.FilterByPreferredLocales(s_preferredLocalesArray2);
             Assert.That(mul.IsMultiLanguage, Is.True, "Should be mul locale");
-            Assert.That(mul.Translations.Count, Is.EqualTo(3), "Translations should have 3 entries");
+            Assert.That(mul.Translations, Has.Count.EqualTo(3), "Translations should have 3 entries");
             Assert.That(mul.Translations["en-US"], Is.EqualTo("Hello"));
             Assert.That(mul.Translations["de-DE"], Is.EqualTo("Hallo"));
             Assert.That(mul.Translations["fr-FR"], Is.EqualTo("Bonjour"));
@@ -168,7 +168,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Filtered returned only fr locale as mul
             LocalizedText mulFr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray5);
             Assert.That(mulFr.IsMultiLanguage, Is.False, "Should not be mul locale because only one locale matched.");
-            Assert.That(mulFr.Translations.Count, Is.EqualTo(1), "Translations should have 1 entries");
+            Assert.That(mulFr.Translations, Has.Count.EqualTo(1), "Translations should have 1 entries");
             Assert.That(mulFr.Translations["fr-FR"], Is.EqualTo("Bonjour"));
         }
 
@@ -233,8 +233,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(deepCopy.Locale, Is.EqualTo(localizedText.Locale), "Locale should be the same");
             Assert.That(deepCopy.Text, Is.EqualTo(localizedText.Text), "Text should be the same");
             Assert.That(
-                deepCopy.Translations.Count,
-                Is.EqualTo(localizedText.Translations.Count),
+                deepCopy.Translations,
+                Has.Count.EqualTo(localizedText.Translations.Count),
                 "Translations count should be the same");
             Assert.That(
                 deepCopy.Translations["en-US"],

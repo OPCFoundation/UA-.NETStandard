@@ -966,7 +966,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Server
                         m_logger.LogError(e, "Error occurred in SetPublishingMode");
                     }
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);

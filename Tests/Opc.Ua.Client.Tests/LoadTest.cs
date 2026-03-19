@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.Tests
                 // Allow for network delays
                 double receiveRatio = (double)receivedNotifications / expectedNotifications;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
-                Assert.Greater(receiveRatio, 0.99, "The overall notification receive ratio is too low.");
+                Assert.That(receiveRatio, Is.GreaterThan(0.99), "The overall notification receive ratio is too low.");
             }
             finally
             {

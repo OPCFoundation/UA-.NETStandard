@@ -78,9 +78,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(inodeId2, Is.EqualTo(nodeId2));
 
             Assert.That(inodeId1.GetHashCode(), Is.EqualTo(nodeId1.GetHashCode()));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeId2 < inodeId2, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeId2, Is.EqualTo(inodeId2));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeId2 > inodeId2, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
             // string
             const string text = "i=123";
@@ -94,14 +98,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ExpandedNodeId inodeIdText2 = 123;
             Assert.That(inodeIdText2, Is.EqualTo(inodeIdText));
 
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeIdText < inodeIdText, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeIdText, Is.EqualTo(inodeIdText));
             Assert.That(nodeIdText, Is.EqualTo(inodeIdText2));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeIdText > inodeIdText, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
             Assert.That(nodeIdText, Is.GreaterThan(nodeId2));
             Assert.That(nodeIdText, Is.Not.EqualTo(nodeId2));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(nodeIdText < nodeId2, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             _ = new ExpandedNodeId(123, 123);
             _ = new ExpandedNodeId("Test", 123);
             _ = new ExpandedNodeId(byteid2, 123);
@@ -606,9 +616,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id1 = new ExpandedNodeId(1u);
             var id2 = new ExpandedNodeId(2u);
             var id3 = new ExpandedNodeId(1u);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id2 >= id1, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 >= id3, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 >= id2, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -617,8 +633,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id1 = new ExpandedNodeId(1u);
             var id2 = new ExpandedNodeId(2u);
             var id3 = new ExpandedNodeId(1u);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 <= id2, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 <= id3, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id2, Is.GreaterThan(id1));
         }
 
@@ -626,9 +646,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectNull()
         {
             ExpandedNodeId nullId = ExpandedNodeId.Null;
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(nullId.Equals((object)null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             var nonNull = new ExpandedNodeId(1u);
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(nonNull, Is.Not.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]
@@ -1261,7 +1285,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(s1, Is.EqualTo(s2));
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(nullS, Is.Not.EqualTo(s1));
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(nullS, Is.EqualTo((SerializableExpandedNodeId)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -1392,7 +1418,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsExpandedNodeIdBothNull()
         {
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(ExpandedNodeId.Null.Equals(ExpandedNodeId.Null), Is.True);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]

@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             NodeId n0 = decoder.ReadNodeId("D0");
-            Assert.That((int)n0.NamespaceIndex, Is.EqualTo(0));
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
             Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             NodeId n1 = decoder.ReadNodeId("D1");
@@ -160,12 +160,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
-            Assert.That((int)n0.ServerIndex, Is.EqualTo(0));
-            Assert.That((int)n0.NamespaceIndex, Is.EqualTo(0));
+            Assert.That((int)n0.ServerIndex, Is.Zero);
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
             Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
-            Assert.That((int)n1.ServerIndex, Is.EqualTo(0));
+            Assert.That((int)n1.ServerIndex, Is.Zero);
 
             string uri = Get(NamespaceUris, index);
             int ns = context.NamespaceUris.GetIndex(uri);
@@ -181,7 +181,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(n1.TryGetIdentifier(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
 
             ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
-            Assert.That((int)n2.ServerIndex, Is.EqualTo(0));
+            Assert.That((int)n2.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Is.EqualTo(Get(StringIds, index)));
 
             ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
-            Assert.That((int)n3.ServerIndex, Is.EqualTo(0));
+            Assert.That((int)n3.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Is.EqualTo(Get(GuidIds, index)));
 
             ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
-            Assert.That((int)n4.ServerIndex, Is.EqualTo(0));
+            Assert.That((int)n4.ServerIndex, Is.Zero);
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int index)
         {
             QualifiedName n0 = decoder.ReadQualifiedName("D0");
-            Assert.That((int)n0.NamespaceIndex, Is.EqualTo(0));
+            Assert.That((int)n0.NamespaceIndex, Is.Zero);
             Assert.That(n0.Name, Is.EqualTo("ServerStatus"));
 
             QualifiedName n1 = decoder.ReadQualifiedName("D1");
@@ -796,7 +796,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
             Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
             Assert.That(range, Is.Not.Null);
-            Assert.That(range.Low, Is.EqualTo(0));
+            Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
 
             Variant v1 = decoder.ReadVariant("D1");
@@ -916,7 +916,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
             Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
             Assert.That(range, Is.Not.Null);
-            Assert.That(range.Low, Is.EqualTo(0));
+            Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
 
             Variant v1 = decoder.ReadVariant("D1");

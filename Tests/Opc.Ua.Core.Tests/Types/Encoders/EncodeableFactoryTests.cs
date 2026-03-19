@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Assert
             Assert.That(factory, Is.Not.Null);
             Assert.That(factory.KnownTypeIds, Is.Not.Null);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0));
         }
 
         [Test]
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Assert
             Assert.That(knownTypes, Is.Not.Null);
             // Note: Since Create() pre-loads types, we expect many types, not 0
-            Assert.Greater(knownTypes.Count(), 0);
+            Assert.That(knownTypes.Count(), Is.GreaterThan(0));
         }
 
         [Test]
@@ -308,7 +308,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Assert - Should add our concrete test types but skip abstract and no-default-constructor types
             int addedTypes = factory.KnownTypeIds.Count() - knownTypesCount;
-            Assert.Greater(addedTypes, 0); // Should have added some types
+            Assert.That(addedTypes, Is.GreaterThan(0)); // Should have added some types
 
             // Verify abstract types are not added
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110000), out _), Is.False);
@@ -399,8 +399,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Assert
-            Assert.That(exceptions.Count, Is.EqualTo(0), $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(exceptions.Count, Is.Zero, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0));
         }
 
         [Test]
@@ -545,7 +545,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             builder.Commit();
 
             // Assert - Should have many OPC UA types
-            Assert.Greater(factory.KnownTypeIds.Count(), 100); // OPC UA has many built-in types
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(100)); // OPC UA has many built-in types
         }
 
         [Test]
@@ -555,11 +555,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Assert - Create() should return factory with preloaded types
-            Assert.Greater(factory.KnownTypeIds.Count(), 100);
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(100));
 
             // Should be able to find common OPC UA types like ReadRequest
             var knownTypesList = factory.KnownTypeIds.ToList();
-            Assert.Greater(knownTypesList.Count, 0);
+            Assert.That(knownTypesList, Is.Not.Empty);
         }
 
         [Test]
@@ -611,7 +611,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Act & Assert
             Assert.DoesNotThrow(builder.Commit);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0); // Should have pre-loaded types
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0)); // Should have pre-loaded types
         }
 
         [Test]
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             builder.Commit();
 
             // Assert - Should have many types including core OPC UA types
-            Assert.Greater(factory.KnownTypeIds.Count(), 1000);
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(1000));
         }
 
         [Test]
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(type2, Is.Null);
 
             // Verify we have a substantial number of types (mentioned as ~1.5k in comments)
-            Assert.Greater(factory.KnownTypeIds.Count(), 1000);
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(1000));
         }
 
         private IEncodeableFactoryBuilder m_builder;

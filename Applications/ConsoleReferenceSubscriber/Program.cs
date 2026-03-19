@@ -162,7 +162,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 }
 
                 // Create the UA Publisher application
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                 {
                     // Subscribte to RawDataReceived event
                     uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;

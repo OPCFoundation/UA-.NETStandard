@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
                 }
                 Assert.That(
-                    (await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false)),
+                    await validator.IssuerStore.EnumerateAsync().ConfigureAwait(false),
                     Has.Count.EqualTo(m_appSelfSignedCerts.Count));
                 CertificateValidator certValidator = validator.Update();
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -356,7 +356,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 Assert.That(
-                    (await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false)),
+                    await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false),
                     Has.Count.EqualTo(m_appSelfSignedCerts.Count));
             }
         }
@@ -472,7 +472,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certValidator.MaxRejectedCertificates = -1;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.EqualTo(0));
+                Assert.That(certificates.Count, Is.Zero);
 
                 // ensure no certs are added to the rejected store
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.EqualTo(0));
+                Assert.That(certificates.Count, Is.Zero);
             }
             finally
             {
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 innerResult.StatusCode,
                 Is.EqualTo(StatusCodes.BadCertificateInvalid),
                 innerResult.LocalizedText.Text);
-            Assert.That(approver.Count, Is.EqualTo(0));
+            Assert.That(approver.Count, Is.Zero);
         }
 
         /// <summary>
@@ -2016,15 +2016,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                     if (rejectUnknownRevocationStatus)
                     {
-                        Assert.LessOrEqual(
-                            kCaChainCount - 1,
-                            isPresentCertificateIssuerRevocationUnknown);
+                        Assert.That(
+                            isPresentCertificateIssuerRevocationUnknown,
+                            Is.GreaterThanOrEqualTo(kCaChainCount - 1));
                         Assert.That(isPresentCertificateRevocationUnknown, Is.EqualTo(1));
                     }
                     else
                     {
-                        Assert.That(isPresentCertificateIssuerRevocationUnknown, Is.EqualTo(0));
-                        Assert.That(isPresentCertificateRevocationUnknown, Is.EqualTo(0));
+                        Assert.That(isPresentCertificateIssuerRevocationUnknown, Is.Zero);
+                        Assert.That(isPresentCertificateRevocationUnknown, Is.Zero);
                     }
                 }
             }

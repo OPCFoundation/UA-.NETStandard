@@ -262,10 +262,10 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(noneTrustList.IssuerCrls.IsNull, Is.False);
             Assert.That(noneTrustList.TrustedCertificates.IsNull, Is.False);
             Assert.That(noneTrustList.TrustedCrls.IsNull, Is.False);
-            Assert.That(noneTrustList.IssuerCertificates.Count, Is.EqualTo(0));
-            Assert.That(noneTrustList.IssuerCrls.Count, Is.EqualTo(0));
-            Assert.That(noneTrustList.TrustedCertificates.Count, Is.EqualTo(0));
-            Assert.That(noneTrustList.TrustedCrls.Count, Is.EqualTo(0));
+            Assert.That(noneTrustList.IssuerCertificates.Count, Is.Zero);
+            Assert.That(noneTrustList.IssuerCrls.Count, Is.Zero);
+            Assert.That(noneTrustList.TrustedCertificates.Count, Is.Zero);
+            Assert.That(noneTrustList.TrustedCrls.Count, Is.Zero);
             TrustListDataType issuerTrustList = await m_pushClient.PushClient.ReadTrustListAsync(
                 (TrustListMasks)((int)TrustListMasks.IssuerCertificates |
                     (int)TrustListMasks.IssuerCrls)).ConfigureAwait(false);
@@ -276,8 +276,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(issuerTrustList.TrustedCrls.IsNull, Is.False);
             Assert.That(issuerTrustList.IssuerCertificates.Count, Is.EqualTo(allTrustList.IssuerCertificates.Count));
             Assert.That(issuerTrustList.IssuerCrls.Count, Is.EqualTo(allTrustList.IssuerCrls.Count));
-            Assert.That(issuerTrustList.TrustedCertificates.Count, Is.EqualTo(0));
-            Assert.That(issuerTrustList.TrustedCrls.Count, Is.EqualTo(0));
+            Assert.That(issuerTrustList.TrustedCertificates.Count, Is.Zero);
+            Assert.That(issuerTrustList.TrustedCrls.Count, Is.Zero);
             TrustListDataType trustedTrustList = await m_pushClient.PushClient.ReadTrustListAsync(
                 (TrustListMasks)((int)TrustListMasks.TrustedCertificates |
                     (int)TrustListMasks.TrustedCrls)).ConfigureAwait(false);
@@ -286,8 +286,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(trustedTrustList.IssuerCrls.IsNull, Is.False);
             Assert.That(trustedTrustList.TrustedCertificates.IsNull, Is.False);
             Assert.That(trustedTrustList.TrustedCrls.IsNull, Is.False);
-            Assert.That(trustedTrustList.IssuerCertificates.Count, Is.EqualTo(0));
-            Assert.That(trustedTrustList.IssuerCrls.Count, Is.EqualTo(0));
+            Assert.That(trustedTrustList.IssuerCertificates.Count, Is.Zero);
+            Assert.That(trustedTrustList.IssuerCrls.Count, Is.Zero);
             Assert.That(trustedTrustList.TrustedCertificates.Count, Is.EqualTo(allTrustList.TrustedCertificates.Count));
             Assert.That(trustedTrustList.TrustedCrls.Count, Is.EqualTo(allTrustList.TrustedCrls.Count));
         }

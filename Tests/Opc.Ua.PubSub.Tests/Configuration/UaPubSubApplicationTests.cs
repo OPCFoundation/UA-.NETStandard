@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
-            var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
 
             // Assert
             Assert.That(

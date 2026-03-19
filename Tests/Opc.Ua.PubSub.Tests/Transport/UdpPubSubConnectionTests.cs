@@ -593,7 +593,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 // Publisher should have clients since there are publishers configured
                 if (m_udpPublisherConnection.Publishers.Count > 0)
                 {
-                    Assert.Greater(publisherClients.Count, 0, "PublisherUdpClients should not be empty when publishers exist");
+                    Assert.That(publisherClients, Is.Not.Empty, "PublisherUdpClients should not be empty when publishers exist");
 
                     // Verify we can access the underlying socket
                     foreach (UdpClient client in publisherClients)
@@ -603,7 +603,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                         // Verify we can read socket properties (e.g., ReceiveBufferSize)
                         int receiveBufferSize = client.Client.ReceiveBufferSize;
-                        Assert.Greater(receiveBufferSize, 0, "ReceiveBufferSize should be greater than 0");
+                        Assert.That(receiveBufferSize, Is.GreaterThan(0), "ReceiveBufferSize should be greater than 0");
 
                         m_logger.LogInformation(
                             "Publisher UDP Socket - ReceiveBufferSize: {Size}, LocalEndPoint: {Endpoint}",

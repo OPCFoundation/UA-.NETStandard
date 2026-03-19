@@ -273,7 +273,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = path.Format(mockTypeTree.Object);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]

@@ -57,13 +57,13 @@ namespace Opc.Ua.Core.Tests.Schema
                     MessageSecurityMode.None,
                     SecurityPolicies.Basic128Rsa15,
                     logger),
-                Is.EqualTo(0));
+                Is.Zero);
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Invalid,
                     SecurityPolicies.Basic128Rsa15,
                     logger),
-                Is.EqualTo(0));
+                Is.Zero);
         }
 
         /// <summary>

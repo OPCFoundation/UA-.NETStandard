@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = Attributes.GetBrowseName(id);
                 Assert.That(browseName, Is.Not.Null);
-                Assert.IsNotEmpty(browseName);
+                Assert.That(browseName, Is.Not.Empty);
             }
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in attributeNames)
             {
                 uint id = Attributes.GetIdentifier(name);
-                Assert.That(id, Is.Not.EqualTo(0));
+                Assert.That(id, Is.Not.Zero);
             }
         }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = Attributes.GetIdentifier("InvalidAttributeName");
-            Assert.That(id, Is.EqualTo(0));
+            Assert.That(id, Is.Zero);
         }
 
         /// <summary>

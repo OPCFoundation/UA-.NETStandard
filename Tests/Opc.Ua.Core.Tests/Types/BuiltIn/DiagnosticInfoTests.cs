@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 stringTable,
                 logger);
             Assert.That(diagnosticInfo, Is.Not.Null);
-            Assert.That(diagnosticInfo.SymbolicId, Is.EqualTo(0));
+            Assert.That(diagnosticInfo.SymbolicId, Is.Zero);
             Assert.That(diagnosticInfo.NamespaceUri, Is.EqualTo(1));
             Assert.That(diagnosticInfo.Locale, Is.EqualTo(2));
             Assert.That(diagnosticInfo.LocalizedText, Is.EqualTo(3));

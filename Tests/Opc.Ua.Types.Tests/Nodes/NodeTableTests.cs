@@ -104,11 +104,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             AttachNode(1);
             AttachNode(2);
-            Assert.That(m_nodeTable.Count, Is.GreaterThan(0));
+            Assert.That(m_nodeTable, Is.Not.Empty);
 
             m_nodeTable.Clear();
 
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
             Assert.That(m_nodeTable.Exists(LocalExpanded(1)), Is.False);
             Assert.That(m_nodeTable.Exists(LocalExpanded(2)), Is.False);
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ClearOnEmptyTableDoesNotThrow()
         {
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
             Assert.DoesNotThrow(m_nodeTable.Clear);
         }
 
@@ -538,7 +538,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             List<Node> result = m_nodeTable.Import(nodeSet, null);
 
             Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(m_nodeTable.Count, Is.GreaterThan(0));
+            Assert.That(m_nodeTable, Is.Not.Empty);
         }
 
         [Test]
@@ -860,7 +860,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = m_nodeTable.Remove(LocalExpanded(1));
             Assert.That(result, Is.True);
             Assert.That(m_nodeTable.Exists(LocalExpanded(1)), Is.False);
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
         }
 
         [Test]
@@ -922,7 +922,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_nodeTable, Has.Count.EqualTo(1));
 
             m_nodeTable.Remove(LocalExpanded(2));
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
         }
 
         [Test]
@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(removed, Is.True);
 
             // Remote node reference count reached 0, should be removed
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
         }
 
         [Test]
@@ -1099,7 +1099,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             // Remove the second local node; now remote node ref count = 0
             m_nodeTable.Remove(new ExpandedNodeId(new NodeId(1001, 0)));
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
         }
 
         [Test]
@@ -1140,7 +1140,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             // Clear remainder
             m_nodeTable.Clear();
-            Assert.That(m_nodeTable.Count, Is.Zero);
+            Assert.That(m_nodeTable, Is.Empty);
         }
 
         [Test]

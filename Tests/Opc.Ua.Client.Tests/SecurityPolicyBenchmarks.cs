@@ -491,7 +491,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(response, Is.Not.Null);
             Assert.That(response.Results.IsNull, Is.False);
-            Assert.Greater(response.Results.Count, 0);
+            Assert.That(response.Results.IsEmpty, Is.True);
         }
 
         /// <summary>
@@ -884,7 +884,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // Assert at least some policies work
-            Assert.Greater(successful, 0, "No security policies were successful");
+            Assert.That(successful, Is.GreaterThan(0), "No security policies were successful");
         }
     }
 }

@@ -74,10 +74,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.GetInt32(), Is.EqualTo(42));
         }
 
-        // Note: TryCastTo<Enum> uses AsT which relies on Unsafe.As and has a
-        // Debug.Assert that fires in debug builds (enum vs int type mismatch).
-        // This path is covered by release-mode CI runs.
-
         [Test]
         public void TryCastToBoolReturnsBoolean()
         {
@@ -958,7 +954,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { dt }.ToArrayOf());
             bool result = v.TryCastTo(out DateTimeUtc[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -968,7 +964,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { uuid }.ToArrayOf());
             bool result = v.TryCastTo(out Uuid[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -987,7 +983,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new ByteString(new byte[] { 1 }) }.ToArrayOf());
             bool result = v.TryCastTo(out ByteString[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -996,7 +992,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new XmlElement("<a/>") }.ToArrayOf());
             bool result = v.TryCastTo(out XmlElement[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1005,7 +1001,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new NodeId(1) }.ToArrayOf());
             bool result = v.TryCastTo(out NodeId[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1014,7 +1010,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new ExpandedNodeId(1) }.ToArrayOf());
             bool result = v.TryCastTo(out ExpandedNodeId[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1023,7 +1019,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new LocalizedText("en-US", "Hi") }.ToArrayOf());
             bool result = v.TryCastTo(out LocalizedText[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1032,7 +1028,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new QualifiedName("Test") }.ToArrayOf());
             bool result = v.TryCastTo(out QualifiedName[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1041,7 +1037,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { StatusCodes.Good }.ToArrayOf());
             bool result = v.TryCastTo(out StatusCode[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1050,7 +1046,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new DataValue(Variant.From(1)) }.ToArrayOf());
             bool result = v.TryCastTo(out DataValue[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1059,7 +1055,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { Variant.From(1), Variant.From("x") }.ToArrayOf());
             bool result = v.TryCastTo(out Variant[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(2));
+            Assert.That(value, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1069,7 +1065,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(new[] { new ExtensionObject(arg, true) }.ToArrayOf());
             bool result = v.TryCastTo(out ExtensionObject[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(1));
+            Assert.That(value, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -1084,7 +1080,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(arr);
             bool result = v.TryCastTo(out IEncodeable[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(2));
+            Assert.That(value, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1104,7 +1100,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Variant v = Variant.From(arr);
             bool result = v.TryCastTo(out TestEnum[] value);
             Assert.That(result, Is.True);
-            Assert.That(value.Length, Is.EqualTo(3));
+            Assert.That(value, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -1512,7 +1508,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableEnumReturnsVariant()
         {
-            IEnumerable<Enum> enums = new List<Enum> { TestEnum.One, TestEnum.Two };
+            IEnumerable<Enum> enums = [TestEnum.One, TestEnum.Two];
             bool result = VariantHelper.TryCastFrom(enums, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1520,7 +1516,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableBoolReturnsVariant()
         {
-            IEnumerable<bool> list = new List<bool> { true, false };
+            IEnumerable<bool> list = [true, false];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1528,7 +1524,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableByteReturnsVariant()
         {
-            IEnumerable<byte> list = new List<byte> { 1, 2, 3 };
+            IEnumerable<byte> list = [1, 2, 3];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1536,7 +1532,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableSByteReturnsVariant()
         {
-            IEnumerable<sbyte> list = new List<sbyte> { -1, 0, 1 };
+            IEnumerable<sbyte> list = [-1, 0, 1];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1544,7 +1540,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableUInt16ReturnsVariant()
         {
-            IEnumerable<ushort> list = new List<ushort> { 100, 200 };
+            IEnumerable<ushort> list = [100, 200];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1552,7 +1548,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableInt16ReturnsVariant()
         {
-            IEnumerable<short> list = new List<short> { -10, 10 };
+            IEnumerable<short> list = [-10, 10];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1560,7 +1556,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableUInt32ReturnsVariant()
         {
-            IEnumerable<uint> list = new List<uint> { 10, 20 };
+            IEnumerable<uint> list = [10, 20];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1568,7 +1564,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableInt32ReturnsVariant()
         {
-            IEnumerable<int> list = new List<int> { 1, 2, 3 };
+            IEnumerable<int> list = [1, 2, 3];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1576,7 +1572,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableUInt64ReturnsVariant()
         {
-            IEnumerable<ulong> list = new List<ulong> { 100, 200 };
+            IEnumerable<ulong> list = [100, 200];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1584,7 +1580,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableInt64ReturnsVariant()
         {
-            IEnumerable<long> list = new List<long> { -100, 200 };
+            IEnumerable<long> list = [-100, 200];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1592,7 +1588,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableDoubleReturnsVariant()
         {
-            IEnumerable<double> list = new List<double> { 1.1, 2.2 };
+            IEnumerable<double> list = [1.1, 2.2];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1600,7 +1596,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableFloatReturnsVariant()
         {
-            IEnumerable<float> list = new List<float> { 1.1f, 2.2f };
+            IEnumerable<float> list = [1.1f, 2.2f];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1608,7 +1604,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableStringReturnsVariant()
         {
-            IEnumerable<string> list = new List<string> { "a", "b" };
+            IEnumerable<string> list = ["a", "b"];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1617,7 +1613,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableDateTimeUtcReturnsVariant()
         {
             var dt = (DateTimeUtc)DateTime.UtcNow;
-            IEnumerable<DateTimeUtc> list = new List<DateTimeUtc> { dt };
+            IEnumerable<DateTimeUtc> list = [dt];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1625,7 +1621,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableGuidReturnsVariant()
         {
-            IEnumerable<Guid> list = new List<Guid> { Guid.NewGuid() };
+            IEnumerable<Guid> list = [Guid.NewGuid()];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1633,7 +1629,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableUuidReturnsVariant()
         {
-            IEnumerable<Uuid> list = new List<Uuid> { new Uuid(Guid.NewGuid()) };
+            IEnumerable<Uuid> list = [new(Guid.NewGuid())];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1641,7 +1637,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableByteStringReturnsVariant()
         {
-            IEnumerable<ByteString> list = new List<ByteString> { new ByteString(new byte[] { 1 }) };
+            IEnumerable<ByteString> list = [new(new byte[] { 1 })];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1649,7 +1645,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableXmlElementReturnsVariant()
         {
-            IEnumerable<XmlElement> list = new List<XmlElement> { new XmlElement("<a/>") };
+            IEnumerable<XmlElement> list = [new("<a/>")];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1657,7 +1653,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableNodeIdReturnsVariant()
         {
-            IEnumerable<NodeId> list = new List<NodeId> { new NodeId(1) };
+            IEnumerable<NodeId> list = [new(1)];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1665,7 +1661,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableExpandedNodeIdReturnsVariant()
         {
-            IEnumerable<ExpandedNodeId> list = new List<ExpandedNodeId> { new ExpandedNodeId(1) };
+            IEnumerable<ExpandedNodeId> list = [new(1)];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1673,7 +1669,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableLocalizedTextReturnsVariant()
         {
-            IEnumerable<LocalizedText> list = new List<LocalizedText> { new LocalizedText("en-US", "Hi") };
+            IEnumerable<LocalizedText> list = [new("en-US", "Hi")];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1681,7 +1677,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableQualifiedNameReturnsVariant()
         {
-            IEnumerable<QualifiedName> list = new List<QualifiedName> { new QualifiedName("Test") };
+            IEnumerable<QualifiedName> list = [new("Test")];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1689,7 +1685,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableStatusCodeReturnsVariant()
         {
-            IEnumerable<StatusCode> list = new List<StatusCode> { StatusCodes.Good };
+            IEnumerable<StatusCode> list = [StatusCodes.Good];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1697,7 +1693,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableDataValueReturnsVariant()
         {
-            IEnumerable<DataValue> list = new List<DataValue> { new DataValue(Variant.From(1)) };
+            IEnumerable<DataValue> list = [new(Variant.From(1))];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1705,7 +1701,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableVariantReturnsVariant()
         {
-            IEnumerable<Variant> list = new List<Variant> { Variant.From(1) };
+            IEnumerable<Variant> list = [Variant.From(1)];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1714,7 +1710,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableExtensionObjectReturnsVariant()
         {
             var arg = new Argument("P", new NodeId(1), 0, "D");
-            IEnumerable<ExtensionObject> list = new List<ExtensionObject> { new ExtensionObject(arg, true) };
+            IEnumerable<ExtensionObject> list = [new(arg, true)];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1723,7 +1719,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableIEncodeableReturnsVariant()
         {
             var arg = new Argument("P", new NodeId(1), 0, "D");
-            IEnumerable<IEncodeable> list = new List<IEncodeable> { arg };
+            IEnumerable<IEncodeable> list = [arg];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }
@@ -1731,7 +1727,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromIEnumerableObjectReturnsVariant()
         {
-            IEnumerable<object> list = new List<object> { 1, "text", true };
+            IEnumerable<object> list = [1, "text", true];
             bool result = VariantHelper.TryCastFrom(list, out Variant variant);
             Assert.That(result, Is.True);
         }

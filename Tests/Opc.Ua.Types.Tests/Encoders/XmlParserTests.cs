@@ -1784,7 +1784,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "TestEncodeableWithTypeId", Namespace = Namespaces.OpcUaXsd)]
         private sealed class TestEncodeableWithTypeId : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(12345, 0);
+            public ExpandedNodeId TypeId => new(12345, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
@@ -1810,7 +1810,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "TestEncodeableWithData", Namespace = Namespaces.OpcUaXsd)]
         private sealed class TestEncodeableWithData : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(99999, 0);
+            public ExpandedNodeId TypeId => new(99999, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
@@ -4404,7 +4404,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "CoverageTestEncodeableWithData", Namespace = Namespaces.OpcUaXsd)]
         public sealed class CoverageTestEncodeableWithData : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(88888, 0);
+            public ExpandedNodeId TypeId => new(88888, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 

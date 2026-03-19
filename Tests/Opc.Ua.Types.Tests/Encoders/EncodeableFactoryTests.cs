@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(factory, Is.Not.Null);
             Assert.That(factory.KnownTypeIds, Is.Not.Null);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(factory.KnownTypeIds.Any(), Is.True);
         }
 
         [Test]
@@ -307,7 +307,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert - Should add our concrete test types but skip abstract and no-default-constructor types
             int addedTypes = factory.KnownTypeIds.Count() - knownTypesCount;
-            Assert.Greater(addedTypes, 0); // Should have added some types
+            Assert.That(addedTypes, Is.GreaterThan(0)); // Should have added some types
 
             // Verify abstract types are not added
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110000), out _), Is.False);
@@ -398,8 +398,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Assert
-            Assert.That(exceptions.Count, Is.EqualTo(0), $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
-            Assert.Greater(factory.KnownTypeIds.Count(), 0);
+            Assert.That(exceptions, Is.Empty, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0));
         }
 
         [Test]
@@ -558,7 +558,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Should be able to find common OPC UA types like ReadRequest
             var knownTypesList = factory.KnownTypeIds.ToList();
-            Assert.Greater(knownTypesList.Count, 0);
+            Assert.That(knownTypesList, Is.Not.Empty);
         }
 
         [Test]
@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             Assert.DoesNotThrow(builder.Commit);
-            Assert.Greater(factory.KnownTypeIds.Count(), 0); // Should have pre-loaded types
+            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0)); // Should have pre-loaded types
         }
 
         [Test]

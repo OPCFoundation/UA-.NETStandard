@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             var request = new CallMethodRequest();
             Assert.That(request.InputArguments.IsNull, Is.False);
-            Assert.That(request.InputArguments.Count, Is.EqualTo(0));
+            Assert.That(request.InputArguments.Count, Is.Zero);
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             // InputArguments should not be null
             Assert.That(decodedRequest.InputArguments.IsNull, Is.False);
-            Assert.That(decodedRequest.InputArguments.Count, Is.EqualTo(0));
+            Assert.That(decodedRequest.InputArguments.Count, Is.Zero);
         }
 
         /// <summary>

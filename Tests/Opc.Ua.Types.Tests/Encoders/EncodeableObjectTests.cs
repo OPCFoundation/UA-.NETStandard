@@ -55,9 +55,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// </summary>
         private sealed class TestEncodeableObject : EncodeableObject
         {
-            public override ExpandedNodeId TypeId => new ExpandedNodeId(200000);
-            public override ExpandedNodeId BinaryEncodingId => new ExpandedNodeId(200001);
-            public override ExpandedNodeId XmlEncodingId => new ExpandedNodeId(200002);
+            public override ExpandedNodeId TypeId => new(200000);
+            public override ExpandedNodeId BinaryEncodingId => new(200001);
+            public override ExpandedNodeId XmlEncodingId => new(200002);
         }
 
         /// <summary>
@@ -66,15 +66,28 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// </summary>
         private sealed class ThrowingEncodeable : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(300000);
-            public ExpandedNodeId BinaryEncodingId => new ExpandedNodeId(300001);
-            public ExpandedNodeId XmlEncodingId => new ExpandedNodeId(300002);
-            public void Encode(IEncoder encoder) => throw new InvalidOperationException("Test exception");
+            public ExpandedNodeId TypeId => new(300000);
+            public ExpandedNodeId BinaryEncodingId => new(300001);
+            public ExpandedNodeId XmlEncodingId => new(300002);
+
+            public void Encode(IEncoder encoder)
+            {
+                throw new InvalidOperationException("Test exception");
+            }
+
             public void Decode(IDecoder decoder)
             {
             }
-            public bool IsEqual(IEncodeable encodeable) => false;
-            public object Clone() => new ThrowingEncodeable();
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new ThrowingEncodeable();
+            }
         }
 
         /// <summary>
@@ -251,8 +264,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             IServiceMessageContext context = CreateContext();
             ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
-                new ExtensionObject(CreateTestArgument("Arg1")),
-                new ExtensionObject(CreateTestArgument("Arg2"))
+                new(CreateTestArgument("Arg1")),
+                new(CreateTestArgument("Arg2"))
             }.ToArrayOf();
             var value = new Variant(extensions);
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
@@ -273,7 +286,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IServiceMessageContext context = CreateContext();
             ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
-                new ExtensionObject(CreateTestArgument())
+                new(CreateTestArgument())
             }.ToArrayOf();
             var value = new Variant(extensions);
             var dataEncoding = new QualifiedName(BrowseNames.DefaultXml);
@@ -293,7 +306,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IServiceMessageContext context = CreateContext();
             ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
-                new ExtensionObject() // IsNull = true
+                new() // IsNull = true
             }.ToArrayOf();
             var value = new Variant(extensions);
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);

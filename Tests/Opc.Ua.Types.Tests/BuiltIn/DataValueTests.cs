@@ -31,6 +31,7 @@ using System;
 using NUnit.Framework;
 
 #pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable NUnit2010
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -132,7 +133,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(dv, Is.Not.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -167,7 +170,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(new Variant(42));
 
 #pragma warning disable CA1508 // Avoid dead conditional code
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(dv, Is.Not.EqualTo((DataValue)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
