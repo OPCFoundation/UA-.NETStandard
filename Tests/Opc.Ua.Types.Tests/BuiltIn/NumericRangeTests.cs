@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using static Opc.Ua.LoggerUtils;
 
 namespace Opc.Ua.Types.Tests.Utils
 {

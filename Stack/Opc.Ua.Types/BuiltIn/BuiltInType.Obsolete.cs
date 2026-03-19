@@ -29,10 +29,6 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Linq;
 
 namespace Opc.Ua
 {

@@ -53,12 +53,12 @@ namespace Quickstarts.Servers
         {
             Converters =
             {
-                new SubscriptionStore.DateTimeUtcConverter(),
-                new SubscriptionStore.ArrayOfConverterFactory(),
-                new SubscriptionStore.NodeIdConverter(),
-                new SubscriptionStore.ExpandedNodeIdConverter(),
-                new SubscriptionStore.StatusCodeConverter(),
-                new SubscriptionStore.VariantConverter()
+                new DateTimeUtcConverter(),
+                new ArrayOfConverterFactory(),
+                new NodeIdConverter(),
+                new ExpandedNodeIdConverter(),
+                new StatusCodeConverter(),
+                new VariantConverter()
             },
             ReferenceHandler = ReferenceHandler.IgnoreCycles,
             WriteIndented = false

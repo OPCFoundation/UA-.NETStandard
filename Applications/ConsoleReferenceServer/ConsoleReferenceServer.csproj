@@ -10,7 +10,6 @@
     <RootNamespace>Quickstarts</RootNamespace>
     <UserSecretsId>46345736-a30f-4466-b3bb-42548ecfaacc</UserSecretsId>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
-
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />

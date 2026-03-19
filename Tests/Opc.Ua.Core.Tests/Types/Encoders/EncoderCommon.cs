@@ -76,7 +76,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static readonly JsonSerializerOptions s_prettifyOptions = new JsonSerializerOptions
         {
             WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            AllowTrailingCommas = true
         };
 
         protected RandomSource RandomSource { get; private set; }

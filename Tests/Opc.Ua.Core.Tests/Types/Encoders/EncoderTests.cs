@@ -825,7 +825,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 // the test validates NodeId.Null integrity, not deserialization.
             }
 
-            Assert.That(NodeId.Null, Is.Not.Null);
+            Assert.That(NodeId.Null, Is.Not.EqualTo(default(NodeId)));
             Assert.That(NodeId.Null.IsNull, Is.True);
         }
     }

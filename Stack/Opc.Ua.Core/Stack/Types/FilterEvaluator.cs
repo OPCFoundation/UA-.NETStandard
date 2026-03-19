@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
