@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -649,25 +650,25 @@ namespace Opc.Ua.Server.Tests
                     await m_server.CreateAndActivateSessionAsync($"AbandonSession_{i}")
                         .ConfigureAwait(false);
 
-                var services = new ServerTestServices(m_server, context);
-                header.Timestamp = DateTimeUtc.Now;
-                ArrayOf<uint> ids = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                var services = new ServerTestServices(m_server, context, m_telemetry);
+                header.Timestamp = DateTime.UtcNow;
+                UInt32Collection ids = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
                     services, header, testSet, kQueueSize, -1).ConfigureAwait(false);
                 subscriptionIds.AddRange(ids.ToList());
 
                 // Close session without deleting subscriptions - makes them abandoned
-                header.Timestamp = DateTimeUtc.Now;
+                header.Timestamp = DateTime.UtcNow;
                 await m_server.CloseSessionAsync(context, header, false, CancellationToken.None)
                     .ConfigureAwait(false);
             }
 
             // Concurrently delete all abandoned subscriptions from the main session.
-            var mainServices = new ServerTestServices(m_server, m_secureChannelContext);
+            var mainServices = new ServerTestServices(m_server, m_secureChannelContext, m_telemetry);
             var deleteTasks = new List<Task<DeleteSubscriptionsResponse>>();
             foreach (uint id in subscriptionIds)
             {
-                ArrayOf<uint> singleId = [id];
-                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                UInt32Collection singleId = [id];
+                m_requestHeader.Timestamp = DateTime.UtcNow;
                 deleteTasks.Add(
                     mainServices.DeleteSubscriptionsAsync(m_requestHeader, singleId)
                         .AsTask());
