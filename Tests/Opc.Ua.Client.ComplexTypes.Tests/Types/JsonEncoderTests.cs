@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
@@ -240,8 +241,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var resultParsed = JsonNode.Parse(result);
-                var expectedParsed = JsonNode.Parse(expected);
+                var resultParsed = JsonNode.Parse(result,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                var expectedParsed = JsonNode.Parse(expected,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
                 bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }

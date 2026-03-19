@@ -31,8 +31,9 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Opc.Ua;
 
-namespace Opc.Ua
+namespace Quickstarts.Servers
 {
     /// <summary>
     /// Converter for extension objects
@@ -328,8 +329,10 @@ namespace Opc.Ua
             }
 
             using var doc = JsonDocument.ParseValue(ref reader);
+            string json = doc.RootElement.GetRawText();
+            string wrappedJson = "{\"Value\":" + json + "}";
             using var decoder = new JsonDecoder(
-                doc,
+                wrappedJson,
                 AmbientMessageContext.CurrentContext);
             return decoder.ReadVariant("Value");
         }
@@ -346,10 +349,24 @@ namespace Opc.Ua
                 return;
             }
 
-            using var encoder = new JsonEncoder(
-                writer,
-                AmbientMessageContext.CurrentContext);
-            encoder.WriteVariant("Value", value);
+            using var stream = new System.IO.MemoryStream();
+            using (var encoder = new JsonEncoder(
+                stream,
+                AmbientMessageContext.CurrentContext))
+            {
+                encoder.WriteVariant("Value", value);
+            }
+            string json = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+            // Extract the Value field from {"Value":...}
+            using var innerDoc = JsonDocument.Parse(json);
+            if (innerDoc.RootElement.TryGetProperty("Value", out JsonElement valueElement))
+            {
+                valueElement.WriteTo(writer);
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
         }
     }
 

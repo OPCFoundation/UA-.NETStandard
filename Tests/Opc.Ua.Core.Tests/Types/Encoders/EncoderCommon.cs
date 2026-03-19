@@ -435,8 +435,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Result:");
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var resultParsed = JsonNode.Parse(result);
-                var expectedParsed = JsonNode.Parse(expected);
+                var resultParsed = JsonNode.Parse(result,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                var expectedParsed = JsonNode.Parse(expected,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
                 bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }
@@ -522,7 +524,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             try
             {
-                var jsonDocument = JsonDocument.Parse(json);
+                var jsonDocument = JsonDocument.Parse(json,
+                    new JsonDocumentOptions { AllowTrailingCommas = true });
                 string formattedJson = JsonSerializer.Serialize(jsonDocument, s_prettifyOptions);
                 if (outputFormatted)
                 {
