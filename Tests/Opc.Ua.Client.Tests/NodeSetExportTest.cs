@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have browsed at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have browsed at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Tests
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
                 Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
-                Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
+                Assert.That(fileInfo.Length, Is.GreaterThan(0), "NodeSet2 file should not be empty");
 
                 // Try to read it back
                 using (var stream = new FileStream(tempFile, FileMode.Open))
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests
                     var nodeSet = UANodeSet.Read(stream);
                     Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
                     Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
-                    Assert.Greater(nodeSet.Items.Length, 0, "NodeSet2 should contain at least one node");
+                    Assert.That(nodeSet.Items, Is.Not.Empty, "NodeSet2 should contain at least one node");
                 }
             }
             finally
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(baseVariableTypeNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client.Tests
 
                     // Verify we have different node types
                     var nodeTypes = nodeSet.Items.Select(n => n.GetType()).Distinct().ToList();
-                    Assert.Greater(nodeTypes.Count, 1, "Should have multiple node types");
+                    Assert.That(nodeTypes.Count, Is.GreaterThan(1), "Should have multiple node types");
                 }
             }
             finally
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -333,7 +333,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(stateNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
             DateTime now = DateTime.UtcNow;
 
             // Export with default options
@@ -399,7 +399,7 @@ namespace Opc.Ua.Client.Tests
 
                     // Default should be smaller or equal to complete
                     // (Equal if nodes don't have values to export)
-                    Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
+                    Assert.That(completeSize, Is.GreaterThanOrEqualTo(defaultSize), "Default export should not be larger than Complete");
                 }
                 finally
                 {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export with complete options
             string tempFile = Path.GetTempFileName();
@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export with custom options - values exported
             var customOptions = new NodeSetExportOptions
@@ -508,7 +508,7 @@ namespace Opc.Ua.Client.Tests
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
                 Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
-                Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
+                Assert.That(fileInfo.Length, Is.GreaterThan(0), "NodeSet2 file should not be empty");
             }
             finally
             {
@@ -534,7 +534,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             string tempFile1 = Path.GetTempFileName();
             string tempFile2 = Path.GetTempFileName();
@@ -607,7 +607,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export WITHOUT user context
             string tempFileNoContext = Path.GetTempFileName();

@@ -83,7 +83,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Ensure code is in the intern table, then verify constructor resolves it
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0AAA0000, "TestInterned")
+                new(0x0AAA0000, "TestInterned")
             };
             StatusCode.Intern(customCodes);
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0BBB0000, "TestInternedNull")
+                new(0x0BBB0000, "TestInternedNull")
             };
             StatusCode.Intern(customCodes);
 
@@ -618,8 +618,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNonStatusCodeOrUintReturnsFalse()
         {
             var sc = new StatusCode(0x00000000);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(sc.Equals("string"), Is.False);
             Assert.That(sc.Equals(42), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -844,7 +846,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Ensure we have a known code in the intern table
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0FFA0000, "LookupTest")
+                new(0x0FFA0000, "LookupTest")
             };
             StatusCode.Intern(customCodes);
 
@@ -865,7 +867,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0FFB0000, "Utf8LookupTest")
+                new(0x0FFB0000, "Utf8LookupTest")
             };
             StatusCode.Intern(customCodes);
 
@@ -887,7 +889,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Ensure a code is in the intern table
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0FFC0000, "InternTest")
+                new(0x0FFC0000, "InternTest")
             };
             StatusCode.Intern(customCodes);
 
@@ -909,7 +911,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Ensure the code bits are in the intern table
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0FFD0000, "MaskTest")
+                new(0x0FFD0000, "MaskTest")
             };
             StatusCode.Intern(customCodes);
 
@@ -924,7 +926,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0EEE0000, "CustomTestCode")
+                new(0x0EEE0000, "CustomTestCode")
             };
             StatusCode.Intern(customCodes);
 
@@ -938,7 +940,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var customCodes = new List<StatusCode>
             {
-                new StatusCode(0x0DDD0000) // no symbolic id
+                new(0x0DDD0000) // no symbolic id
             };
             StatusCode.Intern(customCodes);
 

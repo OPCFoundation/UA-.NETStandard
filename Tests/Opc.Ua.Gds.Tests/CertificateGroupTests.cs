@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
             X509CRL crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
             Assert.That(crl, Is.Not.Null);
-            Assert.That(crl.RevokedCertificates.Count, Is.EqualTo(0));
+            Assert.That(crl.RevokedCertificates.Count, Is.Zero);
         }
 
         [Test]

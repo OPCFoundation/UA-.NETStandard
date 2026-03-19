@@ -368,7 +368,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ArrayOf<ApplicationRecordDataType> result = await m_gdsClient.GDSClient.FindApplicationAsync(
                     application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
-                Assert.That(result.Count, Is.EqualTo(0), "Found invalid application on server");
+                Assert.That(result.Count, Is.Zero, "Found invalid application on server");
             }
         }
 
@@ -674,7 +674,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    Assert.That(atLeastOneServer.Count, Is.EqualTo(0));
+                    Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
                 string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
@@ -713,7 +713,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    Assert.That(atLeastOneServer.Count, Is.EqualTo(0));
+                    Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
                 string searchName = application.ApplicationRecord.ApplicationUri;
@@ -752,7 +752,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    Assert.That(atLeastOneServer.Count, Is.EqualTo(0));
+                    Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
                 string searchName = application.ApplicationRecord.ProductUri;
@@ -1715,7 +1715,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ArrayOf<ApplicationRecordDataType> result = await m_gdsClient.GDSClient.FindApplicationAsync(
                     application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
-                Assert.That(result.Count, Is.EqualTo(0), "Found deleted application on server!");
+                Assert.That(result.Count, Is.Zero, "Found deleted application on server!");
             }
         }
 

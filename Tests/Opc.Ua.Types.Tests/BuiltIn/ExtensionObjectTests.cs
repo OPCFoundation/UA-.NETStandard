@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
-            Assert.That(extensionObject.GetHashCode(), Is.EqualTo(0));
+            Assert.That(extensionObject.GetHashCode(), Is.Zero);
 #pragma warning disable CS0618 // Type or member is obsolete
             Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
@@ -83,7 +83,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ByteString bytes = [1, 2, 3];
             extensionObject = new ExtensionObject(default, bytes);
             Assert.That(extensionObject.IsNull, Is.False);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(extensionObject.Equals(extensionObject), Is.True);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             // string extension
             string extensionObjectString = extensionObject.ToString();
             Assert
@@ -94,7 +96,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(extensionObject, Is.Not.EqualTo(clonedExtensionObject));
             Assert.That(extensionObject, Is.Not.EqualTo(extensionObject_Default));
             Assert.That(extensionObject, Is.Not.EqualTo(new object()));
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(clonedExtensionObject.Equals(clonedExtensionObject), Is.True);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(
                 extensionObject.TypeId.GetHashCode(),

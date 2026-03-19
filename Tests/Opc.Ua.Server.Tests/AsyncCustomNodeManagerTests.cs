@@ -3109,7 +3109,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((DataChangeFilter)result.FilterToUse).DeadbandType, Is.EqualTo((uint)DeadbandType.Percent));
             Assert.That(result.Range, Is.Not.Null);
             Assert.That(result.Range.High, Is.EqualTo(100.0));
-            Assert.That(result.Range.Low, Is.EqualTo(0.0));
+            Assert.That(result.Range.Low, Is.Zero);
         }
 
         [Test]

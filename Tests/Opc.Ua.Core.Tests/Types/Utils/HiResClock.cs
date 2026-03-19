@@ -84,10 +84,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Order(100)]
         public void HiResParameters()
         {
-            Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
-            Assert.LessOrEqual(1000, HiResClock.Frequency);
+            Assert.That(HiResClock.TicksPerMillisecond, Is.GreaterThanOrEqualTo(1.0));
+            Assert.That(HiResClock.Frequency, Is.GreaterThanOrEqualTo(1000));
             Assert.That(HiResClock.Disabled, Is.False);
-            Assert.LessOrEqual(1.0, TimeSpan.TicksPerMillisecond);
+            Assert.That(TimeSpan.TicksPerMillisecond, Is.GreaterThanOrEqualTo(1.0));
             HiResClock.Disabled = true;
             Assert.That(HiResClock.Disabled, Is.True);
             Assert.That(HiResClock.Frequency, Is.EqualTo(TimeSpan.TicksPerSecond));
@@ -120,14 +120,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 {
                     tickCount = HiResClock.TickCount64;
                 } while (tickCount == lastTickCount);
-                Assert.LessOrEqual(lastTickCount, tickCount);
+                Assert.That(tickCount, Is.GreaterThanOrEqualTo(lastTickCount));
                 lastTickCount = tickCount;
                 counts++;
             }
             if (counts < 500)
             {
-                Assert
-                    .Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                Assert.Inconclusive(
+                    "Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
@@ -169,13 +169,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 {
                     tickCount = HiResClock.UtcNow.Ticks;
                 } while (tickCount == lastTickCount);
-                Assert.LessOrEqual(lastTickCount, tickCount);
+                Assert.That(tickCount, Is.GreaterThanOrEqualTo(lastTickCount));
                 lastTickCount = tickCount;
                 counts++;
             }
             if (!disabled)
             {
-                Assert.LessOrEqual(1000, counts);
+                Assert.That(counts, Is.GreaterThanOrEqualTo(1000));
             }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;

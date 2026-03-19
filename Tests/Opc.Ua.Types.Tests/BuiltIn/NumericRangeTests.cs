@@ -259,14 +259,18 @@ namespace Opc.Ua.Types.Tests.Utils
         public void EqualsObjectReturnsFalseForNonNumericRange()
         {
             var range = new NumericRange(3, 7);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(range.Equals("not a range"), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void EqualsObjectReturnsFalseForNull()
         {
             var range = new NumericRange(3, 7);
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(range, Is.Not.EqualTo(null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]

@@ -60,7 +60,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(diagnosticInfo.InnerDiagnosticInfo, Is.Null);
 
 #pragma warning disable CA1508 // Avoid dead conditional code
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(diagnosticInfo.Equals(null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
 #pragma warning restore CA1508 // Avoid dead conditional code
             Assert.That(diagnosticInfo.IsNullDiagnosticInfo, Is.True);
         }
@@ -380,7 +382,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var di = new DiagnosticInfo(1, 2, 3, 4, "test");
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(di.Equals("not a diagnostic info"), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]

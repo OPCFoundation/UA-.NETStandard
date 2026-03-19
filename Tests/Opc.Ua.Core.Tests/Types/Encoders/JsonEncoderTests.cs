@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const long kInt64Value = -123456789123456;
         private const ulong kUInt64Value = 123456789123456;
 
-        private static readonly Uuid s_nodeIdGuid = new Uuid(new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D"));
+        private static readonly Uuid s_nodeIdGuid = new(new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D"));
         private static readonly ByteString s_byteString = ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9]);
         private static readonly string s_byteString64 = s_byteString.ToBase64();
 
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestEncoding(jsonEncoder);
             string result = jsonEncoder.CloseAndReturnText();
 
-            Assert.IsNotEmpty(result);
+            Assert.That(result, Is.Not.Empty);
             Assert.That(result, Is.Not.Null);
             TestContext.Out.WriteLine("Result:");
             _ = PrettifyAndValidateJson(result);
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 
@@ -1184,7 +1184,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
             Assert.That(result2, Is.EqualTo(result1));
@@ -1196,7 +1196,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
                 Assert.That(result3, Is.EqualTo(result1));
@@ -1230,7 +1230,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 #else
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 #endif
@@ -1242,7 +1242,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
             Assert.That(result2, Is.EqualTo(result1));
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
                 Assert.That(result3, Is.EqualTo(result1));
@@ -1288,7 +1288,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 #else
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result1);
+            Assert.That(result1, Is.Not.Empty);
             TestContext.Out.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 #endif
@@ -1300,7 +1300,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestEncoding(jsonEncoder);
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-            Assert.IsNotEmpty(result2);
+            Assert.That(result2, Is.Not.Empty);
             TestContext.Out.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
             Assert.That(result2, Is.EqualTo(result1));
@@ -1312,7 +1312,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
-                Assert.IsNotEmpty(result3);
+                Assert.That(result3, Is.Not.Empty);
                 TestContext.Out.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
                 Assert.That(result3, Is.EqualTo(result1));

@@ -42,20 +42,20 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class TypeTableTests
     {
-        private static readonly NodeId RootTypeId = new NodeId(1000);
-        private static readonly NodeId ChildTypeId = new NodeId(1001);
-        private static readonly NodeId GrandchildTypeId = new NodeId(1002);
-        private static readonly NodeId UnknownTypeId = new NodeId(9999);
+        private static readonly NodeId RootTypeId = new(1000);
+        private static readonly NodeId ChildTypeId = new(1001);
+        private static readonly NodeId GrandchildTypeId = new(1002);
+        private static readonly NodeId UnknownTypeId = new(9999);
 
-        private static readonly NodeId RefTypeId = new NodeId(2000);
-        private static readonly NodeId RefChildTypeId = new NodeId(2001);
+        private static readonly NodeId RefTypeId = new(2000);
+        private static readonly NodeId RefChildTypeId = new(2001);
 
-        private static readonly NodeId DataTypeId = new NodeId(3000);
-        private static readonly NodeId EncodingId1 = new NodeId(3001);
-        private static readonly NodeId EncodingId2 = new NodeId(3002);
+        private static readonly NodeId DataTypeId = new(3000);
+        private static readonly NodeId EncodingId1 = new(3001);
+        private static readonly NodeId EncodingId2 = new(3002);
 
-        private static readonly QualifiedName RefBrowseName = new QualifiedName("TestReference");
-        private static readonly QualifiedName RefChildBrowseName = new QualifiedName("TestChildReference");
+        private static readonly QualifiedName RefBrowseName = new("TestReference");
+        private static readonly QualifiedName RefChildBrowseName = new("TestChildReference");
 
         private NamespaceTable m_namespaceTable;
         private TypeTable m_typeTable;

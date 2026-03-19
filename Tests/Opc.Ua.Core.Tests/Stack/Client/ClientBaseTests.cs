@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert - metrics should be recorded
-            Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
+            Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
             TestMeterListener.MeasurementRecord measurement =
                 m_meterListener.RecordedMeasurements.FirstOrDefault()!;
             Assert.That(measurement!, Is.Not.Null);
@@ -240,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
 
             // Assert - activity events should be recorded
-            Assert.That(activityListener.RecordedEvents.Count, Is.GreaterThan(0));
+            Assert.That(activityListener.RecordedEvents, Is.Not.Empty);
             Assert.That(activityListener.RecordedEvents.Any(e => e.Name == "Started"), Is.True);
             Assert.That(activityListener.RecordedEvents.Any(e => e.Name == "Completed"), Is.True);
 
@@ -297,8 +297,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert - both metrics and logs should be recorded
-            Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
-            Assert.That(m_loggerProvider!.LogEntries.Count, Is.GreaterThan(0));
+            Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
+            Assert.That(m_loggerProvider!.LogEntries, Is.Not.Empty);
         }
 
         [Test]
@@ -329,8 +329,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 sut.TestRequestCompleted(request, response, "Read");
             }
             // Assert - both traces and metrics should be recorded
-            Assert.That(activityListener.RecordedEvents.Count, Is.GreaterThan(0));
-            Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
+            Assert.That(activityListener.RecordedEvents, Is.Not.Empty);
+            Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
 
             activityListener.Dispose();
         }
@@ -367,9 +367,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 sut.TestRequestCompleted(request, response, "Read");
             }
             // Assert - all should be recorded
-            Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
-            Assert.That(m_loggerProvider!.LogEntries.Count, Is.GreaterThan(0));
-            Assert.That(activityListener.RecordedEvents.Count, Is.GreaterThan(0));
+            Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
+            Assert.That(m_loggerProvider!.LogEntries, Is.Not.Empty);
+            Assert.That(activityListener.RecordedEvents, Is.Not.Empty);
 
             activityListener.Dispose();
         }

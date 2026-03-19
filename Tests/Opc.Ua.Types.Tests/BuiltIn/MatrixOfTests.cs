@@ -186,8 +186,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void NullEqualsNullArrayTest()
         {
             MatrixOf<int> matrix = default;
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(matrix.Equals((Array?)null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(matrix.Equals((object?)null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(matrix, Is.EqualTo(MatrixOf<int>.Null));
         }
 
@@ -195,7 +199,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsNonArrayOrMatrixTest()
         {
             MatrixOf<int> matrix = MatrixOf<int>.Empty;
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(matrix.Equals(34), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]

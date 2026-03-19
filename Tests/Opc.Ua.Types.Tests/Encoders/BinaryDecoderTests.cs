@@ -2324,7 +2324,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.Span.ToArray().Length, Is.Zero);
+            Assert.That(result.Span.ToArray(), Is.Empty);
         }
 
         [Test]

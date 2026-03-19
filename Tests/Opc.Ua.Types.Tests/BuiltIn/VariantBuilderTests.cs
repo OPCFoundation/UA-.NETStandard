@@ -52,8 +52,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo(input));
         }
 
-        private static readonly VariantBuilder s_builder = new VariantBuilder();
-        private static readonly Guid s_testGuid = new Guid("12345678-1234-1234-1234-123456789012");
+        private static readonly VariantBuilder s_builder = new();
+        private static readonly Guid s_testGuid = new("12345678-1234-1234-1234-123456789012");
 
         /// <summary>
         /// Test enum for EnumerationBuilder tests.

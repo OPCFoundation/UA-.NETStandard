@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // Should return available endpoints
             Assert.That(matches.IsNull, Is.False);
-            Assert.Greater(matches.Count, 0);
+            Assert.That(matches.IsEmpty, Is.False);
         }
 
         /// <summary>

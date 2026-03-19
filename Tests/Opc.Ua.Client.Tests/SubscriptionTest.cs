@@ -669,8 +669,8 @@ namespace Opc.Ua.Client.Tests
                     // the static subscription doesn't resend data until there is a data change
                     if (ii == 0 && !sendInitialValues)
                     {
-                        Assert.That(targetSubscriptionCounters[ii], Is.EqualTo(0), errorText);
-                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.EqualTo(0), errorText);
+                        Assert.That(targetSubscriptionCounters[ii], Is.Zero, errorText);
+                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.Zero, errorText);
                     }
                     else if (ii == 0)
                     {
@@ -682,11 +682,11 @@ namespace Opc.Ua.Client.Tests
                     }
                     else
                     {
-                        Assert.LessOrEqual(
-                            monitoredItemCount,
+                        Assert.That(
                             targetSubscriptionCounters[ii],
+                            Is.GreaterThanOrEqualTo(monitoredItemCount),
                             errorText);
-                        Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.GreaterThanOrEqualTo(1), errorText);
                     }
                 }
 
@@ -732,7 +732,7 @@ namespace Opc.Ua.Client.Tests
                 Utils.SilentDispose(session2);
             }
 
-            Assert.That(session1ConfigChanged, Is.EqualTo(0));
+            Assert.That(session1ConfigChanged, Is.Zero);
             Assert.That(session2ConfigChanged, Is.GreaterThanOrEqualTo(0));
         }
 
@@ -1167,8 +1167,8 @@ namespace Opc.Ua.Client.Tests
                 else
                 {
                     // dynamic nodes, expect only one set of changes, another one if send initial values was set
-                    Assert.LessOrEqual(originExpectedCount, originSubscriptionCounters[jj]);
-                    Assert.LessOrEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                    Assert.That(originSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(originExpectedCount));
+                    Assert.That(targetSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(targetExpectedCount));
                 }
             }
 
@@ -1211,8 +1211,8 @@ namespace Opc.Ua.Client.Tests
                 if (jj == 0)
                 {
                     // static nodes, expect no activity
-                    Assert.That(testCounter[jj], Is.EqualTo(0));
-                    Assert.That(testFastDataCounter[jj], Is.EqualTo(0));
+                    Assert.That(testCounter[jj], Is.Zero);
+                    Assert.That(testFastDataCounter[jj], Is.Zero);
                 }
                 else
                 {
@@ -1326,9 +1326,9 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             // expect at least half number of keep alive notifications
-            Assert.Greater(
+            Assert.That(
                 numOfKeepAliveNotifications,
-                delay / subscription.PublishingInterval / 2);
+                Is.GreaterThan(delay / subscription.PublishingInterval / 2));
             Assert.That(numOfDataChangeNotifications, Is.EqualTo(1));
 
             TestContext.Out.WriteLine("Call ResendData.");

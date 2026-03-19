@@ -174,7 +174,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new(123, 1)
             };
             Assert.That(hashSet, Does.Contain(new NodeId(123, 1)));
-            Assert.That(hashSet.Contains(new NodeId(456, 1)), Is.False);
+            Assert.That(hashSet, Does.Not.Contain(new NodeId(456, 1)));
         }
 
         [Test]
@@ -816,8 +816,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 hashSet,
                 Does.Contain(new XmlQualifiedName("test", "http://example.com")));
             Assert.That(
-                hashSet.Contains(new XmlQualifiedName("other", "http://example.com")),
-                Is.False);
+                hashSet,
+                Does.Not.Contain(new XmlQualifiedName("other", "http://example.com")));
         }
 
         [Test]
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 IsInverse = false,
                 TargetId = new ExpandedNodeId(4)
             };
-            Assert.That(hashSet.Contains(reference3), Is.False);
+            Assert.That(hashSet, Does.Not.Contain(reference3));
         }
 
         [Test]

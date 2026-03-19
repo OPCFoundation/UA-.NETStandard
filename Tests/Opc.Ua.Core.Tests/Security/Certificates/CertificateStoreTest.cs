@@ -572,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             //make shure no crls remain in store
-            Assert.That(crlsAfterSecondDelete.Count, Is.EqualTo(0));
+            Assert.That(crlsAfterSecondDelete.Count, Is.Zero);
         }
 
         /// <summary>

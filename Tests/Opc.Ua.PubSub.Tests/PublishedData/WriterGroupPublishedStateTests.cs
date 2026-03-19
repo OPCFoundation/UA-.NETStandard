@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -148,8 +148,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.That(
-                networkMessages.Count,
-                Is.GreaterThanOrEqualTo(1),
+                networkMessages,
+                Is.Not.Empty,
                 "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UaNetworkMessage> uaNetworkMessages = null;
@@ -215,8 +215,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     Is.Not.Null,
                     "connection.CreateNetworkMessages shall not be null");
                 Assert.That(
-                    networkMessages.Count,
-                    Is.GreaterThanOrEqualTo(1),
+                    networkMessages,
+                    Is.Not.Empty,
                     "connection.CreateNetworkMessages should have at least one network message");
 
                 if (pubSubMessageType == PubSubMessageType.Uadp)
@@ -303,7 +303,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             {
                 if (datasetMessage.DataSet.IsDeltaFrame)
                 {
-                    Assert.Greater(keyFrameCount, 1, "keyFrameCount > 1 if dataset is delta!");
+                    Assert.That(keyFrameCount, Is.GreaterThan(1), "keyFrameCount > 1 if dataset is delta!");
                     Assert.That(
                         writerGroupPublishState,
                         Is.Not.Null,

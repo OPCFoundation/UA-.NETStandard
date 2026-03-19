@@ -604,7 +604,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             Assert.That(sessionConfigChanged, Is.EqualTo(reconnectAbort ? 0 : 1));
-            Assert.That(sessionClosing, Is.EqualTo(0));
+            Assert.That(sessionClosing, Is.Zero);
 
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             reconnectHandler.Dispose();
@@ -1605,7 +1605,7 @@ namespace Opc.Ua.Client.Tests
             ArrayOf<ReferenceDescription> encoding = await Session.ReadAvailableEncodingsAsync(
                 VariableIds.Server_ServerStatus_CurrentTime).ConfigureAwait(false);
             Assert.That(encoding.IsNull, Is.False);
-            Assert.That(encoding.Count, Is.EqualTo(0));
+            Assert.That(encoding.Count, Is.Zero);
         }
 
         /// <summary>

@@ -46,21 +46,21 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class ReferenceCollectionTests
     {
-        private static NodeId RefType1 => new NodeId(1u);
-        private static NodeId RefType2 => new NodeId(2u);
-        private static NodeId RefType3 => new NodeId(3u);
-        private static ExpandedNodeId Target1 => new ExpandedNodeId(100u);
-        private static ExpandedNodeId Target2 => new ExpandedNodeId(200u);
-        private static ExpandedNodeId Target3 => new ExpandedNodeId(300u);
-        private static ExpandedNodeId AbsoluteTarget1 => new ExpandedNodeId(100u, "http://example.com/ns");
-        private static ExpandedNodeId AbsoluteTarget2 => new ExpandedNodeId(200u, "http://example.com/ns");
+        private static NodeId RefType1 => new(1u);
+        private static NodeId RefType2 => new(2u);
+        private static NodeId RefType3 => new(3u);
+        private static ExpandedNodeId Target1 => new(100u);
+        private static ExpandedNodeId Target2 => new(200u);
+        private static ExpandedNodeId Target3 => new(300u);
+        private static ExpandedNodeId AbsoluteTarget1 => new(100u, "http://example.com/ns");
+        private static ExpandedNodeId AbsoluteTarget2 => new(200u, "http://example.com/ns");
 
         [Test]
         public void ConstructorCreatesEmptyCollection()
         {
             var collection = new ReferenceCollection();
 
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
             Assert.That(collection.IsReadOnly, Is.False);
         }
 
@@ -213,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.Remove(RefType1, false, Target1);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.Remove(new ReferenceNode(RefType1, false, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -370,7 +370,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = collection.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -384,7 +384,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             collection.Clear();
 
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Is.Empty);
         }
 
         [Test]
@@ -808,8 +808,8 @@ namespace Opc.Ua.Types.Tests.Nodes
                 { RefType1, false, Target1 }
             };
 
-            IEnumerable enumerable = collection;
             int count = 0;
+            IEnumerable enumerable = collection;
             foreach (object item in enumerable)
             {
                 count++;
@@ -830,14 +830,14 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class ReferenceDictionaryTests
     {
-        private static NodeId RefType1 => new NodeId(1u);
-        private static NodeId RefType2 => new NodeId(2u);
-        private static NodeId RefType3 => new NodeId(3u);
-        private static ExpandedNodeId Target1 => new ExpandedNodeId(100u);
-        private static ExpandedNodeId Target2 => new ExpandedNodeId(200u);
-        private static ExpandedNodeId Target3 => new ExpandedNodeId(300u);
-        private static ExpandedNodeId AbsoluteTarget1 => new ExpandedNodeId(100u, "http://example.com/ns");
-        private static ExpandedNodeId AbsoluteTarget2 => new ExpandedNodeId(200u, "http://example.com/ns");
+        private static NodeId RefType1 => new(1u);
+        private static NodeId RefType2 => new(2u);
+        private static NodeId RefType3 => new(3u);
+        private static ExpandedNodeId Target1 => new(100u);
+        private static ExpandedNodeId Target2 => new(200u);
+        private static ExpandedNodeId Target3 => new(300u);
+        private static ExpandedNodeId AbsoluteTarget1 => new(100u, "http://example.com/ns");
+        private static ExpandedNodeId AbsoluteTarget2 => new(200u, "http://example.com/ns");
 
 #pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private static IReference MakeRef(NodeId refType, bool isInverse, ExpandedNodeId target)
@@ -850,7 +850,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
             Assert.That(dict.IsReadOnly, Is.False);
             Assert.That(dict.Version, Is.Zero);
         }
@@ -1313,7 +1313,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, false, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1327,7 +1327,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, true, Target1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1355,7 +1355,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.Remove(new KeyValuePair<IReference, string>(reference, "value1"));
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1558,7 +1558,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, false);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1573,7 +1573,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             bool result = dict.RemoveAll(RefType1, true);
 
             Assert.That(result, Is.True);
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1800,7 +1800,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             dict.Clear();
 
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
         }
 
         [Test]
@@ -1939,8 +1939,8 @@ namespace Opc.Ua.Types.Tests.Nodes
                 { MakeRef(RefType1, false, Target1), "v1" }
             };
 
-            IEnumerable enumerable = dict;
             int count = 0;
+            IEnumerable enumerable = dict;
             foreach (object item in enumerable)
             {
                 count++;
@@ -2235,7 +2235,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Remove the inverse external target
             dict.Remove(MakeRef(RefType1, true, AbsoluteTarget1));
 
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
             // The entry should be removed since it's empty
             Assert.That(dict.Find(RefType1, true), Is.Empty);
         }
@@ -2253,7 +2253,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Remove the forward external target
             dict.Remove(MakeRef(RefType1, false, AbsoluteTarget1));
 
-            Assert.That(dict.Count, Is.Zero);
+            Assert.That(dict, Is.Empty);
             Assert.That(dict.Find(RefType1, false), Is.Empty);
         }
 

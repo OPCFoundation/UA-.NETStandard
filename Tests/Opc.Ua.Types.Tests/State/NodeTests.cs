@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandleProperty()
         {
             var node = new Node();
-            object handle = new object();
+            object handle = new();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }

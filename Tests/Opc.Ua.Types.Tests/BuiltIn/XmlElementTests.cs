@@ -92,7 +92,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(xmlElement.Equals(0), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]

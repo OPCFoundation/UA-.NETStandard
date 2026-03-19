@@ -1156,13 +1156,13 @@ namespace Opc.Ua.Server.Tests
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
-                Assert.That((eventNotifier & EventNotifiers.HistoryRead),
+                Assert.That(eventNotifier & EventNotifiers.HistoryRead,
                     Is.Not.EqualTo(0),
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
-            Assert.That((eventNotifier & EventNotifiers.SubscribeToEvents),
+            Assert.That(eventNotifier & EventNotifiers.SubscribeToEvents,
                 Is.Not.EqualTo(0),
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
@@ -1261,7 +1261,7 @@ namespace Opc.Ua.Server.Tests
             logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
-            Assert.That((accessLevel & AccessLevels.HistoryRead),
+            Assert.That(accessLevel & AccessLevels.HistoryRead,
                 Is.Not.EqualTo(0),
                 "Int32Value node should have HistoryRead access level");
 

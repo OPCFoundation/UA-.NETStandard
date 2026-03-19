@@ -255,7 +255,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandlePropertyRoundTrips()
         {
             using BaseObjectState node = CreateObjectNode();
-            object handle = new object();
+            object handle = new();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }

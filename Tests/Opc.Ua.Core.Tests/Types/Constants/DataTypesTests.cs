@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = DataTypes.GetBrowseName(id);
                 Assert.That(browseName, Is.Not.Null);
-                Assert.IsNotEmpty(browseName);
+                Assert.That(browseName, Is.Not.Empty);
             }
         }
 
@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in dataTypeNames)
             {
                 uint id = DataTypes.GetIdentifier(name);
-                Assert.That(id, Is.Not.EqualTo(0));
+                Assert.That(id, Is.Not.Zero);
             }
         }
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = DataTypes.GetIdentifier("InvalidDataTypeName");
-            Assert.That(id, Is.EqualTo(0));
+            Assert.That(id, Is.Zero);
         }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
 
             Assert.That(dataTypeId.IsNull, Is.False);
             Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
-            Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(dataTypeId.NamespaceIndex, Is.Zero);
             Assert.That(dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0, Is.Not.EqualTo(DataTypes.Structure),
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 Assert.That(dataTypeId.IsNull, Is.False, $"DataTypeId should not be null for {type.Name}");
                 Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(expectedId),
                     $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.IdentifierAsString}");
-                Assert.That(dataTypeId.NamespaceIndex, Is.EqualTo(0),
+                Assert.That(dataTypeId.NamespaceIndex, Is.Zero,
                     $"NamespaceIndex should be 0 for {type.Name}");
             }
         }

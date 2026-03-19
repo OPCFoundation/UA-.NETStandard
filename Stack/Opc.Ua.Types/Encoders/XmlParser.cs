@@ -229,14 +229,12 @@ namespace Opc.Ua
             }
 
             // No unconsumed children - check current element.
-            if (context.Element != null)
+            if (context.Element != null &&
+                nodeType is XmlNodeType.None or XmlNodeType.Element)
             {
-                if (nodeType is XmlNodeType.None or XmlNodeType.Element)
-                {
-                    return new XmlQualifiedName(
-                        context.Element.LocalName,
-                        context.Element.NamespaceURI);
-                }
+                return new XmlQualifiedName(
+                    context.Element.LocalName,
+                    context.Element.NamespaceURI);
             }
 
             return null;

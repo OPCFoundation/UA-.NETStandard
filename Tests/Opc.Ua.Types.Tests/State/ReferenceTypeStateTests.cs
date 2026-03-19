@@ -203,7 +203,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             refType.Export(m_context, table);
-            Assert.That(table.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(table, Is.Not.Empty);
             refType.Dispose();
         }
 

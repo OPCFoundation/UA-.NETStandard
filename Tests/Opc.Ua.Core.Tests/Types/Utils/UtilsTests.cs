@@ -481,10 +481,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             Assert.That(settings.Encoding, Is.EqualTo(Encoding.UTF8));
-            Assert.That(settings.CloseOutput, Is.EqualTo(false));
-            Assert.That(settings.Indent, Is.EqualTo(true));
+            Assert.That(settings.CloseOutput, Is.False);
+            Assert.That(settings.Indent, Is.True);
             Assert.That(settings.ConformanceLevel, Is.EqualTo(ConformanceLevel.Document));
-            Assert.That(settings.OmitXmlDeclaration, Is.EqualTo(false));
+            Assert.That(settings.OmitXmlDeclaration, Is.False);
             Assert.That(settings.IndentChars, Is.EqualTo("  "));
         }
 
@@ -495,7 +495,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(settings.DtdProcessing, Is.EqualTo(DtdProcessing.Prohibit));
             //Assert.AreEqual(null, settings.XmlResolver);
             Assert.That(settings.ConformanceLevel, Is.EqualTo(ConformanceLevel.Document));
-            Assert.That(settings.CloseInput, Is.EqualTo(false));
+            Assert.That(settings.CloseInput, Is.False);
         }
 
         /// <summary>

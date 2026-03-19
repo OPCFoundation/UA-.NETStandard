@@ -96,7 +96,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn1 = new QualifiedName("Beta", 1);
             var qn2 = new QualifiedName("Alpha", 1);
             Assert.That(qn1, Is.GreaterThan(qn2));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn2 > qn1, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -104,8 +106,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn1 = new QualifiedName("Alpha", 1);
             var qn2 = new QualifiedName("Beta", 1);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn1 < qn2, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn2 < qn1, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -114,8 +120,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn1 = new QualifiedName("Alpha", 1);
             var qn2 = new QualifiedName("Beta", 1);
             var qn3 = new QualifiedName("Alpha", 1);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn1 <= qn2, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn1 <= qn3, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn2, Is.GreaterThan(qn1));
         }
 
@@ -125,9 +135,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn1 = new QualifiedName("Beta", 1);
             var qn2 = new QualifiedName("Alpha", 1);
             var qn3 = new QualifiedName("Beta", 1);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn1 >= qn2, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn1 >= qn3, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn2 >= qn1, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -151,23 +167,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Beta");
             Assert.That(qn, Is.GreaterThan("Alpha"));
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn > "Gamma", Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void OperatorLessThanString()
         {
             var qn = new QualifiedName("Alpha");
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn < "Beta", Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn < "AAAAAA", Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void OperatorLessThanOrEqualString()
         {
             var qn = new QualifiedName("Alpha");
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn <= "Beta", Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn <= "Alpha", Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn, Is.GreaterThan("AAAAAA"));
         }
 
@@ -175,9 +201,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorGreaterThanOrEqualString()
         {
             var qn = new QualifiedName("Beta");
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn >= "Alpha", Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn >= "Beta", Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(qn >= "Gamma", Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -207,7 +239,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNull()
         {
             var qn = new QualifiedName("Test");
+#pragma warning disable NUnit4002 // Use Specific constraint
             Assert.That(qn, Is.Not.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]

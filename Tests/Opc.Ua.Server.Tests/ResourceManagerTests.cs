@@ -229,9 +229,9 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null, "User");
 
             // Assert
-            Assert.That( /*lang=json,strict*/
+            Assert.That(
                 resultText.Text,
-                Is.EqualTo("{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
     }

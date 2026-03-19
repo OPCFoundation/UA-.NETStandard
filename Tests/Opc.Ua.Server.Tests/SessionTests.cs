@@ -34,7 +34,7 @@ namespace Opc.Ua.Server.Tests
                 session.ValidateRequest(requestHeader, secureChannelContext, RequestType.Read);
 
                 Assert.That(eventRaised, Is.True, "SessionDiagnosticsChanged event should be raised when a per-request counter changes.");
-                Assert.Greater(session.SessionDiagnostics.ReadCount.TotalCount, before, "ReadCount.TotalCount should have incremented.");
+                Assert.That(session.SessionDiagnostics.ReadCount.TotalCount, Is.GreaterThan(before), "ReadCount.TotalCount should have incremented.");
             }
             finally
             {

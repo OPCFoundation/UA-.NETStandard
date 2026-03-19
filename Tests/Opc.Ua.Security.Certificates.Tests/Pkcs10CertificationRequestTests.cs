@@ -60,11 +60,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify subject
             Assert.That(csr.Subject, Is.Not.Null);
-            Assert.IsNotEmpty(csr.Subject.Name);
+            Assert.That(csr.Subject.Name, Is.Not.Empty);
 
             // Verify public key info
             Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
-            Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Empty);
 
             // Verify signature
             bool isValid = csr.Verify();
@@ -91,7 +91,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Create CSR
             byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
             Assert.That(csrData, Is.Not.Null);
-            Assert.Greater(csrData.Length, 0);
+            Assert.That(csrData, Is.Not.Empty);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify SubjectPublicKeyInfo
             Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
-            Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Empty);
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // Create CSR
             byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
             Assert.That(csrData, Is.Not.Null);
-            Assert.Greater(csrData.Length, 0);
+            Assert.That(csrData, Is.Not.Empty);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify SubjectPublicKeyInfo
             Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Null);
-            Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
+            Assert.That(csr.SubjectPublicKeyInfo, Is.Not.Empty);
 
             // Verify signature
 #if NET6_0_OR_GREATER && !SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
@@ -286,7 +286,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             byte[] requestInfo = csr.GetCertificationRequestInfo();
             Assert.That(requestInfo, Is.Not.Null);
-            Assert.Greater(requestInfo.Length, 0);
+            Assert.That(requestInfo, Is.Not.Empty);
         }
 
         private static readonly string[] s_domainNames = ["localhost"];

@@ -210,8 +210,12 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             DateTime lastWriteTime = vfs.GetLastWriteTime(filePath);
 
             // Assert
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(lastWriteTime >= beforeAdd, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(lastWriteTime <= afterAdd, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -325,8 +329,12 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             DateTime lastWriteTime = vfs.GetLastWriteTime(filePath);
 
             // Assert
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(lastWriteTime >= beforeWrite, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(lastWriteTime <= afterWrite, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -766,10 +774,12 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                     }
 
                     // Assert - verify we can read the content (may have off-by-one issue in VFS implementation)
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
                     Assert.That(
                         totalBytesRead >= fileContent.Length - 1,
                         Is.True,
                         $"Expected to read at least {fileContent.Length - 1} bytes, but read {totalBytesRead}");
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
                     // Verify the content we did read matches (up to what was read)
                     byte[] actualContent = [.. buffer.Take(totalBytesRead)];

@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(
                 m_urlHostName,
                 Is.EqualTo(ipEndPoint.Address.ToString()),
-                $"The url hostname: {ipEndPoint.Address.ToString()} is not equal to specified hostname: {m_urlHostName}");
+                $"The url hostname: {ipEndPoint.Address} is not equal to specified hostname: {m_urlHostName}");
             Assert.That(
                 ipEndPoint.Port,
                 Is.EqualTo(kDiscoveryPortNo),
@@ -264,7 +264,7 @@ Is.InstanceOf<UdpClientBroadcast>());
             Assert.That(
                 udpClientEndPoint2.Address.ToString(),
                 Is.EqualTo(udpClientEndPoint1.Address.ToString()),
-                $"udpClientEndPoint1 IP address: {udpClientEndPoint1.Address.ToString()} should match udpClientEndPoint2 IP Address {udpClientEndPoint2.Address.ToString()}");
+                $"udpClientEndPoint1 IP address: {udpClientEndPoint1.Address} should match udpClientEndPoint2 IP Address {udpClientEndPoint2.Address}");
             Assert.That(
                 udpClientEndPoint2.Port,
                 Is.Not.EqualTo(udpClientEndPoint1.Port),

@@ -223,7 +223,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             if (empty)
             {
-                Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(0));
+                Assert.That(x509Crl.RevokedCertificates.Count, Is.Zero);
             }
             else
             {
@@ -234,7 +234,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             if (noExtensions)
             {
-                Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(0));
+                Assert.That(x509Crl.CrlExtensions.Count, Is.Zero);
             }
             else
             {

@@ -37,6 +37,7 @@ using System.Xml;
 using NUnit.Framework;
 
 #pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable NUnit4002 // Use Specific constraint
 #pragma warning disable UA_NETStandard_1
 
 namespace Opc.Ua.Types.Tests.BuiltIn
@@ -849,7 +850,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant, Is.EqualTo((object)"value"));
             Assert.That(variant, Is.Not.EqualTo((object)"other"));
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(Variant.Null.Equals((object)null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -1044,7 +1047,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var emptyStatusCodes = (StatusCode[])variant2.Value;
-            Assert.That(emptyStatusCodes.Length, Is.Zero);
+            Assert.That(emptyStatusCodes, Is.Empty);
 
             // Test single element array
             ArrayOf<StatusCode> singleElement = [StatusCodes.BadNodeIdInvalid];

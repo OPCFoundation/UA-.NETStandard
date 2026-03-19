@@ -168,7 +168,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             double maxDeviation,
             int publishTimeInSeconds)
         {
-            Assert.Greater(publishTicks.Count, 0);
+            Assert.That(publishTicks, Is.Not.Empty);
 
             int faultIndex = -1;
             double faultDeviation = 0;
