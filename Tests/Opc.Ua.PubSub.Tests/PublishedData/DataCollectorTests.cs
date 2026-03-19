@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.PublishedData
 {
@@ -55,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
         }
 
@@ -78,10 +77,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet collectedDataSet = dataCollector.CollectData(
                 pubSubConfiguration.PublishedDataSets[0].Name);
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 collectedDataSet,
-                "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.",
-                pubSubConfiguration.PublishedDataSets[0].Name);
+                Is.Not.Null,
+                $"Cannot collect data therefore the '{pubSubConfiguration.PublishedDataSets[0].Name}' publishedDataSet was not registered correctly.");
         }
 
         [Test(Description = "Validate RemovePublishedDataSet.")]
@@ -97,10 +96,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataCollector.RemovePublishedDataSet(publishedDataSet);
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSet.Name);
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 collectedDataSet,
-                "The '{0}' publishedDataSet was not removed correctly.",
-                publishedDataSet.Name);
+                Is.Null,
+                $"The '{publishedDataSet.Name}' publishedDataSet was not removed correctly.");
         }
 
         [Test(Description = "Validate RemovePublishedDataSet with null parameter.")]
@@ -111,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
             //Assert
-            NUnit.Framework.Assert
+            Assert
                 .Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
         }
 
@@ -198,33 +197,34 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
 
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 publishedDataItems,
+                Is.Not.Null,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
-            Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
-            Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
+            Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
+            Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
-            Assert.AreEqual(
-                collectedDataSet.Fields.Length,
+            Assert.That(
                 publishedDataItems.PublishedData.Count,
+                Is.EqualTo(collectedDataSet.Fields.Length),
                 "collectedDataSet and published data fields count do not match.");
 
             // validate collected values
-            Assert.AreEqual(
-                false,
+            Assert.That(
                 collectedDataSet.Fields[0].Value.WrappedValue.GetBoolean(),
+                Is.EqualTo(false),
                 "collectedDataSet.Fields[0].Value does not match.");
-            Assert.AreEqual(
-                1,
+            Assert.That(
                 collectedDataSet.Fields[1].Value.WrappedValue.GetInt32(),
+                Is.EqualTo(1),
                 "collectedDataSet.Fields[1].Value does not match.");
-            Assert.AreEqual(
-                2,
+            Assert.That(
                 collectedDataSet.Fields[2].Value.WrappedValue.GetInt32(),
+                Is.EqualTo(2),
                 "collectedDataSet.Fields[2].Value does not match.");
-            Assert.AreEqual(
-                collectedDataSet.Fields[3].Value.WrappedValue.GetDateTime(),
+            Assert.That(
                 DateTimeUtc.MaxValue,
+                Is.EqualTo(collectedDataSet.Fields[3].Value.WrappedValue.GetDateTime()),
                 "collectedDataSet.Fields[3].Value does not match.");
         }
 
@@ -301,39 +301,40 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
             DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 publishedDataItems,
+                Is.Not.Null,
                 "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
-            Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
-            Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
+            Assert.That(collectedDataSet, Is.Not.Null, "collectedDataSet is null.");
+            Assert.That(collectedDataSet.Fields, Is.Not.Null, "collectedDataSet.Fields is null.");
 
-            Assert.AreEqual(
-                collectedDataSet.Fields.Length,
+            Assert.That(
                 publishedDataItems.PublishedData.Count,
+                Is.EqualTo(collectedDataSet.Fields.Length),
                 "collectedDataSet and published data fields count do not match.");
             // validate collected values
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                true,
+            Assert.That(
                 collectedDataSet.Fields[0].Value.Value,
+                Is.EqualTo(true),
                 "collectedDataSet.Fields[0].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                100,
+            Assert.That(
                 collectedDataSet.Fields[1].Value.Value,
+                Is.EqualTo(100),
                 "collectedDataSet.Fields[1].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                50,
+            Assert.That(
                 collectedDataSet.Fields[2].Value.Value,
+                Is.EqualTo(50),
                 "collectedDataSet.Fields[2].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.AreEqual(
-                collectedDataSet.Fields[3].Value.Value,
+            Assert.That(
                 new DateTimeUtc(DateTime.Today),
+                Is.EqualTo(collectedDataSet.Fields[3].Value.Value),
                 "collectedDataSet.Fields[3].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
         }
@@ -347,8 +348,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Act
             DataSet collectedDataSet = dataCollector.CollectData(string.Empty);
             //Assert
-            Assert.IsNull(
+            Assert.That(
                 collectedDataSet,
+                Is.Null,
                 "The data collect returns data for unknown DataSetName.");
         }
 
@@ -360,7 +362,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore(), telemetry);
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => dataCollector.CollectData(null),
                 "The data collect does not throw exception when null parameter.");
         }

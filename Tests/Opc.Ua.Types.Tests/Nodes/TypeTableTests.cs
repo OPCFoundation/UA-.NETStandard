@@ -42,20 +42,20 @@ namespace Opc.Ua.Types.Tests.Nodes
     [Parallelizable]
     public class TypeTableTests
     {
-        private static readonly NodeId RootTypeId = new NodeId(1000);
-        private static readonly NodeId ChildTypeId = new NodeId(1001);
-        private static readonly NodeId GrandchildTypeId = new NodeId(1002);
-        private static readonly NodeId UnknownTypeId = new NodeId(9999);
+        private static readonly NodeId RootTypeId = new(1000);
+        private static readonly NodeId ChildTypeId = new(1001);
+        private static readonly NodeId GrandchildTypeId = new(1002);
+        private static readonly NodeId UnknownTypeId = new(9999);
 
-        private static readonly NodeId RefTypeId = new NodeId(2000);
-        private static readonly NodeId RefChildTypeId = new NodeId(2001);
+        private static readonly NodeId RefTypeId = new(2000);
+        private static readonly NodeId RefChildTypeId = new(2001);
 
-        private static readonly NodeId DataTypeId = new NodeId(3000);
-        private static readonly NodeId EncodingId1 = new NodeId(3001);
-        private static readonly NodeId EncodingId2 = new NodeId(3002);
+        private static readonly NodeId DataTypeId = new(3000);
+        private static readonly NodeId EncodingId1 = new(3001);
+        private static readonly NodeId EncodingId2 = new(3002);
 
-        private static readonly QualifiedName RefBrowseName = new QualifiedName("TestReference");
-        private static readonly QualifiedName RefChildBrowseName = new QualifiedName("TestChildReference");
+        private static readonly QualifiedName RefBrowseName = new("TestReference");
+        private static readonly QualifiedName RefChildBrowseName = new("TestChildReference");
 
         private NamespaceTable m_namespaceTable;
         private TypeTable m_typeTable;
@@ -79,6 +79,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Add a data type (no encoding yet, tests add as needed)
             m_typeTable.AddSubtype(DataTypeId, NodeId.Null);
         }
+
         [Test]
         public void AddSubtypeCreatesRootType()
         {
@@ -143,6 +144,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                     new NodeId(9998),
                     new QualifiedName("BadRef")));
         }
+
         [Test]
         public void AddEncodingReturnsFalseForNullEncodingId()
         {
@@ -184,6 +186,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_typeTable.FindDataTypeId(EncodingId1), Is.EqualTo(DataTypeId));
             Assert.That(m_typeTable.FindDataTypeId(EncodingId2), Is.EqualTo(DataTypeId));
         }
+
         [Test]
         public void IsKnownNodeIdReturnsFalseForNull()
         {
@@ -203,6 +206,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_typeTable.IsKnown(ChildTypeId), Is.True);
             Assert.That(m_typeTable.IsKnown(GrandchildTypeId), Is.True);
         }
+
         [Test]
         public void IsKnownExpandedReturnsFalseForNull()
         {
@@ -236,6 +240,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             ExpandedNodeId id = RootTypeId;
             Assert.That(m_typeTable.IsKnown(id), Is.True);
         }
+
         [Test]
         public void FindSuperTypeNodeIdReturnsNullForNullId()
         {
@@ -265,6 +270,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             Assert.That(m_typeTable.FindSuperType(GrandchildTypeId), Is.EqualTo(ChildTypeId));
         }
+
         [Test]
         public void FindSuperTypeExpandedReturnsNullForNull()
         {
@@ -305,6 +311,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             ExpandedNodeId id = ChildTypeId;
             Assert.That(m_typeTable.FindSuperType(id), Is.EqualTo(RootTypeId));
         }
+
         [Test]
         public async Task FindSuperTypeAsyncExpandedReturnsParent()
         {
@@ -333,6 +340,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             NodeId result = await m_typeTable.FindSuperTypeAsync(NodeId.Null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
+
         [Test]
         public void FindSubTypesReturnsEmptyForNull()
         {
@@ -372,6 +380,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             ArrayOf<NodeId> result = m_typeTable.FindSubTypes(id);
             Assert.That(result, Is.Empty);
         }
+
         [Test]
         public void IsTypeOfNodeIdReturnsFalseForNullSubType()
         {
@@ -413,6 +422,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             Assert.That(m_typeTable.IsTypeOf(UnknownTypeId, RootTypeId), Is.False);
         }
+
         [Test]
         public void IsTypeOfExpandedReturnsFalseForNullSubType()
         {
@@ -491,11 +501,12 @@ namespace Opc.Ua.Types.Tests.Nodes
                     new ExpandedNodeId(RootTypeId)),
                 Is.False);
         }
+
         [Test]
         public void FindReferenceTypeNameReturnsDefaultForUnknownType()
         {
             QualifiedName result = m_typeTable.FindReferenceTypeName(UnknownTypeId);
-            Assert.That(result, Is.EqualTo(default(QualifiedName)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -506,18 +517,19 @@ namespace Opc.Ua.Types.Tests.Nodes
                 m_typeTable.FindReferenceTypeName(RefChildTypeId),
                 Is.EqualTo(RefChildBrowseName));
         }
+
         [Test]
         public void FindReferenceTypeReturnsDefaultForNullBrowseName()
         {
             NodeId result = m_typeTable.FindReferenceType(default);
-            Assert.That(result, Is.EqualTo(default(NodeId)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
         public void FindReferenceTypeReturnsDefaultForUnknownBrowseName()
         {
             NodeId result = m_typeTable.FindReferenceType(new QualifiedName("NoSuchRef"));
-            Assert.That(result, Is.EqualTo(default(NodeId)));
+            Assert.That(result, Is.Default);
         }
 
         [Test]
@@ -528,6 +540,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 m_typeTable.FindReferenceType(RefChildBrowseName),
                 Is.EqualTo(RefChildTypeId));
         }
+
         [Test]
         public void IsEncodingOfReturnsFalseForNullEncodingId()
         {
@@ -647,6 +660,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                     new ExpandedNodeId(aId)),
                 Is.True);
         }
+
         [Test]
         public void IsEncodingForExtensionObjectReturnsFalseForNullValue()
         {
@@ -668,6 +682,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var ext = new ExtensionObject(new ExpandedNodeId(UnknownTypeId));
             Assert.That(m_typeTable.IsEncodingFor(DataTypeId, ext), Is.False);
         }
+
         [Test]
         public void IsEncodingForVariantReturnsFalseForNullVariant()
         {
@@ -781,6 +796,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var variant = new Variant(42);
             Assert.That(m_typeTable.IsEncodingFor(DataTypeIds.Double, variant), Is.False);
         }
+
         [Test]
         public void FindDataTypeIdExpandedReturnsNullForNullId()
         {
@@ -808,6 +824,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             ExpandedNodeId id = EncodingId1;
             Assert.That(m_typeTable.FindDataTypeId(id), Is.EqualTo(DataTypeId));
         }
+
         [Test]
         public void FindDataTypeIdNodeIdReturnsNullForUnknownEncoding()
         {
@@ -820,6 +837,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_typeTable.AddEncoding(DataTypeId, new ExpandedNodeId(EncodingId1));
             Assert.That(m_typeTable.FindDataTypeId(EncodingId1), Is.EqualTo(DataTypeId));
         }
+
         [Test]
         public void ClearRemovesAllTypesEncodingsAndReferenceTypes()
         {
@@ -830,9 +848,10 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_typeTable.IsKnown(RootTypeId), Is.False);
             Assert.That(m_typeTable.IsKnown(ChildTypeId), Is.False);
             Assert.That(m_typeTable.IsKnown(GrandchildTypeId), Is.False);
-            Assert.That(m_typeTable.FindReferenceType(RefBrowseName), Is.EqualTo(default(NodeId)));
+            Assert.That(m_typeTable.FindReferenceType(RefBrowseName), Is.Default);
             Assert.That(m_typeTable.FindDataTypeId(EncodingId1), Is.EqualTo(NodeId.Null));
         }
+
         [Test]
         public void RemoveDoesNothingForNullId()
         {
@@ -888,7 +907,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void RemoveRemovesReferenceTypeBrowseName()
         {
             m_typeTable.Remove(new ExpandedNodeId(RefTypeId));
-            Assert.That(m_typeTable.FindReferenceType(RefBrowseName), Is.EqualTo(default(NodeId)));
+            Assert.That(m_typeTable.FindReferenceType(RefBrowseName), Is.Default);
         }
 
         [Test]
@@ -915,6 +934,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             ArrayOf<NodeId> subtypes = m_typeTable.FindSubTypes(new ExpandedNodeId(ChildTypeId));
             Assert.That(subtypes, Is.Empty);
         }
+
         private static Mock<ILocalNode> CreateMockNode(
             NodeId nodeId,
             NodeClass nodeClass,
@@ -937,7 +957,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             // Find for HasEncoding returns encoding references
             mockRefs.Setup(r => r.Find(
                     ReferenceTypeIds.HasEncoding, false, false, null))
-                .Returns(encodings ?? new List<IReference>());
+                .Returns(encodings ?? []);
 
             mockNode.Setup(n => n.References).Returns(mockRefs.Object);
             return mockNode;
@@ -1116,7 +1136,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Mock<ILocalNode> node2 = CreateMockNode(refNodeId, NodeClass.ReferenceType, browseName: newName);
             m_typeTable.Add(node2.Object);
 
-            Assert.That(m_typeTable.FindReferenceType(oldName), Is.EqualTo(default(NodeId)));
+            Assert.That(m_typeTable.FindReferenceType(oldName), Is.Default);
             Assert.That(m_typeTable.FindReferenceType(newName), Is.EqualTo(refNodeId));
         }
 

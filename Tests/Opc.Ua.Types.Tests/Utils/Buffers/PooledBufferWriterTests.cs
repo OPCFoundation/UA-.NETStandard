@@ -49,7 +49,7 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             // Assert
             Assert.That(writer.Capacity, Is.GreaterThanOrEqualTo(256)); // kMinSpace = 256
-            Assert.That(writer.WrittenCount, Is.EqualTo(0));
+            Assert.That(writer.WrittenCount, Is.Zero);
         }
 
         [Test]
@@ -150,8 +150,8 @@ namespace Opc.Ua.Types.Buffers.Tests
             writer.Reset();
 
             // Assert
-            Assert.That(writer.WrittenCount, Is.EqualTo(0));
-            Assert.That(writer.WrittenMemory.Length, Is.EqualTo(0));
+            Assert.That(writer.WrittenCount, Is.Zero);
+            Assert.That(writer.WrittenMemory.Length, Is.Zero);
         }
 
         [Test]
@@ -168,8 +168,8 @@ namespace Opc.Ua.Types.Buffers.Tests
             writer.Clear();
 
             // Assert
-            Assert.That(writer.WrittenCount, Is.EqualTo(0));
-            Assert.That(writer.WrittenMemory.Length, Is.EqualTo(0));
+            Assert.That(writer.WrittenCount, Is.Zero);
+            Assert.That(writer.WrittenMemory.Length, Is.Zero);
 
             // Verify instance is still usable
             Span<byte> newSpan = writer.GetSpan();
@@ -352,7 +352,7 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             // Reset
             writer.Reset();
-            Assert.That(writer.WrittenCount, Is.EqualTo(0));
+            Assert.That(writer.WrittenCount, Is.Zero);
             // Write new data
             Span<byte> span2 = writer.GetSpan(5);
             span2.Fill(2);

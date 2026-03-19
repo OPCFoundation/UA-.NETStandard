@@ -52,7 +52,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var path = new RelativePath();
 
             Assert.That(path.Elements.IsNull, Is.True);
-            Assert.That(path.Elements.Count, Is.EqualTo(0));
+            Assert.That(path.Elements.Count, Is.Zero);
         }
 
         [Test]
@@ -101,16 +101,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ElementsSetterAcceptsCollection()
         {
             var path = new RelativePath();
-            ArrayOf<RelativePathElement> collection =
-            [
+            path.Elements = [
                 new RelativePathElement
                 {
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     TargetName = new QualifiedName("Child")
                 }
             ];
-
-            path.Elements = collection;
 
             Assert.That(path.Elements.Count, Is.EqualTo(1));
         }
@@ -276,7 +273,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = path.Format(mockTypeTree.Object);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
@@ -522,10 +519,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Defaults: IsInverse=true, IncludeSubtypes=true, ReferenceTypeId=default, TargetName=default
             var element = new RelativePathElement();
 
-            Assert.That(element.ReferenceTypeId, Is.EqualTo(default(NodeId)));
+            Assert.That(element.ReferenceTypeId, Is.Default);
             Assert.That(element.IsInverse, Is.True);
             Assert.That(element.IncludeSubtypes, Is.True);
-            Assert.That(element.TargetName, Is.EqualTo(default(QualifiedName)));
+            Assert.That(element.TargetName, Is.Default);
         }
 
         [Test]

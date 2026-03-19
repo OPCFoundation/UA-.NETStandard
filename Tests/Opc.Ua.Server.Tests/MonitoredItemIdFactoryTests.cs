@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             const int totalIds = numTasks * idsPerTask;
-            Assert.That(generatedIds.Count, Is.EqualTo(totalIds));
+            Assert.That(generatedIds, Has.Count.EqualTo(totalIds));
             Assert.That(generatedIds.Distinct().Count(), Is.EqualTo(totalIds), "Duplicate IDs were generated.");
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             const int totalIds = numTasks * idsPerTask;
-            Assert.That(generatedIds.Count, Is.EqualTo(totalIds));
+            Assert.That(generatedIds, Has.Count.EqualTo(totalIds));
             Assert.That(generatedIds.All(id => id > startValue), Is.True, "An ID smaller than or equal to the start value was generated.");
         }
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             const int totalIds = numIdTasks * idsPerTask;
-            Assert.That(generatedIds.Count, Is.EqualTo(totalIds), "Incorrect total number of IDs generated.");
+            Assert.That(generatedIds, Has.Count.EqualTo(totalIds), "Incorrect total number of IDs generated.");
 
             if (resetEvents.IsEmpty)
             {
@@ -233,11 +233,11 @@ namespace Opc.Ua.Server.Tests
 
                 // Assert
                 const int totalIds = numTasks * idsPerTask;
-                Assert.That(generatedIds.Count, Is.EqualTo(totalIds),
+                Assert.That(generatedIds, Has.Count.EqualTo(totalIds),
                     $"Iteration {iteration + 1}: Incorrect total number of IDs generated.");
 
                 var distinctIds = generatedIds.Distinct().ToList();
-                Assert.That(distinctIds.Count, Is.EqualTo(totalIds),
+                Assert.That(distinctIds, Has.Count.EqualTo(totalIds),
                     $"Iteration {iteration + 1}: Duplicate IDs were generated during wraparound.");
 
                 Assert.That(generatedIds.All(id => id != 0), Is.True,

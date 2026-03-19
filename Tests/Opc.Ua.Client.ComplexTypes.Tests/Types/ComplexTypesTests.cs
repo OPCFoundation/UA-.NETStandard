@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -57,38 +56,38 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType,
                 nameof(CreateComplexType));
-            Assert.NotNull(complexType);
+            Assert.That(complexType, Is.Not.Null);
             object emittedType = Activator.CreateInstance(complexType);
             var structType = emittedType as BaseComplexType;
             switch (structureType)
             {
                 case StructureType.Structure:
-                    Assert.NotNull(structType);
-                    Assert.AreEqual(structType.GetPropertyTypes().Count, propertyBuiltInTypes);
-                    Assert.AreEqual(structType.GetPropertyCount(), propertyBuiltInTypes);
+                    Assert.That(structType, Is.Not.Null);
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyTypes().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyCount()));
                     break;
                 case StructureType.StructureWithOptionalFields:
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
-                    Assert.NotNull(structWithOptionalFieldsType);
-                    Assert.AreEqual(0, structWithOptionalFieldsType.EncodingMask);
-                    Assert.AreEqual(
-                        structWithOptionalFieldsType.GetPropertyTypes().Count,
-                        propertyBuiltInTypes);
-                    Assert.AreEqual(
-                        structWithOptionalFieldsType.GetPropertyCount(),
-                        propertyBuiltInTypes);
+                    Assert.That(structWithOptionalFieldsType, Is.Not.Null);
+                    Assert.That(structWithOptionalFieldsType.EncodingMask, Is.Zero);
+                    Assert.That(
+                        propertyBuiltInTypes,
+                        Is.EqualTo(structWithOptionalFieldsType.GetPropertyTypes().Count));
+                    Assert.That(
+                        propertyBuiltInTypes,
+                        Is.EqualTo(structWithOptionalFieldsType.GetPropertyCount()));
                     break;
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
-                    Assert.NotNull(unionType);
-                    Assert.AreEqual(0, unionType.SwitchField);
-                    Assert.AreEqual(unionType.GetPropertyTypes().Count, propertyBuiltInTypes);
-                    Assert.AreEqual(unionType.GetPropertyCount(), propertyBuiltInTypes);
-                    Assert.IsTrue(unionType.Value.IsNull);
+                    Assert.That(unionType, Is.Not.Null);
+                    Assert.That(unionType.SwitchField, Is.Zero);
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyTypes().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyCount()));
+                    Assert.That(unionType.Value.IsNull, Is.True);
                     break;
             }
             var encodeable = emittedType as IEncodeable;
-            Assert.NotNull(encodeable);
+            Assert.That(encodeable, Is.Not.Null);
             // try the accessor by name
             foreach (string accessorname in structType.GetPropertyNames())
             {
@@ -112,7 +111,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType,
                 nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
-            Assert.NotNull(complexType);
+            Assert.That(complexType, Is.Not.Null);
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
 
@@ -126,16 +125,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
-                        Assert.IsFalse(obj.IsNull);
+                        Assert.That(obj.IsNull, Is.False);
                     }
                     else
                     {
-                        Assert.IsTrue(obj.IsNull);
+                        Assert.That(obj.IsNull, Is.True);
                     }
                 }
                 else
                 {
-                    Assert.IsFalse(obj.IsNull);
+                    Assert.That(obj.IsNull, Is.False);
                 }
             }
         }

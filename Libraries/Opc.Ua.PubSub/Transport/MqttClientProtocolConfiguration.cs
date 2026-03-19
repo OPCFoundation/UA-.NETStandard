@@ -502,7 +502,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Constructs a MqttClientProtocolConfiguration from given keyValuePairs
         /// </summary>
         public MqttClientProtocolConfiguration(
-            ArrayOf<Opc.Ua.KeyValuePair> connectionProperties,
+            ArrayOf<KeyValuePair> connectionProperties,
             ILogger logger)
         {
             UserName = new SecureString();
@@ -588,6 +588,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// The key value pairs representing the parameters of a MqttClientProtocolConfiguration
         /// </summary>
-        public ArrayOf<Opc.Ua.KeyValuePair> ConnectionProperties { get; set; }
+        public ArrayOf<KeyValuePair> ConnectionProperties { get; set; }
     }
 }

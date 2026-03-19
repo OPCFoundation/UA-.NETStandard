@@ -341,17 +341,6 @@ namespace Opc.Ua
             return XElement.Load(stream, LoadOptions.SetBaseUri);
         }
 
-        /// <summary>
-        /// Try to normalize the string without parsing
-        /// </summary>
-        private static string? Normalize(string? s)
-        {
-            return s == null ? s : s
-                .Replace("\r", string.Empty, StringComparison.Ordinal)
-                .Replace("\n", string.Empty, StringComparison.Ordinal)
-                .Replace(" ", string.Empty, StringComparison.Ordinal);
-        }
-
 #pragma warning disable IDE0032 // Use auto property
         private readonly string? m_outerXml;
 #pragma warning restore IDE0032 // Use auto property

@@ -1763,7 +1763,7 @@ namespace Opc.Ua
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                var serviceResult = ServiceResultException.Create(
+                ServiceResultException serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
                     endpointUrl.IdnHost);

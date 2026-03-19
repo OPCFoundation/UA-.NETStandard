@@ -47,11 +47,11 @@ namespace Opc.Ua.Types.Buffers.Tests
             using var buffer = new PooledBuffer(0);
 
             // Assert
-            Assert.That(buffer.Capacity, Is.EqualTo(0));
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.Free, Is.EqualTo(0));
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
-            Assert.That(buffer.CommittedEnd, Is.EqualTo(0));
+            Assert.That(buffer.Capacity, Is.Zero);
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.Free, Is.Zero);
+            Assert.That(buffer.CommittedStart, Is.Zero);
+            Assert.That(buffer.CommittedEnd, Is.Zero);
         }
 
         [TestCase(1)]
@@ -64,10 +64,10 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             // Assert
             Assert.That(buffer.Capacity, Is.GreaterThanOrEqualTo(initialSize));
-            Assert.That(buffer.Length, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
             Assert.That(buffer.Free, Is.GreaterThanOrEqualTo(initialSize));
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
-            Assert.That(buffer.CommittedEnd, Is.EqualTo(0));
+            Assert.That(buffer.CommittedStart, Is.Zero);
+            Assert.That(buffer.CommittedEnd, Is.Zero);
         }
 
         [Test]
@@ -84,10 +84,10 @@ namespace Opc.Ua.Types.Buffers.Tests
             buffer.ClearAndReturnBuffer();
 
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
-            Assert.That(buffer.CommittedEnd, Is.EqualTo(0));
-            Assert.That(buffer.Capacity, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.CommittedStart, Is.Zero);
+            Assert.That(buffer.CommittedEnd, Is.Zero);
+            Assert.That(buffer.Capacity, Is.Zero);
         }
 
         [Test]
@@ -127,9 +127,9 @@ namespace Opc.Ua.Types.Buffers.Tests
             buffer.Discard(1); // Discard the only byte we have
 
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
-            Assert.That(buffer.CommittedEnd, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.CommittedStart, Is.Zero);
+            Assert.That(buffer.CommittedEnd, Is.Zero);
         }
 
         [Test]
@@ -150,9 +150,9 @@ namespace Opc.Ua.Types.Buffers.Tests
             buffer.Reset();
 
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
-            Assert.That(buffer.CommittedEnd, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.CommittedStart, Is.Zero);
+            Assert.That(buffer.CommittedEnd, Is.Zero);
         }
 
         [Test]
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             // Assert
             Assert.That(buffer.Capacity, Is.EqualTo(initialCapacity)); // Capacity shouldn't change
             Assert.That(buffer.Length, Is.EqualTo(initialLength)); // Length should remain the same
-            Assert.That(buffer.CommittedStart, Is.EqualTo(0));
+            Assert.That(buffer.CommittedStart, Is.Zero);
 
             // Verify the data was shifted correctly
             byte[] newData = buffer.ReadOnlySpan.ToArray();
@@ -358,10 +358,10 @@ namespace Opc.Ua.Types.Buffers.Tests
             var buffer = PooledBuffer.Create(emptySequence);
 
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.Capacity, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.Capacity, Is.Zero);
             Assert.That(buffer.Span.IsEmpty, Is.True);
-            Assert.That(buffer.Free, Is.EqualTo(0));
+            Assert.That(buffer.Free, Is.Zero);
         }
 
         [Test]
@@ -374,10 +374,10 @@ namespace Opc.Ua.Types.Buffers.Tests
             var buffer = PooledBuffer.Create(emptySpan);
 
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(0));
-            Assert.That(buffer.Capacity, Is.EqualTo(0));
+            Assert.That(buffer.Length, Is.Zero);
+            Assert.That(buffer.Capacity, Is.Zero);
             Assert.That(buffer.Span.IsEmpty, Is.True);
-            Assert.That(buffer.Free, Is.EqualTo(0));
+            Assert.That(buffer.Free, Is.Zero);
         }
 
         [Test]

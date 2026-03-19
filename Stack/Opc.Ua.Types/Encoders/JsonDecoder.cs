@@ -2929,7 +2929,7 @@ namespace Opc.Ua
                         if (TryGetInt32ArrayFromElement(
                                 GetPropertyElement(JsonProperties.Dimensions),
                                 out ArrayOf<int> dimensions) &&
-                            TryGetEncodeableArrayFromElement<T>(
+                            TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
                                 encodeableTypeId,
                                 out ArrayOf<T> structures))

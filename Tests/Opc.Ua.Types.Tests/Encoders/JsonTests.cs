@@ -1732,14 +1732,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expected));
         }
 
-        internal IDecoder CreateDecoder(ReadOnlySequence<byte> buffers, IServiceMessageContext messageContext)
+#pragma warning disable CA1859 // Use concrete types when possible for improved performance
+        private IDecoder CreateDecoder(ReadOnlySequence<byte> buffers, IServiceMessageContext messageContext)
         {
             return new JsonDecoder(buffers, messageContext);
         }
 
-        internal IEncoder CreateEncoder(IBufferWriter<byte> buffer, IServiceMessageContext messageContext)
+        private IEncoder CreateEncoder(IBufferWriter<byte> buffer, IServiceMessageContext messageContext)
         {
             return new JsonEncoder(buffer, messageContext);
         }
+#pragma warning restore CA1859 // Use concrete types when possible for improved performance
     }
 }

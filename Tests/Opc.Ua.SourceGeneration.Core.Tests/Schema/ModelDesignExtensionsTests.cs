@@ -5780,7 +5780,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo(null));
+            Assert.That(result, Is.Null);
         }
 
         /// <summary>

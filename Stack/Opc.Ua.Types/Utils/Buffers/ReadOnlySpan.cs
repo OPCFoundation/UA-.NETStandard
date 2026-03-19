@@ -111,10 +111,8 @@ namespace Opc.Ua
                 {
                     goto Between4And7BytesRemain;
                 }
-                else
-                {
-                    goto InputTooSmallToEnterMainLoop;
-                }
+
+                goto InputTooSmallToEnterMainLoop;
             }
 
             // Main loop - read 8 bytes at a time.

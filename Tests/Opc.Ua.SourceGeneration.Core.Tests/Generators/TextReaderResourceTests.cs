@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long length = resource.GetLength(mockFileSystem.Object);
             // Assert
-            Assert.That(length, Is.EqualTo(0));
+            Assert.That(length, Is.Zero);
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long length = resource.GetLength(null);
             // Assert
-            Assert.That(length, Is.EqualTo(0));
+            Assert.That(length, Is.Zero);
         }
 
         /// <summary>
@@ -93,9 +93,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             long length2 = resource.GetLength(mockFileSystem.Object);
             long length3 = resource.GetLength(mockFileSystem.Object);
             // Assert
-            Assert.That(length1, Is.EqualTo(0));
-            Assert.That(length2, Is.EqualTo(0));
-            Assert.That(length3, Is.EqualTo(0));
+            Assert.That(length1, Is.Zero);
+            Assert.That(length2, Is.Zero);
+            Assert.That(length3, Is.Zero);
         }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long length = resource.GetLength(mockFileSystem.Object);
             // Assert
-            Assert.That(length, Is.EqualTo(0));
+            Assert.That(length, Is.Zero);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long length = resource.GetLength(mockFileSystem.Object);
             // Assert
-            Assert.That(length, Is.EqualTo(0));
+            Assert.That(length, Is.Zero);
         }
     }
 }

@@ -48,7 +48,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void MinValueNowIfDefaultShouldNotHaveZeroValue()
         {
             // Act & Assert
-            Assert.That(DateTimeUtc.MinValue.NowIfDefault.Value, Is.Not.EqualTo(0));
+            Assert.That(DateTimeUtc.MinValue.NowIfDefault.Value, Is.Not.Zero);
             Assert.That(DateTimeUtc.MaxValue.NowIfDefault, Is.EqualTo(DateTimeUtc.MaxValue));
         }
 
@@ -57,7 +57,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Act & Assert
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.5
-            Assert.That(DateTimeUtc.MinValue.Value, Is.EqualTo(0));
+            Assert.That(DateTimeUtc.MinValue.Value, Is.Zero);
             Assert.That(DateTimeUtc.MinValue.IsNull, Is.True);
             Assert.That(DateTimeUtc.MinValue.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
@@ -127,7 +127,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act & Assert
             Assert.That(earlier.CompareTo(later), Is.LessThan(0));
             Assert.That(later.CompareTo(earlier), Is.GreaterThan(0));
-            Assert.That(earlier.CompareTo(same), Is.EqualTo(0));
+            Assert.That(earlier.CompareTo(same), Is.Zero);
         }
 
         [Test]
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act & Assert
             Assert.That(date.CompareTo(2000L), Is.LessThan(0));
             Assert.That(date.CompareTo(500L), Is.GreaterThan(0));
-            Assert.That(date.CompareTo(1000L), Is.EqualTo(0));
+            Assert.That(date.CompareTo(1000L), Is.Zero);
         }
 
         [Test]
@@ -451,7 +451,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Assert
             if (value < 0)
             {
-                Assert.That(dateTimeUtc.Value, Is.EqualTo(0));
+                Assert.That(dateTimeUtc.Value, Is.Zero);
             }
             else if (value >= 2650467743990000000) // kMaxValue
             {
@@ -934,7 +934,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DateTimeUtc dateTimeUtc = dateTime;
 
             // Assert
-            Assert.That(dateTimeUtc.Equals(dateTime), Is.True);
+            Assert.That(dateTimeUtc, Is.EqualTo(dateTime));
         }
 
         [Test]
@@ -986,7 +986,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act
             long result = DateTimeUtc.ToTicks(fileTime);
 
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Act
             long result = DateTimeUtc.ToTicks(fileTime);
 
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [TestCase(0L)]
@@ -1078,9 +1078,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(dateTime.Year, Is.EqualTo(2000));
             Assert.That(dateTime.Month, Is.EqualTo(1));
             Assert.That(dateTime.Day, Is.EqualTo(1));
-            Assert.That(dateTime.Hour, Is.EqualTo(0));
-            Assert.That(dateTime.Minute, Is.EqualTo(0));
-            Assert.That(dateTime.Second, Is.EqualTo(0));
+            Assert.That(dateTime.Hour, Is.Zero);
+            Assert.That(dateTime.Minute, Is.Zero);
+            Assert.That(dateTime.Second, Is.Zero);
         }
     }
 }

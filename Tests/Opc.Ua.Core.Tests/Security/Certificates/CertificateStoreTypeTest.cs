@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -38,20 +37,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .LoadAsync(fileInfo, ApplicationType.Client, systemType: null, telemetry)
                 .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
+            Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
                 .TrustedIssuerCertificates;
             using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore(telemetry);
             trustedIssuersStore.Close();
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(
-                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            Assert.That(
+                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore,
+                Is.True);
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
             using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-            Assert.IsTrue(
-                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            Assert.That(
+                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated,
+                Is.True);
         }
     }
 

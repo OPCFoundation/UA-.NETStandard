@@ -214,8 +214,8 @@ namespace Opc.Ua.Server.Tests
             node.RolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
-            Assert.That((node.ChangeMasks & NodeStateChangeMasks.NonValue), Is.Not.EqualTo(NodeStateChangeMasks.None));
-            Assert.That((node.ChangeMasks & NodeStateChangeMasks.RolePermissions), Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(node.ChangeMasks & NodeStateChangeMasks.NonValue, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(node.ChangeMasks & NodeStateChangeMasks.RolePermissions, Is.Not.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>
@@ -237,8 +237,8 @@ namespace Opc.Ua.Server.Tests
             node.UserRolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
-            Assert.That((node.ChangeMasks & NodeStateChangeMasks.NonValue), Is.Not.EqualTo(NodeStateChangeMasks.None));
-            Assert.That((node.ChangeMasks & NodeStateChangeMasks.RolePermissions), Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(node.ChangeMasks & NodeStateChangeMasks.NonValue, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(node.ChangeMasks & NodeStateChangeMasks.RolePermissions, Is.Not.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests
             node.ClearChangeMasks(contextMock, false);
 
             // Assert – callback should have received the RolePermissions mask
-            Assert.That((capturedMask & NodeStateChangeMasks.RolePermissions), Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(capturedMask & NodeStateChangeMasks.RolePermissions, Is.Not.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>

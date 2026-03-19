@@ -542,29 +542,24 @@ namespace Opc.Ua.Gds.Server
         /// <param name="nextUpdate">Time until the crl will be valid to (defaults to UtcNow + 12 Months)</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public static async Task<X509CRL> CreateEmptyCrlAsync(X509Certificate2 caCertificate, DateTime? thisUpdate = null, DateTime? nextUpdate = null)
+        public static Task<X509CRL> CreateEmptyCrlAsync(X509Certificate2 caCertificate, DateTime? thisUpdate = null, DateTime? nextUpdate = null)
         {
             bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
             if (!isCACert)
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
-            X509CRL result = null;
             CrlBuilder crlBuilder = CrlBuilder
-                    .Create(caCertificate.SubjectName)
-                    .SetThisUpdate(thisUpdate ?? DateTime.UtcNow)
-                    .SetNextUpdate(nextUpdate ?? DateTime.UtcNow.AddMonths(12))
-                    .AddCRLExtension(caCertificate.BuildAuthorityKeyIdentifier())
-                    .AddCRLExtension(X509Extensions.BuildCRLNumber(1));
+                .Create(caCertificate.SubjectName)
+                .SetThisUpdate(thisUpdate ?? DateTime.UtcNow)
+                .SetNextUpdate(nextUpdate ?? DateTime.UtcNow.AddMonths(12))
+                .AddCRLExtension(caCertificate.BuildAuthorityKeyIdentifier())
+                .AddCRLExtension(X509Extensions.BuildCRLNumber(1));
             if (X509PfxUtils.IsECDsaSignature(caCertificate))
             {
-                result = new X509CRL(crlBuilder.CreateForECDsa(caCertificate));
+                return Task.FromResult(new X509CRL(crlBuilder.CreateForECDsa(caCertificate)));
             }
-            else
-            {
-                result = new X509CRL(crlBuilder.CreateForRSA(caCertificate));
-            }
-            return result;
+            return Task.FromResult(new X509CRL(crlBuilder.CreateForRSA(caCertificate)));
         }
 
         /// <summary>
@@ -578,6 +573,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="ct">Cancellation token</param>
         /// <returns>Crl for the CA Certificate</returns>
         /// <exception cref="ArgumentException">Non-CA certificates or when no store is provided</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<X509CRL> LoadCrlCreateEmptyIfNonExistantAsync(
             X509Certificate2 caCertificate,
             CertificateStoreIdentifier storeIdentifier,
@@ -616,8 +612,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     result = certCACrl.OrderByDescending(crl => crl.ThisUpdate).FirstOrDefault();
                 }
-                return result ?? throw new ServiceResultException(StatusCodes.BadCertificateIssuerRevocationUnknown,
-                    "Issuer Crl should have been created but it seems it was not!");
+                return result ??
+                    throw new ServiceResultException(StatusCodes.BadCertificateIssuerRevocationUnknown,
+                        "Issuer Crl should have been created but it seems it was not!");
             }
             finally
             {
@@ -658,7 +655,6 @@ namespace Opc.Ua.Gds.Server
             {
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
-
 
             if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
             {
@@ -717,8 +713,10 @@ namespace Opc.Ua.Gds.Server
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false, ct)
                     .ConfigureAwait(false);
 
-                var certificateCollection = new X509Certificate2Collection();
-                certificateCollection.Add(certificate);
+                var certificateCollection = new X509Certificate2Collection
+                {
+                    certificate
+                };
                 updatedCRL = CertificateFactory.RevokeCertificate(
                     certCAWithPrivateKey,
                     certCACrl,

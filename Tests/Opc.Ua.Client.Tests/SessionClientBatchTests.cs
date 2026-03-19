@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client.Tests
                 referencesToAdd, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -842,7 +842,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(response, Is.Not.Null);
             Assert.That(response.Results.Count, Is.EqualTo(15));
-            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(0));
+            Assert.That(response.DiagnosticInfos.Count, Is.Zero);
 
             sessionMock.Channel
                 .Verify(c => c.SendRequestAsync(
@@ -903,7 +903,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response, Is.Not.Null);
             Assert.That(response.Results.Count, Is.EqualTo(15));
             Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
-            Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(0));
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
 
             // Verify that the indexes in the diagnostic infos are correctly updated
             Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -1451,7 +1451,7 @@ namespace Opc.Ua.Client.Tests
                 releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -1647,7 +1647,7 @@ namespace Opc.Ua.Client.Tests
                 methodsToCall, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -1757,7 +1757,7 @@ namespace Opc.Ua.Client.Tests
                 requestHandle, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -1838,7 +1838,7 @@ namespace Opc.Ua.Client.Tests
                 deleteSubscriptions, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2011,7 +2011,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2145,7 +2145,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2495,7 +2495,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2685,7 +2685,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2797,7 +2797,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -2972,7 +2972,7 @@ namespace Opc.Ua.Client.Tests
                 nodesToRead, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3175,7 +3175,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3377,7 +3377,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3511,7 +3511,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3613,7 +3613,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3704,7 +3704,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3805,7 +3805,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -3980,7 +3980,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4180,7 +4180,7 @@ namespace Opc.Ua.Client.Tests
                 requestHeader, nodesToRegister, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4265,7 +4265,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4442,7 +4442,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4568,7 +4568,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4756,7 +4756,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -4892,7 +4892,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -5206,7 +5206,7 @@ namespace Opc.Ua.Client.Tests
                 ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));
@@ -5365,7 +5365,7 @@ namespace Opc.Ua.Client.Tests
                 nodesToWrite, ct).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
-            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.RequestHandle ?? 1, Is.Not.Zero);
             Assert.That(
                 requestHeader?.Timestamp ?? DateTimeUtc.Now,
                 Is.LessThanOrEqualTo(DateTimeUtc.Now + TimeSpan.FromSeconds(1)));

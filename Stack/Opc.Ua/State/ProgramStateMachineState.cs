@@ -159,12 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected override uint[,] CauseMappings => m_causeMappings;
-
-        /// <summary>
-        /// A table of transitions for the available causes.
-        /// </summary>
-        private readonly uint[,] m_causeMappings = new uint[,]
+        protected override uint[,] CauseMappings { get; } = new uint[,]
         {
             {
                 Methods.ProgramStateMachineType_Reset,

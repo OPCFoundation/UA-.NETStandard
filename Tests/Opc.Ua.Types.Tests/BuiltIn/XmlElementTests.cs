@@ -92,7 +92,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(xmlElement.Equals(0), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -101,10 +103,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(xmlElement.Equals(xmlString), Is.True);
-            Assert.That(xmlElement.Equals((object)xmlString), Is.True);
-            Assert.That(xmlElement == xmlString, Is.True);
-            Assert.That(xmlElement != xmlString, Is.False);
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
+            Assert.That(xmlElement, Is.EqualTo((object)xmlString));
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
         }
 
         [Test]
@@ -114,10 +116,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString2 = "<root><child/></root>";
             var xmlElement = new XmlElement(xmlString1);
 
-            Assert.That(xmlElement.Equals(xmlString2), Is.False);
-            Assert.That(xmlElement.Equals((object)xmlString2), Is.False);
-            Assert.That(xmlElement != xmlString2, Is.True);
-            Assert.That(xmlElement == xmlString2, Is.False);
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo((object)xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
         }
 
         [Test]
@@ -126,10 +128,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(xmlElement.Equals(xmlString), Is.True);
-            Assert.That(xmlElement.Equals((object)xmlString), Is.True);
-            Assert.That(xmlElement == xmlString, Is.True);
-            Assert.That(xmlElement != xmlString, Is.False);
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
+            Assert.That(xmlElement, Is.EqualTo((object)xmlString));
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
         }
 
         [Test]
@@ -139,10 +141,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString2 = "<root><child/></root>";
             var xmlElement = new XmlElement(xmlString1);
 
-            Assert.That(xmlElement.Equals(xmlString2), Is.False);
-            Assert.That(xmlElement.Equals((object)xmlString2), Is.False);
-            Assert.That(xmlElement != xmlString2, Is.True);
-            Assert.That(xmlElement == xmlString2, Is.False);
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo((object)xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
         }
 
         [Test]
@@ -156,10 +158,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             System.Xml.XmlElement? xmlElementNode = xmlDocument.DocumentElement;
             var xmlElement = new XmlElement(xmlElementNode);
 
-            Assert.That(xmlElement.Equals(xmlElementNode), Is.True);
-            Assert.That(xmlElement.Equals((object?)xmlElementNode), Is.True);
-            Assert.That(xmlElement == xmlElementNode, Is.True);
-            Assert.That(xmlElement != xmlElementNode, Is.False);
+            Assert.That(xmlElement, Is.EqualTo(xmlElementNode));
+            Assert.That(xmlElement, Is.EqualTo((object?)xmlElementNode));
+            Assert.That(xmlElement, Is.EqualTo(xmlElementNode));
+            Assert.That(xmlElement, Is.EqualTo(xmlElementNode));
         }
 
         [Test]
@@ -168,10 +170,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             System.Xml.XmlElement? xmlElementNode = null;
             var xmlElement = new XmlElement("<root></root>");
 
-            Assert.That(xmlElement.Equals(xmlElementNode), Is.False);
-            Assert.That(xmlElement.Equals((object?)xmlElementNode), Is.False);
-            Assert.That(xmlElement != xmlElementNode, Is.True);
-            Assert.That(xmlElement == xmlElementNode, Is.False);
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode));
+            Assert.That(xmlElement, Is.Not.EqualTo((object?)xmlElementNode));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode));
         }
 
         [Test]
@@ -189,10 +191,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             System.Xml.XmlElement? xmlElementNode2 = xmlDocument2.DocumentElement;
             var xmlElement = new XmlElement(xmlElementNode1);
 
-            Assert.That(xmlElement.Equals(xmlElementNode2), Is.False);
-            Assert.That(xmlElement.Equals((object?)xmlElementNode2), Is.False);
-            Assert.That(xmlElement == xmlElementNode2, Is.False);
-            Assert.That(xmlElement != xmlElementNode2, Is.True);
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode2));
+            Assert.That(xmlElement, Is.Not.EqualTo((object?)xmlElementNode2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlElementNode2));
         }
 
         [Test]
@@ -202,10 +204,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xElement = XElement.Parse(xmlString);
             var xmlElement = new XmlElement(xElement);
 
-            Assert.That(xmlElement.Equals(xElement), Is.True);
-            Assert.That(xmlElement.Equals((object)xElement), Is.True);
-            Assert.That(xmlElement == xElement, Is.True);
-            Assert.That(xmlElement != xElement, Is.False);
+            Assert.That(xmlElement, Is.EqualTo(xElement));
+            Assert.That(xmlElement, Is.EqualTo((object)xElement));
+            Assert.That(xmlElement, Is.EqualTo(xElement));
+            Assert.That(xmlElement, Is.EqualTo(xElement));
         }
 
         [Test]
@@ -217,10 +219,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xElement2 = XElement.Parse(xmlString2);
             var xmlElement = new XmlElement(xElement1);
 
-            Assert.That(xmlElement.Equals(xElement2), Is.False);
-            Assert.That(xmlElement.Equals((object?)xElement2), Is.False);
-            Assert.That(xmlElement == xElement2, Is.False);
-            Assert.That(xmlElement != xElement2, Is.True);
+            Assert.That(xmlElement, Is.Not.EqualTo(xElement2));
+            Assert.That(xmlElement, Is.Not.EqualTo((object?)xElement2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xElement2));
+            Assert.That(xmlElement, Is.Not.EqualTo(xElement2));
         }
 
         [Test]
@@ -229,10 +231,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             XElement? nullElement = null;
             var xmlElement = (XmlElement)"<root></root>";
 
-            Assert.That(xmlElement.Equals(nullElement), Is.False);
-            Assert.That(xmlElement.Equals((object?)nullElement), Is.False);
-            Assert.That(xmlElement != nullElement, Is.True);
-            Assert.That(xmlElement == nullElement, Is.False);
+            Assert.That(xmlElement, Is.Not.EqualTo(nullElement));
+            Assert.That(xmlElement, Is.Not.EqualTo((object?)nullElement));
+            Assert.That(xmlElement, Is.Not.EqualTo(nullElement));
+            Assert.That(xmlElement, Is.Not.EqualTo(nullElement));
         }
 
         [Test]
@@ -242,10 +244,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xmlElement1 = new XmlElement(xmlString);
             var xmlElement2 = new XmlElement(xmlString);
 
-            Assert.That(xmlElement1.Equals(xmlElement2), Is.True);
-            Assert.That(xmlElement1.Equals((object)xmlElement2), Is.True);
-            Assert.That(xmlElement1 == xmlElement2, Is.True);
-            Assert.That(xmlElement1 != xmlElement2, Is.False);
+            Assert.That(xmlElement1, Is.EqualTo(xmlElement2));
+            Assert.That(xmlElement1, Is.EqualTo((object)xmlElement2));
+            Assert.That(xmlElement1, Is.EqualTo(xmlElement2));
+            Assert.That(xmlElement1, Is.EqualTo(xmlElement2));
         }
 
         [Test]
@@ -256,10 +258,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xmlElement1 = new XmlElement(xmlString1);
             var xmlElement2 = new XmlElement(xmlString2);
 
-            Assert.That(xmlElement1.Equals(xmlElement2), Is.False);
-            Assert.That(xmlElement1.Equals((object?)xmlElement2), Is.False);
-            Assert.That(xmlElement1 == xmlElement2, Is.False);
-            Assert.That(xmlElement1 != xmlElement2, Is.True);
+            Assert.That(xmlElement1, Is.Not.EqualTo(xmlElement2));
+            Assert.That(xmlElement1, Is.Not.EqualTo((object?)xmlElement2));
+            Assert.That(xmlElement1, Is.Not.EqualTo(xmlElement2));
+            Assert.That(xmlElement1, Is.Not.EqualTo(xmlElement2));
         }
 
         [Test]
@@ -288,8 +290,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(xmlElement.Equals(xmlString), Is.True);
-            Assert.That(xmlElement.Equals((object)xmlString), Is.True);
+            Assert.That(xmlElement, Is.EqualTo(xmlString));
+            Assert.That(xmlElement, Is.EqualTo((object)xmlString));
         }
 
         [Test]
@@ -299,8 +301,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString2 = "<root><child/></root>";
             var xmlElement = new XmlElement(xmlString1);
 
-            Assert.That(xmlElement.Equals(xmlString2), Is.False);
-            Assert.That(xmlElement.Equals((object)xmlString2), Is.False);
+            Assert.That(xmlElement, Is.Not.EqualTo(xmlString2));
+            Assert.That(xmlElement, Is.Not.EqualTo((object)xmlString2));
         }
 
         [Test]
@@ -497,7 +499,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xElement = XElement.Parse(
                 "<root><child>value</child></root>");
             var xmlElement = (XmlElement)xElement;
-            Assert.That(xmlElement.Equals(xElement), Is.True);
+            Assert.That(xmlElement, Is.EqualTo(xElement));
         }
     }
 }

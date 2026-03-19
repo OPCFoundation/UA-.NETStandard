@@ -31,7 +31,6 @@ using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -55,7 +54,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void DecodeExtensions(CertificateAsset certAsset)
         {
             using X509Certificate2 x509Cert = CertificateFactory.Create(certAsset.Cert);
-            Assert.NotNull(x509Cert);
+            Assert.That(x509Cert, Is.Not.Null);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);
             X509SubjectAltNameExtension altName = x509Cert
@@ -96,35 +95,35 @@ namespace Opc.Ua.Security.Certificates.Tests
                 subjectKeyIdentifier,
                 authorityName,
                 serialNumber);
-            Assert.NotNull(aki);
+            Assert.That(aki, Is.Not.Null);
             TestContext.Out.WriteLine("Encoded:");
             TestContext.Out.WriteLine(aki.Format(true));
-            Assert.AreEqual(authorityName, aki.Issuer);
-            Assert.AreEqual(serialNumber, aki.GetSerialNumber());
-            Assert.AreEqual(serialNumber.ToHexString(true), aki.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
+            Assert.That(aki.Issuer, Is.EqualTo(authorityName));
+            Assert.That(aki.GetSerialNumber(), Is.EqualTo(serialNumber));
+            Assert.That(aki.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
+            Assert.That(aki.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             var akidecoded = new X509AuthorityKeyIdentifierExtension(
                 aki.Oid,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
-            Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.AreEqual(authorityName.Name, akidecoded.Issuer.Name);
-            Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
-            Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
+            Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
+            Assert.That(akidecoded.Issuer.Name, Is.EqualTo(authorityName.Name));
+            Assert.That(akidecoded.GetSerialNumber(), Is.EqualTo(serialNumber));
+            Assert.That(akidecoded.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
+            Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             akidecoded = new X509AuthorityKeyIdentifierExtension(
                 aki.Oid.Value,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
-            Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.AreEqual(authorityName.Name, akidecoded.Issuer.Name);
-            Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
-            Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
+            Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
+            Assert.That(akidecoded.Issuer.Name, Is.EqualTo(authorityName.Name));
+            Assert.That(akidecoded.GetSerialNumber(), Is.EqualTo(serialNumber));
+            Assert.That(akidecoded.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
+            Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
         }
 
         /// <summary>
@@ -135,35 +134,35 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             byte[] subjectKeyIdentifier = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             var aki = new X509AuthorityKeyIdentifierExtension(subjectKeyIdentifier);
-            Assert.NotNull(aki);
+            Assert.That(aki, Is.Not.Null);
             TestContext.Out.WriteLine("Encoded:");
             TestContext.Out.WriteLine(aki.Format(true));
-            Assert.Null(aki.Issuer);
-            Assert.Null(aki.GetSerialNumber());
-            Assert.AreEqual(string.Empty, aki.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
+            Assert.That(aki.Issuer, Is.Null);
+            Assert.That(aki.GetSerialNumber(), Is.Null);
+            Assert.That(aki.SerialNumber, Is.Empty);
+            Assert.That(aki.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             var akidecoded = new X509AuthorityKeyIdentifierExtension(
                 aki.Oid,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
-            Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.Null(aki.Issuer);
-            Assert.Null(aki.GetSerialNumber());
-            Assert.AreEqual(string.Empty, aki.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
+            Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
+            Assert.That(aki.Issuer, Is.Null);
+            Assert.That(aki.GetSerialNumber(), Is.Null);
+            Assert.That(aki.SerialNumber, Is.Empty);
+            Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             akidecoded = new X509AuthorityKeyIdentifierExtension(
                 aki.Oid.Value,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
-            Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.Null(aki.Issuer);
-            Assert.Null(aki.GetSerialNumber());
-            Assert.AreEqual(string.Empty, aki.SerialNumber);
-            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
+            Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
+            Assert.That(aki.Issuer, Is.Null);
+            Assert.That(aki.GetSerialNumber(), Is.Null);
+            Assert.That(aki.SerialNumber, Is.Empty);
+            Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
         }
 
         /// <summary>
@@ -181,21 +180,21 @@ namespace Opc.Ua.Security.Certificates.Tests
                 san.Oid.Value,
                 san.RawData,
                 san.Critical);
-            Assert.NotNull(decodedsan);
+            Assert.That(decodedsan, Is.Not.Null);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(decodedsan.Format(true));
-            Assert.NotNull(decodedsan.DomainNames);
-            Assert.NotNull(decodedsan.IPAddresses);
-            Assert.NotNull(decodedsan.Uris);
-            Assert.AreEqual(1, decodedsan.Uris.Count);
-            Assert.AreEqual(1, decodedsan.DomainNames.Count);
-            Assert.AreEqual(2, decodedsan.IPAddresses.Count);
-            Assert.AreEqual(decodedsan.Oid.Value, san.Oid.Value);
-            Assert.AreEqual(decodedsan.Critical, san.Critical);
-            Assert.AreEqual(applicationUri, decodedsan.Uris[0]);
-            Assert.AreEqual(domainNames[0], decodedsan.DomainNames[0]);
-            Assert.AreEqual(domainNames[1], decodedsan.IPAddresses[0]);
-            Assert.AreEqual(domainNames[2], decodedsan.IPAddresses[1]);
+            Assert.That(decodedsan.DomainNames, Is.Not.Null);
+            Assert.That(decodedsan.IPAddresses, Is.Not.Null);
+            Assert.That(decodedsan.Uris, Is.Not.Null);
+            Assert.That(decodedsan.Uris.Count, Is.EqualTo(1));
+            Assert.That(decodedsan.DomainNames.Count, Is.EqualTo(1));
+            Assert.That(decodedsan.IPAddresses.Count, Is.EqualTo(2));
+            Assert.That(san.Oid.Value, Is.EqualTo(decodedsan.Oid.Value));
+            Assert.That(san.Critical, Is.EqualTo(decodedsan.Critical));
+            Assert.That(decodedsan.Uris[0], Is.EqualTo(applicationUri));
+            Assert.That(decodedsan.DomainNames[0], Is.EqualTo(domainNames[0]));
+            Assert.That(decodedsan.IPAddresses[0], Is.EqualTo(domainNames[1]));
+            Assert.That(decodedsan.IPAddresses[1], Is.EqualTo(domainNames[2]));
         }
 
         /// <summary>
@@ -212,10 +211,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 number.Oid.Value,
                 number.RawData,
                 number.Critical);
-            Assert.NotNull(decodednumber);
+            Assert.That(decodednumber, Is.Not.Null);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(decodednumber.Format(true));
-            Assert.AreEqual(crlNumber, decodednumber.CrlNumber);
+            Assert.That(decodednumber.CrlNumber, Is.EqualTo(crlNumber));
         }
     }
 }

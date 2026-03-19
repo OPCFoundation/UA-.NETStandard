@@ -41,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             NodeId typeDefinitionId,
             ArrayOf<QualifiedName> relativePath,
             uint attributeId,
-            Ua.NumericRange indexRange)
+            NumericRange indexRange)
         {
             throw new NotImplementedException();
         }
@@ -256,8 +256,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = operandFirst1;
             if (filterOp == FilterOperator.Cast)
             {
-                var uintNodeId = new NodeId((uint)operandFirst2, 0);
-                loperand2.Value = uintNodeId;
+                loperand2.Value = new NodeId((uint)operandFirst2, 0);
             }
             else
             {
@@ -316,8 +315,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = operandFirst1;
             if (filterOp1 == FilterOperator.Cast)
             {
-                var uintNodeId = new NodeId((uint)operandFirst2, 0);
-                loperand2.Value = uintNodeId;
+                loperand2.Value = new NodeId((uint)operandFirst2, 0);
             }
             else
             {
@@ -408,8 +406,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = operandFirst1;
             if (filterOp1 == FilterOperator.Cast)
             {
-                var uintNodeId = new NodeId((uint)operandFirst2, 0);
-                loperand2.Value = uintNodeId;
+                loperand2.Value = new NodeId((uint)operandFirst2, 0);
             }
             else
             {

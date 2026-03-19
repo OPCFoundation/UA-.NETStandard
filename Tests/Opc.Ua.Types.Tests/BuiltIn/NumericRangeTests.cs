@@ -68,8 +68,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithZeroBeginAndZeroEnd()
         {
             var range = new NumericRange(0, 0);
-            Assert.That(range.Begin, Is.EqualTo(0));
-            Assert.That(range.End, Is.EqualTo(0));
+            Assert.That(range.Begin, Is.Zero);
+            Assert.That(range.End, Is.Zero);
         }
 
         [TestCase(0)]
@@ -111,7 +111,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void CountReturnsZeroWhenBeginIsMinusOne()
         {
             NumericRange range = NumericRange.Null;
-            Assert.That(range.Count, Is.EqualTo(0));
+            Assert.That(range.Count, Is.Zero);
         }
 
         [Test]
@@ -135,7 +135,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void DimensionsReturnsZeroWhenEmpty()
         {
             NumericRange range = NumericRange.Null;
-            Assert.That(range.Dimensions, Is.EqualTo(0));
+            Assert.That(range.Dimensions, Is.Zero);
         }
 
         [Test]
@@ -202,7 +202,7 @@ namespace Opc.Ua.Types.Tests.Utils
             NumericRange range = NumericRange.Null;
             NumericRange valid = range.EnsureValid(10);
             Assert.That(valid.IsNull, Is.False);
-            Assert.That(valid.Begin, Is.EqualTo(0));
+            Assert.That(valid.Begin, Is.Zero);
             Assert.That(valid.End, Is.EqualTo(10));
         }
 
@@ -228,7 +228,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(1, 5);
             var range2 = new NumericRange(1, 5);
-            Assert.That(range1.Equals(range2), Is.True);
+            Assert.That(range1, Is.EqualTo(range2));
         }
 
         [Test]
@@ -236,7 +236,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(1, 5);
             var range2 = new NumericRange(2, 5);
-            Assert.That(range1.Equals(range2), Is.False);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(1, 5);
             var range2 = new NumericRange(1, 6);
-            Assert.That(range1.Equals(range2), Is.False);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -252,21 +252,25 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(3, 7);
             object range2 = new NumericRange(3, 7);
-            Assert.That(range1.Equals(range2), Is.True);
+            Assert.That(range1, Is.EqualTo(range2));
         }
 
         [Test]
         public void EqualsObjectReturnsFalseForNonNumericRange()
         {
             var range = new NumericRange(3, 7);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(range.Equals("not a range"), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void EqualsObjectReturnsFalseForNull()
         {
             var range = new NumericRange(3, 7);
-            Assert.That(range.Equals(null), Is.False);
+#pragma warning disable NUnit4002 // Use Specific constraint
+            Assert.That(range, Is.Not.EqualTo(null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]
@@ -274,7 +278,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(2, 4);
             var range2 = new NumericRange(2, 4);
-            Assert.That(range1 == range2, Is.True);
+            Assert.That(range1, Is.EqualTo(range2));
         }
 
         [Test]
@@ -282,7 +286,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(2, 4);
             var range2 = new NumericRange(3, 5);
-            Assert.That(range1 != range2, Is.True);
+            Assert.That(range1, Is.Not.EqualTo(range2));
         }
 
         [Test]
@@ -290,7 +294,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range1 = new NumericRange(2, 4);
             var range2 = new NumericRange(2, 4);
-            Assert.That(range1 != range2, Is.False);
+            Assert.That(range1, Is.EqualTo(range2));
         }
 
         [Test]
@@ -365,13 +369,13 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void EmptyHasZeroCount()
         {
-            Assert.That(NumericRange.Null.Count, Is.EqualTo(0));
+            Assert.That(NumericRange.Null.Count, Is.Zero);
         }
 
         [Test]
         public void EmptyHasZeroDimensions()
         {
-            Assert.That(NumericRange.Null.Dimensions, Is.EqualTo(0));
+            Assert.That(NumericRange.Null.Dimensions, Is.Zero);
         }
 
         [Test]
@@ -597,6 +601,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(value.GetInt32Array(), Is.EqualTo([20, 30, 40]));
         }
+
         [Test]
         public void ApplyRangeMatrixTest()
         {
@@ -614,7 +619,7 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
             var range = (int[,])value.GetInt32Matrix();
-            Assert.NotNull(range, "Applied range null");
+            Assert.That(range, Is.Not.Null, "Applied range null");
             Assert.That(range.Rank, Is.EqualTo(2));
             Assert.That(range[0, 0], Is.EqualTo(5));
         }
@@ -670,7 +675,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             MatrixOf<int> matrix = source.ToMatrixOf();
             MatrixOf<int> original = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
 
             StatusCode statusCode = numericRange.ApplyRange(ref matrix);
 
@@ -822,7 +827,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             MatrixOf<string> matrix = source.ToMatrixOf();
             MatrixOf<string> original = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
 
             StatusCode statusCode = numericRange.ApplyRange(ref matrix);
 
@@ -921,7 +926,7 @@ namespace Opc.Ua.Types.Tests.Utils
             }.ToMatrixOf();
 
             Variant source = matrix;
-            Ua.NumericRange numericRange = NumericRange.Null;
+            NumericRange numericRange = NumericRange.Null;
             StatusCode statusCode = numericRange.ApplyRange(ref source);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(source.GetByteStringMatrix(), Is.EqualTo(matrix));
@@ -1565,7 +1570,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             ServiceResult result = NumericRange.Validate("0", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
-            Assert.That(range.Begin, Is.EqualTo(0));
+            Assert.That(range.Begin, Is.Zero);
             Assert.That(range.End, Is.EqualTo(-1));
         }
 

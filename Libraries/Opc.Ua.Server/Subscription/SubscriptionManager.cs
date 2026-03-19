@@ -299,12 +299,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
+        public virtual ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             // only store subscriptions if durable subscriptions are enabled
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
-                return;
+                return default;
             }
             var subscriptionsToStore = new List<IStoredSubscription>();
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server
 
             if (subscriptionsToStore.Count == 0)
             {
-                return;
+                return default;
             }
 
             try
@@ -334,6 +334,7 @@ namespace Opc.Ua.Server
             {
                 m_logger.LogError(ex, "Failed to store {Count} subscriptions", subscriptionsToStore.Count);
             }
+            return default;
         }
 
         /// <summary>
@@ -952,7 +953,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
@@ -1317,7 +1318,7 @@ namespace Opc.Ua.Server
                         m_logger.LogError(e, "Error occurred in SetPublishingMode");
                     }
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);

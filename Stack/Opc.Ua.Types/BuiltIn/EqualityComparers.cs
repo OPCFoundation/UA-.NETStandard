@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(NodeState obj)
         {
-            return obj is null ? 0 : obj.DeepGetHashCode();
+            return (obj?.DeepGetHashCode()) ?? 0;
         }
     }
 
@@ -187,93 +187,6 @@ namespace Opc.Ua
             foreach (T item in obj)
             {
                 hash.Add(item);
-            }
-            return hash.ToHashCode();
-        }
-    }
-
-    /// <summary>
-    /// Compares a byte string for deep equality
-    /// </summary>
-    public sealed class ByteStringEqualityComparer : IEqualityComparer<byte[]>
-    {
-        /// <inheritdoc/>
-        public static ByteStringEqualityComparer Default { get; } = new();
-
-        /// <inheritdoc/>
-        public bool Equals(byte[] x, byte[] y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-            if (x is null || y is null || x.Length != y.Length)
-            {
-                return false;
-            }
-            return x.SequenceEqual(y);
-        }
-
-        /// <inheritdoc/>
-        public int GetHashCode(byte[] obj)
-        {
-            if (obj is null)
-            {
-                return 0;
-            }
-            var hash = new HashCode();
-#if NET8_0_OR_GREATER
-            hash.AddBytes(obj);
-#else
-            foreach (byte item in obj)
-            {
-                hash.Add(item);
-            }
-#endif
-            return hash.ToHashCode();
-        }
-    }
-
-    /// <summary>
-    /// Compares an array of byte strings for deep equality
-    /// </summary>
-    public sealed class ByteStringArrayEqualityComparer : IEqualityComparer<byte[][]>
-    {
-        /// <inheritdoc/>
-        public static ByteStringArrayEqualityComparer Default { get; } = new();
-
-        /// <inheritdoc/>
-        public bool Equals(byte[][] x, byte[][] y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-            if (x is null || y is null || x.Length != y.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < x.Length; i++)
-            {
-                if (!ByteStringEqualityComparer.Default.Equals(x[i], y[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public int GetHashCode(byte[][] obj)
-        {
-            if (obj is null)
-            {
-                return 0;
-            }
-            var hash = new HashCode();
-            foreach (byte[] item in obj)
-            {
-                hash.Add(ByteStringEqualityComparer.Default.GetHashCode(item));
             }
             return hash.ToHashCode();
         }

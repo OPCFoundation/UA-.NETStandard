@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -135,7 +134,7 @@ namespace Opc.Ua.Client.Tests
         public void NodeCacheLoadUaDefinedTypes()
         {
             INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
+            Assert.That(nodeCache, Is.Not.Null);
 
             // load the predefined types
             nodeCache.LoadUaDefinedTypes(Session.SystemContext);
@@ -246,7 +245,7 @@ namespace Opc.Ua.Client.Tests
         public async Task NodeCacheReferencesAsync()
         {
             INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
+            Assert.That(nodeCache, Is.Not.Null);
 
             // ensure the predefined types are loaded
             nodeCache.LoadUaDefinedTypes(Session.SystemContext);
@@ -263,32 +262,32 @@ namespace Opc.Ua.Client.Tests
                 // find the Qualified Name
                 QualifiedName qn = await nodeCache.FindReferenceTypeNameAsync(property.Value)
                     .ConfigureAwait(false);
-                Assert.NotNull(qn);
-                Assert.AreEqual(property.Key, qn.Name);
+                Assert.That(qn.IsNull, Is.False);
+                Assert.That(qn.Name, Is.EqualTo(property.Key));
                 // find the node by name
                 NodeId refId = await nodeCache.FindReferenceTypeAsync(QualifiedName.From(property.Key))
                     .ConfigureAwait(false);
-                Assert.NotNull(refId);
-                Assert.AreEqual(property.Value, refId);
+                Assert.That(refId.IsNull, Is.False);
+                Assert.That(refId, Is.EqualTo(property.Value));
                 // is the node id known?
                 bool isKnown = await nodeCache.IsKnownAsync(property.Value).ConfigureAwait(false);
-                Assert.IsTrue(isKnown);
+                Assert.That(isKnown, Is.True);
                 // is it a reference?
                 bool isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.IsTrue(isTypeOf);
+                Assert.That(isTypeOf, Is.True);
                 // negative test
                 isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.IsFalse(isTypeOf);
+                Assert.That(isTypeOf, Is.False);
                 ArrayOf<NodeId> subTypes = await nodeCache.FindSubTypesAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris))
                     .ConfigureAwait(false);
-                Assert.NotNull(subTypes);
+                Assert.That(subTypes.IsNull, Is.False);
             }
         }
 
@@ -558,30 +557,30 @@ namespace Opc.Ua.Client.Tests
                             case 4:
                                 INode result4 = await Session.NodeCache.FindAsync(testSet2[0])
                                     .ConfigureAwait(false);
-                                Assert.NotNull(result4);
-                                Assert.True(result4 is VariableNode);
+                                Assert.That(result4, Is.Not.Null);
+                                Assert.That(result4, Is.InstanceOf<VariableNode>());
                                 break;
                             case 5:
                                 Node result5 = await Session
                                     .NodeCache.FetchNodeAsync(testSet3[0])
                                     .ConfigureAwait(false);
-                                Assert.NotNull(result5);
-                                Assert.True(result5 is VariableNode);
+                                Assert.That(result5, Is.Not.Null);
+                                Assert.That(result5, Is.InstanceOf<VariableNode>());
                                 await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId)
                                     .ConfigureAwait(false);
                                 break;
                             case 6:
                                 string text = await Session.NodeCache.GetDisplayTextAsync(testSet2[0]).ConfigureAwait(false);
-                                Assert.NotNull(text);
+                                Assert.That(text, Is.Not.Null);
                                 break;
                             case 7:
                                 var number = new NodeId((int)BuiltInType.Number);
                                 bool isKnown = await Session.NodeCache
                                     .IsKnownAsync(new ExpandedNodeId((int)BuiltInType.Int64)).ConfigureAwait(false);
-                                Assert.True(isKnown);
+                                Assert.That(isKnown, Is.True);
                                 bool isKnown2 = await Session.NodeCache
                                     .IsKnownAsync(TestData.DataTypeIds.ScalarStructureDataType).ConfigureAwait(false);
-                                Assert.True(isKnown2);
+                                Assert.That(isKnown2, Is.True);
                                 NodeId nodeId;
                                 NodeId nodeId2;
                                 nodeId = await Session
@@ -593,8 +592,8 @@ namespace Opc.Ua.Client.Tests
                                             TestData.DataTypeIds.Vector,
                                             Session.NamespaceUris))
                                     .ConfigureAwait(false);
-                                Assert.AreEqual(DataTypeIds.Structure, nodeId);
-                                Assert.AreEqual(DataTypeIds.Structure, nodeId2);
+                                Assert.That(nodeId, Is.EqualTo(DataTypeIds.Structure));
+                                Assert.That(nodeId2, Is.EqualTo(DataTypeIds.Structure));
                                 ArrayOf<NodeId> subTypes = await Session.NodeCache.FindSubTypesAsync(
                                     new ExpandedNodeId((int)BuiltInType.Number)).ConfigureAwait(false);
                                 bool isTypeOf = await Session.NodeCache.IsTypeOfAsync(
@@ -608,15 +607,15 @@ namespace Opc.Ua.Client.Tests
                                 bool isEncodingOf = await Session.NodeCache.IsEncodingOfAsync(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
                                     DataTypeIds.Structure).ConfigureAwait(false);
-                                Assert.False(isEncodingOf);
+                                Assert.That(isEncodingOf, Is.False);
                                 bool isEncodingFor = await Session.NodeCache.IsEncodingForAsync(
                                     DataTypeIds.Structure,
                                     Variant.FromStructure(new TestData.ScalarStructureDataType())).ConfigureAwait(false);
-                                Assert.True(isEncodingFor);
+                                Assert.That(isEncodingFor, Is.True);
                                 bool isEncodingFor2 = await Session.NodeCache.IsEncodingForAsync(
                                     new NodeId((int)BuiltInType.UInt32),
                                     new NodeId((int)BuiltInType.UInteger)).ConfigureAwait(false);
-                                Assert.False(isEncodingFor2);
+                                Assert.That(isEncodingFor2, Is.False);
                                 break;
                             case 9:
                                 // TODO: FindDataTypeId implementation is only producing exceptions and fills the log output
@@ -624,7 +623,7 @@ namespace Opc.Ua.Client.Tests
                                 // NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
                                 break;
                             default:
-                                NUnit.Framework.Assert.Fail("Invalid test case");
+                                Assert.Fail("Invalid test case");
                                 break;
                         }
                     } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);

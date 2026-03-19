@@ -138,7 +138,7 @@ namespace Quickstarts.Servers
             }
 
             public override void WriteJson(
-                Newtonsoft.Json.JsonWriter writer,
+                JsonWriter writer,
                 object value,
                 JsonSerializer serializer)
             {
@@ -178,7 +178,7 @@ namespace Quickstarts.Servers
             }
 
             public override void WriteJson(
-                Newtonsoft.Json.JsonWriter writer,
+                JsonWriter writer,
                 object value,
                 JsonSerializer serializer)
             {

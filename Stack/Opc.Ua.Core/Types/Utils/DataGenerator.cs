@@ -1014,10 +1014,8 @@ namespace Opc.Ua.Test
             {
                 return new ExtensionObject(typeId, GetRandomByteString());
             }
-            else
-            {
-                return new ExtensionObject(typeId, GetRandomXmlElement());
-            }
+
+            return new ExtensionObject(typeId, GetRandomXmlElement());
         }
 
         /// <summary>
@@ -1070,6 +1068,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Get random integer variant
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Variant GetRandomInteger()
         {
             switch (m_random.NextInt32(3))
@@ -1091,6 +1090,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Get random unsigned integer variant
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Variant GetRandomUInteger()
         {
             switch (m_random.NextInt32(3))

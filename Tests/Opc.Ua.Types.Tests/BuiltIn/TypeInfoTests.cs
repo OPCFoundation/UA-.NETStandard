@@ -67,14 +67,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetHashCodeForUnknownReturnsZero()
         {
             TypeInfo unknown = TypeInfo.Unknown;
-            Assert.That(unknown.GetHashCode(), Is.EqualTo(0));
+            Assert.That(unknown.GetHashCode(), Is.Zero);
         }
 
         [Test]
         public void GetHashCodeForKnownTypeReturnsNonZero()
         {
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(typeInfo.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(typeInfo.GetHashCode(), Is.Not.Zero);
         }
 
         [Test]
@@ -89,14 +89,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithNullReturnsTrueForUnknown()
         {
             TypeInfo unknown = TypeInfo.Unknown;
-            Assert.That(unknown.Equals((object)null), Is.True);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+            Assert.That(unknown.Equals((object)null));
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void EqualsObjectWithNullReturnsFalseForKnown()
         {
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(typeInfo.Equals((object)null), Is.False);
+#pragma warning disable NUnit4002 // Use Specific constraint
+            Assert.That(typeInfo, Is.Not.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]
@@ -104,14 +108,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
             object b = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
         public void EqualsObjectWithOtherTypeReturnsFalse()
         {
             var typeInfo = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(typeInfo.Equals("not a TypeInfo"), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -119,7 +125,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Double, ValueRanks.OneDimension);
             var b = new TypeInfo(BuiltInType.Double, ValueRanks.OneDimension);
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -127,7 +133,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var a = new TypeInfo(BuiltInType.Double, ValueRanks.Scalar);
             var b = new TypeInfo(BuiltInType.Int32, ValueRanks.Scalar);
-            Assert.That(a != b, Is.True);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]

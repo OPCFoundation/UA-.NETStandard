@@ -100,7 +100,7 @@ namespace Opc.Ua
                 // check for null.
                 if (element == null)
                 {
-                    var nullResult = ServiceResult.Create(
+                    ServiceResult nullResult = ServiceResult.Create(
                         StatusCodes.BadStructureMissing,
                         "ContentFilterElement is null (Index={0}).",
                         ii);

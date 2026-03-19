@@ -69,20 +69,19 @@ namespace Opc.Ua.Types.Tests.State
             NodeState parent = null,
             string name = "TestObject")
         {
-            var node = new BaseObjectState(parent)
+            return new BaseObjectState(parent)
             {
                 NodeId = new NodeId(1000, 0),
                 BrowseName = QualifiedName.From(name),
                 DisplayName = LocalizedText.From(name)
             };
-            return node;
         }
 
         private static PropertyState CreatePropertyChild(
             NodeState parent,
             string name = "TestProperty")
         {
-            var child = new PropertyState(parent)
+            return new PropertyState(parent)
             {
                 NodeId = new NodeId(2000, 0),
                 BrowseName = QualifiedName.From(name),
@@ -90,22 +89,6 @@ namespace Opc.Ua.Types.Tests.State
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasProperty
             };
-            return child;
-        }
-
-        private static BaseDataVariableState CreateVariableChild(
-            NodeState parent,
-            string name = "TestVariable")
-        {
-            var child = new BaseDataVariableState(parent)
-            {
-                NodeId = new NodeId(3000, 0),
-                BrowseName = QualifiedName.From(name),
-                DisplayName = LocalizedText.From(name),
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent
-            };
-            return child;
         }
 
         [Test]
@@ -272,7 +255,7 @@ namespace Opc.Ua.Types.Tests.State
         public void HandlePropertyRoundTrips()
         {
             using BaseObjectState node = CreateObjectNode();
-            object handle = new object();
+            object handle = new();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
         }
@@ -299,7 +282,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             Assert.That(node.Extensions, Is.Null);
-            node.Extensions = Array.Empty<Opc.Ua.XmlElement>();
+            node.Extensions = Array.Empty<XmlElement>();
             Assert.That(node.Extensions, Is.Not.Null);
         }
 
@@ -307,7 +290,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CategoriesPropertyRoundTrips()
         {
             using BaseObjectState node = CreateObjectNode();
-            node.Categories = new List<string> { "Cat1", "Cat2" };
+            node.Categories = ["Cat1", "Cat2"];
             Assert.That(node.Categories, Has.Count.EqualTo(2));
         }
 
@@ -550,7 +533,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForEmpty()
         {
             using BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, string.Empty);
             Assert.That(found, Is.Null);
         }
 
@@ -799,7 +782,7 @@ namespace Opc.Ua.Types.Tests.State
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
-                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2)),
+                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2))
             };
             node.AddReferences(refs);
 
@@ -878,7 +861,7 @@ namespace Opc.Ua.Types.Tests.State
             var refs = new List<IReference>
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
-                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2)),
+                new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(2))
             };
             node.AddReferences(refs);
             Assert.That(count, Is.EqualTo(2));
@@ -1056,7 +1039,7 @@ namespace Opc.Ua.Types.Tests.State
             original.Specification = "Spec1";
             original.NodeSetDocumentation = "Doc1";
             original.DesignToolOnly = true;
-            original.Categories = new List<string> { "C1" };
+            original.Categories = ["C1"];
             original.ReleaseStatus = Export.ReleaseStatus.Released;
 
             using var clone = (BaseObjectState)original.Clone();
@@ -1464,7 +1447,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             ArrayOf<Variant> values = node.ReadAttributes(m_context, null);
-            Assert.That(values.Count, Is.EqualTo(0));
+            Assert.That(values.Count, Is.Zero);
         }
 
         [Test]
@@ -1480,7 +1463,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             var overrideId = new NodeId(8888, 0);
-            node.OnReadNodeId = (ISystemContext ctx, NodeState n, ref NodeId value) =>
+            node.OnReadNodeId = (ctx, n, ref value) =>
             {
                 value = overrideId;
                 return ServiceResult.Good;
@@ -1497,7 +1480,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             var overrideName = QualifiedName.From("Override");
-            node.OnReadBrowseName = (ISystemContext ctx, NodeState n, ref QualifiedName value) =>
+            node.OnReadBrowseName = (ctx, n, ref value) =>
             {
                 value = overrideName;
                 return ServiceResult.Good;
@@ -1514,7 +1497,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             var overrideText = LocalizedText.From("Override");
-            node.OnReadDisplayName = (ISystemContext ctx, NodeState n, ref LocalizedText value) =>
+            node.OnReadDisplayName = (ctx, n, ref value) =>
             {
                 value = overrideText;
                 return ServiceResult.Good;
@@ -1531,7 +1514,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             var overrideDesc = LocalizedText.From("Override Desc");
-            node.OnReadDescription = (ISystemContext ctx, NodeState n, ref LocalizedText value) =>
+            node.OnReadDescription = (ctx, n, ref value) =>
             {
                 value = overrideDesc;
                 return ServiceResult.Good;
@@ -1547,8 +1530,7 @@ namespace Opc.Ua.Types.Tests.State
         public void OnReadWriteMaskHandlerInvoked()
         {
             using BaseObjectState node = CreateObjectNode();
-            node.OnReadWriteMask =
-                (ISystemContext ctx, NodeState n, ref AttributeWriteMask value) =>
+            node.OnReadWriteMask = (ctx, n, ref value) =>
             {
                 value = AttributeWriteMask.BrowseName;
                 return ServiceResult.Good;
@@ -1567,7 +1549,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             node.OnReadUserWriteMask =
-                (ISystemContext ctx, NodeState n, ref AttributeWriteMask value) =>
+                (ctx, n, ref value) =>
             {
                 value = AttributeWriteMask.WriteMask;
                 return ServiceResult.Good;
@@ -1585,7 +1567,7 @@ namespace Opc.Ua.Types.Tests.State
         public void OnReadNodeClassHandlerInvoked()
         {
             using BaseObjectState node = CreateObjectNode();
-            node.OnReadNodeClass = (ISystemContext ctx, NodeState n, ref NodeClass value) =>
+            node.OnReadNodeClass = (ctx, n, ref value) =>
             {
                 value = NodeClass.Variable;
                 return ServiceResult.Good;
@@ -1601,7 +1583,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             node.OnReadAccessRestrictions =
-                (ISystemContext ctx, NodeState n, ref AccessRestrictionType? value) =>
+                (ctx, n, ref value) =>
             {
                 value = AccessRestrictionType.EncryptionRequired;
                 return ServiceResult.Good;
@@ -1643,7 +1625,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant(new NodeId(1)));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.NodeId, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadNotWritable, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -1654,7 +1636,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant("not a NodeId"));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.NodeId, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadTypeMismatch, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         [Test]
@@ -1747,7 +1729,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.Value, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadWriteNotSupported, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
         }
 
         [Test]
@@ -1762,7 +1744,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadWriteNotSupported, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
         }
 
         [Test]
@@ -1774,7 +1756,7 @@ namespace Opc.Ua.Types.Tests.State
             var indexRange = NumericRange.Parse("0:1");
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, indexRange, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadIndexRangeInvalid, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
         [Test]
@@ -1827,7 +1809,7 @@ namespace Opc.Ua.Types.Tests.State
             var dv = new DataValue(new Variant("not a number"));
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.AccessRestrictions, default, dv);
-            Assert.That(result.StatusCode == StatusCodes.BadTypeMismatch, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         [Test]
@@ -1836,7 +1818,7 @@ namespace Opc.Ua.Types.Tests.State
             using BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeId;
             bool invoked = false;
-            node.OnWriteNodeId = (ISystemContext ctx, NodeState n, ref NodeId value) =>
+            node.OnWriteNodeId = (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1854,7 +1836,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.BrowseName;
             bool invoked = false;
             node.OnWriteBrowseName =
-                (ISystemContext ctx, NodeState n, ref QualifiedName value) =>
+                (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1872,7 +1854,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.DisplayName;
             bool invoked = false;
             node.OnWriteDisplayName =
-                (ISystemContext ctx, NodeState n, ref LocalizedText value) =>
+                (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1890,7 +1872,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.Description;
             bool invoked = false;
             node.OnWriteDescription =
-                (ISystemContext ctx, NodeState n, ref LocalizedText value) =>
+                (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1907,8 +1889,7 @@ namespace Opc.Ua.Types.Tests.State
             using BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.WriteMask;
             bool invoked = false;
-            node.OnWriteWriteMask =
-                (ISystemContext ctx, NodeState n, ref AttributeWriteMask value) =>
+            node.OnWriteWriteMask = (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1926,7 +1907,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.UserWriteMask;
             bool invoked = false;
             node.OnWriteUserWriteMask =
-                (ISystemContext ctx, NodeState n, ref AttributeWriteMask value) =>
+                (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1944,8 +1925,7 @@ namespace Opc.Ua.Types.Tests.State
             using BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeClass;
             bool invoked = false;
-            node.OnWriteNodeClass =
-                (ISystemContext ctx, NodeState n, ref NodeClass value) =>
+            node.OnWriteNodeClass = (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -1963,7 +1943,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             bool invoked = false;
             node.OnWriteAccessRestrictions =
-                (ISystemContext ctx, NodeState n, ref AccessRestrictionType? value) =>
+                (ctx, n, ref value) =>
             {
                 invoked = true;
                 return ServiceResult.Good;
@@ -2363,7 +2343,7 @@ namespace Opc.Ua.Types.Tests.State
 
             ServiceResult result = node.ReadChildAttribute(
                 m_context, relativePath, 0, Attributes.NodeId, dataValue);
-            Assert.That(result.StatusCode == StatusCodes.BadNodeIdUnknown, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -2441,8 +2421,10 @@ namespace Opc.Ua.Types.Tests.State
             using BaseObjectState root = CreateObjectNode();
             root.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(500));
 
-            var hierarchy = new Dictionary<NodeId, string>();
-            hierarchy[root.NodeId] = "Root";
+            var hierarchy = new Dictionary<NodeId, string>
+            {
+                [root.NodeId] = "Root"
+            };
             var references = new List<NodeStateHierarchyReference>();
 
             root.GetHierarchyReferences(m_context, "Root", hierarchy, references);

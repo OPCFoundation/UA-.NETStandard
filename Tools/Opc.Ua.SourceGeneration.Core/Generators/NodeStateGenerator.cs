@@ -1482,7 +1482,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 switch (node.Parent.Design)
                 {
-                    case TypeDesign parentType:
+                    case TypeDesign:
                         context.Out.WriteLine(
                             "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                             instance.SymbolicId.Name,
@@ -2334,7 +2334,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private bool HasChildDefined(TypeDesign typeDefinitionNode, string symbolicName)
+        private static bool HasChildDefined(TypeDesign typeDefinitionNode, string symbolicName)
         {
             if (typeDefinitionNode == null)
             {

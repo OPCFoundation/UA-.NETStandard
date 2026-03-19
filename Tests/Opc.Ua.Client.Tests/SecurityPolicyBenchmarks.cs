@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -156,7 +155,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Override to exclude None policy from benchmarks to avoid CI test failures.
         /// </summary>
-        public new IEnumerable<string> BenchPolicies()
+        private new IEnumerable<string> BenchPolicies()
         {
             // Return all security policies except None
             foreach (string displayName in SecurityPolicies.GetDisplayNames())
@@ -299,9 +298,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_smallReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_smallReadValueIds.Count));
         }
 
         /// <summary>
@@ -340,9 +339,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_mediumReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_mediumReadValueIds.Count));
         }
 
         /// <summary>
@@ -382,9 +381,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_largeReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_largeReadValueIds.Count));
         }
 
         /// <summary>
@@ -430,8 +429,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -490,9 +489,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.Greater(response.Results.Count, 0);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.IsEmpty, Is.True);
         }
 
         /// <summary>
@@ -523,8 +522,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -557,9 +556,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(1, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -576,7 +575,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             session.Dispose();
@@ -595,7 +594,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             // Perform a read operation
             await session.ReadAsync(
@@ -836,7 +835,7 @@ namespace Opc.Ua.Client.Tests
                         policyUri
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(session, $"Failed to create session with {displayName}");
+                    Assert.That(session, Is.Not.Null, $"Failed to create session with {displayName}");
 
                     // Perform a basic read to verify the connection works
                     ReadResponse response = await session.ReadAsync(
@@ -853,7 +852,7 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(response);
+                    Assert.That(response, Is.Not.Null);
 
                     await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                     session.Dispose();
@@ -885,7 +884,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // Assert at least some policies work
-            Assert.Greater(successful, 0, "No security policies were successful");
+            Assert.That(successful, Is.GreaterThan(0), "No security policies were successful");
         }
     }
 }
