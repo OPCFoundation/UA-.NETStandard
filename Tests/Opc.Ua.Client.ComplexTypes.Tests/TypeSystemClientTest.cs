@@ -481,7 +481,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.That(complexType["ByteValue"], Is.EqualTo((byte)0));
+            Assert.That(complexType["ByteValue"], Is.Zero);
             Assert.That(complexType["StringValue"], Is.EqualTo("badbeef"));
             Assert.That(new Variant((uint)3210), Is.EqualTo(complexType["NumberValue"]));
             Assert.That(new Variant((long)54321), Is.EqualTo(complexType["IntegerValue"]));
