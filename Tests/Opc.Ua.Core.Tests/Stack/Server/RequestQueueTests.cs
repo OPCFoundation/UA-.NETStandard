@@ -222,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // Request queue has req2 pending.
             // Dispose the server, which disposes the queue.
-            server.Dispose();
+            var disposeTask = Task.Run(server.Dispose);
 
             // req2 should be failed with BadServerHalted.
             Task<bool> t2 = req2.ProcessingCompleted.Task;
@@ -238,6 +238,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(req3.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
 
             req1.ProcessingCompleted.TrySetResult(true);
+            await disposeTask.ConfigureAwait(false);
         }
     }
 }

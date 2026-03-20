@@ -1669,13 +1669,19 @@ namespace Opc.Ua
 
                     m_queue.Writer.Complete();
 
+                    // drain any remaining requests from the queue
+                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
+                    {
+                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                    }
+
                     // Wait for all worker threads to complete
                     Task[] workerTasks;
                     lock (m_workers)
                     {
                         workerTasks = [.. m_workers];
                     }
-                    
+
                     try
                     {
                         Task.WaitAll(workerTasks, TimeSpan.FromSeconds(5));
@@ -1683,12 +1689,6 @@ namespace Opc.Ua
                     catch (AggregateException)
                     {
                         // Ignore exceptions during shutdown
-                    }
-
-                    // Now drain any remaining requests from the queue
-                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
-                    {
-                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
 
                     Utils.SilentDispose(m_cts);
