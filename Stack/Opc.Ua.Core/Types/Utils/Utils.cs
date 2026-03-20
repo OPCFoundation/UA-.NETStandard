@@ -1048,19 +1048,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a multidimension array to a flat array.
-        /// </summary>
-        /// <remarks>
-        /// The higher rank dimensions are written first.
-        /// e.g. a array with dimensions [2,2,2] is written in this order:
-        /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
-        /// </remarks>
-        public static Array FlattenArray(Array array)
-        {
-            return CoreUtils.FlattenArray(array);
-        }
-
-        /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER

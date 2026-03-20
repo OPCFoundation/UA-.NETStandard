@@ -29,8 +29,10 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static readonly object[] FixtureArgs =
         [
-            new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(t => new MonitoredItemQueueFactory(t)) },
-            new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(t => new DurableMonitoredItemQueueFactory(t)) }
+            new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(
+                t => new MonitoredItemQueueFactory(t)) },
+            new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(
+                t => new DurableMonitoredItemQueueFactory(t, new ServiceMessageContext(t))) }
         ];
 
         public DurableMonitoredItemTests(TelemetryParameterizable<IMonitoredItemQueueFactory> factory)

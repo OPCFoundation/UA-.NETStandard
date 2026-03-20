@@ -30,11 +30,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -48,24 +46,10 @@ namespace Quickstarts.Servers
         private readonly BatchPersistor m_batchPersistor;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-
-        private static readonly JsonSerializerOptions s_settings = new()
-        {
-            Converters =
-            {
-                new DateTimeUtcConverter(),
-                new ArrayOfConverterFactory(),
-                new NodeIdConverter(),
-                new ExpandedNodeIdConverter(),
-                new StatusCodeConverter(),
-                new VariantConverter()
-            },
-            ReferenceHandler = ReferenceHandler.IgnoreCycles,
-            WriteIndented = false
-        };
-
+        private readonly SubscriptionStoreEncoding m_encoding;
+        private readonly IServiceMessageContext m_messageContext;
         private const string kQueueDirectory = "Queues";
-        private const string kBase_filename = "_queue.txt";
+        private const string kBase_filename = "_queue.dat";
 
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new();
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new();
@@ -73,9 +57,14 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
 
-        public DurableMonitoredItemQueueFactory(ITelemetryContext telemetry)
+        public DurableMonitoredItemQueueFactory(
+            ITelemetryContext telemetry,
+            IServiceMessageContext messageContext,
+            SubscriptionStoreEncoding encoding = SubscriptionStoreEncoding.Json)
         {
             m_telemetry = telemetry;
+            m_encoding = encoding;
+            m_messageContext = messageContext;
             m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
             m_batchPersistor = new BatchPersistor(telemetry);
         }
@@ -104,7 +93,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public IEventMonitoredItemQueue CreateEventQueue(bool isDurable, uint monitoredItemId)
         {
-            //use durable queue only if MI is durable
+            // use durable queue only if MI is durable
             if (isDurable)
             {
                 var queue = new DurableEventMonitoredItemQueue(
@@ -137,14 +126,9 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// Persist the queues of the monitored items with the provided ids
-        /// Deletes the batches of all queues that are not in the list
+        /// Persist the queues of the monitored items with the provided ids.
+        /// Deletes the batches of all queues that are not in the list.
         /// </summary>
-        /// <param name="ids">the MonitoredItem ids of the queues to store</param>
-        [RequiresUnreferencedCode(
-            "Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode(
-            "Uses System.Text.Json reflection-based serialization.")]
         public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
         {
             string targetPath = Path.Combine(baseDirectory, kQueueDirectory);
@@ -152,7 +136,6 @@ namespace Quickstarts.Servers
             {
                 Directory.CreateDirectory(targetPath);
             }
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             foreach (uint id in ids)
             {
                 try
@@ -161,11 +144,10 @@ namespace Quickstarts.Servers
                         id,
                         out DurableDataChangeMonitoredItemQueue queue))
                     {
-                        //store
-                        string result = JsonSerializer.Serialize(
-                            queue.ToStorableQueue(),
-                            s_settings);
-                        File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
+                        string filePath = Path.Combine(targetPath, id + kBase_filename);
+                        using FileStream stream = File.Create(filePath);
+                        using IEncoder encoder = CreateEncoder(stream);
+                        EncodeDataChangeQueue(encoder, queue.ToStorableQueue());
                         continue;
                     }
 
@@ -173,11 +155,10 @@ namespace Quickstarts.Servers
                         id,
                         out DurableEventMonitoredItemQueue eventQueue))
                     {
-                        //store
-                        string result = JsonSerializer.Serialize(
-                            eventQueue.ToStorableQueue(),
-                            s_settings);
-                        File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
+                        string filePath = Path.Combine(targetPath, id + kBase_filename);
+                        using FileStream stream = File.Create(filePath);
+                        using IEncoder encoder = CreateEncoder(stream);
+                        EncodeEventQueue(encoder, eventQueue.ToStorableQueue());
                         continue;
                     }
                     m_logger.LogWarning(
@@ -199,10 +180,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore an Event queue
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode(
-            "Uses System.Text.Json reflection-based serialization.")]
         public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
         {
             try
@@ -215,12 +192,13 @@ namespace Quickstarts.Servers
                 {
                     return null;
                 }
-                string result = File.ReadAllText(targetFile);
+                StorableEventQueue template;
+                using (FileStream stream = File.OpenRead(targetFile))
+                using (IDecoder decoder = CreateDecoder(stream))
+                {
+                    template = DecodeEventQueue(decoder);
+                }
                 File.Delete(targetFile);
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                StorableEventQueue template = JsonSerializer.Deserialize<StorableEventQueue>(
-                    result,
-                    s_settings);
 
                 var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
                 m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -237,10 +215,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore a DataChange queue
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode(
-            "Uses System.Text.Json reflection-based serialization.")]
         public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
         {
             try
@@ -253,12 +227,13 @@ namespace Quickstarts.Servers
                 {
                     return null;
                 }
-                string result = File.ReadAllText(targetFile);
+                StorableDataChangeQueue template;
+                using (FileStream stream = File.OpenRead(targetFile))
+                using (IDecoder decoder = CreateDecoder(stream))
+                {
+                    template = DecodeDataChangeQueue(decoder);
+                }
                 File.Delete(targetFile);
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                StorableDataChangeQueue template = JsonSerializer.Deserialize<StorableDataChangeQueue>(
-                    result,
-                    s_settings);
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -319,6 +294,236 @@ namespace Quickstarts.Servers
                 m_eventQueues = null;
             }
         }
+
+        private static void EncodeDataChangeQueue(
+            IEncoder encoder, StorableDataChangeQueue q)
+        {
+            encoder.WriteBoolean("IsDurable", q.IsDurable);
+            encoder.WriteUInt32("MonitoredItemId", q.MonitoredItemId);
+            encoder.WriteInt32("ItemsInQueue", q.ItemsInQueue);
+            encoder.WriteUInt32("QueueSize", q.QueueSize);
+            EncodeDataChangeBatch(encoder, "EnqueueBatch", q.EnqueueBatch);
+            EncodeDataChangeBatch(encoder, "DequeueBatch", q.DequeueBatch);
+
+            int batchCount = q.DataChangeBatches?.Count ?? 0;
+            encoder.WriteInt32("DataChangeBatchCount", batchCount);
+            if (q.DataChangeBatches != null)
+            {
+                for (int i = 0; i < batchCount; i++)
+                {
+                    EncodeDataChangeBatch(
+                        encoder, "DCBatch_" + i, q.DataChangeBatches[i]);
+                }
+            }
+        }
+
+        private static StorableDataChangeQueue DecodeDataChangeQueue(IDecoder decoder)
+        {
+            var q = new StorableDataChangeQueue
+            {
+                IsDurable = decoder.ReadBoolean("IsDurable"),
+                MonitoredItemId = decoder.ReadUInt32("MonitoredItemId"),
+                ItemsInQueue = decoder.ReadInt32("ItemsInQueue"),
+                QueueSize = decoder.ReadUInt32("QueueSize"),
+                EnqueueBatch = DecodeDataChangeBatch(decoder, "EnqueueBatch"),
+                DequeueBatch = DecodeDataChangeBatch(decoder, "DequeueBatch"),
+            };
+
+            int batchCount = decoder.ReadInt32("DataChangeBatchCount");
+            q.DataChangeBatches = new List<DataChangeBatch>(batchCount);
+            for (int i = 0; i < batchCount; i++)
+            {
+                q.DataChangeBatches.Add(
+                    DecodeDataChangeBatch(decoder, "DCBatch_" + i));
+            }
+            return q;
+        }
+
+        private static void EncodeDataChangeBatch(
+            IEncoder encoder, string prefix, DataChangeBatch batch)
+        {
+            bool hasValue = batch != null;
+            encoder.WriteBoolean(prefix + "_HasValue", hasValue);
+            if (!hasValue)
+            {
+                return;
+            }
+
+            encoder.WriteGuid(prefix + "_Id", batch.Id);
+            encoder.WriteUInt32(prefix + "_BatchSize", batch.BatchSize);
+            encoder.WriteUInt32(prefix + "_MonItemId", batch.MonitoredItemId);
+            encoder.WriteBoolean(prefix + "_IsPersisted", batch.IsPersisted);
+
+            int count = batch.Values?.Count ?? 0;
+            encoder.WriteInt32(prefix + "_ValueCount", count);
+            if (batch.Values != null)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    (DataValue dv, ServiceResult sr) = batch.Values[i];
+                    encoder.WriteDataValue(prefix + "_DV_" + i, dv);
+                    encoder.WriteStatusCode(prefix + "_SR_" + i,
+                        sr?.StatusCode ?? StatusCodes.Good);
+                }
+            }
+        }
+
+        private static DataChangeBatch DecodeDataChangeBatch(
+            IDecoder decoder, string prefix)
+        {
+            bool hasValue = decoder.ReadBoolean(prefix + "_HasValue");
+            if (!hasValue)
+            {
+                return null;
+            }
+
+            Uuid id = decoder.ReadGuid(prefix + "_Id");
+            uint batchSize = decoder.ReadUInt32(prefix + "_BatchSize");
+            uint monItemId = decoder.ReadUInt32(prefix + "_MonItemId");
+            bool isPersisted = decoder.ReadBoolean(prefix + "_IsPersisted");
+
+            int count = decoder.ReadInt32(prefix + "_ValueCount");
+            var values = new List<(DataValue, ServiceResult)>(count);
+            for (int i = 0; i < count; i++)
+            {
+                DataValue dv = decoder.ReadDataValue(prefix + "_DV_" + i);
+                StatusCode sc = decoder.ReadStatusCode(prefix + "_SR_" + i);
+                ServiceResult sr = sc == StatusCodes.Good
+                    ? null : new ServiceResult(sc);
+                values.Add((dv, sr));
+            }
+
+            var batch = new DataChangeBatch(values, batchSize, monItemId);
+            if (isPersisted)
+            {
+                batch.SetPersisted();
+                batch.Restore(values);
+            }
+            return batch;
+        }
+        private static void EncodeEventQueue(
+            IEncoder encoder, StorableEventQueue q)
+        {
+            encoder.WriteBoolean("IsDurable", q.IsDurable);
+            encoder.WriteUInt32("MonitoredItemId", q.MonitoredItemId);
+            encoder.WriteUInt32("QueueSize", q.QueueSize);
+            EncodeEventBatch(encoder, "EnqueueBatch", q.EnqueueBatch);
+            EncodeEventBatch(encoder, "DequeueBatch", q.DequeueBatch);
+
+            int batchCount = q.EventBatches?.Count ?? 0;
+            encoder.WriteInt32("EventBatchCount", batchCount);
+            if (q.EventBatches != null)
+            {
+                for (int i = 0; i < batchCount; i++)
+                {
+                    EncodeEventBatch(
+                        encoder, "EvBatch_" + i, q.EventBatches[i]);
+                }
+            }
+        }
+
+        private static StorableEventQueue DecodeEventQueue(IDecoder decoder)
+        {
+            var q = new StorableEventQueue
+            {
+                IsDurable = decoder.ReadBoolean("IsDurable"),
+                MonitoredItemId = decoder.ReadUInt32("MonitoredItemId"),
+                QueueSize = decoder.ReadUInt32("QueueSize"),
+                EnqueueBatch = DecodeEventBatch(decoder, "EnqueueBatch"),
+                DequeueBatch = DecodeEventBatch(decoder, "DequeueBatch"),
+            };
+
+            int batchCount = decoder.ReadInt32("EventBatchCount");
+            q.EventBatches = new List<EventBatch>(batchCount);
+            for (int i = 0; i < batchCount; i++)
+            {
+                q.EventBatches.Add(
+                    DecodeEventBatch(decoder, "EvBatch_" + i));
+            }
+            return q;
+        }
+
+        private static void EncodeEventBatch(
+            IEncoder encoder, string prefix, EventBatch batch)
+        {
+            bool hasValue = batch != null;
+            encoder.WriteBoolean(prefix + "_HasValue", hasValue);
+            if (!hasValue)
+            {
+                return;
+            }
+
+            encoder.WriteGuid(prefix + "_Id", batch.Id);
+            encoder.WriteUInt32(prefix + "_BatchSize", batch.BatchSize);
+            encoder.WriteUInt32(prefix + "_MonItemId", batch.MonitoredItemId);
+            encoder.WriteBoolean(prefix + "_IsPersisted", batch.IsPersisted);
+
+            int count = batch.Events?.Count ?? 0;
+            encoder.WriteInt32(prefix + "_EventCount", count);
+            if (batch.Events != null)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    encoder.WriteEncodeableAsExtensionObject(
+                        prefix + "_Ev_" + i, batch.Events[i]);
+                }
+            }
+        }
+
+        private static EventBatch DecodeEventBatch(
+            IDecoder decoder, string prefix)
+        {
+            bool hasValue = decoder.ReadBoolean(prefix + "_HasValue");
+            if (!hasValue)
+            {
+                return null;
+            }
+
+            Uuid id = decoder.ReadGuid(prefix + "_Id");
+            uint batchSize = decoder.ReadUInt32(prefix + "_BatchSize");
+            uint monItemId = decoder.ReadUInt32(prefix + "_MonItemId");
+            bool isPersisted = decoder.ReadBoolean(prefix + "_IsPersisted");
+
+            int count = decoder.ReadInt32(prefix + "_EventCount");
+            var events = new List<EventFieldList>(count);
+            for (int i = 0; i < count; i++)
+            {
+                ExtensionObject eo = decoder.ReadExtensionObject(prefix + "_Ev_" + i);
+                if (!eo.IsNull &&
+                    eo.TryGetEncodeable(out IEncodeable e) &&
+                    e is EventFieldList efl)
+                {
+                    events.Add(efl);
+                }
+            }
+
+            var batch = new EventBatch(events, batchSize, monItemId);
+            if (isPersisted)
+            {
+                batch.SetPersisted();
+                batch.Restore(events);
+            }
+            return batch;
+        }
+
+        private IEncoder CreateEncoder(Stream stream)
+        {
+            return m_encoding switch
+            {
+                SubscriptionStoreEncoding.Binary =>
+                    new BinaryEncoder(stream, m_messageContext, true),
+                _ => new JsonEncoder(stream, m_messageContext)
+            };
+        }
+
+        private IDecoder CreateDecoder(Stream stream)
+        {
+            return m_encoding switch
+            {
+                SubscriptionStoreEncoding.Binary =>
+                    new BinaryDecoder(stream, m_messageContext, true),
+                _ => new JsonDecoder(stream, m_messageContext)
+            };
+        }
     }
 }
-

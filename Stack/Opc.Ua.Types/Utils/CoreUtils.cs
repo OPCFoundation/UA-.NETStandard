@@ -174,51 +174,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a multidimension array to a flat array.
-        /// </summary>
-        /// <remarks>
-        /// The higher rank dimensions are written first.
-        /// e.g. a array with dimensions [2,2,2] is written in this order:
-        /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
-        /// </remarks>
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA element types.")]
-        public static Array FlattenArray(Array array)
-        {
-            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
-
-            int[] indexes = new int[array.Rank];
-            int[] dimensions = new int[array.Rank];
-
-            for (int jj = array.Rank - 1; jj >= 0; jj--)
-            {
-                dimensions[jj] = array.GetLength(array.Rank - jj - 1);
-            }
-
-            for (int ii = 0; ii < array.Length; ii++)
-            {
-                indexes[array.Rank - 1] = ii % dimensions[0];
-
-                for (int jj = 1; jj < array.Rank; jj++)
-                {
-                    int multiplier = 1;
-
-                    for (int kk = 0; kk < jj; kk++)
-                    {
-                        multiplier *= dimensions[kk];
-                    }
-
-                    indexes[array.Rank - jj - 1] = ii / multiplier % dimensions[jj];
-                }
-
-                flatArray.SetValue(array.GetValue(indexes), ii);
-            }
-
-            return flatArray;
-        }
-
-        /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
