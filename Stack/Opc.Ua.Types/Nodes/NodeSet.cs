@@ -394,7 +394,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <returns>
-        /// 	<c>true</c> if the node exists in the nodeset; otherwise, <c>false</c>.
+        /// <c>true</c> if the node exists in the nodeset;
+        /// otherwise, <c>false</c>.
         /// </returns>
         /// <remarks>
         /// The NodeId must reference the strings for the node set.
@@ -431,7 +432,8 @@ namespace Opc.Ua
         /// <remarks>
         /// The NodeId namespace is translated before the node is looked up.
         /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="nodeId"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeId"/> is <c>null</c>.</exception>
         public Node Find(NodeId nodeId, NamespaceTable namespaceUris)
         {
             if (nodeId.IsNull)

@@ -987,10 +987,10 @@ namespace Opc.Ua.Schema.Model
             if (input != null)
             {
                 XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
-                object value = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                Variant value = decoder.ReadVariantValue(null, default);
                 decoder.Close();
 
-                foreach (Argument argument in (IList<Argument>)ExtensionObject.ToArray(value, typeof(Argument)))
+                foreach (Argument argument in value.GetStructureArray<Argument>())
                 {
                     DataTypeDesign dataType = FindNode<DataTypeDesign>(argument.DataType) ??
                         throw new InvalidDataException(

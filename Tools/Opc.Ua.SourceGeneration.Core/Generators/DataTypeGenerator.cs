@@ -984,10 +984,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
-                            $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
-
+                            $"decoder.ReadEncodeableArrayAsExtensionObjects<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -1002,10 +999,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Scalar)
                     {
                         context.Out.WriteLine(
-                            $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObject({fieldName}));");
-
+                            $"decoder.ReadEncodeableAsExtensionObject<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");

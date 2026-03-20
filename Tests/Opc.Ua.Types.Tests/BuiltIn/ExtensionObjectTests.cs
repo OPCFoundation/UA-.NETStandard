@@ -68,12 +68,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(extensionObject.IsNull, Is.True);
             // static extensions
             Assert.That(ExtensionObject.ToEncodeable(default), Is.Null);
-            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
-            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.GetHashCode(), Is.Zero);
 #pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
+            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
             Assert.Throws<ServiceResultException>(

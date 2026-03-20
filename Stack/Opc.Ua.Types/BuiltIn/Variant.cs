@@ -940,6 +940,10 @@ namespace Opc.Ua
         /// <param name="value">The value to encode within the variant</param>
         [OverloadResolutionPriority(0)]
         [Obsolete("Use Variant.From or concrete typed constructor.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses reflection to cast types where not all may be available.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses reflection to cast types where not all may be available.")]
         public Variant(object value)
         {
             VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant);

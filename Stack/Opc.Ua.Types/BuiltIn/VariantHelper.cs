@@ -436,6 +436,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static Variant CastFromWithReflectionFallback<T>(T value)
         {
             if (!TryCastFromWithReflectionFallback(value, out Variant variant))
@@ -455,6 +457,8 @@ namespace Opc.Ua
         /// <param name="value"></param>
         /// <param name="variant"></param>
         /// <returns></returns>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static bool TryCastFromWithReflectionFallback<T>(
             T value,
             out Variant variant)
@@ -1017,11 +1021,8 @@ namespace Opc.Ua
         /// Use reflection to cast
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2060",
-            Justification = "FromStructure and FromEnumeration are methods in this class and their signatures are preserved.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "MakeGenericMethod and MakeGenericType are used with known OPC UA types.")]
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         private static bool TryCastFromWithReflection<T>(T value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum

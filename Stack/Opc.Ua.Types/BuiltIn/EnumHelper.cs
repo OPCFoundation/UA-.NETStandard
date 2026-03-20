@@ -231,8 +231,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum array
         /// </summary>
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Array.CreateInstance is used with known enum types.")]
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
         {
             if (values.IsNull)
@@ -255,8 +257,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum matrix
         /// </summary>
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Array.CreateInstance is used with known enum types.")]
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
         {
             if (values.IsNull)

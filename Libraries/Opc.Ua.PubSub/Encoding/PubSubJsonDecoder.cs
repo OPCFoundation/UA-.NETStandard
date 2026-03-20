@@ -2372,7 +2372,7 @@ namespace Opc.Ua.PubSub.Encoding
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName) where T : IEncodeable
         {
             ArrayOf<ExtensionObject> array = ReadExtensionObjectArray(fieldName);
-            return ArrayOf.From<T>(ExtensionObject.ToArray(array, typeof(T)));
+            return array.GetStructuresOf<T>();
         }
 
         /// <inheritdoc/>
