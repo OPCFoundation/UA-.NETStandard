@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -256,29 +257,26 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription subscription))
             {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (context is ISessionSystemContext session &&
-                        subscription.SessionId != session.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    subscription.GetMonitoredItems(
-                        out ArrayOf<uint> serverHandles,
-                        out ArrayOf<uint> clientHandles);
-
-                    outputArguments[0] = serverHandles;
-                    outputArguments[1] = clientHandles;
-
-                    return ServiceResult.Good;
-                }
+                return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            return StatusCodes.BadSubscriptionIdInvalid;
+            if (context is ISessionSystemContext session &&
+                subscription.SessionId != session.SessionId)
+            {
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            subscription.GetMonitoredItems(
+                out ArrayOf<uint> serverHandles,
+                out ArrayOf<uint> clientHandles);
+
+            outputArguments[0] = serverHandles;
+            outputArguments[1] = clientHandles;
+
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -300,24 +298,21 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription subscription))
             {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (context is not ServerSystemContext session ||
-                        subscription.SessionId != session.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    subscription.ResendData(session.OperationContext);
-
-                    return ServiceResult.Good;
-                }
+                return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            return StatusCodes.BadSubscriptionIdInvalid;
+            if (context is not ServerSystemContext session ||
+                subscription.SessionId != session.SessionId)
+            {
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            subscription.ResendData(session.OperationContext);
+
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -448,9 +443,10 @@ namespace Opc.Ua.Server
                 {
                     if (passiveNode is ServerObjectState)
                     {
+                        // add the server object as the root notifier.
+                        await AddRootNotifierAsync(passiveNode, cancellationToken).ConfigureAwait(false);
                         break;
                     }
-
                     var activeNode = new ServerObjectState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
 
@@ -1883,7 +1879,7 @@ namespace Opc.Ua.Server
 
                 if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                 {
-                    m_diagnosticsMonitoringCount++;
+                    Interlocked.Increment(ref m_diagnosticsMonitoringCount);
 
                     m_diagnosticsScanTimer ??= new Timer(DoScan, null, 1000, 1000);
 
@@ -1909,7 +1905,7 @@ namespace Opc.Ua.Server
             if (IsDiagnosticsNode(handle.Node) &&
                 monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
-                m_diagnosticsMonitoringCount--;
+                Interlocked.Decrement(ref m_diagnosticsMonitoringCount);
 
                 if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
                 {
@@ -1953,12 +1949,12 @@ namespace Opc.Ua.Server
         {
             if (previousMode != MonitoringMode.Disabled)
             {
-                m_diagnosticsMonitoringCount--;
+                Interlocked.Decrement(ref m_diagnosticsMonitoringCount);
             }
 
             if (monitoringMode != MonitoringMode.Disabled)
             {
-                m_diagnosticsMonitoringCount++;
+                Interlocked.Increment(ref m_diagnosticsMonitoringCount);
             }
 
             if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
@@ -2023,7 +2019,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            m_sampledItems.Add(monitoredItem);
+            m_sampledItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             m_samplingTimer ??= new Timer(
                 DoSample,
@@ -2037,16 +2033,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DeleteSampledItem(ISampledDataChangeMonitoredItem monitoredItem)
         {
-            for (int ii = 0; ii < m_sampledItems.Count; ii++)
-            {
-                if (ReferenceEquals(monitoredItem, m_sampledItems[ii]))
-                {
-                    m_sampledItems.RemoveAt(ii);
-                    break;
-                }
-            }
+            m_sampledItems.TryRemove(monitoredItem.Id, out _);
 
-            if (m_sampledItems.Count == 0 && m_samplingTimer != null)
+            if (m_sampledItems.IsEmpty && m_samplingTimer != null)
             {
                 m_samplingTimer.Dispose();
                 m_samplingTimer = null;
@@ -2062,9 +2051,9 @@ namespace Opc.Ua.Server
             {
                 lock (m_diagnosticsLock)
                 {
-                    for (int ii = 0; ii < m_sampledItems.Count; ii++)
+                    foreach (KeyValuePair<uint, ISampledDataChangeMonitoredItem> kvp in m_sampledItems)
                     {
-                        ISampledDataChangeMonitoredItem monitoredItem = m_sampledItems[ii];
+                        ISampledDataChangeMonitoredItem monitoredItem = kvp.Value;
 
                         // get the handle.
                         if (monitoredItem.ManagerHandle is not NodeHandle handle)
@@ -2121,7 +2110,7 @@ namespace Opc.Ua.Server
         private readonly List<SubscriptionDiagnosticsData> m_subscriptions;
         private NodeId m_serverLockHolder;
         private Timer m_samplingTimer;
-        private readonly List<ISampledDataChangeMonitoredItem> m_sampledItems;
+        private readonly ConcurrentDictionary<uint, ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
 
