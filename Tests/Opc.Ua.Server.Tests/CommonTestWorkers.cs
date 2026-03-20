@@ -876,7 +876,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
-            Assert.That(statusMessage, Is.EqualTo("{GoodSubscriptionTransferred [0x002D0000] | }"));
+            Assert.That(statusMessage, Does.StartWith("StatusChangeNotification\r\nStatus=GoodSubscriptionTransferred"));
 
             // static node, do not acknowledge
             Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
