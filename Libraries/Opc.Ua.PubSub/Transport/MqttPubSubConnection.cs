@@ -802,15 +802,8 @@ namespace Opc.Ua.PubSub.Transport
                 var x509Certificate2s = new List<X509Certificate2>();
                 if (mqttTlsOptions?.Certificates != null)
                 {
-                    foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates
-                        .X509Certificates)
-                    {
-                        if (x509cert is X509Certificate2 x509Certificate2)
-                        {
-                            x509Certificate2s.Add(
-                                CertificateFactory.Create(x509Certificate2.RawData));
-                        }
-                    }
+                    x509Certificate2s.AddRange(mqttTlsOptions?.Certificates
+                        .X509Certificates);
                 }
 
                 MqttClientOptionsBuilder mqttClientOptionsBuilder
