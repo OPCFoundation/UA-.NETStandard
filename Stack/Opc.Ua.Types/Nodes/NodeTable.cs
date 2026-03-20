@@ -99,7 +99,7 @@ namespace Opc.Ua
         /// <returns>
         /// Returns an empty list if the source does not exist or if there are no matching targets.
         /// </returns>
-        IList<INode> Find(
+        ArrayOf<INode> Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -202,14 +202,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<INode> Find(
+        public ArrayOf<INode> Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes)
         {
             // create an empty list.
-            IList<INode> nodes = [];
+            List<INode> nodes = [];
 
             // find the source.
             INode source = InternalFind(sourceId);
@@ -356,7 +356,7 @@ namespace Opc.Ua
                 }
 
                 // clear imported references.
-                node.References.Clear();
+                node.References = [];
 
                 // add the node.
                 InternalAdd(node);

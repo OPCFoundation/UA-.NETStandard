@@ -30,7 +30,6 @@
 #nullable disable
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Client
 {
@@ -57,9 +56,9 @@ namespace Opc.Ua.Client
         /// nodes from server.
         /// </summary>
         [Obsolete("Use FindAsync instead.")]
-        public static IList<INode> Find(
+        public static ArrayOf<INode> Find(
             this INodeCache nodeCache,
-            IList<ExpandedNodeId> nodeIds)
+            ArrayOf<ExpandedNodeId> nodeIds)
         {
             return nodeCache.FindAsync(nodeIds)
                 .GetAwaiter()
@@ -70,9 +69,9 @@ namespace Opc.Ua.Client
         /// Fetches a node collection from the server and updates the cache.
         /// </summary>
         [Obsolete("Use FetchNodesAsync instead.")]
-        public static IList<Node> FetchNodes(
+        public static ArrayOf<Node> FetchNodes(
             this INodeCache nodeCache,
-            IList<ExpandedNodeId> nodeIds)
+            ArrayOf<ExpandedNodeId> nodeIds)
         {
             return nodeCache.FetchNodesAsync(nodeIds)
                 .GetAwaiter()
@@ -97,7 +96,7 @@ namespace Opc.Ua.Client
         /// meet the criteria specified.
         /// </summary>
         [Obsolete("Use FindReferencesAsync instead.")]
-        public static IList<INode> FindReferences(
+        public static ArrayOf<INode> FindReferences(
             this INodeCache nodeCache,
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
@@ -118,10 +117,10 @@ namespace Opc.Ua.Client
         /// the criteria specified.
         /// </summary>
         [Obsolete("Use FindReferencesAsync instead.")]
-        public static IList<INode> FindReferences(
+        public static ArrayOf<INode> FindReferences(
             this INodeCache nodeCache,
-            IList<ExpandedNodeId> nodeIds,
-            IList<NodeId> referenceTypeIds,
+            ArrayOf<ExpandedNodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes)
         {
@@ -288,7 +287,7 @@ namespace Opc.Ua.Client
         /// Follows the reference from the source and returns all target nodes.
         /// </summary>
         [Obsolete("Use FindAsync instead")]
-        public static IList<INode> Find(
+        public static ArrayOf<INode> Find(
             this INodeCache nodeCache,
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
@@ -309,7 +308,7 @@ namespace Opc.Ua.Client
         /// Returns the immediate subtypes for the type.
         /// </summary>
         [Obsolete("Use FindSubTypesAsync instead")]
-        public static IList<NodeId> FindSubTypes(
+        public static ArrayOf<NodeId> FindSubTypes(
             this INodeCache nodeCache,
             ExpandedNodeId typeId)
         {

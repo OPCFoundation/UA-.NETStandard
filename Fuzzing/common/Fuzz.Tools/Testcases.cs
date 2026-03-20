@@ -65,7 +65,7 @@ namespace Opc.Ua.Fuzzing
 
         public static void ReadResponse(IEncoder encoder)
         {
-            DateTime now = DateTime.UtcNow;
+            DateTimeUtc now = DateTimeUtc.Now;
 
             var readRequest = new ReadResponse
             {
@@ -73,28 +73,32 @@ namespace Opc.Ua.Fuzzing
                 [
                     new DataValue
                     {
-                        Value = new Variant("Hello World"),
+                        WrappedValue = Variant.From("Hello World"),
                         ServerTimestamp = now,
-                        SourceTimestamp = now.AddMinutes(1),
+                        SourceTimestamp = now.AddMilliseconds(60000),
                         ServerPicoseconds = 100,
                         SourcePicoseconds = 10,
                         StatusCode = StatusCodes.Good
                     },
                     new DataValue
                     {
-                        Value = new Variant((uint)12345678),
+                        WrappedValue = Variant.From((uint)12345678),
                         ServerTimestamp = now,
-                        SourceTimestamp = now.AddMinutes(1),
+                        SourceTimestamp = now.AddMilliseconds(60000),
                         StatusCode = StatusCodes.BadDataLost
                     },
                     new DataValue
                     {
-                        Value = new Variant(new byte[] { 0, 1, 2, 3, 4, 5, 6 }),
+                        WrappedValue = Variant.From(ByteString.From([0, 1, 2, 3, 4, 5, 6])),
                         ServerTimestamp = now,
-                        SourceTimestamp = now.AddMinutes(1),
+                        SourceTimestamp = now.AddMilliseconds(60000),
                         StatusCode = StatusCodes.Good
                     },
-                    new DataValue { Value = new Variant((byte)42), SourceTimestamp = now }
+                    new DataValue
+                    {
+                        WrappedValue = Variant.From((byte)42),
+                        SourceTimestamp = now
+                    }
                 ],
                 DiagnosticInfos =
                 [

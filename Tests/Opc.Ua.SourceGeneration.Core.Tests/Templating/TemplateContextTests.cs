@@ -63,7 +63,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
             Assert.That(context.Target, Is.Null);
             Assert.That(context.Template, Is.Null);
         }
@@ -87,7 +87,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.Null);
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.Null);
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.Empty);
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -181,7 +181,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.Null);
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -230,7 +230,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.Token.Length, Is.EqualTo(10000));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.Null);
             Assert.That(context.Token, Is.Null);
             Assert.That(context.TemplateString, Is.Null);
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
             Assert.That(context.Target, Is.Null);
             Assert.That(context.Template, Is.Null);
         }
@@ -274,7 +274,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
-            Assert.That(context.Index, Is.EqualTo(0));
+            Assert.That(context.Index, Is.Zero);
         }
     }
 }

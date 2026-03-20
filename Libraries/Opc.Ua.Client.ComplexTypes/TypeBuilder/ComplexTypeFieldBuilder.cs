@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public void AddField(StructureField field, Type fieldType, int order)
+        public void AddField(StructureField field, Type fieldType, int order, bool allowSubTypes, bool isEnum)
         {
             FieldBuilder fieldBuilder = m_structureBuilder.DefineField(
                 "_" + field.Name,
@@ -112,7 +112,7 @@ namespace Opc.Ua.Client.ComplexTypes
             propertyBuilder.SetGetMethod(getBuilder);
             propertyBuilder.SetSetMethod(setBuilder);
             propertyBuilder.DataMemberAttribute(field.Name, false, order);
-            propertyBuilder.StructureFieldAttribute(field);
+            propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum);
         }
 
         /// <inheritdoc/>

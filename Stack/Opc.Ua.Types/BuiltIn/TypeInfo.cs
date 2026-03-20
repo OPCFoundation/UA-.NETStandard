@@ -181,6 +181,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a new type info with the built in type and current
+        /// value rank
+        /// </summary>
+        /// <param name="builtInType">The new built in type</param>
+        /// <returns></returns>
+        public TypeInfo WithBuiltInType(BuiltInType builtInType)
+        {
+            return new TypeInfo(builtInType, m_valueRank);
+        }
+
+        /// <summary>
+        /// Creates a new type info with the built in type and new value
+        /// rank.
+        /// </summary>
+        /// <param name="valueRank">The new value rank</param>
+        /// <returns></returns>
+        public TypeInfo WithValueRank(int valueRank)
+        {
+            return new TypeInfo(BuiltInType, valueRank);
+        }
+
+        /// <summary>
         /// Construct the object with a built-in type and a value rank.
         /// Uses static TypeInfo definitions if available.
         /// </summary>
@@ -188,15 +210,7 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         public static TypeInfo Create(BuiltInType builtInType, int valueRank)
         {
-            switch (valueRank)
-            {
-                case ValueRanks.Scalar:
-                    return CreateScalar(builtInType);
-                case ValueRanks.OneDimension:
-                    return CreateArray(builtInType);
-                default:
-                    return new TypeInfo(builtInType, valueRank);
-            }
+            return new TypeInfo(builtInType, valueRank);
         }
 
         /// <summary>
@@ -208,6 +222,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns a static of allocated type info object for a one
+        /// dimensional array of the specified type.
+        /// </summary>
+        private static TypeInfo CreateArray(BuiltInType builtInType)
+        {
+            return new TypeInfo(builtInType, ValueRanks.OneDimension);
+        }
+
+        /// <summary>
+        /// Returns a static of allocated type info object for a multi
+        /// dimensional array of the specified type.
+        /// </summary>
+        private static TypeInfo CreateOneOrMoreDimensions(BuiltInType builtInType)
+        {
+            return new TypeInfo(builtInType, ValueRanks.OneOrMoreDimensions);
+        }
+
+        /// <summary>
         /// Constants for scalar types.
         /// </summary>
         public static class Scalars
@@ -215,192 +247,158 @@ namespace Opc.Ua
             /// <summary>
             /// A boolean logic value (true or false).
             /// </summary>
-            public static readonly TypeInfo Boolean = new(
-                BuiltInType.Boolean,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Boolean =
+                CreateScalar(BuiltInType.Boolean);
 
             /// <summary>
             /// An 8 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo SByte = new(
-                BuiltInType.SByte,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo SByte =
+                CreateScalar(BuiltInType.SByte);
 
             /// <summary>
             /// An 8 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo Byte = new(
-                BuiltInType.Byte,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Byte =
+                CreateScalar(BuiltInType.Byte);
 
             /// <summary>
             /// A 16 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int16 = new(
-                BuiltInType.Int16,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Int16 =
+                CreateScalar(BuiltInType.Int16);
 
             /// <summary>
             /// A 16 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo UInt16 = new(
-                BuiltInType.UInt16,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo UInt16 =
+                CreateScalar(BuiltInType.UInt16);
 
             /// <summary>
             /// A 32 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int32 = new(
-                BuiltInType.Int32,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Int32 =
+                CreateScalar(BuiltInType.Int32);
 
             /// <summary>
             /// A 32 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo UInt32 = new(
-                BuiltInType.UInt32,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo UInt32 =
+                CreateScalar(BuiltInType.UInt32);
 
             /// <summary>
             /// A 64 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int64 = new(
-                BuiltInType.Int64,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Int64 =
+                CreateScalar(BuiltInType.Int64);
 
             /// <summary>
             /// A 64 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo UInt64 = new(
-                BuiltInType.UInt64,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo UInt64 =
+                CreateScalar(BuiltInType.UInt64);
 
             /// <summary>
             /// An IEEE single precision (32 bit) floating point value.
             /// </summary>
-            public static readonly TypeInfo Float = new(
-                BuiltInType.Float,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Float =
+                CreateScalar(BuiltInType.Float);
 
             /// <summary>
             /// An IEEE double precision (64 bit) floating point value.
             /// </summary>
-            public static readonly TypeInfo Double = new(
-                BuiltInType.Double,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Double =
+                CreateScalar(BuiltInType.Double);
 
             /// <summary>
             /// A sequence of Unicode characters.
             /// </summary>
-            public static readonly TypeInfo String = new(
-                BuiltInType.String,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo String =
+                CreateScalar(BuiltInType.String);
 
             /// <summary>
             /// An instance in time.
             /// </summary>
-            public static readonly TypeInfo DateTime = new(
-                BuiltInType.DateTime,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo DateTime =
+                CreateScalar(BuiltInType.DateTime);
 
             /// <summary>
             /// A 128-bit globally unique identifier.
             /// </summary>
-            public static readonly TypeInfo Guid = new(
-                BuiltInType.Guid,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Guid =
+                CreateScalar(BuiltInType.Guid);
 
             /// <summary>
             /// A sequence of bytes.
             /// </summary>
-            public static readonly TypeInfo ByteString = new(
-                BuiltInType.ByteString,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo ByteString =
+                CreateScalar(BuiltInType.ByteString);
 
             /// <summary>
             /// An XML element.
             /// </summary>
-            public static readonly TypeInfo XmlElement = new(
-                BuiltInType.XmlElement,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo XmlElement =
+                CreateScalar(BuiltInType.XmlElement);
 
             /// <summary>
             /// An identifier for a node in the address space of a UA server.
             /// </summary>
-            public static readonly TypeInfo NodeId = new(
-                BuiltInType.NodeId,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo NodeId =
+                CreateScalar(BuiltInType.NodeId);
 
             /// <summary>
             /// A node id that stores the namespace URI instead of the namespace index.
             /// </summary>
-            public static readonly TypeInfo ExpandedNodeId = new(
-                BuiltInType.ExpandedNodeId,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo ExpandedNodeId =
+                CreateScalar(BuiltInType.ExpandedNodeId);
 
             /// <summary>
             /// A structured result code.
             /// </summary>
-            public static readonly TypeInfo StatusCode = new(
-                BuiltInType.StatusCode,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo StatusCode =
+                CreateScalar(BuiltInType.StatusCode);
 
             /// <summary>
             /// A string qualified with a namespace.
             /// </summary>
-            public static readonly TypeInfo QualifiedName = new(
-                BuiltInType.QualifiedName,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo QualifiedName =
+                CreateScalar(BuiltInType.QualifiedName);
 
             /// <summary>
             /// A localized text string with an locale identifier.
             /// </summary>
-            public static readonly TypeInfo LocalizedText = new(
-                BuiltInType.LocalizedText,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo LocalizedText =
+                CreateScalar(BuiltInType.LocalizedText);
 
             /// <summary>
             /// An opaque object with a syntax that may be unknown to the receiver.
             /// </summary>
-            public static readonly TypeInfo ExtensionObject = new(
-                BuiltInType.ExtensionObject,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo ExtensionObject =
+                CreateScalar(BuiltInType.ExtensionObject);
 
             /// <summary>
             /// A data value with an associated quality and timestamp.
             /// </summary>
-            public static readonly TypeInfo DataValue = new(
-                BuiltInType.DataValue,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo DataValue =
+                CreateScalar(BuiltInType.DataValue);
 
             /// <summary>
             /// Any of the other built-in types.
             /// </summary>
-            public static readonly TypeInfo Variant = new(
-                BuiltInType.Variant,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo Variant =
+                CreateScalar(BuiltInType.Variant);
 
             /// <summary>
             /// A diagnostic information associated with a result code.
             /// </summary>
-            public static readonly TypeInfo DiagnosticInfo = new(
-                BuiltInType.DiagnosticInfo,
-                ValueRanks.Scalar);
+            public static readonly TypeInfo DiagnosticInfo =
+                CreateScalar(BuiltInType.DiagnosticInfo);
 
             /// <summary>
             /// An enum type info.
             /// </summary>
-            public static readonly TypeInfo Enumeration = new(
-                BuiltInType.Enumeration,
-                ValueRanks.Scalar);
-        }
-
-        /// <summary>
-        /// Returns a static of allocated type info object for a one dimensional array of the specified type.
-        /// </summary>
-        public static TypeInfo CreateArray(BuiltInType builtInType)
-        {
-            return new TypeInfo(builtInType, ValueRanks.OneDimension);
+            public static readonly TypeInfo Enumeration =
+                CreateScalar(BuiltInType.Enumeration);
         }
 
         /// <summary>
@@ -411,172 +409,320 @@ namespace Opc.Ua
             /// <summary>
             /// A boolean logic value (true or false).
             /// </summary>
-            public static readonly TypeInfo Boolean = new(
-                BuiltInType.Boolean,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo Boolean =
+                CreateArray(BuiltInType.Boolean);
 
             /// <summary>
             /// An 8 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo SByte = new(BuiltInType.SByte, ValueRanks.OneDimension);
+            public static readonly TypeInfo SByte =
+                CreateArray(BuiltInType.SByte);
 
             /// <summary>
             /// An 8 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo Byte = new(BuiltInType.Byte, ValueRanks.OneDimension);
+            public static readonly TypeInfo Byte =
+                CreateArray(BuiltInType.Byte);
 
             /// <summary>
             /// A 16 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int16 = new(BuiltInType.Int16, ValueRanks.OneDimension);
+            public static readonly TypeInfo Int16 =
+                CreateArray(BuiltInType.Int16);
 
             /// <summary>
             /// A 16 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo UInt16 = new(
-                BuiltInType.UInt16,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo UInt16 =
+                CreateArray(BuiltInType.UInt16);
 
             /// <summary>
             /// A 32 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int32 = new(BuiltInType.Int32, ValueRanks.OneDimension);
+            public static readonly TypeInfo Int32 =
+                CreateArray(BuiltInType.Int32);
 
             /// <summary>
             /// A 32 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo UInt32 = new(
-                BuiltInType.UInt32,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo UInt32 =
+                CreateArray(BuiltInType.UInt32);
 
             /// <summary>
             /// A 64 bit signed integer value.
             /// </summary>
-            public static readonly TypeInfo Int64 = new(BuiltInType.Int64, ValueRanks.OneDimension);
+            public static readonly TypeInfo Int64 =
+                CreateArray(BuiltInType.Int64);
 
             /// <summary>
             /// A 64 bit unsigned integer value.
             /// </summary>
-            public static readonly TypeInfo UInt64 = new(
-                BuiltInType.UInt64,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo UInt64 =
+                CreateArray(BuiltInType.UInt64);
 
             /// <summary>
             /// An IEEE single precision (32 bit) floating point value.
             /// </summary>
-            public static readonly TypeInfo Float = new(BuiltInType.Float, ValueRanks.OneDimension);
+            public static readonly TypeInfo Float =
+                CreateArray(BuiltInType.Float);
 
             /// <summary>
             /// An IEEE double precision (64 bit) floating point value.
             /// </summary>
-            public static readonly TypeInfo Double = new(
-                BuiltInType.Double,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo Double =
+                CreateArray(BuiltInType.Double);
 
             /// <summary>
             /// A sequence of Unicode characters.
             /// </summary>
-            public static readonly TypeInfo String = new(
-                BuiltInType.String,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo String =
+                CreateArray(BuiltInType.String);
 
             /// <summary>
             /// An instance in time.
             /// </summary>
-            public static readonly TypeInfo DateTime = new(
-                BuiltInType.DateTime,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo DateTime =
+                CreateArray(BuiltInType.DateTime);
 
             /// <summary>
             /// A 128-bit globally unique identifier.
             /// </summary>
-            public static readonly TypeInfo Guid = new(
-                BuiltInType.Guid,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo Guid =
+                CreateArray(BuiltInType.Guid);
 
             /// <summary>
             /// A sequence of bytes.
             /// </summary>
-            public static readonly TypeInfo ByteString = new(
-                BuiltInType.ByteString,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo ByteString =
+                CreateArray(BuiltInType.ByteString);
 
             /// <summary>
             /// An XML element.
             /// </summary>
-            public static readonly TypeInfo XmlElement = new(
-                BuiltInType.XmlElement,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo XmlElement =
+                CreateArray(BuiltInType.XmlElement);
 
             /// <summary>
             /// An identifier for a node in the address space of a UA server.
             /// </summary>
-            public static readonly TypeInfo NodeId = new(
-                BuiltInType.NodeId,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo NodeId =
+                CreateArray(BuiltInType.NodeId);
 
             /// <summary>
             /// A node id that stores the namespace URI instead of the namespace index.
             /// </summary>
-            public static readonly TypeInfo ExpandedNodeId = new(
-                BuiltInType.ExpandedNodeId,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo ExpandedNodeId =
+                CreateArray(BuiltInType.ExpandedNodeId);
 
             /// <summary>
             /// A structured result code.
             /// </summary>
-            public static readonly TypeInfo StatusCode = new(
-                BuiltInType.StatusCode,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo StatusCode =
+                CreateArray(BuiltInType.StatusCode);
 
             /// <summary>
             /// A string qualified with a namespace.
             /// </summary>
-            public static readonly TypeInfo QualifiedName = new(
-                BuiltInType.QualifiedName,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo QualifiedName =
+                CreateArray(BuiltInType.QualifiedName);
 
             /// <summary>
             /// A localized text string with an locale identifier.
             /// </summary>
-            public static readonly TypeInfo LocalizedText = new(
-                BuiltInType.LocalizedText,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo LocalizedText =
+                CreateArray(BuiltInType.LocalizedText);
 
             /// <summary>
             /// An opaque object with a syntax that may be unknown to the receiver.
             /// </summary>
-            public static readonly TypeInfo ExtensionObject = new(
-                BuiltInType.ExtensionObject,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo ExtensionObject =
+                CreateArray(BuiltInType.ExtensionObject);
 
             /// <summary>
             /// A data value with an associated quality and timestamp.
             /// </summary>
-            public static readonly TypeInfo DataValue = new(
-                BuiltInType.DataValue,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo DataValue =
+                CreateArray(BuiltInType.DataValue);
 
             /// <summary>
             /// Any of the other built-in types.
             /// </summary>
-            public static readonly TypeInfo Variant = new(
-                BuiltInType.Variant,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo Variant =
+                CreateArray(BuiltInType.Variant);
 
             /// <summary>
             /// A diagnostic information associated with a result code.
             /// </summary>
-            public static readonly TypeInfo DiagnosticInfo = new(
-                BuiltInType.DiagnosticInfo,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo DiagnosticInfo =
+                CreateArray(BuiltInType.DiagnosticInfo);
 
             /// <summary>
             /// An array of enum values.
             /// </summary>
-            public static readonly TypeInfo Enumeration = new(
-                BuiltInType.Enumeration,
-                ValueRanks.OneDimension);
+            public static readonly TypeInfo Enumeration =
+                CreateArray(BuiltInType.Enumeration);
+        }
+
+        /// <summary>
+        /// Constants for one dimensional array types.
+        /// </summary>
+        public static class OneOrMoreDimensions
+        {
+            /// <summary>
+            /// A boolean logic value (true or false).
+            /// </summary>
+            public static readonly TypeInfo Boolean =
+                CreateOneOrMoreDimensions(BuiltInType.Boolean);
+
+            /// <summary>
+            /// An 8 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo SByte =
+                CreateOneOrMoreDimensions(BuiltInType.SByte);
+
+            /// <summary>
+            /// An 8 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo Byte =
+                CreateOneOrMoreDimensions(BuiltInType.Byte);
+
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int16 =
+                CreateOneOrMoreDimensions(BuiltInType.Int16);
+
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt16 =
+                CreateOneOrMoreDimensions(BuiltInType.UInt16);
+
+            /// <summary>
+            /// A 32 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int32 =
+                CreateOneOrMoreDimensions(BuiltInType.Int32);
+
+            /// <summary>
+            /// A 32 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt32 =
+                CreateOneOrMoreDimensions(BuiltInType.UInt32);
+
+            /// <summary>
+            /// A 64 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int64 =
+                CreateOneOrMoreDimensions(BuiltInType.Int64);
+
+            /// <summary>
+            /// A 64 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt64 =
+                CreateOneOrMoreDimensions(BuiltInType.UInt64);
+
+            /// <summary>
+            /// An IEEE single precision (32 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Float =
+                CreateOneOrMoreDimensions(BuiltInType.Float);
+
+            /// <summary>
+            /// An IEEE double precision (64 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Double =
+                CreateOneOrMoreDimensions(BuiltInType.Double);
+
+            /// <summary>
+            /// A sequence of Unicode characters.
+            /// </summary>
+            public static readonly TypeInfo String =
+                CreateOneOrMoreDimensions(BuiltInType.String);
+
+            /// <summary>
+            /// An instance in time.
+            /// </summary>
+            public static readonly TypeInfo DateTime =
+                CreateOneOrMoreDimensions(BuiltInType.DateTime);
+
+            /// <summary>
+            /// A 128-bit globally unique identifier.
+            /// </summary>
+            public static readonly TypeInfo Guid =
+                CreateOneOrMoreDimensions(BuiltInType.Guid);
+
+            /// <summary>
+            /// A sequence of bytes.
+            /// </summary>
+            public static readonly TypeInfo ByteString =
+                CreateOneOrMoreDimensions(BuiltInType.ByteString);
+
+            /// <summary>
+            /// An XML element.
+            /// </summary>
+            public static readonly TypeInfo XmlElement =
+                CreateOneOrMoreDimensions(BuiltInType.XmlElement);
+
+            /// <summary>
+            /// An identifier for a node in the address space of a UA server.
+            /// </summary>
+            public static readonly TypeInfo NodeId =
+                CreateOneOrMoreDimensions(BuiltInType.NodeId);
+
+            /// <summary>
+            /// A node id that stores the namespace URI instead of the namespace index.
+            /// </summary>
+            public static readonly TypeInfo ExpandedNodeId =
+                CreateOneOrMoreDimensions(BuiltInType.ExpandedNodeId);
+
+            /// <summary>
+            /// A structured result code.
+            /// </summary>
+            public static readonly TypeInfo StatusCode =
+                CreateOneOrMoreDimensions(BuiltInType.StatusCode);
+
+            /// <summary>
+            /// A string qualified with a namespace.
+            /// </summary>
+            public static readonly TypeInfo QualifiedName =
+                CreateOneOrMoreDimensions(BuiltInType.QualifiedName);
+
+            /// <summary>
+            /// A localized text string with an locale identifier.
+            /// </summary>
+            public static readonly TypeInfo LocalizedText =
+                CreateOneOrMoreDimensions(BuiltInType.LocalizedText);
+
+            /// <summary>
+            /// An opaque object with a syntax that may be unknown to the receiver.
+            /// </summary>
+            public static readonly TypeInfo ExtensionObject =
+                CreateOneOrMoreDimensions(BuiltInType.ExtensionObject);
+
+            /// <summary>
+            /// A data value with an associated quality and timestamp.
+            /// </summary>
+            public static readonly TypeInfo DataValue =
+                CreateOneOrMoreDimensions(BuiltInType.DataValue);
+
+            /// <summary>
+            /// Any of the other built-in types.
+            /// </summary>
+            public static readonly TypeInfo Variant =
+                CreateOneOrMoreDimensions(BuiltInType.Variant);
+
+            /// <summary>
+            /// A diagnostic information associated with a result code.
+            /// </summary>
+            public static readonly TypeInfo DiagnosticInfo =
+                CreateOneOrMoreDimensions(BuiltInType.DiagnosticInfo);
+
+            /// <summary>
+            /// An array of enum values.
+            /// </summary>
+            public static readonly TypeInfo Enumeration =
+                CreateOneOrMoreDimensions(BuiltInType.Enumeration);
         }
 
         /// <summary>
@@ -936,11 +1082,11 @@ namespace Opc.Ua
                 case DataTypes.String:
                     return typeof(string);
                 case DataTypes.DateTime:
-                    return typeof(DateTime);
+                    return typeof(DateTimeUtc);
                 case DataTypes.Guid:
                     return typeof(Uuid);
                 case DataTypes.ByteString:
-                    return typeof(byte[]);
+                    return typeof(ByteString);
                 case DataTypes.XmlElement:
                     return typeof(XmlElement);
                 case DataTypes.NodeId:
@@ -1299,12 +1445,14 @@ namespace Opc.Ua
                         element = ((Variant)element).AsBoxedObject(); // TODO: optimize boxing
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     TypeInfo elementInfo = IsInstanceOfDataType(
                         new Variant(element),
                         expectedDataTypeId,
                         ValueRanks.Scalar,
                         namespaceUris,
                         typeTree);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     // give up at the first invalid element.
                     if (elementInfo.IsUnknown)
@@ -1343,8 +1491,7 @@ namespace Opc.Ua
 
                 if (value.TryGet(out ExtensionObject extension))
                 {
-                    encodeable = extension.Body as IEncodeable;
-                    if (encodeable != null)
+                    if (extension.TryGetEncodeable(out encodeable))
                     {
                         return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                     }
@@ -1396,11 +1543,11 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime);
+                        return typeof(DateTimeUtc);
                     case BuiltInType.Guid:
                         return typeof(Uuid);
                     case BuiltInType.ByteString:
-                        return typeof(byte[]);
+                        return typeof(ByteString);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement);
                     case BuiltInType.NodeId:
@@ -1462,11 +1609,11 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string[]);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime[]);
+                        return typeof(DateTimeUtc[]);
                     case BuiltInType.Guid:
                         return typeof(Uuid[]);
                     case BuiltInType.ByteString:
-                        return typeof(byte[][]);
+                        return typeof(ByteString[]);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement[]);
                     case BuiltInType.NodeId:
@@ -1529,11 +1676,11 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return typeof(string).MakeArrayType(valueRank);
                     case BuiltInType.DateTime:
-                        return typeof(DateTime).MakeArrayType(valueRank);
+                        return typeof(DateTimeUtc).MakeArrayType(valueRank);
                     case BuiltInType.Guid:
                         return typeof(Uuid).MakeArrayType(valueRank);
                     case BuiltInType.ByteString:
-                        return typeof(byte[]).MakeArrayType(valueRank);
+                        return typeof(ByteString).MakeArrayType(valueRank);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement).MakeArrayType(valueRank);
                     case BuiltInType.NodeId:
@@ -1618,6 +1765,19 @@ namespace Opc.Ua
             if (systemType == null)
             {
                 return Unknown;
+            }
+
+            if (systemType.IsGenericType)
+            {
+                Type genericTypeDefinition = systemType.GetGenericTypeDefinition();
+                if (genericTypeDefinition == typeof(ArrayOf<>))
+                {
+                    return Construct(systemType.GetGenericArguments()[0]).WithValueRank(ValueRanks.OneDimension);
+                }
+                if (genericTypeDefinition == typeof(MatrixOf<>))
+                {
+                    return Construct(systemType.GetGenericArguments()[0]).WithValueRank(ValueRanks.TwoDimensions);
+                }
             }
 
             // using strings in switch statements is much faster than the typeof() operator.
@@ -1818,13 +1978,13 @@ namespace Opc.Ua
                 case BuiltInType.String:
                     return (string)null;
                 case BuiltInType.DateTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.ByteString:
-                    return (byte[])null;
+                    return ByteString.Empty;
                 case BuiltInType.XmlElement:
-                    return (XmlElement)null;
+                    return XmlElement.Empty;
                 case BuiltInType.StatusCode:
                     return StatusCodes.Good;
                 case BuiltInType.NodeId:
@@ -1902,7 +2062,7 @@ namespace Opc.Ua
                 case DataTypes.Duration:
                     return (double)0;
                 case DataTypes.UtcTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case DataTypes.Counter:
                 case DataTypes.IntegerId:
                     return (uint)0;
@@ -1965,6 +2125,7 @@ namespace Opc.Ua
                     return BuiltInType.Double;
                 case "String":
                     return BuiltInType.String;
+                case "DateTimeUtc":
                 case "DateTime":
                     return BuiltInType.DateTime;
                 case "Guid":
@@ -2032,7 +2193,7 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)0;
                 case BuiltInType.DateTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.StatusCode:
@@ -2068,6 +2229,18 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {type}");
             }
+        }
+
+        /// <summary>
+        /// Returns the default value for the specified built-in type.
+        /// </summary>
+        /// <param name="type">The Built-in type.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <returns>The default value.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static object GetDefaultValue(BuiltInType type, int valueRank)
+        {
+            return GetDefaultValue((NodeId)(uint)type, valueRank);
         }
 
         /// <summary>
@@ -2114,7 +2287,7 @@ namespace Opc.Ua
                 case DataTypes.Duration:
                     return (double)0;
                 case DataTypes.UtcTime:
-                    return DateTime.MinValue;
+                    return DateTimeUtc.MinValue;
                 case DataTypes.Counter:
                 case DataTypes.IntegerId:
                     return (uint)0;
@@ -2196,11 +2369,11 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return new string[length];
                     case BuiltInType.DateTime:
-                        return new DateTime[length];
+                        return new DateTimeUtc[length];
                     case BuiltInType.Guid:
                         return new Uuid[length];
                     case BuiltInType.ByteString:
-                        return new byte[length][];
+                        return new ByteString[length];
                     case BuiltInType.XmlElement:
                         return new XmlElement[length];
                     case BuiltInType.StatusCode:
@@ -2224,9 +2397,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return new int[length];
                     case BuiltInType.Number:
-
                     case BuiltInType.Integer:
-
                     case BuiltInType.UInteger:
                         return new Variant[length];
                     default:
@@ -2266,11 +2437,11 @@ namespace Opc.Ua
                     case BuiltInType.String:
                         return Array.CreateInstance(typeof(string), dimensions);
                     case BuiltInType.DateTime:
-                        return Array.CreateInstance(typeof(DateTime), dimensions);
+                        return Array.CreateInstance(typeof(DateTimeUtc), dimensions);
                     case BuiltInType.Guid:
                         return Array.CreateInstance(typeof(Uuid), dimensions);
                     case BuiltInType.ByteString:
-                        return Array.CreateInstance(typeof(byte[]), dimensions);
+                        return Array.CreateInstance(typeof(ByteString), dimensions);
                     case BuiltInType.XmlElement:
                         return Array.CreateInstance(typeof(XmlElement), dimensions);
                     case BuiltInType.StatusCode:
@@ -2294,9 +2465,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return Array.CreateInstance(typeof(int), dimensions);
                     case BuiltInType.Number:
-
                     case BuiltInType.Integer:
-
                     case BuiltInType.UInteger:
                         return Array.CreateInstance(typeof(Variant), dimensions);
                     default:
@@ -2445,13 +2614,7 @@ namespace Opc.Ua
                     }
                 }
             }
-
-            if (systemType == typeof(byte[]))
-            {
-                return new XmlQualifiedName("ByteString");
-            }
-
-            return new XmlQualifiedName(systemType.FullName);
+            return new XmlQualifiedName(systemType.Name, Namespaces.OpcUaXsd);
         }
 
         /// <summary>

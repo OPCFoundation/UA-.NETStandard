@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Tests
     [Parallelizable]
     public class SubscriptionUnitTests
     {
-        private class SubscriptionContainer : IDisposable
+        private sealed class SubscriptionContainer : IDisposable
         {
             private readonly CancellationTokenRegistration m_tokedCancellation;
             public Subscription Subscription { get; }
@@ -130,34 +130,38 @@ namespace Opc.Ua.Client.Tests
                         ct
                       ) => new() { SubscriptionId = ++subscriptionIdSeed });
             session
-                .Setup(x => x.SetPublishingModeAsync(It.IsAny<RequestHeader>(), It.IsAny<bool>(), It.IsAny<UInt32Collection>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(x => x.SetPublishingModeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync<
                     RequestHeader,
                     bool,
-                    UInt32Collection,
+                    ArrayOf<uint>,
                     CancellationToken,
                     ISession,
                     SetPublishingModeResponse
                     >((requestHeader, publishingEnabled, subscriptionIds, ct) => new()
                     {
-                        Results = [.. subscriptionIds.Select(id => id > subscriptionIdSeed ? StatusCodes.BadSubscriptionIdInvalid : StatusCodes.Good)],
-                        DiagnosticInfos = [.. subscriptionIds.Select(_ => new DiagnosticInfo())]
+                        Results = [.. subscriptionIds.ConvertAll(id => id > subscriptionIdSeed ?
+                            StatusCodes.BadSubscriptionIdInvalid :
+                            StatusCodes.Good)],
+                        DiagnosticInfos = [.. subscriptionIds.ConvertAll(_ => new DiagnosticInfo())]
                     });
             return session.Object;
         }
 
         private static NotificationMessage[] BuildMessages(int count)
         {
-            return Enumerable
+            return [.. Enumerable
                 .Range(1, count)
                 .Select(sequenceNumber => new NotificationMessage
                 {
                     SequenceNumber = (uint)sequenceNumber,
                     NotificationData = [new(new DataChangeNotification { SequenceNumber = (uint)sequenceNumber })]
                 })
-                .Prepend(new())//stub to compensate sequenceNumbers start from 1. Should be ignored
-                .ToArray();
+                .Prepend(new())];
         }
 
         private static async Task<SubscriptionContainer> BuildSubscriptionAsync(
@@ -165,9 +169,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             CancellationToken cancellationToken)
         {
-            TaskCompletionSource<bool>[] messageAwaiters = messagesToProcess
-                .Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))
-                .ToArray();
+            TaskCompletionSource<bool>[] messageAwaiters =
+                [.. messagesToProcess.Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))];
             messageAwaiters[0].SetResult(true);
             List<uint> availableSequenceNumbers = [.. messagesToProcess.Skip(1).Select(x => x.SequenceNumber)];
 
@@ -177,20 +180,17 @@ namespace Opc.Ua.Client.Tests
                 {
                     PublishingEnabled = true,
                     SequentialPublishing = sequentialPublishing,
-                    MaxMessageCount = messagesToProcess.Length,
+                    MaxMessageCount = messagesToProcess.Length
                 })
             {
-                FastDataChangeCallback = (_, message, _) =>
-                {
-                    messageAwaiters[message.SequenceNumber].SetResult(true);
-                },
+                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true)
             };
             subscription.Session = BuildSessionMock((subscriptionId, sequenceNumber) =>
             {
                 //simplified republish emulation
                 if (subscription.Id == subscriptionId && availableSequenceNumbers.Remove(sequenceNumber))
                 {
-                    subscription.SaveMessageInCache(null, messagesToProcess[sequenceNumber]);
+                    subscription.SaveMessageInCache(default, messagesToProcess[sequenceNumber]);
                     return true;
                 }
                 return false;

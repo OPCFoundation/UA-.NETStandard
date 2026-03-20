@@ -181,8 +181,7 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-                if (item.Value.TryGet(out ExtensionObject eo) &&
-                    eo.Body is SpanContextDataType spanContext)
+                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];
@@ -296,11 +295,9 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // decoding incoming message.
-                var serviceRequest =
-                    BinaryDecoder.DecodeMessage(
-                        request.InvokeServiceRequest,
-                        null,
-                        MessageContext) as IServiceRequest;
+                IServiceRequest serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
+                    request.InvokeServiceRequest,
+                    MessageContext);
 
                 // process the request.
                 IServiceResponse response = await ProcessRequestAsync(

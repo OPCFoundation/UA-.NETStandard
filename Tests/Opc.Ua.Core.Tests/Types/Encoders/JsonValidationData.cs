@@ -51,33 +51,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return jsonEncodingType switch
             {
                 JsonEncodingType.Verbose => ExpectedVerbose ?? ExpectedCompact,
-                JsonEncodingType.NonReversible => ExpectedNonReversible ?? ExpectedReversible,
-                JsonEncodingType.Reversible => ExpectedReversible,
                 JsonEncodingType.Compact => ExpectedCompact,
                 _ => throw ServiceResultException.Unexpected($"Unexpected encoding type {jsonEncodingType}")
             };
         }
 
-        public BuiltInType BuiltInType;
-        public object Instance;
-        public string ExpectedCompact;
-        public string ExpectedVerbose;
-        public string ExpectedReversible;
-        public string ExpectedNonReversible;
-        public bool IncludeDefaultValue;
+        public BuiltInType BuiltInType { get; set; }
+        public Variant Instance { get; set; }
+        public string ExpectedCompact { get; set; }
+        public string ExpectedVerbose { get; set; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (BuiltInType == BuiltInType.Variant &&
-                Instance is Variant variant &&
-                !variant.TypeInfo.IsUnknown)
+            if (BuiltInType == BuiltInType.Variant)
             {
-                return $"Variant:{variant.TypeInfo.BuiltInType}:{Instance}" +
-                    (IncludeDefaultValue
-                        ? ":Default"
-                        : string.Empty);
+                return $"Variant:{Instance.TypeInfo.BuiltInType}:{Instance}";
             }
-            return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : string.Empty);
+            return $"{BuiltInType}:{Instance}";
         }
     }
 
@@ -105,82 +95,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public void Add(
             BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedReversible,
-                    ExpectedVerbose = expectedNonReversible
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible,
+            Variant instance,
             string expectedCompact,
             string expectedVerbose)
         {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedCompact,
-                    ExpectedVerbose = expectedVerbose
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible,
-            bool includeDefaultValue)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedReversible,
-                    ExpectedVerbose = expectedNonReversible,
-                    IncludeDefaultValue = includeDefaultValue
-                });
-        }
-
-        public void Add(
-            BuiltInType builtInType,
-            object instance,
-            string expectedReversible,
-            string expectedNonReversible,
-            string expectedCompact,
-            string expectedVerbose,
-            bool includeDefaultValue)
-        {
-            Add(
-                new JsonValidationData
-                {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    ExpectedCompact = expectedCompact,
-                    ExpectedVerbose = expectedVerbose,
-                    IncludeDefaultValue = includeDefaultValue
-                });
+            Add(new JsonValidationData
+            {
+                BuiltInType = builtInType,
+                Instance = instance,
+                ExpectedCompact = expectedCompact,
+                ExpectedVerbose = expectedVerbose
+            });
         }
     }
 

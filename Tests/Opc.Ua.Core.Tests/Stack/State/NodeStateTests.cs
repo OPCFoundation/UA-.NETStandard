@@ -33,7 +33,6 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {
@@ -82,9 +81,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
-            Assert.NotNull(testObject);
+            Assert.That(testObject, Is.Not.Null);
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
-            Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
+            Assert.That(context.NamespaceUris.GetIndexOrAppend(OpcUa), Is.Zero);
             testObject.Create(context, new NodeId(1000), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
             testObject.Dispose();
         }
@@ -99,9 +98,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             var placeholders = new List<string>();
             uint nodeId = 200000;
-            Type[] nodeStateTypesToScan = [.. GetOpcUaNodeStateTypes().OrderBy(type => type.FullName)];
-
-            foreach (Type systemType in nodeStateTypesToScan)
+            foreach (Type systemType in GetOpcUaNodeStateTypes().OrderBy(type => type.FullName))
             {
                 if (CreateDefaultNodeStateType(systemType) is not NodeState testObject)
                 {

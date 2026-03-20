@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -91,7 +92,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            List<DataValue> values)
         {
             m_request = request;
 
@@ -99,9 +100,9 @@ namespace TestData
             m_startTime = m_request.StartTime;
             m_endTime = m_request.EndTime;
 
-            if (m_endTime == DateTime.MinValue)
+            if (m_endTime == DateTimeUtc.MinValue)
             {
-                m_endTime = DateTime.MaxValue;
+                m_endTime = DateTimeUtc.MaxValue;
             }
 
             // check the direction.
@@ -138,7 +139,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            List<DataValue> values)
         {
             while (true)
             {
@@ -183,7 +184,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values,
+            List<DataValue> values,
             DataValue value)
         {
             // ignore invalid case.
@@ -198,28 +199,28 @@ namespace TestData
             // check if the index range or data encoding can be applied.
             if (StatusCode.IsGood(value.StatusCode))
             {
-                object valueToReturn = value.Value;
+                Variant valueToReturn = value.WrappedValue;
 
                 // apply the index range.
-                if (indexRange != NumericRange.Empty)
+                if (!indexRange.IsNull)
                 {
                     StatusCode error = indexRange.ApplyRange(ref valueToReturn);
 
                     if (StatusCode.IsBad(error))
                     {
-                        value.Value = null;
+                        value.WrappedValue = default;
                         value.StatusCode = error;
                     }
                     else
                     {
-                        value.Value = valueToReturn;
+                        value.WrappedValue = valueToReturn;
                     }
                 }
 
                 // apply the data encoding.
                 if (!dataEncoding.IsNull)
                 {
-                    value.Value = null;
+                    value.WrappedValue = default;
                     value.StatusCode = StatusCodes.BadDataEncodingUnsupported;
                 }
             }
@@ -227,12 +228,12 @@ namespace TestData
             // apply the timestamps filter.
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
-                value.SourceTimestamp = DateTime.MinValue;
+                value.SourceTimestamp = DateTimeUtc.MinValue;
             }
 
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
-                value.ServerTimestamp = DateTime.MinValue;
+                value.ServerTimestamp = DateTimeUtc.MinValue;
             }
 
             // add result.
@@ -241,10 +242,10 @@ namespace TestData
 
         private readonly IHistoryDataSource m_source;
         private ReadRawModifiedDetails m_request;
-        private DateTime m_startTime;
-        private DateTime m_endTime;
+        private DateTimeUtc m_startTime;
+        private DateTimeUtc m_endTime;
         private bool m_isForward;
         private int m_position;
-        private DateTime m_lastTime;
+        private DateTimeUtc m_lastTime;
     }
 }

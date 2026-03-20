@@ -38,28 +38,11 @@ namespace Opc.Ua
     /// Role permission type
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class RolePermissionType : IEncodeable, IJsonEncodeable
+    public class RolePermissionType :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<RolePermissionType>
     {
-        /// <summary>
-        /// Create role permission
-        /// </summary>
-        public RolePermissionType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            RoleId = default;
-            Permissions = 0;
-        }
-
         /// <summary>
         /// Role id
         /// </summary>
@@ -119,17 +102,47 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(RoleId, value.RoleId))
+            if (RoleId != value.RoleId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(Permissions, value.Permissions))
+            if (Permissions != value.Permissions)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(RoleId, Permissions);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(RolePermissionType other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(RolePermissionType left, RolePermissionType right)
+        {
+            return EqualityComparer<RolePermissionType>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(RolePermissionType left, RolePermissionType right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -145,74 +158,6 @@ namespace Opc.Ua
 
             clone.RoleId = RoleId;
             clone.Permissions = CoreUtils.Clone(Permissions);
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// Role permission collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfRolePermissionType",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "RolePermissionType")]
-    public class RolePermissionTypeCollection : List<RolePermissionType>, ICloneable
-    {
-        /// <inheritdoc/>
-        public RolePermissionTypeCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public RolePermissionTypeCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator RolePermissionTypeCollection(RolePermissionType[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator RolePermissionType[](RolePermissionTypeCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (RolePermissionTypeCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new RolePermissionTypeCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
 
             return clone;
         }

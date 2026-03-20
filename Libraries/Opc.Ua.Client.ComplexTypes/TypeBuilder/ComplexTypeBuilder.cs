@@ -95,25 +95,22 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(TargetNamespace);
-            if (enumDefinition.Fields != null)
+            var fieldNames = new HashSet<string>();
+            foreach (EnumField enumValue in enumDefinition.Fields)
             {
-                var fieldNames = new HashSet<string>();
-                foreach (EnumField enumValue in enumDefinition.Fields)
+                // Create a field from the type name and ensure it is not a duplicate
+                string fieldName = enumValue.Name;
+                if (string.IsNullOrEmpty(fieldName))
                 {
-                    // Create a field from the type name and ensure it is not a duplicate
-                    string fieldName = enumValue.Name;
-                    if (string.IsNullOrEmpty(fieldName))
-                    {
-                        // This is to be super safe, but we should never get here.
-                        fieldName = $"{typeName.Name}_{enumValue.Value}";
-                    }
-                    if (fieldNames.Add(fieldName))
-                    {
-                        FieldBuilder newEnum = enumBuilder.DefineLiteral(
-                            fieldName,
-                            (int)enumValue.Value);
-                        newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
-                    }
+                    // This is to be super safe, but we should never get here.
+                    fieldName = $"{typeName.Name}_{enumValue.Value}";
+                }
+                if (fieldNames.Add(fieldName))
+                {
+                    FieldBuilder newEnum = enumBuilder.DefineLiteral(
+                        fieldName,
+                        (int)enumValue.Value);
+                    newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
                 }
             }
             return enumBuilder.CreateTypeInfo();

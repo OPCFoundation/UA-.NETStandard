@@ -50,9 +50,9 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             var xmlDoc = new XmlDocument();
-            XmlElement defaultValue1 = xmlDoc.CreateElement("Value");
+            System.Xml.XmlElement defaultValue1 = xmlDoc.CreateElement("Value");
             defaultValue1.InnerText = "42";
-            XmlElement defaultValue2 = xmlDoc.CreateElement("Value");
+            System.Xml.XmlElement defaultValue2 = xmlDoc.CreateElement("Value");
             defaultValue2.InnerText = "100";
 
             var design1 = new VariableTypeDesign { DefaultValue = defaultValue1 };
@@ -320,7 +320,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             var xmlDoc = new XmlDocument();
-            XmlElement defaultValue = xmlDoc.CreateElement("Value");
+            System.Xml.XmlElement defaultValue = xmlDoc.CreateElement("Value");
             defaultValue.InnerText = "42";
 
             var design1 = new VariableTypeDesign { DefaultValue = null };
@@ -835,10 +835,10 @@ namespace Opc.Ua.Schema.Model.Tests
         /// <summary>
         /// Helper method to create an XmlElement with the specified value.
         /// </summary>
-        private static XmlElement CreateXmlElement(string value)
+        private static System.Xml.XmlElement CreateXmlElement(string value)
         {
             var doc = new XmlDocument();
-            XmlElement element = doc.CreateElement("TestElement");
+            System.Xml.XmlElement element = doc.CreateElement("TestElement");
             element.InnerText = value;
             return element;
         }

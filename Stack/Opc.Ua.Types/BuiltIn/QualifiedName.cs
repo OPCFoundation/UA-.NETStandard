@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
 
@@ -61,6 +59,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     public readonly struct QualifiedName :
+        INullable,
         IFormattable,
         IComparable,
         IEquatable<QualifiedName>, IComparable<QualifiedName>,
@@ -542,111 +541,5 @@ namespace Opc.Ua
         /// Returns an instance of a null QualifiedName.
         /// </summary>
         public static readonly QualifiedName Null;
-    }
-
-    /// <summary>
-    /// A collection of QualifiedName objects.
-    /// </summary>
-    /// <remarks>
-    /// A strongly-typed collection of QualifiedName objects.
-    /// </remarks>
-    [CollectionDataContract(
-        Name = "ListOfQualifiedName",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "QualifiedName")]
-    public class QualifiedNameCollection : List<QualifiedName>, ICloneable
-    {
-        /// <inheritdoc/>
-        public QualifiedNameCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public QualifiedNameCollection(IEnumerable<QualifiedName> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public QualifiedNameCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator QualifiedNameCollection(QualifiedName[] values)
-        {
-            return [.. values ?? []];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new QualifiedNameCollection(Count);
-
-            foreach (QualifiedName element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// Serializable representation of a QualifiedName
-    /// </summary>
-    [DataContract(
-        Name = "QualifiedName",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableQualifiedName :
-        ISurrogateFor<QualifiedName>
-    {
-        /// <inheritdoc/>
-        public SerializableQualifiedName()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableQualifiedName(QualifiedName value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public QualifiedName Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <summary>
-        /// Namespace index
-        /// </summary>
-        [DataMember(Name = "NamespaceIndex", Order = 1)]
-        internal ushort XmlEncodedNamespaceIndex
-        {
-            get => Value.NamespaceIndex;
-            set => Value = Value.WithNamespaceIndex(value);
-        }
-
-        /// <summary>
-        /// Xml encoded name
-        /// </summary>
-        [DataMember(Name = "Name", Order = 2)]
-        internal string XmlEncodedName
-        {
-            get => Value.Name;
-            set => Value = Value.WithName(value);
-        }
     }
 }

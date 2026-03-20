@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -50,27 +49,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(ValueRanks.TwoDimensions)]
         public void TestValueRanks(int actualValueRank)
         {
-            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, actualValueRank));
-            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, ValueRanks.Any));
-            Assert.AreEqual(
-                actualValueRank is ValueRanks.Scalar or ValueRanks.OneDimension or ValueRanks
-                    .ScalarOrOneDimension,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension));
-            Assert.AreEqual(
-                actualValueRank >= 0,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
-            Assert.AreEqual(
-                actualValueRank == ValueRanks.TwoDimensions,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions));
-            Assert.AreEqual(
-                actualValueRank == ValueRanks.OneDimension,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension));
-            Assert.AreEqual(
-                actualValueRank >= 0,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
-            Assert.AreEqual(
-                actualValueRank == ValueRanks.Scalar,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar));
+            Assert.That(ValueRanks.IsValid(actualValueRank, actualValueRank), Is.True);
+            Assert.That(ValueRanks.IsValid(actualValueRank, ValueRanks.Any), Is.True);
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension),
+                Is.EqualTo(actualValueRank is ValueRanks.Scalar or ValueRanks.OneDimension or ValueRanks
+                    .ScalarOrOneDimension));
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions),
+                Is.EqualTo(actualValueRank >= 0));
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions),
+                Is.EqualTo(actualValueRank == ValueRanks.TwoDimensions));
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension),
+                Is.EqualTo(actualValueRank == ValueRanks.OneDimension));
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions),
+                Is.EqualTo(actualValueRank >= 0));
+            Assert.That(
+                ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar),
+                Is.EqualTo(actualValueRank == ValueRanks.Scalar));
         }
     }
 }

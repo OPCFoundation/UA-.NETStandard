@@ -35,7 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests
                                 {
                                     if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
                                     {
-                                        NUnit.Framework.Assert.Fail(
+                                        Assert.Fail(
                                             "Monitored item reported bad status code: " +
                                             dv.DiagnosticInfo.InnerStatusCode +
                                             dv.DiagnosticInfo.LocalizedText);
@@ -197,9 +197,10 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -210,6 +211,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
                         try
                         {
@@ -270,11 +272,11 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                Assert.IsTrue(allNodesReceivedChanges, "Not all nodes received all value changes.");
-                // Looser verification to allow for network delays
+                Assert.That(allNodesReceivedChanges, Is.True, "Not all nodes received all value changes.");
+                // Allow for network delays
                 double receiveRatio = (double)receivedNotifications / expectedNotifications;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
-                Assert.Greater(receiveRatio, 0.99, "The overall notification receive ratio is too low.");
+                Assert.That(receiveRatio, Is.GreaterThan(0.99), "The overall notification receive ratio is too low.");
             }
             finally
             {
@@ -320,12 +322,12 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Reading from {nodeIds.Count} nodes.");
 
-                var nodesToRead = new ReadValueIdCollection();
+                var nodesToRead = new List<ReadValueId>();
                 foreach (NodeId nodeId in nodeIds.Keys)
                 {
                     nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
@@ -408,9 +410,10 @@ namespace Opc.Ua.Client.Tests
                     while (!testCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -421,6 +424,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
                         try
                         {
@@ -479,9 +483,9 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                NUnit.Framework.Assert.That(readErrors.Count, Is.EqualTo(0), "There were read errors.");
-                NUnit.Framework.Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
-                NUnit.Framework.Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
+                Assert.That(readErrors.Count, Is.Zero, "There were read errors.");
+                Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
+                Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
             }
             finally
             {
@@ -494,6 +498,187 @@ namespace Opc.Ua.Client.Tests
                         {
                             await session.CloseAsync().ConfigureAwait(false);
                         }
+                        session.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"Failed to close session: {ex.Message}");
+                    }
+                })).ToList();
+                await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Load test a server with multiple sessions subscribing to events.
+        /// Verifies that event handling remains responsive under load with many concurrent
+        /// event subscriptions, addressing the performance issue where server becomes
+        /// unresponsive as the number of monitored items increases.
+        /// </summary>
+        [Test]
+        [Explicit]
+        [Order(120)]
+        public async Task ServerEventSubscribeLoadTestAsync()
+        {
+            const int sessionCount = 50;
+            const int subscriptionsPerSession = 15;
+            const int publishingInterval = 100;
+            const int testDurationSeconds = 30;
+
+            var sessions = new ConcurrentBag<ISession>();
+            long eventsReceived = 0;
+            long totalDelayTicks = 0;
+
+            try
+            {
+                TestContext.Out.WriteLine($"Creating {sessionCount} sessions with {subscriptionsPerSession} event subscriptions each.");
+
+                // Create sessions with event subscriptions in parallel.
+                var createSessionTasks = new List<Task>();
+                for (int i = 0; i < sessionCount; i++)
+                {
+                    createSessionTasks.Add(Task.Run(async () =>
+                    {
+                        ISession session = await ClientFixture.ConnectAsync(
+                            ServerUrl,
+                            SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                        sessions.Add(session);
+
+                        for (int j = 0; j < subscriptionsPerSession; j++)
+                        {
+                            var subscription = new Subscription(session.DefaultSubscription)
+                            {
+                                PublishingInterval = publishingInterval
+                            };
+
+                            // Build an event filter for the base event type.
+                            var eventFilter = new EventFilter();
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.EventId));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.EventType));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.SourceNode));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.SourceName));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.Time));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.Message));
+                            eventFilter.AddSelectClause(
+                                ObjectTypeIds.BaseEventType,
+                                QualifiedName.From(BrowseNames.Severity));
+
+                            // Monitor the Server node for events.
+                            var monitoredItem = new MonitoredItem(subscription.DefaultItem)
+                            {
+                                StartNodeId = ObjectIds.Server,
+                                AttributeId = Attributes.EventNotifier,
+                                MonitoringMode = MonitoringMode.Reporting,
+                                Filter = eventFilter,
+                                QueueSize = 10000
+                            };
+
+                            subscription.FastEventCallback = (sub, notification, _) =>
+                            {
+                                Interlocked.Add(ref eventsReceived, notification.Events.Count);
+                                foreach (EventFieldList fieldList in notification.Events)
+                                {
+                                    if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGet(out DateTimeUtc eventTime))
+                                    {
+                                        TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
+                                        Interlocked.Add(ref totalDelayTicks, delay.Ticks);
+                                    }
+                                }
+                            };
+
+                            subscription.AddItem(monitoredItem);
+                            session.AddSubscription(subscription);
+                            await subscription.CreateAsync().ConfigureAwait(false);
+                        }
+                    }));
+                }
+
+                await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
+
+                const int totalSubscriptions = sessionCount * subscriptionsPerSession;
+                TestContext.Out.WriteLine(
+                    $"Created {totalSubscriptions} event subscriptions across {sessionCount} sessions.");
+                TestContext.Out.WriteLine($"Generating events on the server for {testDurationSeconds} seconds...");
+
+                // Generate events directly on the server to stress-test event delivery.
+                IServerInternal serverInternal = ReferenceServer.CurrentInstance;
+                ISystemContext serverContext = serverInternal.DefaultSystemContext;
+                int eventCount = 0;
+
+                using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (!testCts.IsCancellationRequested)
+                {
+                    var e = new BaseEventState(null);
+                    e.Initialize(
+                        serverContext,
+                        serverInternal.ServerObject,
+                        EventSeverity.Medium,
+                        new LocalizedText($"LoadTest event {eventCount}"));
+                    serverInternal.ReportEvent(serverContext, e);
+                    eventCount++;
+                }
+
+                sw.Stop();
+                TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
+                    $"({eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
+
+                // Wait for subscriptions to deliver the events.
+                // Allow enough publishing intervals for all notifications to be sent and acknowledged.
+                const int publishingIntervalsToWait = 20;
+                await Task.Delay(publishingInterval * publishingIntervalsToWait).ConfigureAwait(false);
+
+                long expectedTotal = (long)eventCount * totalSubscriptions;
+                long received = Interlocked.Read(ref eventsReceived);
+
+                TestContext.Out.WriteLine($"Expected event notifications : {expectedTotal}");
+                TestContext.Out.WriteLine($"Received event notifications : {received}");
+
+                double receiveRatio = expectedTotal > 0 ? (double)received / expectedTotal : 0;
+                TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
+
+                if (received > 0)
+                {
+                    long averageDelayTicks = Interlocked.Read(ref totalDelayTicks) / received;
+                    var averageDelay = TimeSpan.FromTicks(averageDelayTicks);
+                    TestContext.Out.WriteLine($"Average event delivery delay: {averageDelay.TotalMilliseconds:F2} ms");
+                }
+
+                NUnit.Framework.Assert.That(
+                    received,
+                    Is.GreaterThan(0),
+                    "No event notifications were received.");
+
+                NUnit.Framework.Assert.That(
+                    receiveRatio,
+                    Is.GreaterThan(0.99),
+                    "The event notification receive ratio is too low.");
+            }
+            finally
+            {
+                // Cleanup all sessions.
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (session.Connected)
+                        {
+                            await session.CloseAsync().ConfigureAwait(false);
+                        }
+
                         session.Dispose();
                     }
                     catch (Exception ex)

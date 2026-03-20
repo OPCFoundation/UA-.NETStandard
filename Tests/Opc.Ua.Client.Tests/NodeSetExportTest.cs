@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -110,14 +110,14 @@ namespace Opc.Ua.Client.Tests
                 NodeClassMask = 0
             };
 
-            var nodesToBrowse = new NodeIdCollection { ObjectIds.Server };
+            var nodesToBrowse = new List<NodeId> { ObjectIds.Server };
             var allNodes = new List<INode>();
 
             // Browse starting from Server object
-            ReferenceDescriptionCollection references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
 
             // Fetch the actual nodes
-            foreach (ReferenceDescription reference in references)
+            foreach (ReferenceDescription reference in references.ToList())
             {
                 INode node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
                 if (node != null)
@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have browsed at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have browsed at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -145,16 +145,16 @@ namespace Opc.Ua.Client.Tests
 
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
-                Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
-                Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
+                Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
+                Assert.That(fileInfo.Length, Is.GreaterThan(0), "NodeSet2 file should not be empty");
 
                 // Try to read it back
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
-                    Assert.Greater(nodeSet.Items.Length, 0, "NodeSet2 should contain at least one node");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
+                    Assert.That(nodeSet.Items, Is.Not.Empty, "NodeSet2 should contain at least one node");
                 }
             }
             finally
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(baseVariableTypeNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -224,13 +224,13 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
-                    Assert.AreEqual(allNodes.Count, nodeSet.Items.Length, "Should have exported all nodes");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
+                    Assert.That(nodeSet.Items.Length, Is.EqualTo(allNodes.Count), "Should have exported all nodes");
 
                     // Verify we have different node types
                     var nodeTypes = nodeSet.Items.Select(n => n.GetType()).Distinct().ToList();
-                    Assert.Greater(nodeTypes.Count, 1, "Should have multiple node types");
+                    Assert.That(nodeTypes.Count, Is.GreaterThan(1), "Should have multiple node types");
                 }
             }
             finally
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export to NodeSet2
             string tempFile = Path.GetTempFileName();
@@ -299,7 +299,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     nodeSet.Import(localContext, importedNodeStates);
-                    Assert.AreEqual(allNodes.Count, importedNodeStates.Count, "Should have imported all nodes");
+                    Assert.That(importedNodeStates.Count, Is.EqualTo(allNodes.Count), "Should have imported all nodes");
                 }
             }
             finally
@@ -333,7 +333,8 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(stateNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
+            DateTime now = DateTime.UtcNow;
 
             // Export with default options
             string tempFile = Path.GetTempFileName();
@@ -347,20 +348,25 @@ namespace Opc.Ua.Client.Tests
                         ServerUris = Session.ServerUris
                     };
 
-                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default);
+                    CoreClientUtils.ExportNodesToNodeSet2(
+                        systemContext,
+                        allNodes,
+                        stream,
+                        NodeSetExportOptions.Default,
+                        lastModified: now);
                 }
 
                 // Read it back and verify values are not exported
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
 
                     // Check that variables don't have values
                     foreach (UAVariable variable in nodeSet.Items.OfType<UAVariable>())
                     {
-                        Assert.IsNull(variable.Value, "Value should not be exported with Default options");
+                        Assert.That(variable.Value, Is.Null, "Value should not be exported with Default options");
                     }
                 }
 
@@ -380,7 +386,12 @@ namespace Opc.Ua.Client.Tests
                             ServerUris = Session.ServerUris
                         };
 
-                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete);
+                        CoreClientUtils.ExportNodesToNodeSet2(
+                            systemContext,
+                            allNodes,
+                            stream,
+                            NodeSetExportOptions.Complete,
+                            lastModified: now);
                     }
 
                     var completeFile = new FileInfo(tempFileComplete);
@@ -388,12 +399,7 @@ namespace Opc.Ua.Client.Tests
 
                     // Default should be smaller or equal to complete
                     // (Equal if nodes don't have values to export)
-                    if (completeSize < defaultSize)
-                    {
-                        TestContext.Out.WriteLine($"Complete:\r\n|{File.ReadAllText(tempFileComplete)}|");
-                        TestContext.Out.WriteLine($"Default:\r\n|{File.ReadAllText(tempFile)}|");
-                        Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
-                    }
+                    Assert.That(completeSize, Is.GreaterThanOrEqualTo(defaultSize), "Default export should not be larger than Complete");
                 }
                 finally
                 {
@@ -427,7 +433,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export with complete options
             string tempFile = Path.GetTempFileName();
@@ -448,8 +454,8 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
-                    Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
+                    Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
                 }
             }
             finally
@@ -476,7 +482,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export with custom options - values exported
             var customOptions = new NodeSetExportOptions
@@ -501,8 +507,8 @@ namespace Opc.Ua.Client.Tests
 
                 // Verify the file was created and has content
                 var fileInfo = new FileInfo(tempFile);
-                Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
-                Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
+                Assert.That(fileInfo.Exists, Is.True, "NodeSet2 file should exist");
+                Assert.That(fileInfo.Length, Is.GreaterThan(0), "NodeSet2 file should not be empty");
             }
             finally
             {
@@ -528,7 +534,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             string tempFile1 = Path.GetTempFileName();
             string tempFile2 = Path.GetTempFileName();
@@ -557,13 +563,13 @@ namespace Opc.Ua.Client.Tests
                 using (var stream = new FileStream(tempFile1, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read backward compatible export");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read backward compatible export");
                 }
 
                 using (var stream = new FileStream(tempFile2, FileMode.Open))
                 {
                     var nodeSet = UANodeSet.Read(stream);
-                    Assert.IsNotNull(nodeSet, "Should be able to read default options export");
+                    Assert.That(nodeSet, Is.Not.Null, "Should be able to read default options export");
                 }
             }
             finally
@@ -601,7 +607,7 @@ namespace Opc.Ua.Client.Tests
                 allNodes.Add(serverStatusNode);
             }
 
-            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+            Assert.That(allNodes, Is.Not.Empty, "Should have found at least one node");
 
             // Export WITHOUT user context
             string tempFileNoContext = Path.GetTempFileName();
@@ -652,27 +658,27 @@ namespace Opc.Ua.Client.Tests
                     using (var stream = new FileStream(tempFileNoContext, FileMode.Open))
                     {
                         nodeSetNoContext = UANodeSet.Read(stream);
-                        Assert.IsNotNull(nodeSetNoContext, "Should be able to read NodeSet without user context");
+                        Assert.That(nodeSetNoContext, Is.Not.Null, "Should be able to read NodeSet without user context");
                     }
 
                     UANodeSet nodeSetWithContext;
                     using (var stream = new FileStream(tempFileWithContext, FileMode.Open))
                     {
                         nodeSetWithContext = UANodeSet.Read(stream);
-                        Assert.IsNotNull(nodeSetWithContext, "Should be able to read NodeSet with user context");
+                        Assert.That(nodeSetWithContext, Is.Not.Null, "Should be able to read NodeSet with user context");
                     }
 
                     // Verify that methods in the context version have UserExecutable
                     List<UAMethod> methodsNoContext = nodeSetNoContext.Items?.OfType<UAMethod>().ToList() ?? [];
                     List<UAMethod> methodsWithContext = nodeSetWithContext.Items?.OfType<UAMethod>().ToList() ?? [];
 
-                    Assert.AreEqual(methodsNoContext.Count, methodsWithContext.Count, "Should have same number of methods");
+                    Assert.That(methodsWithContext.Count, Is.EqualTo(methodsNoContext.Count), "Should have same number of methods");
 
                     // Variables with context should potentially have UserAccessLevel if different from AccessLevel
                     List<UAVariable> variablesNoContext = nodeSetNoContext.Items?.OfType<UAVariable>().ToList() ?? [];
                     List<UAVariable> variablesWithContext = nodeSetWithContext.Items?.OfType<UAVariable>().ToList() ?? [];
 
-                    Assert.AreEqual(variablesNoContext.Count, variablesWithContext.Count, "Should have same number of variables");
+                    Assert.That(variablesWithContext.Count, Is.EqualTo(variablesNoContext.Count), "Should have same number of variables");
 
                     // File with user context should be larger or equal
                     var fileNoContext = new FileInfo(tempFileNoContext);
@@ -680,8 +686,8 @@ namespace Opc.Ua.Client.Tests
 
                     // Note: Sizes might be equal if UserAccessLevel == AccessLevel for all variables
                     // The important part is that export completes successfully with both options
-                    Assert.IsTrue(fileWithContext.Length > 0, "Export with user context should produce a valid file");
-                    Assert.IsTrue(fileNoContext.Length > 0, "Export without user context should produce a valid file");
+                    Assert.That(fileWithContext.Length, Is.GreaterThan(0), "Export with user context should produce a valid file");
+                    Assert.That(fileNoContext.Length, Is.GreaterThan(0), "Export without user context should produce a valid file");
                 }
                 finally
                 {

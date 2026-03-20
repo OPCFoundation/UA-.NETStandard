@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -44,7 +45,7 @@ namespace Opc.Ua
         /// <summary>
         /// The security profiles which are supported for this configuration.
         /// </summary>
-        public StringCollection SupportedSecurityPolicies { get; private set; }
+        public ArrayOf<string> SupportedSecurityPolicies { get; private set; }
 
         /// <summary>
         /// Get the provider which is invoked when a password
@@ -197,9 +198,9 @@ namespace Opc.Ua
         /// Use the list of application certificates to build a list
         /// of supported security policies.
         /// </summary>
-        private StringCollection BuildSupportedSecurityPolicies()
+        private ArrayOf<string> BuildSupportedSecurityPolicies()
         {
-            var securityPolicies = new StringCollection { SecurityPolicies.None };
+            var securityPolicies = new List<string> { SecurityPolicies.None };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 if (applicationCertificate.CertificateType.IsNull)
@@ -247,7 +248,7 @@ namespace Opc.Ua
                 }
             }
             // filter based on platform support
-            var result = new StringCollection();
+            var result = new List<string>();
             foreach (string securityPolicyUri in securityPolicies.Distinct())
             {
                 if (SecurityPolicies.GetDisplayName(securityPolicyUri) != null)

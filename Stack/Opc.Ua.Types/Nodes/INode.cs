@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -213,7 +211,7 @@ namespace Opc.Ua
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The array dimensions.</value>
-        IList<uint> ArrayDimensions { get; set; }
+        ArrayOf<uint> ArrayDimensions { get; set; }
     }
 
     /// <summary>

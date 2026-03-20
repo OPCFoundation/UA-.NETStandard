@@ -108,6 +108,18 @@ namespace Opc.Ua
 #pragma warning restore CA5394 // Do not use insecure randomness
         }
 
+        /// <summary>
+        /// Get a random byte string of the specified length.
+        /// </summary>
+        public ByteString GetByteString(int length)
+        {
+            byte[] buffer = new byte[length];
+#pragma warning disable CA5394 // Do not use insecure randomness
+            m_random.NextBytes(buffer);
+#pragma warning restore CA5394 // Do not use insecure randomness
+            return ByteString.From(buffer);
+        }
+
         private readonly Random m_random;
     }
 }

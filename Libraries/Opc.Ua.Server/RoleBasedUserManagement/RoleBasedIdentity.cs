@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Xml;
 
@@ -190,17 +191,15 @@ namespace Opc.Ua.Server
         {
             m_identity = identity;
             Roles = roles;
-            foreach (Role role in roles)
-            {
-                if (role != null)
-                {
-                    GrantedRoleIds.Add(ExpandedNodeId.ToNodeId(role.RoleId, namespaces));
-                }
-            }
+            GrantedRoleIds = identity.GrantedRoleIds
+                .AddItems(roles
+                .Where(role => role != null)
+                .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
+                .ToArrayOf());
         }
 
         /// <inheritdoc/>
-        public NodeIdCollection GrantedRoleIds => m_identity.GrantedRoleIds;
+        public ArrayOf<NodeId> GrantedRoleIds { get; }
 
         /// <summary>
         /// The role in the context of a server.

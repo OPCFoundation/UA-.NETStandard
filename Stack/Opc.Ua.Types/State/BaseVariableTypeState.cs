@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -55,15 +54,10 @@ namespace Opc.Ua
         {
             if (source is BaseVariableTypeState type)
             {
-                m_value = CoreUtils.Clone(type.m_value);
+                m_value = m_value.Copy();
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
-                m_arrayDimensions = null;
-
-                if (type.m_arrayDimensions != null)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(type.m_arrayDimensions, true);
-                }
+                m_arrayDimensions = type.m_arrayDimensions;
             }
 
             base.Initialize(context, source);
@@ -108,11 +102,10 @@ namespace Opc.Ua
             }
             return
                 base.DeepEquals(state) &&
-                EqualityComparer<object>.Default.Equals(state.Value, Value) &&
+                state.Value == Value &&
                 state.DataType == DataType &&
                 state.ValueRank == ValueRank &&
-                ArrayEqualityComparer<uint>.Default.Equals(
-                    state.ArrayDimensions?.ToArray(), ArrayDimensions?.ToArray())
+                state.ArrayDimensions == ArrayDimensions
                 ;
         }
 
@@ -124,8 +117,7 @@ namespace Opc.Ua
             hash.Add(Value);
             hash.Add(DataType);
             hash.Add(ValueRank);
-            hash.Add(ArrayEqualityComparer<uint>.Default.GetHashCode(
-                ArrayDimensions?.ToArray()));
+            hash.Add(ArrayDimensions);
             return hash.ToHashCode();
         }
 
@@ -134,7 +126,7 @@ namespace Opc.Ua
         {
             if (target is BaseVariableTypeState state)
             {
-                state.Value = Value;
+                state.Value = Value.Copy();
                 state.DataType = DataType;
                 state.ValueRank = ValueRank;
                 state.ArrayDimensions = ArrayDimensions;
@@ -205,12 +197,12 @@ namespace Opc.Ua
         /// <summary>
         /// The number of dimensions for an array values with one or more fixed dimensions.
         /// </summary>
-        public ReadOnlyList<uint> ArrayDimensions
+        public ArrayOf<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
             set
             {
-                if (!ReferenceEquals(m_arrayDimensions, value))
+                if (m_arrayDimensions != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -252,12 +244,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnWriteArrayDimensions;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -270,15 +262,10 @@ namespace Opc.Ua
 
             if (node is VariableTypeNode variableTypeNode)
             {
-                variableTypeNode.Value = new Variant(CoreUtils.Clone(Value));
+                variableTypeNode.Value = Value.Copy();
                 variableTypeNode.DataType = DataType;
                 variableTypeNode.ValueRank = ValueRank;
-                variableTypeNode.ArrayDimensions = null;
-
-                if (ArrayDimensions != null)
-                {
-                    variableTypeNode.ArrayDimensions = [.. ArrayDimensions];
-                }
+                variableTypeNode.ArrayDimensions = ArrayDimensions;
             }
         }
 
@@ -308,7 +295,7 @@ namespace Opc.Ua
                 encoder.WriteInt32("ValueRank", ValueRank);
             }
 
-            if (ArrayDimensions != null)
+            if (!ArrayDimensions.IsEmpty)
             {
                 encoder.WriteString(
                     "ArrayDimensions",
@@ -377,7 +364,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ValueRank;
             }
 
-            if (m_arrayDimensions != null)
+            if (!m_arrayDimensions.IsEmpty)
             {
                 attributesToSave |= AttributesToSave.ArrayDimensions;
             }
@@ -415,7 +402,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
             {
-                encoder.WriteUInt32Array(null, m_arrayDimensions);
+                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray());
             }
         }
 
@@ -449,16 +436,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
             {
-                UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
-
-                if (arrayDimensions != null && arrayDimensions.Count > 0)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                }
-                else
-                {
-                    m_arrayDimensions = null;
-                }
+                m_arrayDimensions = decoder.ReadUInt32Array(null);
             }
         }
 
@@ -507,9 +485,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
+                    ArrayOf<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<uint[]> onReadArrayDimensions = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<ArrayOf<uint>> onReadArrayDimensions = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
@@ -535,7 +513,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             value = m_value;
 
@@ -646,7 +624,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    if (!value.TryGet(out uint[] arrayDimensions))
+                    if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
                     {
                         if (!value.IsNull)
                         {
@@ -660,7 +638,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<uint[]> onWriteArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>> onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -670,14 +648,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (arrayDimensions != null)
-                        {
-                            m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                        }
-                        else
-                        {
-                            ArrayDimensions = null;
-                        }
+                        ArrayDimensions = arrayDimensions;
                     }
 
                     return result;
@@ -694,7 +665,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -704,13 +675,13 @@ namespace Opc.Ua
             }
 
             // ensure the source timestamp has a valid value.
-            if (sourceTimestamp == DateTime.MinValue)
+            if (sourceTimestamp == DateTimeUtc.MinValue)
             {
-                sourceTimestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTimeUtc.Now;
             }
 
             // index range writes not supported.
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -748,7 +719,7 @@ namespace Opc.Ua
         private Variant m_value;
         private NodeId m_dataType;
         private int m_valueRank;
-        private ReadOnlyList<uint> m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
     }
 
     /// <summary>
@@ -804,7 +775,7 @@ namespace Opc.Ua
                 Namespaces.OpcUa,
                 context.NamespaceUris);
             ValueRank = ValueRanks.Any;
-            ArrayDimensions = null;
+            ArrayDimensions = default;
         }
     }
 
@@ -812,13 +783,25 @@ namespace Opc.Ua
     /// A typed base class for all data variable type nodes.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
+    public abstract class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
     {
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState()
+        protected BaseDataVariableTypeState()
         {
+        }
+
+        /// <summary>
+        /// Creates a new instance of the <see cref="BaseDataVariableTypeState{T}"/>
+        /// class with a built-in value type and associated TBuilder to
+        /// extract the value from the Variant and create a new Variant from it.
+        /// </summary>
+        /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+        public static BaseDataVariableTypeState<T> With<TBuilder>()
+            where TBuilder : struct, IVariantBuilder<T>
+        {
+            return new Implementation<TBuilder>();
         }
 
         /// <summary>
@@ -830,102 +813,26 @@ namespace Opc.Ua
             base.Initialize<T>(context);
         }
 
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
-        }
-    }
-
-    /// <summary>
-    /// A base class for all property variable type nodes.
-    /// </summary>
-    public class PropertyTypeState : BaseVariableTypeState
-    {
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public PropertyTypeState()
-        {
-        }
+        /// <inheritdoc/>
+        public new abstract T Value { get; set; }
 
         /// <summary>
-        /// Constructs an instance of a node.
+        /// Adds builder which extracts T from Variant or creates new
+        /// Variant with type T. This is public so it can be overridden
+        /// by classes outside of the namespace.
         /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
+        /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+        public class Implementation<TBuilder> : BaseDataVariableTypeState<T>
+            where TBuilder : struct, IVariantBuilder<T>
         {
-            return new PropertyTypeState();
-        }
+            /// <inheritdoc/>
+            public override T Value
+            {
+                get => m_builder.GetValue(WrappedValue);
+                set => WrappedValue = m_builder.WithValue(value);
+            }
 
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SuperTypeId = NodeId.Create(
-                VariableTypes.BaseVariableType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            NodeId = NodeId.Create(
-                VariableTypes.PropertyType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            BrowseName = QualifiedName.Create(
-                BrowseNames.PropertyType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            DisplayName = new LocalizedText(
-                BrowseNames.PropertyType,
-                string.Empty,
-                BrowseNames.PropertyType);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            IsAbstract = false;
-            Value = Variant.Null;
-            DataType = NodeId.Create(
-                DataTypes.BaseDataType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            ValueRank = ValueRanks.Any;
-            ArrayDimensions = null;
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all property variable type nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class PropertyTypeState<T> : PropertyTypeState
-    {
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public PropertyTypeState()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
+            private readonly TBuilder m_builder = new();
         }
     }
 }

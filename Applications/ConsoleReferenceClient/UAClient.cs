@@ -269,7 +269,7 @@ namespace Quickstarts
                             m_configuration.ApplicationName,
                             SessionLifeTime,
                             UserIdentity,
-                            null,
+                            default,
                             ct)
                         .ConfigureAwait(false);
 

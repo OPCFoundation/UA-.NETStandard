@@ -31,7 +31,6 @@ using System.IO;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
@@ -65,11 +64,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 true,
                 stringTable,
                 logger);
-            Assert.NotNull(diagnosticInfo);
-            Assert.AreEqual(0, diagnosticInfo.SymbolicId);
-            Assert.AreEqual(1, diagnosticInfo.NamespaceUri);
-            Assert.AreEqual(2, diagnosticInfo.Locale);
-            Assert.AreEqual(3, diagnosticInfo.LocalizedText);
+            Assert.That(diagnosticInfo, Is.Not.Null);
+            Assert.That(diagnosticInfo.SymbolicId, Is.Zero);
+            Assert.That(diagnosticInfo.NamespaceUri, Is.EqualTo(1));
+            Assert.That(diagnosticInfo.Locale, Is.EqualTo(2));
+            Assert.That(diagnosticInfo.LocalizedText, Is.EqualTo(3));
 
             // recursive inner diagnostics, ensure its truncated
             for (int ii = 0; ii < DiagnosticInfo.MaxInnerDepth + 1; ii++)
@@ -82,17 +81,17 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 true,
                 stringTable,
                 logger);
-            Assert.NotNull(diagnosticInfo);
+            Assert.That(diagnosticInfo, Is.Not.Null);
             int depth = 0;
             DiagnosticInfo innerDiagnosticInfo = diagnosticInfo;
-            Assert.NotNull(innerDiagnosticInfo);
+            Assert.That(innerDiagnosticInfo, Is.Not.Null);
             while (innerDiagnosticInfo != null)
             {
                 depth++;
                 innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo;
                 if (depth > DiagnosticInfo.MaxInnerDepth)
                 {
-                    Assert.Null(innerDiagnosticInfo);
+                    Assert.That(innerDiagnosticInfo, Is.Null);
                     break;
                 }
             }

@@ -51,8 +51,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u)),
                 new DataValue(new Variant(4000u)),
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(25000u)),
                 new DataValue(new Variant(26000u)),
                 new DataValue(new Variant(27000u))
-            };
+            ];
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -139,8 +139,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -166,12 +166,12 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u))
-            };
+            ];
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -201,12 +201,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
-                new DataValue(StatusCodes.BadUnexpectedError)
-            };
-
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [new DataValue(StatusCodes.BadUnexpectedError)];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -232,12 +228,9 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
-                new DataValue("InvalidDataType")
-            };
+            ArrayOf<DataValue> dataValues = [new DataValue("InvalidDataType")];
 
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -276,7 +269,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task FetchOperationLimitsAsyncShouldApplyClientLimitsWhenSmaller()
+        public async Task FetchOperationLimitsAsyncShouldApplyClientLimitsWhenSmallerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var channel = new Mock<ITransportChannel>();
@@ -316,8 +309,8 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct = CancellationToken.None;
 
             // Server returns larger values
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData - no client limit
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents - no client limit
                 new DataValue(new Variant(5000u)), // MaxNodesPerWrite - client has 2000
@@ -345,7 +338,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u))
-            };
+            ];
 
             channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -376,7 +369,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task FetchOperationLimitsAsyncShouldApplyServerLimitsWhenSmaller()
+        public async Task FetchOperationLimitsAsyncShouldApplyServerLimitsWhenSmallerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var channel = new Mock<ITransportChannel>();
@@ -416,8 +409,8 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct = CancellationToken.None;
 
             // Server returns smaller values
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData
                 new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents
                 new DataValue(new Variant(5000u)), // MaxNodesPerWrite - server has 5000, client has 10000
@@ -445,7 +438,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(1000u))
-            };
+            ];
 
             channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -510,10 +503,10 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
-            var serverArray1 = new DataValue(new Variant(["http://server1", "http://server2"]));
-            var namespaceArray2 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
-            var serverArray2 = new DataValue(new Variant(["http://server1", "http://server2", "http://server3"]));
+            var namespaceArray1 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var serverArray1 = new DataValue(Variant.From(["http://server1", "http://server2"]));
+            var namespaceArray2 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            var serverArray2 = new DataValue(Variant.From(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -686,8 +679,8 @@ namespace Opc.Ua.Client.Tests
             var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = [];
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -965,7 +958,7 @@ namespace Opc.Ua.Client.Tests
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
 
             sut.Channel
                 .Setup(c => c.ReconnectAsync(
@@ -991,7 +984,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.ReconnectAsync(ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.EquivalentTo(serverNonce));
+            Assert.That(sut.ServerNonce, Is.EqualTo(serverNonce));
             sut.Channel.Verify();
         }
 
@@ -1083,7 +1076,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(new ActivateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     Results = [],
                     DiagnosticInfos = []
                 }))
@@ -1091,7 +1084,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.ReconnectAsync(ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.Null);
+            Assert.That(sut.ServerNonce.IsEmpty, Is.True);
             sut.Channel.Verify();
         }
 
@@ -1203,7 +1196,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel
@@ -1269,8 +1262,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     Results =
                     [
-                        new (new[] { Ua.Namespaces.OpcUa }),
-                        new(Array.Empty<string>())
+                        new(ArrayOf.Create([Ua.Namespaces.OpcUa])),
+                        new(ArrayOf.Empty<string>())
                     ],
                     DiagnosticInfos = []
                 }))
@@ -1278,7 +1271,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.OpenAsync("test", new UserIdentity(), ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.EquivalentTo(new byte[] { 1, 2, 3, 4 }));
+            Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
             sut.Channel.Verify();
         }
 
@@ -1298,7 +1291,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel
@@ -1364,7 +1357,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel
@@ -1413,7 +1406,7 @@ namespace Opc.Ua.Client.Tests
                     "test",
                     60000,
                     new UserIdentity(),
-                    null,
+                    default,
                     true,
                     closeChannel: true,
                     default).ConfigureAwait(false));
@@ -1530,7 +1523,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(new CreateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     SessionId = NodeId.Parse("s=connected")
                 }))
                 .Verifiable(Times.Once);
@@ -1567,7 +1560,7 @@ namespace Opc.Ua.Client.Tests
             var loadSession = SessionMock.Create();
             var loadedSubscriptions = loadSession.Load(stream).ToList();
 
-            Assert.That(loadedSubscriptions.Count, Is.EqualTo(2), "Only the specified subscriptions should be saved");
+            Assert.That(loadedSubscriptions, Has.Count.EqualTo(2), "Only the specified subscriptions should be saved");
             Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
         }
     }

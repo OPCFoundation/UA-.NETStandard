@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
             PublishingState state = subscription.PublishTimerExpired();
 
             Assert.That(state, Is.EqualTo(PublishingState.Idle));
-            Assert.That(GetItemsToPublishCount(subscription), Is.EqualTo(0));
+            Assert.That(GetItemsToPublishCount(subscription), Is.Zero);
         }
 
         [Test]

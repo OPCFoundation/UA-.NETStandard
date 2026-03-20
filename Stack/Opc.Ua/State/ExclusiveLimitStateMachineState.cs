@@ -83,12 +83,7 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
-        protected override uint[,] TransitionMappings => m_transitionMappings;
-
-        /// <summary>
-        /// A table of the to and from states for the transitions.
-        /// </summary>
-        private readonly uint[,] m_transitionMappings = new uint[,]
+        protected override uint[,] TransitionMappings { get; } = new uint[,]
         {
             {
                 Objects.ExclusiveLimitStateMachineType_HighHighToHigh,

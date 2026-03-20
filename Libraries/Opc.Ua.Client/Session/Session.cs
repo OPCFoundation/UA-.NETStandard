@@ -104,8 +104,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
-            EndpointDescriptionCollection? availableEndpoints = null,
-            StringCollection? discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
             : this(
                   channel,
                   configuration,
@@ -253,7 +253,7 @@ namespace Opc.Ua.Client
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
             // set the default preferred locales.
-            m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
+            m_preferredLocales = [CultureInfo.CurrentCulture.Name];
 
             // create a context to use.
             m_systemContext = new SessionSystemContext(m_telemetry)
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client
                 NamespaceUris = NamespaceUris,
                 ServerUris = ServerUris,
                 TypeTable = TypeTree,
-                PreferredLocales = null,
+                PreferredLocales = default,
                 SessionId = default,
                 UserIdentity = null
             };
@@ -309,9 +309,9 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerNonce(
             IUserIdentity identity,
-            byte[]? serverNonce,
+            ByteString serverNonce,
             string? securityPolicyUri,
-            byte[]? previousServerNonce,
+            ByteString previousServerNonce,
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
             // skip validation if server nonce is not used for encryption.
@@ -325,7 +325,7 @@ namespace Opc.Ua.Client
             {
                 // the server nonce should be validated if the token includes a secret.
                 if (!Nonce.ValidateNonce(
-                    serverNonce,
+                    serverNonce.ToArray(),
                     MessageSecurityMode.SignAndEncrypt,
                     (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
@@ -346,8 +346,7 @@ namespace Opc.Ua.Client
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
-                if (previousServerNonce != null &&
-                    Nonce.CompareNonce(serverNonce, previousServerNonce))
+                if (!previousServerNonce.IsEmpty && serverNonce == previousServerNonce)
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -578,7 +577,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
-        public StringCollection PreferredLocales => m_preferredLocales;
+        public ArrayOf<string> PreferredLocales => m_preferredLocales;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -893,9 +892,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
-            var serverNonce = Nonce.CreateNonce(
+            Nonce serverNonce = Nonce.CreateNonce(
                 m_endpoint.Description?.SecurityPolicyUri,
-                m_serverNonce);
+                m_serverNonce.ToArray());
             sessionConfiguration = new SessionConfiguration
             {
                 SessionName = SessionName,
@@ -914,15 +913,15 @@ namespace Opc.Ua.Client
         public void Restore(SessionConfiguration sessionConfiguration)
         {
             ThrowIfDisposed();
-            byte[]? serverCertificate = m_endpoint.Description?.ServerCertificate;
+            ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate =
-                serverCertificate != null
+                !serverCertificate.IsEmpty
                     ? CertificateFactory.Create(serverCertificate)
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = sessionConfiguration.ServerNonce?.Data;
+            m_serverNonce = ByteString.From(sessionConfiguration.ServerNonce?.Data);
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
 
@@ -1079,7 +1078,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct)
@@ -1103,9 +1102,9 @@ namespace Opc.Ua.Client
             // validate the server certificate /certificate chain.
             IUserIdentityTokenHandler identityToken = identity.TokenHandler;
             X509Certificate2? serverCertificate = null;
-            byte[]? certificateData = m_endpoint.Description.ServerCertificate;
+            ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
-            if (certificateData != null && certificateData.Length > 0)
+            if (certificateData.Length > 0)
             {
                 X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
@@ -1140,12 +1139,12 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
+            ByteString clientNonce = ByteString.From(Nonce.CreateRandomNonceData(length));
 
             // send the application instance certificate for the client.
             BuildCertificateData(
-                out byte[]? clientCertificateData,
-                out byte[]? clientCertificateChainData);
+                out ByteString clientCertificateData,
+                out ByteString clientCertificateChainData);
 
             var clientDescription = new ApplicationDescription
             {
@@ -1181,7 +1180,7 @@ namespace Opc.Ua.Client
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
                         clientNonce,
-                        null,
+                        default,
                         sessionTimeout,
                         maxMessageSize,
                         ct).ConfigureAwait(false);
@@ -1204,7 +1203,9 @@ namespace Opc.Ua.Client
                     m_endpoint.EndpointUrl.ToString(),
                     sessionName,
                     clientNonce,
-                    clientCertificateChainData ?? clientCertificateData,
+                    clientCertificateChainData.IsEmpty ?
+                        clientCertificateData :
+                        clientCertificateChainData,
                     sessionTimeout,
                     maxMessageSize,
                     ct).ConfigureAwait(false);
@@ -1216,10 +1217,10 @@ namespace Opc.Ua.Client
             }
             NodeId sessionId = response.SessionId;
             NodeId sessionCookie = response.AuthenticationToken;
-            byte[]? serverNonce = response.ServerNonce;
-            byte[]? serverCertificateData = response.ServerCertificate;
+            ByteString serverNonce = response.ServerNonce;
+            ByteString serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
-            EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
+            ArrayOf<EndpointDescription> serverEndpoints = response.ServerEndpoints;
 
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
@@ -1258,11 +1259,12 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                byte[] dataToSign = Utils.Append(serverCertificate?.RawData, serverNonce);
+                ByteString dataToSign = ByteString.Combine(
+                    ByteString.From(serverCertificate?.RawData), serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(
                     m_instanceCertificate,
                     securityPolicyUri,
-                    dataToSign);
+                    dataToSign.ToArray());
 
                 // select the security policy for the user token.
                 string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
@@ -1280,20 +1282,20 @@ namespace Opc.Ua.Client
                     identity,
                     serverNonce,
                     tokenSecurityPolicyUri,
-                    previousServerNonce,
+                    previousServerNonce.ToByteString(),
                     m_endpoint.Description.SecurityMode);
 
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign,
+                    dataToSign.ToArray(),
                     tokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
                     serverCertificate,
-                    serverNonce,
+                    serverNonce.ToArray(),
                     m_userTokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
@@ -1302,9 +1304,9 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // copy the preferred locales if provided.
-                if (preferredLocales != null && preferredLocales.Count > 0)
+                if (preferredLocales.Count > 0)
                 {
-                    m_preferredLocales = [.. preferredLocales];
+                    m_preferredLocales = preferredLocales;
                 }
 
                 // activate session.
@@ -1321,19 +1323,15 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
 
                 serverNonce = activateResponse.ServerNonce;
-                StatusCodeCollection certificateResults = activateResponse.Results;
-                DiagnosticInfoCollection certificateDiagnosticInfos = activateResponse
-                    .DiagnosticInfos;
+                ArrayOf<StatusCode> certificateResults = activateResponse.Results;
+                ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
 
-                if (certificateResults != null)
+                for (int i = 0; i < certificateResults.Count; i++)
                 {
-                    for (int i = 0; i < certificateResults.Count; i++)
-                    {
-                        m_logger.LogInformation(
-                            "ActivateSession result[{Index}] = {Result}",
-                            i,
-                            certificateResults[i]);
-                    }
+                    m_logger.LogInformation(
+                        "ActivateSession result[{Index}] = {Result}",
+                        i,
+                        certificateResults[i]);
                 }
 
                 // fetch namespaces.
@@ -1344,7 +1342,7 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = previousServerNonce;
+                    m_previousServerNonce = previousServerNonce.ToByteString();
                     m_serverNonce = serverNonce;
                     m_serverCertificate = serverCertificate;
 
@@ -1395,7 +1393,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public Task ChangePreferredLocalesAsync(
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct)
         {
             return UpdateSessionAsync(Identity, preferredLocales, ct);
@@ -1404,12 +1402,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task UpdateSessionAsync(
             IUserIdentity? identity,
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
-            byte[]? serverNonce = null;
+            ByteString serverNonce = default;
 
             lock (m_lock)
             {
@@ -1423,8 +1421,9 @@ namespace Opc.Ua.Client
 
                 // get current nonce.
                 serverNonce = m_serverNonce;
-
-                preferredLocales ??= m_preferredLocales;
+                preferredLocales = preferredLocales.IsEmpty ?
+                    m_preferredLocales :
+                    preferredLocales;
             }
 
             // get the identity token.
@@ -1432,11 +1431,12 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // create the client signature.
-            byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, serverNonce);
+            ByteString dataToSign = ByteString.Combine(
+                ByteString.From(m_serverCertificate?.RawData), serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(
                 m_instanceCertificate,
                 securityPolicyUri,
-                dataToSign);
+                dataToSign.ToArray());
 
             // choose a default token.
             identity ??= new UserIdentity();
@@ -1482,7 +1482,7 @@ namespace Opc.Ua.Client
             using var identityToken = (IUserIdentityTokenHandler)identity.TokenHandler.Clone();
             identityToken.UpdatePolicy(identityPolicy);
             SignatureData userTokenSignature = identityToken.Sign(
-                dataToSign,
+                dataToSign.ToArray(),
                 tokenSecurityPolicyUri);
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1490,7 +1490,7 @@ namespace Opc.Ua.Client
             // encrypt token.
             identityToken.Encrypt(
                 m_serverCertificate,
-                serverNonce,
+                serverNonce.ToArray(),
                 m_userTokenSecurityPolicyUri,
                 MessageContext,
                 m_eccServerEphemeralKey,
@@ -1601,7 +1601,7 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1630,8 +1630,8 @@ namespace Opc.Ua.Client
                     {
                         try
                         {
-                            IReadOnlyList<ServiceResult> resendResults = await this.ResendDataAsync(
-                                subscriptions.Select(s => s.Id),
+                            ArrayOf<ServiceResult> resendResults = await this.ResendDataAsync(
+                                subscriptions.Select(s => s.Id).ToArrayOf(),
                                 ct).ConfigureAwait(false);
                             for (int ii = 0; ii < resendResults.Count; ii++)
                             {
@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1696,8 +1696,8 @@ namespace Opc.Ua.Client
                             sendInitialValues,
                             ct)
                         .ConfigureAwait(false);
-                    TransferResultCollection results = response.Results;
-                    DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<TransferResult> results = response.Results;
+                    ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
                     ResponseHeader responseHeader = response.ResponseHeader;
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
@@ -1787,7 +1787,7 @@ namespace Opc.Ua.Client
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
+            ArrayOf<ReadValueId> nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
             ReadResponse response = await ReadAsync(
@@ -1798,8 +1798,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<DataValue> values = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             ValidateResponse(values, nodesToRead);
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
             {
-                var subTypes = new ExpandedNodeIdCollection();
+                var subTypes = new List<ExpandedNodeId>();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                 {
                     subTypes.Add(reference.TargetId);
@@ -1828,15 +1828,15 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(
-            ExpandedNodeIdCollection typeIds,
+            ArrayOf<ExpandedNodeId> typeIds,
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            var referenceTypeIds = new NodeIdCollection { ReferenceTypeIds.HasSubtype };
-            IList<INode> nodes = await NodeCache
+            ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
+            ArrayOf<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                 .ConfigureAwait(false);
-            var subTypes = new ExpandedNodeIdCollection();
+            var subTypes = new List<ExpandedNodeId>();
             foreach (INode inode in nodes)
             {
                 if (inode is Node node)
@@ -1852,7 +1852,7 @@ namespace Opc.Ua.Client
             }
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), ct).ConfigureAwait(false);
             }
         }
 
@@ -1862,20 +1862,29 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
 
             // Helper extraction
-            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
-                where T : struct
+            static uint GetUInt32(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
             {
                 DataValue value = values[index];
                 ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
                 index++;
-                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
-                {
-                    return retVal;
-                }
-                return default;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetUInt32() : default;
             }
-
-            // Apply operation limit logic: if client value is 0, use server value; otherwise use min(client, server)
+            static ushort GetUInt16(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetUInt16() : default;
+            }
+            static double GetDouble(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                return ServiceResult.IsNotBad(error) ? value.WrappedValue.GetDouble() : default;
+            }
+            // Apply operation limit logic: if client value is 0, use server value;
+            // otherwise use min(client, server)
             static uint ApplyOperationLimit(uint clientLimit, uint serverLimit)
             {
                 if (clientLimit == 0)
@@ -1890,14 +1899,16 @@ namespace Opc.Ua.Client
             }
 
             // First we read the node read max to optimize the second read.
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
         VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
-            };
-            (DataValueCollection values, IList<ServiceResult> errors) =
+            ];
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
-            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRead,
+                GetUInt32(ref index, values, errors));
 
             nodeIds =
             [
@@ -1933,45 +1944,45 @@ namespace Opc.Ua.Client
             (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
             OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryReadData, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryReadData, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryReadEvents = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryReadEvents, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryReadEvents, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerWrite = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerWrite, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerWrite, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerRead, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryUpdateData = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryUpdateData, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryUpdateData, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerHistoryUpdateEvents, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerHistoryUpdateEvents, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerMethodCall = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerMethodCall, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerMethodCall, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerBrowse = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerBrowse, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerBrowse, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerRegisterNodes = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerRegisterNodes, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerRegisterNodes, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerNodeManagement = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerNodeManagement, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxNodesPerNodeManagement, GetUInt32(ref index, values, errors));
             OperationLimits.MaxMonitoredItemsPerCall = ApplyOperationLimit(
-                OperationLimits.MaxMonitoredItemsPerCall, Get<uint>(ref index, values, errors));
+                OperationLimits.MaxMonitoredItemsPerCall, GetUInt32(ref index, values, errors));
             OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOperationLimit(
-                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
-                Get<uint>(ref index, values, errors));
-            ServerCapabilities.MaxBrowseContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxHistoryContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxQueryContinuationPoints = Get<ushort>(ref index, values, errors);
-            ServerCapabilities.MaxStringLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxArrayLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxByteStringLength = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MinSupportedSampleRate = Get<double>(ref index, values, errors);
-            ServerCapabilities.MaxSessions = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSubscriptions = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItems = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItemsPerSubscription = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxMonitoredItemsQueueSize = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSubscriptionsPerSession = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxWhereClauseParameters = Get<uint>(ref index, values, errors);
-            ServerCapabilities.MaxSelectClauseParameters = Get<uint>(ref index, values, errors);
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, GetUInt32(ref index, values, errors));
+
+            ServerCapabilities.MaxBrowseContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxHistoryContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxQueryContinuationPoints = GetUInt16(ref index, values, errors);
+            ServerCapabilities.MaxStringLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxArrayLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxByteStringLength = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MinSupportedSampleRate = GetDouble(ref index, values, errors);
+            ServerCapabilities.MaxSessions = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSubscriptions = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItems = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItemsPerSubscription = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxMonitoredItemsQueueSize = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSubscriptionsPerSession = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxWhereClauseParameters = GetUInt32(ref index, values, errors);
+            ServerCapabilities.MaxSelectClauseParameters = GetUInt32(ref index, values, errors);
 
             uint maxByteStringLength = (uint?)m_configuration.TransportQuotas?.MaxByteStringLength ?? 0u;
             if (maxByteStringLength != 0 &&
@@ -2315,12 +2326,13 @@ namespace Opc.Ua.Client
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 // create the client signature.
-                byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, m_serverNonce);
+                ByteString dataToSign = ByteString.Combine(
+                    ByteString.From(m_serverCertificate?.RawData), m_serverNonce);
                 EndpointDescription endpoint = m_endpoint.Description;
                 SignatureData clientSignature = SecurityPolicies.Sign(
                     m_instanceCertificate,
                     endpoint.SecurityPolicyUri,
-                    dataToSign);
+                    dataToSign.ToArray());
 
                 // check that the user identity is supported by the endpoint.
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
@@ -2361,13 +2373,13 @@ namespace Opc.Ua.Client
                 using var identityToken = (IUserIdentityTokenHandler)m_identity.TokenHandler.Clone();
                 identityToken.UpdatePolicy(identityPolicy);
                 SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign,
+                    dataToSign.ToArray(),
                     m_userTokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
                     m_serverCertificate,
-                    m_serverNonce,
+                    m_serverNonce.ToArray(),
                     m_userTokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
@@ -2457,9 +2469,9 @@ namespace Opc.Ua.Client
                         userTokenSignature,
                         timeout.Token).ConfigureAwait(false);
 
-                    byte[]? serverNonce = activateResult.ServerNonce;
-                    StatusCodeCollection certificateResults = activateResult.Results;
-                    DiagnosticInfoCollection certificateDiagnosticInfos = activateResult.DiagnosticInfos;
+                    ByteString serverNonce = activateResult.ServerNonce;
+                    ArrayOf<StatusCode> certificateResults = activateResult.Results;
+                    ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
                     m_logger.LogInformation("Session RECONNECT {SessionId} completed successfully.", SessionId);
 
@@ -2483,7 +2495,7 @@ namespace Opc.Ua.Client
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    var error = ServiceResult.Create(
+                    ServiceResult error = ServiceResult.Create(
                         StatusCodes.BadRequestTimeout,
                         "ACTIVATE SESSION timed out. {0}/{1}",
                         GoodPublishRequestCount,
@@ -2549,7 +2561,7 @@ namespace Opc.Ua.Client
                 ProcessPublishResponse(
                     responseHeader,
                     subscriptionId,
-                    null,
+                    default,
                     false,
                     notificationMessage);
 
@@ -2677,7 +2689,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnApplicationCertificateError(
-            byte[] serverCertificate,
+            ByteString serverCertificate,
             ServiceResult result)
         {
             throw new ServiceResultException(result);
@@ -2696,17 +2708,17 @@ namespace Opc.Ua.Client
 
             m_serverState = ServerState.Unknown;
 
-            var nodesToRead = new ReadValueIdCollection
-            {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
                 // read the server state.
                 new ReadValueId
                 {
-                    NodeId = Variables.Server_ServerStatus_State,
+                    NodeId = VariableIds.Server_ServerStatus_State,
                     AttributeId = Attributes.Value,
                     DataEncoding = QualifiedName.Null,
                     IndexRange = null
                 }
-            };
+            ];
 
             await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
@@ -3033,7 +3045,7 @@ namespace Opc.Ua.Client
         /// Sends a keep alive by reading from the server.
         /// </summary>
         private async Task OnSendKeepAliveAsync(
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
             while (!ct.IsCancellationRequested && !Disposed)
@@ -3082,8 +3094,8 @@ namespace Opc.Ua.Client
                         ct).ConfigureAwait(false);
 
                     // read the server status.
-                    DataValueCollection values = result.Results;
-                    DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+                    ArrayOf<DataValue> values = result.Results;
+                    ArrayOf<DiagnosticInfo> diagnosticInfos = result.DiagnosticInfos;
                     ResponseHeader responseHeader = result.ResponseHeader;
 
                     ValidateResponse(values, nodesToRead);
@@ -3092,7 +3104,7 @@ namespace Opc.Ua.Client
                     // validate value returned.
                     ServiceResult error = ValidateDataValue(
                         values[0],
-                        typeof(int),
+                        TypeInfo.Scalars.Int32,
                         0,
                         diagnosticInfos,
                         responseHeader);
@@ -3108,7 +3120,11 @@ namespace Opc.Ua.Client
                     }
 
                     // send notification that keep alive completed.
-                    OnKeepAlive((ServerState)(int)values[0].Value, responseHeader.Timestamp);
+                    if (!values[0].WrappedValue.TryGet(out ServerState serverState))
+                    {
+                        serverState = ServerState.Unknown;
+                    }
+                    OnKeepAlive(serverState, (DateTime)responseHeader.Timestamp);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -3259,29 +3275,23 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepares the list of node ids to read to fetch the namespace table.
         /// </summary>
-        private static ReadValueIdCollection PrepareNamespaceTableNodesToRead()
+        private static ArrayOf<ReadValueId> PrepareNamespaceTableNodesToRead()
         {
-            var nodesToRead = new ReadValueIdCollection();
-
-            // request namespace array.
-            var valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_NamespaceArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
-
-            // request server array.
-            valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_ServerArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
-
-            return nodesToRead;
+            return
+            [
+                // request namespace array.
+                new ReadValueId
+                {
+                    NodeId = VariableIds.Server_NamespaceArray,
+                    AttributeId = Attributes.Value
+                },
+                // request server array.
+                new ReadValueId
+                {
+                    NodeId = VariableIds.Server_ServerArray,
+                    AttributeId = Attributes.Value
+                }
+            ];
         }
 
         /// <summary>
@@ -3292,14 +3302,14 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void UpdateNamespaceTable(
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             // validate namespace array.
             ServiceResult result = ValidateDataValue(
                 values[0],
-                typeof(string[]),
+                TypeInfo.Arrays.String,
                 0,
                 diagnosticInfos,
                 responseHeader);
@@ -3310,8 +3320,8 @@ namespace Opc.Ua.Client
                     "Cannot read NamespaceArray node. Validation of returned value failed.");
             }
 
-            string[] namespaceArray = (string[])values[0].Value;
-            if (namespaceArray.Length == 0)
+            if (!values[0].WrappedValue.TryGet(out ArrayOf<string> namespaceArray) ||
+                namespaceArray.IsEmpty)
             {
                 throw ServiceResultException.Unexpected(
                     "Retrieved namespace list contain no entries.");
@@ -3322,7 +3332,7 @@ namespace Opc.Ua.Client
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
-            NamespaceUris.Update(namespaceArray);
+            NamespaceUris.Update(namespaceArray.ToArray());
 
             if (StatusCode.IsBad(values[1].StatusCode))
             {
@@ -3335,7 +3345,7 @@ namespace Opc.Ua.Client
             // validate server array.
             result = ValidateDataValue(
                 values[1],
-                typeof(string[]),
+                TypeInfo.Arrays.String,
                 1,
                 diagnosticInfos,
                 responseHeader);
@@ -3346,8 +3356,10 @@ namespace Opc.Ua.Client
                     "Cannot read ServerArray node. Validation of returned value failed.");
             }
 
-            string[] serverArray = (string[])values[1].Value;
-            ServerUris.Update(serverArray);
+            if (values[1].WrappedValue.TryGet(out ArrayOf<string> serverArray))
+            {
+                ServerUris.Update(serverArray.ToArray());
+            }
         }
 
         /// <summary>
@@ -3379,7 +3391,7 @@ namespace Opc.Ua.Client
                 = m_PublishSequenceNumbersToAcknowledge;
 
             // collect the current set if acknowledgements.
-            SubscriptionAcknowledgementCollection? acknowledgementsToSend = null;
+            List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)
             {
                 if (callback != null)
@@ -3387,7 +3399,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         var deferredAcknowledgementsToSend
-                            = new SubscriptionAcknowledgementCollection();
+                            = new List<SubscriptionAcknowledgement>();
                         callback(
                             this,
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
@@ -3484,7 +3496,7 @@ namespace Opc.Ua.Client
         private void OnPublishComplete(
             Task<PublishResponse> task,
             NodeId sessionId,
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            List<SubscriptionAcknowledgement>? acknowledgementsToSend,
             RequestHeader requestHeader)
         {
             // extract state information.
@@ -3506,11 +3518,11 @@ namespace Opc.Ua.Client
                 PublishResponse response = task.Result;
                 ResponseHeader responseHeader = response.ResponseHeader;
                 subscriptionId = response.SubscriptionId;
-                UInt32Collection availableSequenceNumbers = response.AvailableSequenceNumbers;
+                ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
                 bool moreNotifications = response.MoreNotifications;
                 NotificationMessage notificationMessage = response.NotificationMessage;
-                StatusCodeCollection acknowledgeResults = response.Results;
-                DiagnosticInfoCollection acknowledgeDiagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
 
                 LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
@@ -3816,25 +3828,24 @@ namespace Opc.Ua.Client
         }
 
         private void BuildCertificateData(
-            out byte[]? clientCertificateData,
-            out byte[]? clientCertificateChainData)
+            out ByteString clientCertificateData,
+            out ByteString clientCertificateChainData)
         {
             // send the application instance certificate for the client.
-            clientCertificateData = (m_instanceCertificate?.RawData);
-            clientCertificateChainData = null;
+            clientCertificateData = ByteString.From(m_instanceCertificate?.RawData);
+            clientCertificateChainData = default;
 
             if (m_instanceCertificateChain != null &&
                 m_instanceCertificateChain.Count > 0 &&
                 m_configuration.SecurityConfiguration.SendCertificateChain)
             {
                 var clientCertificateChain = new List<byte>();
-
                 for (int i = 0; i < m_instanceCertificateChain.Count; i++)
                 {
                     clientCertificateChain.AddRange(m_instanceCertificateChain[i].RawData);
                 }
 
-                clientCertificateChainData = [.. clientCertificateChain];
+                clientCertificateChainData = clientCertificateChain.ToByteString();
             }
         }
 
@@ -3842,11 +3853,11 @@ namespace Opc.Ua.Client
         /// Validates the server certificate returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerCertificateData(byte[]? serverCertificateData)
+        private void ValidateServerCertificateData(ByteString serverCertificateData)
         {
-            if (serverCertificateData != null &&
-                m_endpoint.Description.ServerCertificate != null &&
-                !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+            if (!serverCertificateData.IsEmpty &&
+                !m_endpoint.Description.ServerCertificate.IsEmpty &&
+                serverCertificateData != m_endpoint.Description.ServerCertificate)
             {
                 try
                 {
@@ -3880,11 +3891,11 @@ namespace Opc.Ua.Client
         private void ValidateServerSignature(
             X509Certificate2? serverCertificate,
             SignatureData serverSignature,
-            byte[]? clientCertificateData,
-            byte[]? clientCertificateChainData,
-            byte[] clientNonce)
+            ByteString clientCertificateData,
+            ByteString clientCertificateChainData,
+            ByteString clientNonce)
         {
-            if (serverSignature == null || serverSignature.Signature == null)
+            if (serverSignature == null || serverSignature.Signature.IsEmpty)
             {
                 m_logger.LogInformation("Server signature is null or empty.");
 
@@ -3894,23 +3905,23 @@ namespace Opc.Ua.Client
             }
 
             // validate the server's signature.
-            byte[] dataToSign = Utils.Append(clientCertificateData, clientNonce);
+            ByteString dataToSign = ByteString.Combine(clientCertificateData, clientNonce);
 
             if (!SecurityPolicies.Verify(
                     serverCertificate,
                     m_endpoint.Description.SecurityPolicyUri,
-                    dataToSign,
+                    dataToSign.ToArray(),
                     serverSignature))
             {
                 // validate the signature with complete chain if the check with leaf certificate failed.
-                if (clientCertificateChainData != null)
+                if (!clientCertificateChainData.IsEmpty)
                 {
-                    dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
+                    dataToSign = ByteString.Combine(clientCertificateChainData, clientNonce);
 
                     if (!SecurityPolicies.Verify(
                         serverCertificate,
                         m_endpoint.Description.SecurityPolicyUri,
-                        dataToSign,
+                        dataToSign.ToArray(),
                         serverSignature))
                     {
                         throw ServiceResultException.Create(
@@ -3947,35 +3958,32 @@ namespace Opc.Ua.Client
         /// Validates the server endpoints returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerEndpoints(EndpointDescriptionCollection serverEndpoints)
+        private void ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
         {
-            if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
+            if (!m_discoveryServerEndpoints.IsEmpty)
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
-                EndpointDescriptionCollection? expectedServerEndpoints;
-                if (serverEndpoints != null &&
-                    m_discoveryProfileUris != null &&
-                    m_discoveryProfileUris.Count > 0)
+                ArrayOf<EndpointDescription> expectedServerEndpoints = default;
+                if (!serverEndpoints.IsNull && !m_discoveryProfileUris.IsEmpty)
                 {
                     // Select EndpointDescriptions with a transportProfileUri that matches the
                     // profileUris specified in the original GetEndpoints() request.
-                    expectedServerEndpoints = [];
-
+                    var expectedServerEndpointsList = new List<EndpointDescription>();
                     foreach (EndpointDescription serverEndpoint in serverEndpoints)
                     {
-                        if (m_discoveryProfileUris.Contains(serverEndpoint.TransportProfileUri))
+                        if (m_discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
                         {
-                            expectedServerEndpoints.Add(serverEndpoint);
+                            expectedServerEndpointsList.Add(serverEndpoint);
                         }
                     }
+                    expectedServerEndpoints = expectedServerEndpointsList;
                 }
                 else
                 {
                     expectedServerEndpoints = serverEndpoints;
                 }
 
-                if (expectedServerEndpoints == null ||
-                    m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -4066,14 +4074,10 @@ namespace Opc.Ua.Client
         /// <param name="matchPort">Match criteria includes port</param>
         /// <returns>Matching description or null if no description is matching</returns>
         private EndpointDescription? FindMatchingDescription(
-            EndpointDescriptionCollection? endpointDescriptions,
+            ArrayOf<EndpointDescription> endpointDescriptions,
             EndpointDescription match,
             bool matchPort)
         {
-            if (endpointDescriptions == null)
-            {
-                return null;
-            }
             Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
             for (int ii = 0; ii < endpointDescriptions.Count; ii++)
             {
@@ -4188,20 +4192,21 @@ namespace Opc.Ua.Client
         private void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
-            UInt32Collection? availableSequenceNumbers,
+            ArrayOf<uint> availableSequenceNumbers,
             bool moreNotifications,
             NotificationMessage notificationMessage)
         {
             Subscription? subscription = null;
+            var availableSequenceNumberList = availableSequenceNumbers.ToList();
 
             // send notification that the server is alive.
-            OnKeepAlive(m_serverState, responseHeader.Timestamp);
+            OnKeepAlive(m_serverState, (DateTime)responseHeader.Timestamp);
 
             // collect the current set of acknowledgements.
             lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the server does not have any more.
-                var acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                var acknowledgementsToSend = new List<SubscriptionAcknowledgement>();
 
                 uint latestSequenceNumberToSend = 0;
 
@@ -4215,7 +4220,8 @@ namespace Opc.Ua.Client
                     UpdateLatestSequenceNumberToSend(
                         ref latestSequenceNumberToSend,
                         notificationMessage.SequenceNumber);
-                    _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
+
+                    availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
                 }
 
                 // match an acknowledgement to be sent back to the server.
@@ -4227,8 +4233,7 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumbers == null ||
-                        availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(
@@ -4254,9 +4259,9 @@ namespace Opc.Ua.Client
                 }
 
                 // Check for outdated sequence numbers. May have been not acked due to a network glitch.
-                if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
+                if (latestSequenceNumberToSend != 0 && availableSequenceNumberList.Count > 0)
                 {
-                    foreach (uint sequenceNumber in availableSequenceNumbers)
+                    foreach (uint sequenceNumber in availableSequenceNumberList)
                     {
                         if ((int)(latestSequenceNumberToSend - sequenceNumber) >
                             kPublishRequestSequenceNumberOutdatedThreshold)
@@ -4280,9 +4285,9 @@ namespace Opc.Ua.Client
                 // because a publish response may not include the latest ack information yet.
 
                 uint lastSentSequenceNumber = 0;
-                if (availableSequenceNumbers != null)
+                if (availableSequenceNumberList != null)
                 {
-                    foreach (uint availableSequenceNumber in availableSequenceNumbers)
+                    foreach (uint availableSequenceNumber in availableSequenceNumberList)
                     {
                         if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
                         {
@@ -4333,7 +4338,7 @@ namespace Opc.Ua.Client
                     m_logger.LogTrace(
                         "Empty notification message received for SessionId {SessionId} with PublishTime {PublishTime}",
                         SessionId,
-                        notificationMessage.PublishTime.ToLocalTime());
+                        notificationMessage.PublishTime.ToDateTime().ToLocalTime());
                 }
             }
 
@@ -4364,7 +4369,7 @@ namespace Opc.Ua.Client
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(
                         subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
-                    ) < DateTime.UtcNow)
+                    ) < DateTimeUtc.Now)
                 {
                     m_logger.LogTrace(
                         "PublishTime {PublishTime} in publish response is too old for SubscriptionId {SubscriptionId}.",
@@ -4374,7 +4379,7 @@ namespace Opc.Ua.Client
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime >
-                    DateTime.UtcNow.AddMilliseconds(
+                    DateTimeUtc.Now.AddMilliseconds(
                         subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
                     m_logger.LogTrace(
@@ -4390,7 +4395,7 @@ namespace Opc.Ua.Client
                 notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
 
                 // raise the notification.
                 NotificationEventHandler? publishEventHandler = m_Publish;
@@ -4457,7 +4462,7 @@ namespace Opc.Ua.Client
                     subscriptionId);
 
                 // delete the subscription.
-                UInt32Collection subscriptionIds = new uint[] { subscriptionId };
+                ArrayOf<uint> subscriptionIds = [subscriptionId];
 
                 DeleteSubscriptionsResponse response = await DeleteSubscriptionsAsync(
                     null,
@@ -4465,8 +4470,8 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
 
                 ResponseHeader responseHeader = response.ResponseHeader;
-                StatusCodeCollection results = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<StatusCode> results = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 // validate response.
                 ValidateResponse(results, subscriptionIds);
@@ -4597,7 +4602,7 @@ namespace Opc.Ua.Client
         }
 
         private void AddAcknowledgementToSend(
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
             uint subscriptionId,
             uint sequenceNumber)
         {
@@ -4701,10 +4706,10 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The subscriptions to transfer.</param>
         /// <returns>The subscription ids for the transfer.</returns>
         /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
-        private UInt32Collection CreateSubscriptionIdsForTransfer(
+        private ArrayOf<uint> CreateSubscriptionIdsForTransfer(
             SubscriptionCollection subscriptions)
         {
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new List<uint>();
             lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)
@@ -4727,7 +4732,7 @@ namespace Opc.Ua.Client
                     subscriptionIds.Add(subscription.TransferId);
                 }
             }
-            return subscriptionIds;
+            return subscriptionIds.ToArrayOf();
         }
 
         /// <summary>
@@ -4783,12 +4788,14 @@ namespace Opc.Ua.Client
             if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
             {
                 var parameters = new AdditionalParametersType();
-                parameters.Parameters.Add(
+                parameters.Parameters =
+                [
                     new KeyValuePair
                     {
                         Key = QualifiedName.From("ECDHPolicyUri"),
                         Value = userTokenSecurityPolicyUri
-                    });
+                    }
+                ];
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 
@@ -4834,8 +4841,8 @@ namespace Opc.Ua.Client
                         }
 
                         if (!EccUtils.Verify(
-                                new ArraySegment<byte>(key.PublicKey ?? []),
-                                key.Signature,
+                                new ArraySegment<byte>(key.PublicKey.ToArray()),
+                                key.Signature.ToArray(),
                                 serverCertificate,
                                 m_userTokenSecurityPolicyUri))
                         {
@@ -4846,7 +4853,7 @@ namespace Opc.Ua.Client
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
                             m_userTokenSecurityPolicyUri,
-                            key.PublicKey);
+                            key.PublicKey.ToArray());
                     }
                 }
             }
@@ -4860,7 +4867,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The locales that the server should use when returning localized text.
         /// </summary>
-        protected StringCollection m_preferredLocales;
+        protected ArrayOf<string> m_preferredLocales;
 
         /// <summary>
         /// The Application Configuration.
@@ -4916,7 +4923,7 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
-        private SubscriptionAcknowledgementCollection m_acknowledgementsToSend = [];
+        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         private readonly object m_acknowledgementsToSendLock = new();
 #if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
@@ -4927,8 +4934,8 @@ namespace Opc.Ua.Client
         private readonly SessionSystemContext m_systemContext;
         private readonly NodeCache m_nodeCache;
         private readonly List<IUserIdentity> m_identityHistory = [];
-        private byte[]? m_serverNonce;
-        private byte[]? m_previousServerNonce;
+        private ByteString m_serverNonce;
+        private ByteString m_previousServerNonce;
         private X509Certificate2? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;
@@ -4949,8 +4956,8 @@ namespace Opc.Ua.Client
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_eccServerEphemeralKey;
         private Subscription? m_defaultSubscription;
-        private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
-        private readonly StringCollection? m_discoveryProfileUris;
+        private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
+        private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
 
         private sealed class AsyncRequestState : IDisposable
@@ -5028,7 +5035,7 @@ namespace Opc.Ua.Client
         public NotificationEventArgs(
             Subscription subscription,
             NotificationMessage notificationMessage,
-            IList<string> stringTable)
+            ArrayOf<string> stringTable)
         {
             Subscription = subscription;
             NotificationMessage = notificationMessage;
@@ -5048,7 +5055,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the string table returned with the notification message.
         /// </summary>
-        public IList<string> StringTable { get; }
+        public ArrayOf<string> StringTable { get; }
     }
 
     /// <summary>
@@ -5109,8 +5116,8 @@ namespace Opc.Ua.Client
         /// Creates a new instance.
         /// </summary>
         public PublishSequenceNumbersToAcknowledgeEventArgs(
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
-            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> deferredAcknowledgementsToSend)
         {
             AcknowledgementsToSend = acknowledgementsToSend;
             DeferredAcknowledgementsToSend = deferredAcknowledgementsToSend;
@@ -5123,7 +5130,7 @@ namespace Opc.Ua.Client
         /// A client may also choose to remove an acknowledgement from this list to add it back
         /// to the list in a subsequent callback when the request is fully processed.
         /// </remarks>
-        public SubscriptionAcknowledgementCollection AcknowledgementsToSend { get; }
+        public List<SubscriptionAcknowledgement> AcknowledgementsToSend { get; }
 
         /// <summary>
         /// The deferred list of acknowledgements.
@@ -5132,6 +5139,6 @@ namespace Opc.Ua.Client
         /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
         /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
-        public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend { get; }
+        public List<SubscriptionAcknowledgement> DeferredAcknowledgementsToSend { get; }
     }
 }

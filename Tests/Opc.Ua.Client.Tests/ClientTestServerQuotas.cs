@@ -32,7 +32,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -100,15 +99,15 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
@@ -153,8 +152,9 @@ namespace Opc.Ua.Client.Tests
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = NodeId.Parse($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            byte[] chunk = new byte[MaxByteStringLengthForTest];
-            UnsecureRandom.Shared.NextBytes(chunk);
+            byte[] buffer = new byte[MaxByteStringLengthForTest];
+            UnsecureRandom.Shared.NextBytes(buffer);
+            ByteString chunk = ByteString.From(buffer);
 
             var writeValue = new WriteValue
             {
@@ -163,20 +163,20 @@ namespace Opc.Ua.Client.Tests
                 Value = new DataValue { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            var writeValues = new WriteValueCollection { writeValue };
+            ArrayOf<WriteValue> writeValues = [writeValue];
 
             WriteResponse result = await theSession.WriteAsync(null, writeValues, default)
                 .ConfigureAwait(false);
-            StatusCodeCollection results = result.Results;
+            ArrayOf<StatusCode> results = result.Results;
 
             if (results[0] != StatusCodes.Good)
             {
-                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
+                Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
+            ByteString readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
                 .ConfigureAwait(false);
-            Assert.IsTrue(Utils.IsEqual(chunk, readData));
+            Assert.That(readData, Is.EqualTo(chunk));
         }
     }
 }

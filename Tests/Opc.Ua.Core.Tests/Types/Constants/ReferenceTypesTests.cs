@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
 {
@@ -68,8 +67,8 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (uint id in referenceTypeIds)
             {
                 string browseName = ReferenceTypes.GetBrowseName(id);
-                Assert.IsNotNull(browseName);
-                Assert.IsNotEmpty(browseName);
+                Assert.That(browseName, Is.Not.Null);
+                Assert.That(browseName, Is.Not.Empty);
             }
         }
 
@@ -80,7 +79,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_ReferencesReferenceType_ReturnsReferences()
         {
             string browseName = ReferenceTypes.GetBrowseName(ReferenceTypes.References);
-            Assert.AreEqual("References", browseName);
+            Assert.That(browseName, Is.EqualTo("References"));
         }
 
         /// <summary>
@@ -90,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_InvalidReferenceTypeId_ReturnsEmptyString()
         {
             string browseName = ReferenceTypes.GetBrowseName(99999);
-            Assert.AreEqual(string.Empty, browseName);
+            Assert.That(browseName, Is.Empty);
         }
 
         /// <summary>
@@ -110,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in referenceTypeNames)
             {
                 uint id = ReferenceTypes.GetIdentifier(name);
-                Assert.AreNotEqual(0, id);
+                Assert.That(id, Is.Not.Zero);
             }
         }
 
@@ -121,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_ReferencesName_ReturnsReferencesId()
         {
             uint id = ReferenceTypes.GetIdentifier("References");
-            Assert.AreEqual(ReferenceTypes.References, id);
+            Assert.That(id, Is.EqualTo(ReferenceTypes.References));
         }
 
         /// <summary>
@@ -131,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = ReferenceTypes.GetIdentifier("InvalidReferenceTypeName");
-            Assert.AreEqual(0, id);
+            Assert.That(id, Is.Zero);
         }
 
         /// <summary>
@@ -150,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = ReferenceTypes.GetBrowseName(id);
                 uint retrievedId = ReferenceTypes.GetIdentifier(browseName);
-                Assert.AreEqual(id, retrievedId);
+                Assert.That(retrievedId, Is.EqualTo(id));
             }
         }
     }

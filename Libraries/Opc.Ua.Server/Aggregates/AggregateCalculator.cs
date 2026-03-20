@@ -44,8 +44,8 @@ namespace Opc.Ua.Server
         [Obsolete("Use constructor with ITelemetryContext")]
         public AggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
@@ -65,8 +65,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public AggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server
 
             if (processingInterval == 0)
             {
-                if (endTime == DateTime.MinValue || startTime == DateTime.MinValue)
+                if (endTime == DateTimeUtc.MinValue || startTime == DateTimeUtc.MinValue)
                 {
                     throw new ArgumentException(
                         "Non-zero processingInterval required.",
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
             }
 
             // check for start of data.
-            if (m_startOfData == DateTime.MinValue)
+            if (m_startOfData == DateTimeUtc.MinValue)
             {
                 m_startOfData = value.SourceTimestamp;
             }
@@ -185,8 +185,8 @@ namespace Opc.Ua.Server
             }
 
             // check if the slice extends beyond the range of available data.
-            DateTime earlyTime = CurrentSlice.StartTime;
-            DateTime lateTime = CurrentSlice.EndTime;
+            DateTimeUtc earlyTime = CurrentSlice.StartTime;
+            DateTimeUtc lateTime = CurrentSlice.EndTime;
 
             if (CompareTimestamps(lateTime, m_values.First) < 0 ||
                 CompareTimestamps(earlyTime, m_values.Last) > 0)
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
         /// Returns true if the specified time is later than the end of the current interval.
         /// </summary>
         /// <remarks>Return true if time flows forward and the time is later than the end time.</remarks>
-        public bool HasEndTimePassed(DateTime currentTime)
+        public bool HasEndTimePassed(DateTimeUtc currentTime)
         {
             if (CurrentSlice == null)
             {
@@ -305,12 +305,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The start time for the request.
         /// </summary>
-        protected DateTime StartTime { get; }
+        protected DateTimeUtc StartTime { get; }
 
         /// <summary>
         /// The end time for the request.
         /// </summary>
-        protected DateTime EndTime { get; }
+        protected DateTimeUtc EndTime { get; }
 
         /// <summary>
         /// The processing interval for the request.
@@ -444,7 +444,7 @@ namespace Opc.Ua.Server
         /// <param name="value1">The timestamp to compare.</param>
         /// <param name="value2">The data value to compare.</param>
         /// <returns>Less than 0 if value1 is earlier than value2; 0 if they are equal; Greater than zero otherwise.</returns>
-        protected int CompareTimestamps(DateTime value1, LinkedListNode<DataValue> value2)
+        protected int CompareTimestamps(DateTimeUtc value1, LinkedListNode<DataValue> value2)
         {
             if (value2 == null || value2.Value == null)
             {
@@ -494,12 +494,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// The start time for the slice.
             /// </summary>
-            public DateTime StartTime { get; set; }
+            public DateTimeUtc StartTime { get; set; }
 
             /// <summary>
             /// The end time for the slice.
             /// </summary>
-            public DateTime EndTime { get; set; }
+            public DateTimeUtc EndTime { get; set; }
 
             /// <summary>
             /// True if the slice is a partial interval.
@@ -568,7 +568,7 @@ namespace Opc.Ua.Server
                     slice.EndTime = previousSlice.StartTime;
                 }
 
-                slice.StartTime = slice.EndTime.AddMilliseconds(-ProcessingInterval);
+                slice.StartTime = slice.EndTime.SubtractMilliseconds(ProcessingInterval);
 
                 // check for end of request.
                 if (slice.StartTime < EndTime)
@@ -773,7 +773,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the timestamp to use for the slice value.
         /// </summary>
-        protected DateTime GetTimestamp(TimeSlice slice)
+        protected DateTimeUtc GetTimestamp(TimeSlice slice)
         {
             if (TimeFlowsBackward)
             {
@@ -786,7 +786,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Return a value indicating there is no data in the time slice.
         /// </summary>
-        protected DataValue GetNoDataValue(DateTime timestamp)
+        protected DataValue GetNoDataValue(DateTimeUtc timestamp)
         {
             return new DataValue(Variant.Null, StatusCodes.BadNoData, timestamp, timestamp);
         }
@@ -797,7 +797,7 @@ namespace Opc.Ua.Server
         /// <param name="timestamp">The timestamp.</param>
         /// <param name="reference">The timeslice that contains the timestamp.</param>
         /// <returns>The interpolated value.</returns>
-        protected DataValue Interpolate(DateTime timestamp, TimeSlice reference)
+        protected DataValue Interpolate(DateTimeUtc timestamp, TimeSlice reference)
         {
             var slice = new TimeSlice { StartTime = timestamp, EndTime = timestamp };
             UpdateSlice(slice);
@@ -875,7 +875,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculate the value at the timestamp using slopped interpolation.
         /// </summary>
-        public static DataValue SteppedInterpolate(DateTime timestamp, DataValue earlyBound)
+        public static DataValue SteppedInterpolate(DateTimeUtc timestamp, DataValue earlyBound)
         {
             // can't interpolate if no start bound.
             if (StatusCode.IsBad(earlyBound.StatusCode))
@@ -912,7 +912,7 @@ namespace Opc.Ua.Server
         /// Calculate the value at the timestamp using slopped interpolation.
         /// </summary>
         public static DataValue SlopedInterpolate(
-            DateTime timestamp,
+            DateTimeUtc timestamp,
             DataValue earlyBound,
             DataValue lateBound)
         {
@@ -943,8 +943,7 @@ namespace Opc.Ua.Server
                 double lateValue = CastToDouble(lateBound);
 
                 // do interpolation.
-                double range = (lateBound.SourceTimestamp - earlyBound.SourceTimestamp)
-                    .TotalMilliseconds;
+                double range = (lateBound.SourceTimestamp - earlyBound.SourceTimestamp).TotalMilliseconds;
                 double slope = (lateValue - earlyValue) / range;
                 double calculatedValue =
                     (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) +
@@ -995,13 +994,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static Variant CastToOriginalType(double value, DataValue original)
         {
-            return new Variant(value).ConvertTo(original.WrappedValue.TypeInfo.BuiltInType);
+            return Variant.From(value).ConvertTo(original.WrappedValue.TypeInfo.BuiltInType);
         }
 
         /// <summary>
         /// Returns the simple bound for the timestamp.
         /// </summary>
-        protected DataValue GetSimpleBound(DateTime timestamp, TimeSlice slice)
+        protected DataValue GetSimpleBound(DateTimeUtc timestamp, TimeSlice slice)
         {
             // choose the start point
             LinkedListNode<DataValue> start = slice.EarlyBound ?? m_values.First;
@@ -1235,7 +1234,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// The timestamp at the start of the region.
             /// </summary>
-            public DateTime StartTime;
+            public DateTimeUtc StartTime;
 
             /// <summary>
             /// The length of the region.
@@ -1273,7 +1272,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < values.Count; ii++)
             {
                 double currentValue = 0;
-                DateTime currentTime = values[ii].SourceTimestamp;
+                DateTimeUtc currentTime = values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // convert to doubles to facilitate numeric calculations.
@@ -1516,7 +1515,7 @@ namespace Opc.Ua.Server
 
         private readonly ILogger m_logger;
         private readonly LinkedList<DataValue> m_values;
-        private DateTime m_startOfData;
-        private DateTime m_endOfData;
+        private DateTimeUtc m_startOfData;
+        private DateTimeUtc m_endOfData;
     }
 }

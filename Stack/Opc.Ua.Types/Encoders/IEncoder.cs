@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -42,15 +40,6 @@ namespace Opc.Ua
         /// The type of encoding being used.
         /// </summary>
         EncodingType EncodingType { get; }
-
-        /// <summary>
-        /// If the encoder is configured to produce a reversible encoding.
-        /// </summary>
-        /// <remarks>
-        /// The BinaryEncoder and XmlEncoder in this library are reversible encoders.
-        /// For a JsonEncoder, reversability depends on the encoding type.
-        /// </remarks>
-        bool UseReversibleEncoding { get; }
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -87,7 +76,15 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message with its header.
         /// </summary>
-        void EncodeMessage(IEncodeable message);
+        /// <typeparam name="T">The type of the message</typeparam>
+        void EncodeMessage<T>(T message) where T : IEncodeable, new();
+
+        /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        /// <typeparam name="T">The type of the message</typeparam>
+        void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable;
 
         /// <summary>
         /// Writes a boolean to the stream.
@@ -152,7 +149,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
-        void WriteDateTime(string fieldName, DateTime value);
+        void WriteDateTime(string fieldName, DateTimeUtc value);
 
         /// <summary>
         /// Writes a GUID to the stream.
@@ -162,12 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        void WriteByteString(string fieldName, byte[] value);
-
-        /// <summary>
-        /// Writes a byte string to the stream with a given index and count.
-        /// </summary>
-        void WriteByteString(string fieldName, byte[] value, int index, int count);
+        void WriteByteString(string fieldName, ByteString value);
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
@@ -229,158 +221,228 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        void WriteEncodeable(string fieldName, IEncodeable value, Type systemType);
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeable<T>(string fieldName, T value)
+            where T : IEncodeable, new();
 
         /// <summary>
-        /// Writes an enumerated value array to the stream.
+        /// Writes an encodeable object to the stream.
         /// </summary>
-        void WriteEnumerated(string fieldName, Enum value);
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Writes an encodeable object to the stream as extension object.
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Writes an enumerated value to the stream.
+        /// </summary>
+        /// <typeparam name="T">The type of the enumeration</typeparam>
+        void WriteEnumerated<T>(string fieldName, T value)
+            where T : struct, Enum;
 
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
-        void WriteBooleanArray(string fieldName, IList<bool> values);
+        void WriteBooleanArray(string fieldName, ArrayOf<bool> values);
 
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
-        void WriteSByteArray(string fieldName, IList<sbyte> values);
+        void WriteSByteArray(string fieldName, ArrayOf<sbyte> values);
 
         /// <summary>
         /// Writes a byte array to the stream.
         /// </summary>
-        void WriteByteArray(string fieldName, IList<byte> values);
+        void WriteByteArray(string fieldName, ArrayOf<byte> values);
 
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
-        void WriteInt16Array(string fieldName, IList<short> values);
+        void WriteInt16Array(string fieldName, ArrayOf<short> values);
 
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
-        void WriteUInt16Array(string fieldName, IList<ushort> values);
+        void WriteUInt16Array(string fieldName, ArrayOf<ushort> values);
 
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
-        void WriteInt32Array(string fieldName, IList<int> values);
+        void WriteInt32Array(string fieldName, ArrayOf<int> values);
 
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
-        void WriteUInt32Array(string fieldName, IList<uint> values);
+        void WriteUInt32Array(string fieldName, ArrayOf<uint> values);
 
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
-        void WriteInt64Array(string fieldName, IList<long> values);
+        void WriteInt64Array(string fieldName, ArrayOf<long> values);
 
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
-        void WriteUInt64Array(string fieldName, IList<ulong> values);
+        void WriteUInt64Array(string fieldName, ArrayOf<ulong> values);
 
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
-        void WriteFloatArray(string fieldName, IList<float> values);
+        void WriteFloatArray(string fieldName, ArrayOf<float> values);
 
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
-        void WriteDoubleArray(string fieldName, IList<double> values);
+        void WriteDoubleArray(string fieldName, ArrayOf<double> values);
 
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
-        void WriteStringArray(string fieldName, IList<string> values);
+        void WriteStringArray(string fieldName, ArrayOf<string> values);
 
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
-        void WriteDateTimeArray(string fieldName, IList<DateTime> values);
+        void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values);
 
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
-        void WriteGuidArray(string fieldName, IList<Uuid> values);
+        void WriteGuidArray(string fieldName, ArrayOf<Uuid> values);
 
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
-        void WriteByteStringArray(string fieldName, IList<byte[]> values);
+        void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values);
 
         /// <summary>
         /// Writes a XmlElement array to the stream.
         /// </summary>
-        void WriteXmlElementArray(string fieldName, IList<XmlElement> values);
+        void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values);
 
         /// <summary>
         /// Writes a NodeId array to the stream.
         /// </summary>
-        void WriteNodeIdArray(string fieldName, IList<NodeId> values);
+        void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values);
 
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
-        void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values);
+        void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values);
 
         /// <summary>
         /// Writes a StatusCode array to the stream.
         /// </summary>
-        void WriteStatusCodeArray(string fieldName, IList<StatusCode> values);
+        void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values);
 
         /// <summary>
         /// Writes a DiagnosticInfo array to the stream.
         /// </summary>
-        void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values);
+        void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values);
 
         /// <summary>
         /// Writes a QualifiedName array to the stream.
         /// </summary>
-        void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values);
+        void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values);
 
         /// <summary>
         /// Writes a LocalizedText array to the stream.
         /// </summary>
-        void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values);
+        void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values);
 
         /// <summary>
         /// Writes a Variant array to the stream.
         /// </summary>
-        void WriteVariantArray(string fieldName, IList<Variant> values);
+        void WriteVariantArray(string fieldName, ArrayOf<Variant> values);
 
         /// <summary>
         /// Writes a DataValue array to the stream.
         /// </summary>
-        void WriteDataValueArray(string fieldName, IList<DataValue> values);
+        void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values);
 
         /// <summary>
         /// Writes an extension object array to the stream.
         /// </summary>
-        void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values);
+        void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values);
 
         /// <summary>
-        /// Writes an encodeable object array to the stream.
+        /// Writes an array of structures of type T (a field inside another
+        /// structure)
         /// </summary>
-        void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, Type systemType);
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable, new();
+
+        /// <summary>
+        /// Writes an array of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArray<T>(
+            string fieldName,
+            ArrayOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
+
+        /// <summary>
+        /// Writes an array of structures to the stream as extension objects.
+        /// </summary>
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable;
 
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        void WriteEnumeratedArray(string fieldName, Array values, Type systemType);
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+            where T : struct, Enum;
 
         /// <summary>
-        /// Encode an array according to its valueRank and BuiltInType
+        /// Writes just the value inside the variant. In essence
+        /// invokes the apropriate Write method for the value contained
+        /// in the variant If a field name is provided, the value is
+        /// the value of said field or element. If not, the value is
+        /// written as just the info contained in the Variant.
         /// </summary>
-        void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
+        /// <remarks>
+        /// This replaces the previously available WriteArray method
+        /// which has been removed because it could not be implemented in a
+        /// type safe manner and did essentially the same here just for
+        /// arrays while this method also handles scalar values.
+        /// </remarks>
+        void WriteVariantValue(string fieldName, Variant value);
+
+        /// <summary>
+        /// Writes a matrix of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+            where T : IEncodeable, new();
+
+        /// <summary>
+        /// Writes a matrix of structures of type T (a field inside another
+        /// structure)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        void WriteEncodeableMatrix<T>(
+            string fieldName,
+            MatrixOf<T> values,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Encode the switch field for a union.
         /// </summary>
         /// <params name="switchField">The switch field </params>
-        /// <params name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</params>
+        /// <params name="fieldName">Returns an alternate fieldName for the
+        /// encoded union property if the encoder requires it, null otherwise.
+        /// </params>
         void WriteSwitchField(uint switchField, out string fieldName);
 
         /// <summary>

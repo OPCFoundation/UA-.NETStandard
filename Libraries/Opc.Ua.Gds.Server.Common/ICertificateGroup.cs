@@ -40,12 +40,12 @@ namespace Opc.Ua.Gds.Server
     {
         public X509Certificate2 Certificate { get; }
         public string PrivateKeyFormat { get; }
-        public byte[] PrivateKey { get; }
+        public ByteString PrivateKey { get; }
 
         public X509Certificate2KeyPair(
             X509Certificate2 certificate,
             string privateKeyFormat,
-            byte[] privateKey)
+            ByteString privateKey)
         {
             if (certificate.HasPrivateKey)
             {
@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server
     public interface ICertificateGroup
     {
         NodeId Id { get; set; }
-        NodeIdCollection CertificateTypes { get; set; }
+        ArrayOf<NodeId> CertificateTypes { get; set; }
         ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
@@ -89,14 +89,14 @@ namespace Opc.Ua.Gds.Server
 
         Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default);
 
         Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default);
 
         Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(

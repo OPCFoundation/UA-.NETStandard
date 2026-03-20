@@ -42,6 +42,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -385,19 +387,18 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                var input = (IServiceRequest)BinaryDecoder.DecodeMessage(
+                IServiceRequest input = BinaryDecoder.DecodeMessage<IServiceRequest>(
                     buffer,
-                    null,
                     m_quotas.MessageContext);
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
                     // Match tls client certificate against client application certificate provided in CreateSessionRequest
-                    byte[] tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
-                    byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
+                    var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
+                    ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
-                    if (tlsClientCertificate == null ||
-                        !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
+                    if (context.Connection.ClientCertificate?.RawData == null ||
+                        tlsClientCertificate != opcUaClientCertificate)
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
@@ -606,7 +607,7 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private EndpointDescriptionCollection m_descriptions;
+        private List<EndpointDescription> m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
 #if NET8_0_OR_GREATER

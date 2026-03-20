@@ -33,7 +33,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
@@ -82,6 +81,7 @@ namespace Opc.Ua
     /// </para>
     /// </example>
     public readonly struct LocalizedText :
+        INullable,
         IEquatable<LocalizedText>,
         IFormattable
     {
@@ -92,9 +92,16 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns true if the text is a null or empty string.
+        /// Returns true even if the locale is a value != null or empty.
         /// </summary>
         public bool IsNullOrEmpty
             => m_translation == null && string.IsNullOrEmpty(m_text);
+
+        /// <summary>
+        /// Returns true if the localized text is null
+        /// </summary>
+        public bool IsNull
+            => m_translation == null && m_text == null && m_locale == null;
 
         /// <summary>
         /// Default constructor
@@ -377,7 +384,7 @@ namespace Opc.Ua
         /// or 'qst' as the first entry.</param>
         /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
         [Pure]
-        public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
+        public LocalizedText FilterByPreferredLocales(ArrayOf<string> preferredLocales)
         {
             return m_translation == null
                 ? this
@@ -651,9 +658,9 @@ namespace Opc.Ua
         [Pure]
         public LocalizedText FilterByPreferredLocales(
             LocalizedText localizedText,
-            IList<string> preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
-            if (preferredLocales == null || preferredLocales.Count == 0)
+            if (preferredLocales.Count == 0)
             {
                 return localizedText;
             }
@@ -829,194 +836,5 @@ namespace Opc.Ua
         private const string kMulLocale = "mul";
         private const string kQstLocale = "qst";
         private const string kMulLocaleDictionaryKey = "t";
-    }
-
-    /// <summary>
-    /// A strongly-typed collection of LocalizedText objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfLocalizedText",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "LocalizedText")]
-    public class LocalizedTextCollection : List<LocalizedText>, ICloneable
-    {
-        /// <inheritdoc/>
-        public LocalizedTextCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public LocalizedTextCollection(IEnumerable<LocalizedText> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public LocalizedTextCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">Array of localized text values to convert to a collection</param>
-        public static LocalizedTextCollection ToLocalizedTextCollection(LocalizedText[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">Array of localized text values to convert to a collection</param>
-        public static implicit operator LocalizedTextCollection(LocalizedText[] values)
-        {
-            return ToLocalizedTextCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new LocalizedTextCollection(Count);
-
-            foreach (LocalizedText element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// Helper to allow data contract serialization of LocalizedText
-    /// </summary>
-    [DataContract(
-        Name = "LocalizedText",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableLocalizedText :
-        IEquatable<LocalizedText>,
-        IEquatable<SerializableLocalizedText>,
-        ISurrogateFor<LocalizedText>
-    {
-        /// <summary>
-        /// Create initialized localized text
-        /// </summary>
-        public SerializableLocalizedText()
-        {
-            Value = default;
-        }
-
-        /// <summary>
-        /// Create initialized localized text
-        /// </summary>
-        public SerializableLocalizedText(LocalizedText value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public LocalizedText Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <inheritdoc/>
-        [DataMember(Name = "Locale", Order = 1)]
-        internal string XmlEncodedLocale
-        {
-            get => Value.Locale;
-            set => Value = new LocalizedText(value, XmlEncodedText);
-        }
-
-        /// <inheritdoc/>
-        [DataMember(Name = "Text", Order = 2)]
-        internal string XmlEncodedText
-        {
-            get => Value.Text;
-            set => Value = new LocalizedText(XmlEncodedLocale, value);
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            return obj switch
-            {
-                SerializableLocalizedText s => Equals(s),
-                LocalizedText n => Equals(n),
-                _ => Value.Equals(obj)
-            };
-        }
-
-        /// <inheritdoc/>
-        public bool Equals(LocalizedText obj)
-        {
-            return Value.Equals(obj);
-        }
-
-        /// <inheritdoc/>
-        public bool Equals(SerializableLocalizedText obj)
-        {
-            return Value.Equals(obj?.Value ?? default);
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(SerializableLocalizedText left, SerializableLocalizedText right)
-        {
-            return left is null ? right is null : left.Equals(right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(SerializableLocalizedText left, SerializableLocalizedText right)
-        {
-            return !(left == right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(SerializableLocalizedText left, LocalizedText right)
-        {
-            return left is null ? right.IsNullOrEmpty : left.Equals(right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(SerializableLocalizedText left, LocalizedText right)
-        {
-            return !(left == right);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator SerializableLocalizedText(
-            LocalizedText value)
-        {
-            return new SerializableLocalizedText(value);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator LocalizedText(
-            SerializableLocalizedText value)
-        {
-            return value.Value;
-        }
     }
 }
