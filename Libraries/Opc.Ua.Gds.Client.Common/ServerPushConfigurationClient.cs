@@ -1244,7 +1244,7 @@ namespace Opc.Ua.Gds.Client
                 Session.KeepAlive += Session_KeepAliveAsync;
                 Session.KeepAlive += KeepAlive;
 
-                if (Session.Factory.GetSystemType(Ua.DataTypeIds.TrustListDataType) == null)
+                if (!Session.Factory.TryGetEncodeableType(Ua.DataTypeIds.TrustListDataType, out _))
                 {
                     Session.Factory.AddEncodeableTypes(typeof(Ua.DataTypeIds).GetTypeInfo().Assembly);
                 }

@@ -1568,7 +1568,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                var browseDescription = (BrowseDescription)template.MemberwiseClone();
+                var browseDescription = CoreUtils.Clone(template);
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }

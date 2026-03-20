@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.PublishedData
             var copy = base.MemberwiseClone() as DataSet;
             if (DataSetMetaData != null && copy != null)
             {
-                copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
+                copy.DataSetMetaData = CoreUtils.Clone(DataSetMetaData);
             }
 
             if (Fields != null && copy != null)
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 copy.Fields = new Field[Fields.Length];
                 for (int i = 0; i < Fields.Length; i++)
                 {
-                    copy.Fields[i] = Fields[i].Clone() as Field;
+                    copy.Fields[i] = CoreUtils.Clone(Fields[i]);
                 }
             }
             return copy;

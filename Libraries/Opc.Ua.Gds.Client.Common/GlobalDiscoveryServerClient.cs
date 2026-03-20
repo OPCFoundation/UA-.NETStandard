@@ -1561,7 +1561,7 @@ namespace Opc.Ua.Gds.Client
                 {
                 }
 
-                if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
+                if (!Session.Factory.TryGetEncodeableType(DataTypeIds.ApplicationRecordDataType, out _))
                 {
                     Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
                 }

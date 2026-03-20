@@ -423,7 +423,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                var reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion = versionValue * 10;
 
@@ -510,7 +510,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // Make sure the reader MajorVersion is same with the ones on the dataset message
                 // and MinorVersion differ
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                var reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage
                     .MetaDataVersion
                     .MajorVersion;
@@ -601,7 +601,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion are equal
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                var reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
                     uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage
@@ -690,7 +690,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion differ
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                var reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
                     uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion =
