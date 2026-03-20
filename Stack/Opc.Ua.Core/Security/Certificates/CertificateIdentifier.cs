@@ -969,28 +969,20 @@ namespace Opc.Ua
     public partial class CertificateIdentifierCollection : ICloneable
     {
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "MemberwiseClone copies known CertificateIdentifier types.")]
         public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a new object that is a copy of the current instance.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        [RequiresUnreferencedCode(
-            "Uses CoreUtils.Clone which uses reflection.")]
-        public new object MemberwiseClone()
         {
             var collection = new CertificateIdentifierCollection();
 
             for (int ii = 0; ii < Count; ii++)
             {
-                collection.Add((CertificateIdentifier)CoreUtils.Clone(this[ii]));
+                if (this[ii] is ICloneable cloneable)
+                {
+                    collection.Add((CertificateIdentifier)cloneable.Clone());
+                }
+                else
+                {
+                    collection.Add(this[ii]);
+                }
             }
 
             return collection;

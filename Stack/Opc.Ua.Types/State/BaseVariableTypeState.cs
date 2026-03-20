@@ -86,16 +86,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
-            Justification = "The type's constructor is preserved because this instance already exists.")]
-        public override object Clone()
-        {
-            var clone = (BaseVariableTypeState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not BaseVariableTypeState state)
@@ -746,6 +736,12 @@ namespace Opc.Ua
             return new BaseDataVariableTypeState();
         }
 
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new BaseDataVariableTypeState();
+        }
+
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -832,6 +828,12 @@ namespace Opc.Ua
             {
                 get => m_builder.GetValue(WrappedValue);
                 set => WrappedValue = m_builder.WithValue(value);
+            }
+
+            /// <inheritdoc/>
+            protected override NodeState CreateCopy()
+            {
+                return new Implementation<TBuilder>();
             }
 
             private readonly TBuilder m_builder = new();

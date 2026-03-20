@@ -364,33 +364,46 @@ namespace Opc.Ua
         /// Clone contents of an array
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
-        public static ArrayOf<T> Clone<T>(ArrayOf<T> values)
+        public static ArrayOf<T> Clone<T>(in ArrayOf<T> values) where T : struct
         {
-            return values.ConvertAll(v => (T)Clone(v));
+            return values.ConvertAll(v => Clone(in v));
         }
 
         /// <summary>
         /// Clone contents of an array
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
-        public static MatrixOf<T> Clone<T>(MatrixOf<T> values)
+        public static MatrixOf<T> Clone<T>(in MatrixOf<T> values) where T : struct
         {
-            return values.ConvertAll(v => (T)Clone(v));
+            return values.ConvertAll(v => Clone(in v));
         }
 
         /// <summary>
         /// Calls clone if the type supports it
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(T value)
-            where T : ICloneable
+        public static T Clone<T>(T value) where T : ICloneable
         {
             return EqualityComparer<T>.Default.Equals(value, default) ?
                 default : (T)value.Clone();
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Clone<T>(ArrayOf<T> values) where T : ICloneable
+        {
+            return values.ConvertAll(Clone);
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> Clone<T>(MatrixOf<T> values) where T : ICloneable
+        {
+            return values.ConvertAll(Clone);
         }
 
         /// <summary>
@@ -399,6 +412,46 @@ namespace Opc.Ua
         public static string Clone(string value)
         {
             return value;
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        public static ArrayOf<string> Clone(ArrayOf<string> values)
+        {
+            return values;
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        public static MatrixOf<string> Clone(MatrixOf<string> values)
+        {
+            return values;
+        }
+
+        /// <summary>
+        /// Clone variant
+        /// </summary>
+        public static Variant Clone(Variant value)
+        {
+            return value.Copy();
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        public static ArrayOf<Variant> Clone(ArrayOf<Variant> values)
+        {
+            return values.ConvertAll(v => v.Copy());
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        public static MatrixOf<Variant> Clone(MatrixOf<Variant> values)
+        {
+            return values.ConvertAll(v => v.Copy());
         }
 
         /// <summary>
@@ -414,144 +467,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a deep copy of the value.
+        /// Clone contents of an array
         /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        [RequiresUnreferencedCode("Uses reflection to find Clone and MemberwiseClone methods.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA element types.")]
-        public static object Clone(object value)
+        public static ArrayOf<ExtensionObject> Clone(ArrayOf<ExtensionObject> values)
         {
-            if (value == null)
-            {
-                return null;
-            }
-
-            Type type = value.GetType();
-
-            // nothing to do for value types.
-            if (type.GetTypeInfo().IsPrimitive)
-            {
-                return value;
-            }
-            // nothing to do for other value types.
-            if (type.GetTypeInfo().IsValueType)
-            {
-                return value;
-            }
-            // strings are special a reference type that does not need to be copied.
-            if (type == typeof(string))
-            {
-                return value;
-            }
-
-            // copy arrays, any dimension.
-            if (value is Array array)
-            {
-                if (array.Rank == 1)
-                {
-                    var clone = Array.CreateInstance(type.GetElementType(), array.Length);
-                    for (int ii = 0; ii < array.Length; ii++)
-                    {
-                        clone.SetValue(Clone(array.GetValue(ii)), ii);
-                    }
-                    return clone;
-                }
-                else
-                {
-                    int[] arrayRanks = new int[array.Rank];
-                    int[] arrayIndex = new int[array.Rank];
-                    for (int ii = 0; ii < array.Rank; ii++)
-                    {
-                        arrayRanks[ii] = array.GetLength(ii);
-                        arrayIndex[ii] = 0;
-                    }
-                    var clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
-                    for (int ii = 0; ii < array.Length; ii++)
-                    {
-                        clone.SetValue(Clone(array.GetValue(arrayIndex)), arrayIndex);
-
-                        // iterate the index array
-                        for (int ix = 0; ix < array.Rank; ix++)
-                        {
-                            arrayIndex[ix]++;
-                            if (arrayIndex[ix] < arrayRanks[ix])
-                            {
-                                break;
-                            }
-                            arrayIndex[ix] = 0;
-                        }
-                    }
-                    return clone;
-                }
-            }
-
-            // use ICloneable if supported
-            if (value is ICloneable cloneable)
-            {
-                return cloneable.Clone();
-            }
-
-            // copy XmlNode.
-            if (value is XmlNode node)
-            {
-                return node.CloneNode(true);
-            }
-
-            //try to find the MemberwiseClone method by reflection.
-            MethodInfo memberwiseCloneMethod = type.GetMethod(
-                "MemberwiseClone",
-                BindingFlags.Public | BindingFlags.Instance);
-            if (memberwiseCloneMethod != null)
-            {
-                object clone = memberwiseCloneMethod.Invoke(value, null);
-                if (clone != null)
-                {
-                    Debug.WriteLine("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
-                    return clone;
-                }
-            }
-
-            //try to find the Clone method by reflection.
-            MethodInfo cloneMethod = type.GetMethod(
-                "Clone",
-                BindingFlags.Public | BindingFlags.Instance);
-            if (cloneMethod != null)
-            {
-                object clone = cloneMethod.Invoke(value, null);
-                if (clone != null)
-                {
-                    Debug.WriteLine("Clone without ICloneable in class '{0}'", type.FullName);
-                    return clone;
-                }
-            }
-
-            // don't know how to clone object.
-            throw new NotSupportedException(
-                Format("Don't know how to clone objects of type '{0}'", type.FullName));
+            return values.ConvertAll(Clone);
         }
 
         /// <summary>
-        /// Checks if two DateTime values are equal.
+        /// Clone contents of an array
         /// </summary>
-        public static bool IsEqual(DateTime time1, DateTime time2)
+        public static MatrixOf<ExtensionObject> Clone(MatrixOf<ExtensionObject> values)
         {
-            DateTime utcTime1 = ToOpcUaUniversalTime(time1);
-            DateTime utcTime2 = ToOpcUaUniversalTime(time2);
-
-            // values smaller than Timebase can not be binary encoded and are considered equal
-            if (utcTime1 <= TimeBase && utcTime2 <= TimeBase)
-            {
-                return true;
-            }
-
-            if (utcTime1 >= DateTime.MaxValue && utcTime2 >= DateTime.MaxValue)
-            {
-                return true;
-            }
-
-            return utcTime1.CompareTo(utcTime2) == 0;
+            return values.ConvertAll(Clone);
         }
 
         /// <summary>

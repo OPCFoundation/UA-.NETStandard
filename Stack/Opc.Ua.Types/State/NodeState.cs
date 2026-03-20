@@ -69,7 +69,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public abstract object Clone();
+        public object Clone()
+        {
+            var copy = CreateCopy();
+            CopyTo(copy);
+            return copy;
+        }
 
         /// <inheritdoc/>
         public virtual bool DeepEquals(NodeState node)
@@ -154,6 +159,13 @@ namespace Opc.Ua
             hash.Add(DesignToolOnly);
             return hash.ToHashCode();
         }
+
+        /// <summary>
+        /// Create a copy of the node state which will become
+        /// the target node state for the CopyTo operation
+        /// </summary>
+        /// <returns></returns>
+        protected abstract NodeState CreateCopy();
 
         /// <summary>
         /// Copy all state to the target node state. This performs

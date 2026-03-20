@@ -1052,18 +1052,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Copy and while cloneing the inner value
+        /// Copy the variant and if needed the inner value(s). Not using clone to
+        /// prevent boxing, see <see cref="CoreUtils.Clone(Variant)"/>.
         /// </summary>
-        /// <returns></returns>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
         public Variant Copy()
         {
-            if (m_value is null)
+            if (m_value is not null)
             {
-                return this;
+                if (TypeInfo.IsScalar)
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObject()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValue()));
+                    }
+                }
+                else if (TypeInfo.IsArray)
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValueArray()));
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                        case BuiltInType.Variant:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                    }
+                }
+                else
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectMatrix()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValueMatrix()));
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                        case BuiltInType.Variant:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                    }
+                }
             }
-            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(m_value));
+            return this; // Just copy the value type as-is
         }
 
         /// <summary>
