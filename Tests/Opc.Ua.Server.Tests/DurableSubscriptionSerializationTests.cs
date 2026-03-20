@@ -33,7 +33,6 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using Quickstarts.Servers;
 
@@ -46,22 +45,24 @@ namespace Opc.Ua.Server.Tests
     /// Tests call the internal encode/decode methods directly.
     /// </summary>
     [TestFixture]
+    [Category("Server")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class DurableSubscriptionSerializationTests
     {
-        private IServiceMessageContext m_context;
+        private ServiceMessageContext m_context;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(telemetry);
             m_context.NamespaceUris.GetIndexOrAppend(
                 "urn:test:namespace1");
             m_context.NamespaceUris.GetIndexOrAppend(
                 "urn:test:namespace2");
         }
-
-        #region SubscriptionStore Round-Trip Tests
 
         [Test]
         public void RoundTripEmptySubscription()
@@ -73,20 +74,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.IsDurable, Is.True);
             Assert.That(result.PublishingInterval, Is.EqualTo(1000.0));
             Assert.That(result.Priority, Is.EqualTo((byte)5));
-            Assert.That(result.MonitoredItems.Count(), Is.EqualTo(0));
+            Assert.That(result.MonitoredItems.Count(), Is.Zero);
             Assert.That(result.SentMessages, Has.Count.EqualTo(0));
         }
 
         [Test]
         public void RoundTripSubscriptionWithMonitoredItems()
         {
-            var original = CreateMinimalSubscription(id: 100);
-            original.MonitoredItems = new List<IStoredMonitoredItem>
-            {
+            StoredSubscription original = CreateMinimalSubscription(id: 100);
+            original.MonitoredItems =
+            [
                 CreateMonitoredItem(id: 1, subscriptionId: 100),
                 CreateMonitoredItem(id: 2, subscriptionId: 100),
                 CreateMonitoredItem(id: 3, subscriptionId: 100)
-            };
+            ];
 
             StoredSubscription result = RoundTripSubscription(original);
 
@@ -101,8 +102,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RoundTripMonitoredItemProperties()
         {
-            var original = CreateMinimalSubscription(id: 1);
-            var mi = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            StoredSubscription original = CreateMinimalSubscription(id: 1);
+            StoredMonitoredItem mi = CreateMonitoredItem(id: 7, subscriptionId: 1);
             mi.NodeId = new NodeId("TestNode", 2);
             mi.AttributeId = Attributes.Value;
             mi.QueueSize = 10;
@@ -113,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             mi.LastValue = new DataValue(
                 new Variant(42), StatusCodes.Good, DateTime.UtcNow);
             original.MonitoredItems =
-                new List<IStoredMonitoredItem> { mi };
+                [mi];
 
             var restored = RoundTripSubscription(original)
                 .MonitoredItems.First() as StoredMonitoredItem;
@@ -138,14 +139,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RoundTripSubscriptionWithUserIdentityToken()
         {
-            var original = CreateMinimalSubscription(id: 55);
+            StoredSubscription original = CreateMinimalSubscription(id: 55);
             original.UserIdentityToken = new UserNameIdentityToken
             {
                 PolicyId = "username_policy",
                 UserName = "testuser"
             };
 
-            var result = RoundTripSubscription(original);
+            StoredSubscription result = RoundTripSubscription(original);
 
             Assert.That(result.UserIdentityToken, Is.Not.Null);
             Assert.That(result.UserIdentityToken,
@@ -164,17 +165,17 @@ namespace Opc.Ua.Server.Tests
                 CreateMinimalSubscription(id: 2),
                 CreateMinimalSubscription(id: 3)
             };
-            subs[0].MonitoredItems = new List<IStoredMonitoredItem>
-            {
+            subs[0].MonitoredItems =
+            [
                 CreateMonitoredItem(id: 10, subscriptionId: 1),
                 CreateMonitoredItem(id: 11, subscriptionId: 1)
-            };
-            subs[1].MonitoredItems = new List<IStoredMonitoredItem>
-            {
+            ];
+            subs[1].MonitoredItems =
+            [
                 CreateMonitoredItem(id: 20, subscriptionId: 2)
-            };
+            ];
 
-            var results = RoundTripSubscriptions(subs);
+            List<StoredSubscription> results = RoundTripSubscriptions(subs);
 
             Assert.That(results, Has.Count.EqualTo(3));
             Assert.That(results[0].Id, Is.EqualTo(1u));
@@ -185,17 +186,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[1].MonitoredItems.Count(),
                 Is.EqualTo(1));
             Assert.That(results[2].MonitoredItems.Count(),
-                Is.EqualTo(0));
+                Is.Zero);
         }
 
-        #endregion
-
-        #region DurableMonitoredItemQueueFactory Round-Trip Tests
 
         [Test]
         public void RoundTripStorableDataChangeQueue()
         {
-            var result = RoundTripDataChangeQueue(
+            StorableDataChangeQueue result = RoundTripDataChangeQueue(
                 new StorableDataChangeQueue
                 {
                     IsDurable = true,
@@ -223,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             };
             var batch = new DataChangeBatch(values, 10, 42);
 
-            var result = RoundTripDataChangeQueue(
+            StorableDataChangeQueue result = RoundTripDataChangeQueue(
                 new StorableDataChangeQueue
                 {
                     IsDurable = true,
@@ -232,7 +230,7 @@ namespace Opc.Ua.Server.Tests
                     QueueSize = 100,
                     EnqueueBatch = batch,
                     DataChangeBatches =
-                        new List<DataChangeBatch> { batch }
+                        [batch]
                 });
 
             Assert.That(result.EnqueueBatch, Is.Not.Null);
@@ -250,7 +248,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RoundTripStorableEventQueue()
         {
-            var result = RoundTripEventQueue(
+            StorableEventQueue result = RoundTripEventQueue(
                 new StorableEventQueue
                 {
                     IsDurable = true,
@@ -264,10 +262,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.EnqueueBatch, Is.Null);
             Assert.That(result.DequeueBatch, Is.Null);
         }
-
-        #endregion
-
-        #region Helpers
 
         private static StoredSubscription CreateMinimalSubscription(
             uint id)
@@ -413,7 +407,5 @@ namespace Opc.Ua.Server.Tests
             return DurableMonitoredItemQueueFactory
                 .DecodeEventQueue(decoder);
         }
-
-        #endregion
     }
 }
