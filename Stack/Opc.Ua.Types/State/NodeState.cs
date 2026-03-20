@@ -238,7 +238,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    var child = (BaseInstanceState)children[ii].Clone();
+                    var child = CoreUtils.Clone(children[ii]);
                     clone.m_children.Add(child);
                 }
             }

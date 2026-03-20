@@ -743,6 +743,8 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.DataValue:
                 case BasicDataType.Structure: // Extension object
                 case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.UserDefined when !dataType.IsEnumeration:
+                case BasicDataType.Enumeration when dataType.IsOptionSet:
                     return true;
                 default:
                     return false;

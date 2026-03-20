@@ -385,7 +385,8 @@ namespace Opc.Ua
         public static T Clone<T>(T value) where T : ICloneable
         {
             return EqualityComparer<T>.Default.Equals(value, default) ?
-                default : (T)value.Clone();
+                default :
+                (T)value.Clone();
         }
 
         /// <summary>

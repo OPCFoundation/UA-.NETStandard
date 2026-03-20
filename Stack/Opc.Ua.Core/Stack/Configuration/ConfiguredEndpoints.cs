@@ -292,24 +292,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
             var clone = new ConfiguredEndpointCollection
             {
                 m_filepath = m_filepath,
-                m_knownHosts = [.. m_knownHosts],
-                DefaultConfiguration = (EndpointConfiguration)DefaultConfiguration.MemberwiseClone()
+                m_knownHosts = m_knownHosts,
+                DefaultConfiguration = CoreUtils.Clone(DefaultConfiguration)
             };
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
-                var clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
+                ConfiguredEndpoint clonedEndpoint = CoreUtils.Clone(endpoint);
                 clonedEndpoint.Collection = clone;
                 clone.m_endpoints.Add(clonedEndpoint);
             }
@@ -607,7 +599,7 @@ namespace Opc.Ua
                 if (endpointUrl != null)
                 {
                     ConfiguredEndpoint endpoint = Create(endpointUrl);
-                    endpoint.Description.Server = (ApplicationDescription)server.MemberwiseClone();
+                    endpoint.Description.Server = CoreUtils.Clone(server);
                     Add(endpoint);
                 }
             }
@@ -616,8 +608,7 @@ namespace Opc.Ua
             {
                 foreach (ConfiguredEndpoint endpointToUpdate in GetEndpoints(serverUri))
                 {
-                    endpointToUpdate.Description.Server = (ApplicationDescription)server
-                        .MemberwiseClone();
+                    endpointToUpdate.Description.Server = CoreUtils.Clone(server);
                 }
             }
         }
@@ -937,14 +928,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the endpoint.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
             var clone = new ConfiguredEndpoint { Collection = Collection };
             clone.Update(this);
             return clone;
@@ -1006,8 +989,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            m_description = (EndpointDescription)endpoint.Description.MemberwiseClone();
-            m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
+            m_description = CoreUtils.Clone(endpoint.Description);
+            m_configuration = CoreUtils.Clone(endpoint.Configuration);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -1022,7 +1005,7 @@ namespace Opc.Ua
 
             if (endpoint.UserIdentity != null)
             {
-                UserIdentity = (UserIdentityToken)endpoint.UserIdentity.MemberwiseClone();
+                UserIdentity = CoreUtils.Clone(endpoint.UserIdentity);
             }
         }
 
@@ -1037,7 +1020,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(description));
             }
 
-            m_description = (EndpointDescription)description.MemberwiseClone();
+            m_description = CoreUtils.Clone(description);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -1067,7 +1050,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
+            m_configuration = CoreUtils.Clone(configuration);
 
             BinaryEncodingSupport binaryEncodingSupport = m_description.EncodingSupport;
 
