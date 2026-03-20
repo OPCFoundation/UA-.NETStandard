@@ -145,10 +145,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (pubSubConfiguration != null)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
                 return pubSubConfiguration.Connections
-                    .Find(x => x.PublisherId.Value.Equals(publisherId));
-#pragma warning restore CS0618 // Type or member is obsolete
+                    .Find(x => x.PublisherId.Equals(publisherId));
             }
             return null;
         }
