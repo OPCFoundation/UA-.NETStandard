@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual ValueTask CallAsync(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)

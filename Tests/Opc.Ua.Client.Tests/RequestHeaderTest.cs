@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -122,12 +121,12 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadValuesWithoutTracingAsync()
         {
             NamespaceTable namespaceUris = Session.NamespaceUris;
-            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            (DataValueCollection values, IList<ServiceResult> errors) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
-            Assert.AreEqual(testSet.Count, values.Count);
-            Assert.AreEqual(testSet.Count, errors.Count);
+            Assert.That(values.Count, Is.EqualTo(testSet.Count));
+            Assert.That(errors.Count, Is.EqualTo(testSet.Count));
         }
     }
 }

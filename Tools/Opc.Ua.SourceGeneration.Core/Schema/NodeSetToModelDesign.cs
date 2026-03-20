@@ -672,7 +672,7 @@ namespace Opc.Ua.Schema.Model
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantContents(out _);
+                output.DecodedValue = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 decoder.Close();
             }
 
@@ -966,7 +966,7 @@ namespace Opc.Ua.Schema.Model
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantContents(out _);
+                output.DecodedValue = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 decoder.Close();
             }
 
@@ -977,14 +977,17 @@ namespace Opc.Ua.Schema.Model
             output.DataTypeNode = dataType;
         }
 
-        private List<Parameter> ImportArguments(MethodDesign method, string sourceNodeSetUri, XmlElement input)
+        private List<Parameter> ImportArguments(
+            MethodDesign method,
+            string sourceNodeSetUri,
+            System.Xml.XmlElement input)
         {
             var output = new List<Parameter>();
 
             if (input != null)
             {
                 XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
-                object value = decoder.ReadVariantContents(out _);
+                object value = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 decoder.Close();
 
                 foreach (Argument argument in (IList<Argument>)ExtensionObject.ToArray(value, typeof(Argument)))
@@ -1347,7 +1350,7 @@ namespace Opc.Ua.Schema.Model
         {
             XmlQualifiedName name = ImportSymbolicName(input);
 
-            NodeId typeDefinitionId = FindTarget(input, ReferenceTypes.HasTypeDefinition, false);
+            NodeId typeDefinitionId = FindTarget(input, ReferenceTypeIds.HasTypeDefinition, false);
 
             if (typeDefinitionId == ObjectTypeIds.DataTypeEncodingType)
             {
@@ -1359,7 +1362,7 @@ namespace Opc.Ua.Schema.Model
                         $"{input.SymbolicName} is not a valid symbolic name for a DataTypeEncoding node (should be 'DefaultXml').");
                 }
 
-                NodeId dataTypeId = FindTarget(input, ReferenceTypes.HasEncoding, true);
+                NodeId dataTypeId = FindTarget(input, ReferenceTypeIds.HasEncoding, true);
 
                 if (dataTypeId.IsNull)
                 {
@@ -1367,7 +1370,7 @@ namespace Opc.Ua.Schema.Model
 
                     foreach (UANode dataType in m_nodeset.Items.Where(x => x is UADataType))
                     {
-                        NodeId result = FindTarget(dataType, ReferenceTypes.HasEncoding, false, encodingId);
+                        NodeId result = FindTarget(dataType, ReferenceTypeIds.HasEncoding, false, encodingId);
 
                         if (!result.IsNull)
                         {
@@ -1978,7 +1981,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
-        private XmlDecoder CreateDecoder(XmlElement source, string sourceNodeSetUri = null)
+        private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
             IServiceMessageContext messageContext = new ServiceMessageContext(m_telemetry)
             {
@@ -1986,7 +1989,7 @@ namespace Opc.Ua.Schema.Model
                 ServerUris = m_serverUris
             };
 
-            var decoder = new XmlDecoder(source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, messageContext);
 
             var namespaceUris = new NamespaceTable();
 
@@ -2295,9 +2298,9 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Imports the array dimensions.
         /// </summary>
-        private static string ImportArrayDimensions(IList<uint> arrayDimensions)
+        private static string ImportArrayDimensions(ArrayOf<uint> arrayDimensions)
         {
-            if (arrayDimensions == null)
+            if (arrayDimensions.IsEmpty)
             {
                 return null;
             }

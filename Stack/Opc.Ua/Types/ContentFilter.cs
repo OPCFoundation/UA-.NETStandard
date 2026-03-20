@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
@@ -76,17 +77,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
         /// Validates the ContentFilter.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -96,7 +86,7 @@ namespace Opc.Ua
             var result = new Result(null);
 
             // check for empty filter.
-            if (m_elements == null || m_elements.Count == 0)
+            if (m_elements.IsEmpty)
             {
                 return result;
             }
@@ -110,7 +100,7 @@ namespace Opc.Ua
                 // check for null.
                 if (element == null)
                 {
-                    var nullResult = ServiceResult.Create(
+                    ServiceResult nullResult = ServiceResult.Create(
                         StatusCodes.BadStructureMissing,
                         "ContentFilterElement is null (Index={0}).",
                         ii);
@@ -154,7 +144,7 @@ namespace Opc.Ua
         /// <param name="op">The filter operator.</param>
         /// <param name="operands">The operands.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public ContentFilterElement Push(FilterOperator op, params object[] operands)
+        public ContentFilterElement Push(FilterOperator op, params Variant[] operands)
         {
             // check if nothing more to do.
             if (operands == null || operands.Length == 0)
@@ -171,16 +161,14 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
-                if (operands[ii] is FilterOperand filterOperand)
+                if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
-                    element.FilterOperands.Add(new ExtensionObject(filterOperand));
-                    continue;
+                    element.FilterOperands =
+                        element.FilterOperands.AddItem(new ExtensionObject(filterOperand));
                 }
-
-                // check for reference to another ContentFilterElement.
-
-                if (operands[ii] is ContentFilterElement existingElement)
+                else if (operands[ii].TryGetStructure(out ContentFilterElement existingElement))
                 {
+                    // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);
 
                     if (index == -1)
@@ -192,24 +180,27 @@ namespace Opc.Ua
 
                     var operand = new ElementOperand { Index = (uint)index };
 
-                    element.FilterOperands.Add(new ExtensionObject(operand));
-                    continue;
+                    element.FilterOperands =
+                        element.FilterOperands.AddItem(new ExtensionObject(operand));
                 }
-
-                // assume a literal operand.
-                var literalOperand = new LiteralOperand { Value = new Variant(operands[ii]) };
-                element.FilterOperands.Add(new ExtensionObject(literalOperand));
+                else
+                {
+                    // assume a literal operand.
+                    var literalOperand = new LiteralOperand(operands[ii]);
+                    element.FilterOperands =
+                        element.FilterOperands.AddItem(new ExtensionObject(literalOperand));
+                }
             }
 
             // insert the new element at the begining of the list.
-            m_elements.Insert(0, element);
+            m_elements = m_elements.AddItem(element, 0);
 
             // re-number ElementOperands since all element were shifted up.
             for (int ii = 0; ii < m_elements.Count; ii++)
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (!extension.IsNull && extension.Body is ElementOperand operand)
+                    if (extension.TryGetEncodeable(out ElementOperand operand))
                     {
                         operand.Index++;
                     }
@@ -305,8 +296,8 @@ namespace Opc.Ua
                             StatusCode = StatusCodes.Good
                         };
 
-                        result.ElementResults.Add(elementResult2);
-                        result.ElementDiagnosticInfos.Add(null);
+                        result.ElementResults = result.ElementResults.AddItem(elementResult2);
+                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null);
                         continue;
                     }
 
@@ -316,8 +307,8 @@ namespace Opc.Ua
                         diagnosticsMasks,
                         stringTable,
                         logger);
-                    result.ElementResults.Add(elementResult2);
-                    result.ElementDiagnosticInfos.Add(
+                    result.ElementResults = result.ElementResults.AddItem(elementResult2);
+                    result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(
                         new DiagnosticInfo(
                             elementResult.Status,
                             diagnosticsMasks,
@@ -328,8 +319,8 @@ namespace Opc.Ua
 
                 if (!error)
                 {
-                    result.ElementResults.Clear();
-                    result.ElementDiagnosticInfos.Clear();
+                    result.ElementResults = [];
+                    result.ElementDiagnosticInfos = [];
                 }
 
                 return result;
@@ -404,13 +395,13 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsGood(operandResult))
                     {
-                        result.OperandStatusCodes.Add(StatusCodes.Good);
-                        result.OperandDiagnosticInfos.Add(null);
+                        result.OperandStatusCodes = result.OperandStatusCodes.AddItem(StatusCodes.Good);
+                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null);
                     }
                     else
                     {
-                        result.OperandStatusCodes.Add(operandResult.StatusCode);
-                        result.OperandDiagnosticInfos.Add(
+                        result.OperandStatusCodes = result.OperandStatusCodes.AddItem(operandResult.StatusCode);
+                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(
                             new DiagnosticInfo(
                                 operandResult,
                                 diagnosticsMasks,
@@ -454,7 +445,7 @@ namespace Opc.Ua
                 {
                     if (!FilterOperands[ii].IsNull)
                     {
-                        buffer.AppendFormat(formatProvider, ", {0}", FilterOperands[ii].Body);
+                        buffer.AppendFormat(formatProvider, ", {0}", FilterOperands[ii]);
                     }
                     else
                     {
@@ -468,17 +459,6 @@ namespace Opc.Ua
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
         }
 
         /// <summary>
@@ -569,7 +549,7 @@ namespace Opc.Ua
 
                 ServiceResult operandResult;
                 // check for null.
-                if (ExtensionObject.IsNull(operand))
+                if (operand.IsNull)
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -582,12 +562,12 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (operand.Body is not FilterOperand filterOperand)
+                if (!operand.TryGetEncodeable(out FilterOperand filterOperand))
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
                         "The FilterOperand is not a supported type ({0}).",
-                        operand.Body.GetType());
+                        operand);
 
                     result.OperandResults.Add(operandResult);
                     error = true;
@@ -631,17 +611,10 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (ExtensionObject.IsNull(extension))
+                if (extension.TryGetEncodeable(out FilterOperand operand))
                 {
-                    continue;
+                    operands.Add(operand);
                 }
-
-                if (extension.Body is not FilterOperand operand)
-                {
-                    continue;
-                }
-
-                operands.Add(operand);
             }
 
             return operands;
@@ -653,22 +626,17 @@ namespace Opc.Ua
         /// <param name="operands">The list of the operands.</param>
         public void SetOperands(IEnumerable<FilterOperand> operands)
         {
-            FilterOperands.Clear();
+            FilterOperands = [];
 
             if (operands == null)
             {
                 return;
             }
 
-            foreach (FilterOperand operand in operands)
-            {
-                if (operand == null)
-                {
-                    continue;
-                }
-
-                FilterOperands.Add(new ExtensionObject(operand));
-            }
+            FilterOperands = operands
+                .Where(operand => operand != null)
+                .Select(operand => new ExtensionObject(operand))
+                .ToArrayOf();
         }
 
         /// <summary>
@@ -844,7 +812,7 @@ namespace Opc.Ua
                 TargetName = browsePath
             };
 
-            m_browsePath.Elements.Add(element);
+            m_browsePath.Elements = m_browsePath.Elements.AddItem(element);
         }
 
         /// <summary>
@@ -852,7 +820,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="browsePaths">The browse paths.</param>
-        public AttributeOperand(NodeId nodeId, IList<QualifiedName> browsePaths)
+        public AttributeOperand(NodeId nodeId, ArrayOf<QualifiedName> browsePaths)
         {
             m_nodeId = nodeId;
             m_attributeId = Attributes.Value;
@@ -868,7 +836,7 @@ namespace Opc.Ua
                     TargetName = browsePaths[ii]
                 };
 
-                m_browsePath.Elements.Add(element);
+                m_browsePath.Elements = m_browsePath.Elements.AddItem(element);
             }
         }
 
@@ -946,17 +914,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
         /// Whether the operand has been validated.
         /// </summary>
         /// <value><c>true</c> if validated; otherwise, <c>false</c>.</value>
@@ -1003,7 +960,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
 
             // parse the index range.
             if (!string.IsNullOrEmpty(m_indexRange))
@@ -1117,17 +1074,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
         /// Validates the operand.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -1179,9 +1125,9 @@ namespace Opc.Ua
         /// Constructs an operand from a value.
         /// </summary>
         /// <param name="value">The value.</param>
-        public LiteralOperand(object value)
+        public LiteralOperand(Variant value)
         {
-            m_value = new Variant(value);
+            m_value = value;
         }
 
         /// <summary>
@@ -1205,17 +1151,6 @@ namespace Opc.Ua
             }
 
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
         }
 
         /// <summary>

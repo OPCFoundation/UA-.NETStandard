@@ -510,6 +510,7 @@ var response = await session.ReadAsync(
 **Problem**: `LoadAsync()` completes but types are not available
 
 **Solutions**:
+
 - Verify the server supports DataTypeDefinition or provides type dictionaries
 - Check server logs for encoding/dictionary availability
 - Use verbose logging to see what types are discovered
@@ -528,6 +529,7 @@ await complexTypeSystem.LoadAsync();
 **Problem**: Values are read as `ExtensionObject` with opaque body instead of structured types
 
 **Solutions**:
+
 - Ensure `LoadAsync()` was called before reading the value
 - Verify the type is actually loaded: `complexTypeSystem.GetDefinedTypes()`
 - Check if the server's type definition is complete and valid
@@ -537,6 +539,7 @@ await complexTypeSystem.LoadAsync();
 **Problem**: Type loading takes too long
 
 **Solutions**:
+
 - Load only required namespaces instead of all types
 - Load types once at session start rather than on-demand
 - Consider caching type information across sessions if reconnecting frequently

@@ -103,10 +103,14 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("ManualMetadata", 1)
             };
             // NamespaceUri property is required for it to be useful, though strictly not for the subscription
-            manualMetadata.NamespaceUri = new PropertyState<string>(manualMetadata) { Value = manualNamespaceUri };
+            manualMetadata.NamespaceUri = new PropertyState<string>.Implementation<VariantBuilder>(manualMetadata)
+            {
+                Value = manualNamespaceUri
+            };
 
             // Create DefaultRolePermissions property
-            manualMetadata.DefaultRolePermissions = new PropertyState<RolePermissionType[]>(manualMetadata)
+            manualMetadata.DefaultRolePermissions = new PropertyState<ArrayOf<RolePermissionType>>
+                .Implementation<StructureBuilder<RolePermissionType>>(manualMetadata)
             {
                 NodeId = new NodeId(Guid.NewGuid(), 1),
                 BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions, manualMetadata.NodeId.NamespaceIndex),

@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -143,9 +142,9 @@ namespace Opc.Ua.Client.Tests
         private IList<NodeId> m_smallTestSet;
         private IList<NodeId> m_mediumTestSet;
         private IList<NodeId> m_largeTestSet;
-        private ReadValueIdCollection m_smallReadValueIds;
-        private ReadValueIdCollection m_mediumReadValueIds;
-        private ReadValueIdCollection m_largeReadValueIds;
+        private ArrayOf<ReadValueId> m_smallReadValueIds;
+        private ArrayOf<ReadValueId> m_mediumReadValueIds;
+        private ArrayOf<ReadValueId> m_largeReadValueIds;
 
         public SecurityPolicyBenchmarks()
             : base(Utils.UriSchemeOpcTcp)
@@ -156,7 +155,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Override to exclude None policy from benchmarks to avoid CI test failures.
         /// </summary>
-        public new IEnumerable<string> BenchPolicies()
+        private new IEnumerable<string> BenchPolicies()
         {
             // Return all security policies except None
             foreach (string displayName in SecurityPolicies.GetDisplayNames())
@@ -299,9 +298,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_smallReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_smallReadValueIds.Count));
         }
 
         /// <summary>
@@ -340,9 +339,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_mediumReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_mediumReadValueIds.Count));
         }
 
         /// <summary>
@@ -382,9 +381,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(m_largeReadValueIds.Count, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(m_largeReadValueIds.Count));
         }
 
         /// <summary>
@@ -416,14 +415,13 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Write 10 nodes")]
         public async Task WriteSmallMessageAsync()
         {
-            var writeValues = new WriteValueCollection(
+            var writeValues =
                 m_smallTestSet.Select(nodeId => new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(UnsecureRandom.Shared.Next()))
-                })
-            );
+                }).ToArrayOf();
 
             WriteResponse response = await Session.WriteAsync(
                 null,
@@ -431,8 +429,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -445,14 +443,13 @@ namespace Opc.Ua.Client.Tests
         {
             for (int i = 0; i < kMessageCount; i++)
             {
-                var writeValues = new WriteValueCollection(
+                var writeValues =
                     m_smallTestSet.Select(nodeId => new WriteValue
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(i))
-                    })
-                );
+                    }).ToArrayOf();
 
                 await Session.WriteAsync(
                     null,
@@ -471,8 +468,8 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Browse Objects folder")]
         public async Task BrowseAsync()
         {
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -482,7 +479,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             BrowseResponse response = await Session.BrowseAsync(
                 null,
@@ -492,9 +489,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.Greater(response.Results.Count, 0);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.IsEmpty, Is.True);
         }
 
         /// <summary>
@@ -506,7 +503,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseMultipleNodesAsync()
         {
             //await Task.Delay(5000);
-            var nodesToBrowse = new BrowseDescriptionCollection(
+            var nodesToBrowse =
                 m_smallTestSet.Select(nodeId => new BrowseDescription
                 {
                     NodeId = nodeId,
@@ -515,8 +512,7 @@ namespace Opc.Ua.Client.Tests
                     IncludeSubtypes = true,
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
-                })
-            );
+                }).ToArrayOf();
 
             BrowseResponse response = await Session.BrowseAsync(
                 null,
@@ -526,8 +522,8 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
         }
 
         /// <summary>
@@ -539,20 +535,20 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Call GetMonitoredItems method")]
         public async Task CallMethodAsync()
         {
-            var inputArguments = new VariantCollection
-            {
-                new Variant((uint)0) // subscriptionId
-            };
+            ArrayOf<Variant> inputArguments =
+            [
+                new Variant(0u) // subscriptionId
+            ];
 
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             CallResponse response = await Session.CallAsync(
                 null,
@@ -560,9 +556,9 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None
             ).ConfigureAwait(false);
 
-            Assert.NotNull(response);
-            Assert.NotNull(response.Results);
-            Assert.AreEqual(1, response.Results.Count);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.IsNull, Is.False);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -579,7 +575,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             session.Dispose();
@@ -598,7 +594,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicy
             ).ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             // Perform a read operation
             await session.ReadAsync(
@@ -632,14 +628,13 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Write
-            var writeValues = new WriteValueCollection(
+            var writeValues =
                 m_smallTestSet.Take(5).Select(nodeId => new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(UnsecureRandom.Shared.Next()))
-                })
-            );
+                }).ToArrayOf();
 
             await Session.WriteAsync(
                 null,
@@ -648,8 +643,8 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Browse
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -659,7 +654,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             await Session.BrowseAsync(
                 null,
@@ -670,16 +665,16 @@ namespace Opc.Ua.Client.Tests
             ).ConfigureAwait(false);
 
             // Call
-            var inputArguments = new VariantCollection { new Variant((uint)0) };
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<Variant> inputArguments = [new Variant(0u)];
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             await Session.CallAsync(
                 null,
@@ -726,14 +721,13 @@ namespace Opc.Ua.Client.Tests
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)
             {
-                var writeValues = new WriteValueCollection(
+                var writeValues =
                     m_smallTestSet.Select(nodeId => new WriteValue
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(i))
-                    })
-                );
+                    }).ToArrayOf();
 
                 await Session.WriteAsync(
                     null,
@@ -754,8 +748,8 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Browse 100 ops (for throughput)")]
         public async Task BrowseThroughputAsync()
         {
-            var nodesToBrowse = new BrowseDescriptionCollection
-            {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
                 new BrowseDescription
                 {
                     NodeId = ObjectIds.ObjectsFolder,
@@ -765,7 +759,7 @@ namespace Opc.Ua.Client.Tests
                     NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
 
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)
@@ -791,16 +785,16 @@ namespace Opc.Ua.Client.Tests
         [Benchmark(Description = "Call 100 ops (for throughput)")]
         public async Task CallThroughputAsync()
         {
-            var inputArguments = new VariantCollection { new Variant((uint)0) };
-            var requests = new CallMethodRequestCollection
-            {
+            ArrayOf<Variant> inputArguments = [new Variant(0u)];
+            ArrayOf<CallMethodRequest> requests =
+            [
                 new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_GetMonitoredItems,
                     InputArguments = inputArguments
                 }
-            };
+            ];
 
             const int operationCount = 100;
             for (int i = 0; i < operationCount; i++)
@@ -841,7 +835,7 @@ namespace Opc.Ua.Client.Tests
                         policyUri
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(session, $"Failed to create session with {displayName}");
+                    Assert.That(session, Is.Not.Null, $"Failed to create session with {displayName}");
 
                     // Perform a basic read to verify the connection works
                     ReadResponse response = await session.ReadAsync(
@@ -858,7 +852,7 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None
                     ).ConfigureAwait(false);
 
-                    Assert.NotNull(response);
+                    Assert.That(response, Is.Not.Null);
 
                     await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                     session.Dispose();
@@ -890,7 +884,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // Assert at least some policies work
-            Assert.Greater(successful, 0, "No security policies were successful");
+            Assert.That(successful, Is.GreaterThan(0), "No security policies were successful");
         }
     }
 }

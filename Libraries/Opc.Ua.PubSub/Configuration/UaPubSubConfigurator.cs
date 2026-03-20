@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<uint, object> m_idsToObjects = [];
-        private readonly Dictionary<object, uint> m_objectsToIds = [];
+        private readonly Dictionary<object, uint> m_objectsToIds = new(RefEqualityComparer.Default);
         private readonly Dictionary<uint, PubSubState> m_idsToPubSubState = [];
         private readonly Dictionary<uint, uint> m_idsToParentId = [];
         private uint m_nextId = 1;
@@ -158,7 +158,8 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Get reference to <see cref="PubSubConfigurationDataType"/> instance that maintains the configuration for this <see cref="UaPubSubConfigurator"/>.
+        /// Get reference to <see cref="PubSubConfigurationDataType"/> instance that
+        /// maintains the configuration for this <see cref="UaPubSubConfigurator"/>.
         /// </summary>
         public PubSubConfigurationDataType PubSubConfiguration { get; }
 
@@ -331,8 +332,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                     }
 
-                    PubSubConfiguration.Connections.Clear();
-                    PubSubConfiguration.PublishedDataSets.Clear();
+                    PubSubConfiguration.Connections = [];
+                    PubSubConfiguration.PublishedDataSets = [];
                 }
 
                 //first load Published DataSet information
@@ -395,7 +396,7 @@ namespace Opc.Ua.PubSub.Configuration
                     //remember connection
                     m_idsToObjects.Add(newPublishedDataSetId, publishedDataSetDataType);
                     m_objectsToIds.Add(publishedDataSetDataType, newPublishedDataSetId);
-                    PubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
+                    PubSubConfiguration.PublishedDataSets += publishedDataSetDataType;
 
                     // raise PublishedDataSetAdded event
                     PublishedDataSetAdded?.Invoke(
@@ -406,10 +407,8 @@ namespace Opc.Ua.PubSub.Configuration
                             PublishedDataSetDataType = publishedDataSetDataType
                         });
 
-                    publishedDataSetDataType.ExtensionFields ??= [];
-                    var extensionFields = new KeyValuePairCollection(
-                        publishedDataSetDataType.ExtensionFields);
-                    publishedDataSetDataType.ExtensionFields.Clear();
+                    ArrayOf<KeyValuePair> extensionFields = publishedDataSetDataType.ExtensionFields;
+                    publishedDataSetDataType.ExtensionFields = [];
                     foreach (KeyValuePair extensionField in extensionFields)
                     {
                         AddExtensionField(newPublishedDataSetId, extensionField);
@@ -490,7 +489,8 @@ namespace Opc.Ua.PubSub.Configuration
                             }
                         }
 
-                        PubSubConfiguration.PublishedDataSets.Remove(publishedDataSetDataType);
+                        PubSubConfiguration.PublishedDataSets =
+                            PubSubConfiguration.PublishedDataSets.RemoveItem(publishedDataSetDataType);
 
                         //remove all references from dictionaries
                         m_idsToObjects.Remove(publishedDataSetId);
@@ -532,11 +532,7 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
-                if (publishedDataSetDataType.ExtensionFields == null)
-                {
-                    publishedDataSetDataType.ExtensionFields = [];
-                }
-                else
+                if (!publishedDataSetDataType.ExtensionFields.IsEmpty)
                 {
                     //validate duplicate name
                     bool duplicateName = false;
@@ -560,7 +556,7 @@ namespace Opc.Ua.PubSub.Configuration
                 //remember connection
                 m_idsToObjects.Add(newextensionFieldId, extensionField);
                 m_objectsToIds.Add(extensionField, newextensionFieldId);
-                publishedDataSetDataType.ExtensionFields.Add(extensionField);
+                publishedDataSetDataType.ExtensionFields += extensionField;
 
                 // raise ExtensionFieldAdded event
                 ExtensionFieldAdded?.Invoke(
@@ -592,18 +588,17 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
-                if (publishedDataSetDataType.ExtensionFields == null)
+                if (publishedDataSetDataType.ExtensionFields.IsEmpty)
                 {
-                    publishedDataSetDataType.ExtensionFields = [];
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 // locate the extension field
-                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields
-                    .ToArray())
+                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
                 {
                     if (extensionField.Equals(extensionFieldToRemove))
                     {
-                        publishedDataSetDataType.ExtensionFields.Remove(extensionFieldToRemove);
+                        publishedDataSetDataType.ExtensionFields =
+                            publishedDataSetDataType.ExtensionFields.RemoveItem(extensionFieldToRemove);
 
                         // raise ExtensionFieldRemoved event
                         ExtensionFieldRemoved?.Invoke(
@@ -661,12 +656,10 @@ namespace Opc.Ua.PubSub.Configuration
                     }
 
                     // remember collections
-                    var writerGroups = new WriterGroupDataTypeCollection(
-                        pubSubConnectionDataType.WriterGroups);
-                    pubSubConnectionDataType.WriterGroups.Clear();
-                    var readerGroups = new ReaderGroupDataTypeCollection(
-                        pubSubConnectionDataType.ReaderGroups);
-                    pubSubConnectionDataType.ReaderGroups.Clear();
+                    ArrayOf<WriterGroupDataType> writerGroups = pubSubConnectionDataType.WriterGroups;
+                    pubSubConnectionDataType.WriterGroups = [];
+                    ArrayOf<ReaderGroupDataType> readerGroups = pubSubConnectionDataType.ReaderGroups;
+                    pubSubConnectionDataType.ReaderGroups = [];
 
                     uint newConnectionId = m_nextId++;
                     //remember connection
@@ -679,7 +672,7 @@ namespace Opc.Ua.PubSub.Configuration
                         newConnectionId,
                         GetInitialPubSubState(pubSubConnectionDataType));
 
-                    PubSubConfiguration.Connections.Add(pubSubConnectionDataType);
+                    PubSubConfiguration.Connections += pubSubConnectionDataType;
 
                     // raise ConnectionAdded event
                     ConnectionAdded?.Invoke(
@@ -768,18 +761,17 @@ namespace Opc.Ua.PubSub.Configuration
                     {
                         // remove children
                         foreach (
-                            WriterGroupDataType writerGroup in new WriterGroupDataTypeCollection(
-                                pubSubConnectionDataType.WriterGroups))
+                            WriterGroupDataType writerGroup in pubSubConnectionDataType.WriterGroups)
                         {
                             RemoveWriterGroup(writerGroup);
                         }
                         foreach (
-                            ReaderGroupDataType readerGroup in new ReaderGroupDataTypeCollection(
-                                pubSubConnectionDataType.ReaderGroups))
+                            ReaderGroupDataType readerGroup in pubSubConnectionDataType.ReaderGroups)
                         {
                             RemoveReaderGroup(readerGroup);
                         }
-                        PubSubConfiguration.Connections.Remove(pubSubConnectionDataType);
+                        PubSubConfiguration.Connections =
+                            PubSubConfiguration.Connections.RemoveItem(pubSubConnectionDataType);
 
                         //remove all references from dictionaries
                         m_idsToObjects.Remove(connectionId);
@@ -838,9 +830,8 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections
-                    var dataSetWriters = new DataSetWriterDataTypeCollection(
-                        writerGroupDataType.DataSetWriters);
-                    writerGroupDataType.DataSetWriters.Clear();
+                    ArrayOf<DataSetWriterDataType> dataSetWriters = writerGroupDataType.DataSetWriters;
+                    writerGroupDataType.DataSetWriters = [];
                     if (value is PubSubConnectionDataType parentConnection)
                     {
                         //validate duplicate name
@@ -865,7 +856,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember writer group
                         m_idsToObjects.Add(newWriterGroupId, writerGroupDataType);
                         m_objectsToIds.Add(writerGroupDataType, newWriterGroupId);
-                        parentConnection.WriterGroups.Add(writerGroupDataType);
+                        parentConnection.WriterGroups += writerGroupDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newWriterGroupId, parentConnectionId);
@@ -951,9 +942,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (writerGroupDataType != null && writerGroupId != InvalidId)
                     {
                         // remove children
-                        foreach (
-                            DataSetWriterDataType dataSetWriter in new DataSetWriterDataTypeCollection(
-                                writerGroupDataType.DataSetWriters))
+                        foreach (DataSetWriterDataType dataSetWriter in writerGroupDataType.DataSetWriters)
                         {
                             RemoveDataSetWriter(dataSetWriter);
                         }
@@ -963,7 +952,8 @@ namespace Opc.Ua.PubSub.Configuration
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
-                            parentConnection.WriterGroups.Remove(writerGroupDataType);
+                            parentConnection.WriterGroups =
+                                parentConnection.WriterGroups.RemoveItem(writerGroupDataType);
 
                             //remove all references from dictionaries
                             m_idsToObjects.Remove(writerGroupId);
@@ -1048,7 +1038,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember connection
                         m_idsToObjects.Add(newDataSetWriterId, dataSetWriterDataType);
                         m_objectsToIds.Add(dataSetWriterDataType, newDataSetWriterId);
-                        parentWriterGroup.DataSetWriters.Add(dataSetWriterDataType);
+                        parentWriterGroup.DataSetWriters += dataSetWriterDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newDataSetWriterId, parentWriterGroupId);
@@ -1124,12 +1114,13 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetWriterDataType != null && dataSetWriterId != InvalidId)
                     {
                         // find parent writerGroup
-                        var parentWriterGroup = FindParentForObject(
-                            dataSetWriterDataType) as WriterGroupDataType;
+                        var parentWriterGroup = FindParentForObject(dataSetWriterDataType) as
+                            WriterGroupDataType;
                         uint parentWriterGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parentWriterGroupId != InvalidId)
                         {
-                            parentWriterGroup.DataSetWriters.Remove(dataSetWriterDataType);
+                            parentWriterGroup.DataSetWriters =
+                                parentWriterGroup.DataSetWriters.RemoveItem(dataSetWriterDataType);
 
                             //remove all references from dictionaries
                             m_idsToObjects.Remove(dataSetWriterId);
@@ -1190,9 +1181,8 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections
-                    var dataSetReaders = new DataSetReaderDataTypeCollection(
-                        readerGroupDataType.DataSetReaders);
-                    readerGroupDataType.DataSetReaders.Clear();
+                    ArrayOf<DataSetReaderDataType> dataSetReaders = readerGroupDataType.DataSetReaders;
+                    readerGroupDataType.DataSetReaders = [];
                     if (value is PubSubConnectionDataType parentConnection)
                     {
                         //validate duplicate name
@@ -1217,7 +1207,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember reader group
                         m_idsToObjects.Add(newReaderGroupId, readerGroupDataType);
                         m_objectsToIds.Add(readerGroupDataType, newReaderGroupId);
-                        parentConnection.ReaderGroups.Add(readerGroupDataType);
+                        parentConnection.ReaderGroups += readerGroupDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newReaderGroupId, parentConnectionId);
@@ -1303,9 +1293,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (readerGroupDataType != null && readerGroupId != InvalidId)
                     {
                         // remove children
-                        foreach (
-                            DataSetReaderDataType dataSetReader in new DataSetReaderDataTypeCollection(
-                                readerGroupDataType.DataSetReaders))
+                        foreach (DataSetReaderDataType dataSetReader in readerGroupDataType.DataSetReaders)
                         {
                             RemoveDataSetReader(dataSetReader);
                         }
@@ -1315,7 +1303,8 @@ namespace Opc.Ua.PubSub.Configuration
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
-                            parentConnection.ReaderGroups.Remove(readerGroupDataType);
+                            parentConnection.ReaderGroups =
+                                parentConnection.ReaderGroups.RemoveItem(readerGroupDataType);
 
                             //remove all references from dictionaries
                             m_idsToObjects.Remove(readerGroupId);
@@ -1400,7 +1389,7 @@ namespace Opc.Ua.PubSub.Configuration
                         //remember connection
                         m_idsToObjects.Add(newDataSetReaderId, dataSetReaderDataType);
                         m_objectsToIds.Add(dataSetReaderDataType, newDataSetReaderId);
-                        parentReaderGroup.DataSetReaders.Add(dataSetReaderDataType);
+                        parentReaderGroup.DataSetReaders += dataSetReaderDataType;
 
                         // remember parent id
                         m_idsToParentId.Add(newDataSetReaderId, parentReaderGroupId);
@@ -1481,7 +1470,8 @@ namespace Opc.Ua.PubSub.Configuration
                         uint parenReaderGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parenReaderGroupId != InvalidId)
                         {
-                            parentWriterGroup.DataSetReaders.Remove(dataSetReaderDataType);
+                            parentWriterGroup.DataSetReaders =
+                                parentWriterGroup.DataSetReaders.RemoveItem(dataSetReaderDataType);
 
                             //remove all references from dictionaries
                             m_idsToObjects.Remove(dataSetReaderId);
@@ -1526,7 +1516,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Enable(object configurationObject)
         {
-            if (configurationObject == null)
+            if (configurationObject is null)
             {
                 throw new ArgumentException(
                     "The parameter cannot be null.",
@@ -1546,7 +1536,7 @@ namespace Opc.Ua.PubSub.Configuration
                 return StatusCodes.BadInvalidState;
             }
             PubSubState parentState = PubSubState.Operational;
-            if (configurationObject != PubSubConfiguration)
+            if (!ReferenceEquals(configurationObject, PubSubConfiguration))
             {
                 parentState = FindStateForObject(FindParentForObject(configurationObject));
             }
@@ -1579,7 +1569,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Disable(object configurationObject)
         {
-            if (configurationObject == null)
+            if (configurationObject is null)
             {
                 throw new ArgumentException(
                     "The parameter cannot be null.",

@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState serverNode = Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).AsTask().GetAwaiter().GetResult();
+                                NodeState serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).ConfigureAwait(false);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
@@ -290,16 +290,12 @@ namespace Opc.Ua.Server
                 .. configuration.ServerConfiguration.ServerCapabilities
             ];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
             m_serverConfigurationNode.SupportedPrivateKeyFormats.Value =
             [
                 .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
             ];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration
                 .ServerConfiguration
                 .MaxTrustListSize;
@@ -498,16 +494,16 @@ namespace Opc.Ua.Server
             NodeId objectId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificate,
-            byte[][] issuerCertificates,
+            ByteString certificate,
+            ArrayOf<ByteString> issuerCertificates,
             string privateKeyFormat,
-            byte[] privateKey,
+            ByteString privateKey,
             CancellationToken ct)
         {
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
-            VariantCollection inputArguments =
+            ArrayOf<Variant> inputArguments =
             [
                 certificateGroupId,
                 certificateTypeId,
@@ -527,7 +523,7 @@ namespace Opc.Ua.Server
                 m_logger);
             try
             {
-                if (certificate == null)
+                if (certificate.IsEmpty)
                 {
                     throw new ArgumentNullException(nameof(certificate));
                 }
@@ -585,12 +581,9 @@ namespace Opc.Ua.Server
                 try
                 {
                     // build issuer chain
-                    if (issuerCertificates != null)
+                    foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        foreach (byte[] issuerRawCert in issuerCertificates)
-                        {
-                            newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
-                        }
+                        newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
                     }
                 }
                 catch
@@ -712,7 +705,7 @@ namespace Opc.Ua.Server
                             for (int attempt = 0; ; attempt++)
                             {
                                 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
-                                    privateKey,
+                                    privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
                                     // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
@@ -747,10 +740,10 @@ namespace Opc.Ua.Server
                             for (int attempt = 0; ; attempt++)
                             {
                                 updateCertificate.CertificateWithPrivateKey =
-                                CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                                    newCert,
-                                    privateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier));
+                                    CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                                        newCert,
+                                        privateKey.ToArray(),
+                                        passwordProvider?.GetPassword(existingCertIdentifier));
                                 try
                                 {
                                     await UpdateCertificateInternalAsync(
@@ -933,7 +926,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             string subjectName,
             bool regeneratePrivateKey,
-            byte[] nonce,
+            ByteString nonce,
             CancellationToken cancellationToken)
         {
             HasApplicationSecureAdminAccess(context);
@@ -959,7 +952,7 @@ namespace Opc.Ua.Server
             X509Certificate2 certWithPrivateKey;
             if (regeneratePrivateKey)
             {
-                IList<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+                ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
 
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
@@ -989,9 +982,9 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
                 certWithPrivateKey.AsLogSafeString());
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+            ByteString certificateRequest = ByteString.From(CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
-                X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
+                X509Utils.GetDomainsFromCertificate(certWithPrivateKey)));
 
             return new CreateSigningRequestMethodStateResult
             {
@@ -1004,7 +997,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             ServerCertificateGroup certificateGroup,
             string subjectName,
-            IList<string> domainNames)
+            ArrayOf<string> domainNames)
         {
             X509Certificate2 certificate;
 
@@ -1040,8 +1033,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1127,7 +1120,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            ref byte[][] certificates)
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1144,12 +1137,12 @@ namespace Opc.Ua.Server
                 if (store != null)
                 {
                     X509Certificate2Collection collection = store.EnumerateAsync().Result;
-                    var rawList = new List<byte[]>();
+                    var rawList = new List<ByteString>();
                     foreach (X509Certificate2 cert in collection)
                     {
-                        rawList.Add(cert.RawData);
+                        rawList.Add(cert.RawData.ToByteString());
                     }
-                    certificates = [.. rawList];
+                    certificates = rawList.ToArrayOf();
                 }
             }
             finally
@@ -1165,8 +1158,8 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             NodeId certificateGroupId,
-            ref NodeId[] certificateTypeIds,
-            ref byte[][] certificates)
+            ref ArrayOf<NodeId> certificateTypeIds,
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1178,8 +1171,9 @@ namespace Opc.Ua.Server
                     "Certificate group invalid.");
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = [.. certificateGroup.ApplicationCertificates
-                .Select(s => s.Certificate?.RawData)];
+            certificates = certificateGroup.ApplicationCertificates
+                .Select(s => s.Certificate?.RawData.ToByteString() ?? default)
+                .ToArrayOf();
 
             return ServiceResult.Good;
         }

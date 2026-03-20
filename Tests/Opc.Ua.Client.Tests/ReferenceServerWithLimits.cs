@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
             return base.BrowseAsync(
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -280,21 +280,16 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public override async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+        public override async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (nodesToBrowse == null)
-            {
-                throw new ArgumentNullException(nameof(nodesToBrowse));
             }
 
             if (view != null && !view.ViewId.IsNull)
@@ -338,8 +333,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             bool diagnosticsExist = false;
-            var results = new BrowseResultCollection(nodesToBrowse.Count);
-            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var results = new List<BrowseResult>(nodesToBrowse.Count);
+            var diagnosticInfos = new List<DiagnosticInfo>(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -351,9 +346,7 @@ namespace Opc.Ua.Client.Tests
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null &&
-                            current.ContinuationPoint != null &&
-                            current.ContinuationPoint.Length > 0)
+                        if (current != null && current.ContinuationPoint.Length > 0)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -394,7 +387,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint != null && result.ContinuationPoint.Length > 0)
+                if (result.ContinuationPoint.Length > 0)
                 {
                     continuationPointsAssigned++;
                 }

@@ -49,11 +49,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
-        public NumericRange ParsedIndexRange
-        {
-            get => m_parsedIndexRange;
-            set => m_parsedIndexRange = value;
-        }
+        public NumericRange ParsedIndexRange { get; set; }
 
         /// <summary>
         /// Validates a write value parameter.
@@ -78,86 +74,25 @@ namespace Opc.Ua
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            // initialize as empty.
-            value.ParsedIndexRange = NumericRange.Empty;
-
             // parse the index range if specified.
             if (!string.IsNullOrEmpty(value.IndexRange))
             {
-                try
+                ServiceResult result = NumericRange.Validate(
+                    value.IndexRange,
+                    out NumericRange range);
+                if (ServiceResult.IsBad(result))
                 {
-                    value.ParsedIndexRange = NumericRange.Parse(value.IndexRange);
+                    return result;
                 }
-                catch (Exception e)
-                {
-                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, string.Empty);
-                }
-
-                if (value.ParsedIndexRange.SubRanges != null)
-                {
-                    if (value.Value.Value is not Matrix)
-                    {
-                        // Check for String or ByteString arrays. Those DataTypes have special handling
-                        // when using sub ranges.
-                        bool isArrayWithValidDataType =
-                            (
-                                value.Value.Value is Array &&
-                                value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
-                            ) ||
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
-
-                        if (!isArrayWithValidDataType)
-                        {
-                            return StatusCodes.BadTypeMismatch;
-                        }
-                    }
-                }
-                else if (value.Value.Value is Array array)
-                {
-                    NumericRange range = value.ParsedIndexRange;
-
-                    // check that the number of elements to write matches the index range.
-                    if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
-                    {
-                        return StatusCodes.BadIndexRangeNoData;
-                    }
-
-                    // check for single element.
-                    if (range.End < 0 && array.Length != 1)
-                    {
-                        return StatusCodes.BadIndexRangeInvalid;
-                    }
-                }
-                else if (value.Value.Value is string str)
-                {
-                    NumericRange range = value.ParsedIndexRange;
-
-                    // check that the number of elements to write matches the index range.
-                    if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
-                    {
-                        return StatusCodes.BadIndexRangeNoData;
-                    }
-
-                    // check for single element.
-                    if (range.End < 0 && str.Length != 1)
-                    {
-                        return StatusCodes.BadIndexRangeInvalid;
-                    }
-                }
-                else
-                {
-                    return StatusCodes.BadTypeMismatch;
-                }
+                value.ParsedIndexRange = range;
             }
             else
             {
-                value.ParsedIndexRange = NumericRange.Empty;
+                // initialize as empty.
+                value.ParsedIndexRange = default;
             }
-
             // passed basic validation.
             return null;
         }
-
-        private NumericRange m_parsedIndexRange = NumericRange.Empty;
     }
 }

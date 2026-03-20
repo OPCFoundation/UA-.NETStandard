@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
+        private static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
             Func<Task> task,
             int iterations)
         {

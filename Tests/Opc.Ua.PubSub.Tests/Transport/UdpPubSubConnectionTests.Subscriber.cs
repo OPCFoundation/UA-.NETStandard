@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -57,8 +56,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -68,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -78,14 +77,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
 
@@ -97,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -107,14 +105,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //Act
             subscriberConnection.Start();
@@ -125,20 +122,20 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 localhost.Address,
                 kDiscoveryPortNo,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpUnicastClient, "udpUnicastClient is null");
+            Assert.That(udpUnicastClient, Is.Not.Null, "udpUnicastClient is null");
 
             // first physical network ip = unicast address ip
             var remoteEndPoint = new IPEndPoint(localhost.Address, kDiscoveryPortNo);
-            Assert.IsNotNull(remoteEndPoint, "remoteEndPoint is null");
+            Assert.That(remoteEndPoint, Is.Not.Null, "remoteEndPoint is null");
 
             m_sentBytes = BuildNetworkMessages(publisherConnection);
             int sentBytesLen = udpUnicastClient.Send(
                 m_sentBytes,
                 m_sentBytes.Length,
                 remoteEndPoint);
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -146,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber unicast error ... published data not received");
             }
 
@@ -162,8 +159,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -174,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     configurationFile,
                     m_messageContext.Telemetry);
 
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -184,14 +181,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
 
@@ -203,10 +199,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
-            Assert.IsNotNull(broadcastIPAddress, "broadcastIPAddress is null");
+            Assert.That(broadcastIPAddress, Is.Not.Null, "broadcastIPAddress is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -216,14 +212,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     broadcastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //Act
             subscriberConnection.Start();
@@ -236,16 +231,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 kDiscoveryPortNo,
                 UsedInContext.Publisher,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpBroadcastClient, "udpBroadcastClient is null");
+            Assert.That(udpBroadcastClient, Is.Not.Null, "udpBroadcastClient is null");
 
             var remoteEndPoint = new IPEndPoint(broadcastIPAddress, kDiscoveryPortNo);
             int sentBytesLen = udpBroadcastClient.Send(
                 m_sentBytes,
                 m_sentBytes.Length,
                 remoteEndPoint);
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -253,7 +248,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber broadcast error ... published data not received");
             }
 
@@ -272,11 +267,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             var multicastIPAddress = new IPAddress([239, 0, 0, 1]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -286,7 +281,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -296,14 +291,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
 
@@ -315,7 +309,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -325,14 +319,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //Act
             subscriberConnection.Start();
@@ -345,16 +338,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 multicastIPAddress,
                 0,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
+            Assert.That(udpMulticastClient, Is.Not.Null, "udpMulticastClient is null");
 
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
             int sentBytesLen = udpMulticastClient.Send(
                 m_sentBytes,
                 m_sentBytes.Length,
                 remoteEndPoint);
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -362,7 +355,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -383,12 +376,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             //discovery IP address 224.0.2.14
             var multicastIPAddress = new IPAddress([224, 0, 2, 14]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             //set subscriber configuration
             string configurationFile = Utils.GetAbsoluteFilePath(
@@ -399,7 +392,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             //set address and create subscriber
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -410,14 +403,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             //subscribe to event handlers
             subscriberApplication.RawDataReceived += RawDataReceived_NoRequests;
@@ -432,7 +424,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             //set address and create publisher
             var publisherAddress = new NetworkAddressUrlDataType
@@ -443,14 +435,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //start subscriber and prepare the message
             subscriberConnection.Start();
@@ -466,7 +457,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 multicastIPAddress,
                 0,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
+            Assert.That(udpMulticastClient, Is.Not.Null, "udpMulticastClient is null");
 
             //set endpoint and send message
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
@@ -501,9 +492,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             };
             subscriberApplication.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
 
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -511,7 +502,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -531,12 +522,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
             ILogger logger = m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>();
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             //discovery IP address 224.0.2.14
             var multicastIPAddress = new IPAddress([224, 0, 2, 14]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             //set configuration
             string configurationFile = Utils.GetAbsoluteFilePath(
@@ -547,7 +538,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             //set address and create subscriber
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -558,14 +549,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             //subscribe the event handlers
             subscriberApplication.RawDataReceived += RawDataReceived_NoRequests;
@@ -581,7 +571,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -591,14 +581,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //start the subscriber and prepare message
             subscriberConnection.Start();
@@ -611,7 +600,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 multicastIPAddress,
                 0,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
+            Assert.That(udpMulticastClient, Is.Not.Null, "udpMulticastClient is null");
 
             //set endpoint and send message
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
@@ -620,9 +609,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes.Length,
                 remoteEndPoint);
 
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -630,7 +619,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -653,12 +642,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             //discovery IP address 224.0.2.14
             var multicastIPAddress = new IPAddress([224, 0, 2, 14]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -668,7 +657,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -678,14 +667,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.DataSetWriterConfigurationReceived
                 += DatasetWriterConfigurationReceived;
@@ -698,7 +686,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -708,14 +696,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             m_shutdownEvent = new ManualResetEvent(false);
 
@@ -737,7 +724,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -762,12 +749,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             //discovery IP address 224.0.2.14
             var multicastIPAddress = new IPAddress([224, 0, 2, 14]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -777,7 +764,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -787,14 +774,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.PublisherEndpointsReceived += PublisherEndpointsReceived;
 
@@ -806,7 +792,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -816,14 +802,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             m_shutdownEvent = new ManualResetEvent(false);
 
@@ -845,7 +830,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -868,12 +853,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             // Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-            Assert.IsNotNull(localhost, "localhost is null");
-            Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+            Assert.That(localhost, Is.Not.Null, "localhost is null");
+            Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
             //discovery IP address 224.0.2.14
             var multicastIPAddress = new IPAddress([224, 0, 2, 14]);
-            Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
+            Assert.That(multicastIPAddress, Is.Not.Null, "multicastIPAddress is null");
 
             string configurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
@@ -883,7 +868,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
+            Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
             {
@@ -893,14 +878,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            var subscriberApplication = UaPubSubApplication.Create(
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
+            Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(subscriberConnection, Is.Not.Null, "subscriberConnection is null");
 
             subscriberApplication.PublisherEndpointsReceived += PublisherEndpointsReceived;
 
@@ -912,7 +896,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 UaPubSubConfigurationHelper.LoadConfiguration(
                     configurationFile,
                     m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
+            Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
             {
@@ -922,14 +906,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            var publisherApplication = UaPubSubApplication.Create(
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(publisherApplication, "publisherApplication is null");
+            Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(publisherConnection, "publisherConnection is null");
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(publisherConnection, Is.Not.Null, "publisherConnection is null");
 
             //Act
             subscriberConnection.Start();
@@ -947,7 +930,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 multicastIPAddress,
                 0,
                 m_messageContext.Telemetry);
-            Assert.IsNotNull(udpMulticastClient, "udpMulticastClient is null");
+            Assert.That(udpMulticastClient, Is.Not.Null, "udpMulticastClient is null");
 
             var remoteEndPoint = new IPEndPoint(multicastIPAddress, kDiscoveryPortNo);
             // Publisher: trigger PublishNetworkMessage including PublisherEndpoints data
@@ -955,9 +938,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes,
                 m_sentBytes.Length,
                 remoteEndPoint);
-            Assert.AreEqual(
-                sentBytesLen,
+            Assert.That(
                 m_sentBytes.Length,
+                Is.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -965,7 +948,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert
             if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Fail("Subscriber multicast error ... published data not received");
             }
 
@@ -983,10 +966,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 // Assert
                 System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-                Assert.IsNotNull(localhost, "localhost is null");
-                Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+                Assert.That(localhost, Is.Not.Null, "localhost is null");
+                Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
-                Assert.IsNotNull(e.Source, "Udp address received should not be null");
+                Assert.That(e.Source, Is.Not.Null, "Udp address received should not be null");
                 if (localhost.Address.ToString() != e.Source)
                 {
                     // the message comes from the network but was not initiated by test
@@ -994,22 +977,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 }
 
                 byte[] bytes = e.Message;
-                Assert.AreEqual(
-                    m_sentBytes.Length,
+                Assert.That(
                     bytes.Length,
-                    "Sent bytes size: {0} does not match received bytes size: {1}",
-                    m_sentBytes.Length,
-                    bytes.Length);
+                    Is.EqualTo(m_sentBytes.Length),
+                    $"Sent bytes size: {m_sentBytes.Length} does not match received bytes size: {bytes.Length}");
 
                 string sentBytesStr = BitConverter.ToString(m_sentBytes);
                 string bytesStr = BitConverter.ToString(bytes);
 
-                Assert.AreEqual(
-                    sentBytesStr,
+                Assert.That(
                     bytesStr,
-                    "Sent bytes: {0} and received bytes: {1} content are not equal",
-                    sentBytesStr,
-                    bytesStr);
+                    Is.EqualTo(sentBytesStr),
+                    $"Sent bytes: {sentBytesStr} and received bytes: {bytesStr} content are not equal");
 
                 m_shutdownEvent.Set();
             }
@@ -1026,10 +1005,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 // Assert
                 System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
-                Assert.IsNotNull(localhost, "localhost is null");
-                Assert.IsNotNull(localhost.Address, "localhost.Address is null");
+                Assert.That(localhost, Is.Not.Null, "localhost is null");
+                Assert.That(localhost.Address, Is.Not.Null, "localhost.Address is null");
 
-                Assert.IsNotNull(e.Source, "Udp address received should not be null");
+                Assert.That(e.Source, Is.Not.Null, "Udp address received should not be null");
                 if (localhost.Address.ToString() != e.Source)
                 {
                     // the message comes from the network but was not initiated by test
@@ -1039,22 +1018,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 byte[] bytes = e.Message;
                 if (bytes.Length > 12)
                 {
-                    Assert.AreEqual(
-                        m_sentBytes.Length,
+                    Assert.That(
                         bytes.Length,
-                        "Sent bytes size: {0} does not match received bytes size: {1}",
-                        m_sentBytes.Length,
-                        bytes.Length);
+                        Is.EqualTo(m_sentBytes.Length),
+                        $"Sent bytes size: {m_sentBytes.Length} does not match received bytes size: {bytes.Length}");
 
                     string sentBytesStr = BitConverter.ToString(m_sentBytes);
                     string bytesStr = BitConverter.ToString(bytes);
 
-                    Assert.AreEqual(
-                        sentBytesStr,
+                    Assert.That(
                         bytesStr,
-                        "Sent bytes: {0} and received bytes: {1} content are not equal",
-                        sentBytesStr,
-                        bytesStr);
+                        Is.EqualTo(sentBytesStr),
+                        $"Sent bytes: {sentBytesStr} and received bytes: {bytesStr} content are not equal");
                 }
                 m_shutdownEvent.Set();
             }
@@ -1069,28 +1044,27 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 m_logger.LogInformation("Metadata received:");
                 bool isNetworkMessage = e.NetworkMessage is UadpNetworkMessage;
-                Assert.IsTrue(isNetworkMessage);
+                Assert.That(isNetworkMessage, Is.True);
                 if (isNetworkMessage && e.NetworkMessage.IsMetaDataMessage)
                 {
                     var message = (UadpNetworkMessage)e.NetworkMessage;
 
-                    Assert.IsNotNull(message.PublisherId);
-                    Assert.IsNotNull(message.DataSetWriterId);
-                    Assert.IsNotNull(message.DataSetMetaData);
-                    Assert.IsNotNull(message.DataSetMetaData.Fields);
-                    Assert.IsTrue(message.DataSetMetaData.Fields.Count > 0);
+                    Assert.That(message.PublisherId.IsNull, Is.False);
+                    Assert.That(message.DataSetWriterId, Is.Not.Null);
+                    Assert.That(message.DataSetMetaData, Is.Not.Null);
+                    Assert.That(message.DataSetMetaData.Fields.IsNull, Is.False);
+                    Assert.That(message.DataSetMetaData.Fields.Count, Is.GreaterThan(0));
 
-                    Assert.IsNotNull(message.DataSetMetaData.Name);
-                    Assert.IsNotNull(message.DataSetMetaData.ConfigurationVersion);
+                    Assert.That(message.DataSetMetaData.Name, Is.Not.Null);
+                    Assert.That(message.DataSetMetaData.ConfigurationVersion, Is.Not.Null);
 
                     for (int i = 0; i < message.DataSetMetaData.Fields.Count; i++)
                     {
                         FieldMetaData field = message.DataSetMetaData.Fields[i];
-                        Assert.IsNotNull(field.Name);
-                        Assert.IsNotNull(field.DataType);
-                        Assert.IsNotNull(field.ValueRank);
-                        Assert.IsNotNull(field.TypeId);
-                        Assert.IsNotNull(field.Properties);
+                        Assert.That(field.Name, Is.Not.Null);
+                        Assert.That(field.DataType.IsNull, Is.False);
+                        Assert.That(field.TypeId.IsNull, Is.False);
+                        Assert.That(field.Properties.IsNull, Is.False);
                     }
                 }
                 m_shutdownEvent.Set();
@@ -1104,19 +1078,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             lock (s_lock)
             {
-                Assert.AreEqual(
-                    3,
-                    e.PublisherEndpoints.Length,
-                    "Send PublisherEndpoints: {0} and received PublisherEndpoints: {1} are not equal",
-                    3,
-                    e.PublisherEndpoints.Length);
+                Assert.That(
+                    e.PublisherEndpoints.Count,
+                    Is.EqualTo(3),
+                    $"Send PublisherEndpoints: {3} and received PublisherEndpoints: {e.PublisherEndpoints.Count} are not equal");
 
                 foreach (EndpointDescription ep in e.PublisherEndpoints)
                 {
-                    Assert.IsNotNull(ep.SecurityMode);
-                    Assert.IsNotEmpty(ep.SecurityPolicyUri);
-                    Assert.IsNotEmpty(ep.EndpointUrl);
-                    Assert.IsNotNull(ep.Server);
+                    Assert.That(ep.SecurityPolicyUri, Is.Not.Empty);
+                    Assert.That(ep.EndpointUrl, Is.Not.Empty);
+                    Assert.That(ep.Server, Is.Not.Null);
                 }
                 m_shutdownEvent.Set();
             }
@@ -1156,10 +1127,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         writerGroup0,
                         new WriterGroupPublishState());
                 }
-                Assert.IsNotNull(networkMessages, "CreateNetworkMessages returned null");
+                Assert.That(networkMessages, Is.Not.Null, "CreateNetworkMessages returned null");
 
-                Assert.IsTrue(
-                    networkMessages.Count > networkMessageIndex,
+                Assert.That(
+                    networkMessages.Count,
+                    Is.GreaterThan(networkMessageIndex),
                     "networkMessageIndex is outside of bounds");
 
                 UaNetworkMessage message = networkMessages[networkMessageIndex];
@@ -1168,7 +1140,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }
@@ -1190,8 +1162,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     networkMessage = publisherConnection.CreatePublisherEndpointsNetworkMessage(
                         [.. endpointDescriptions],
                         StatusCodes.Good,
-                        publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
-                    Assert.IsNotNull(networkMessage, "uaNetworkMessage shall not return null");
+                        publisherConnection.PubSubConnectionConfiguration.PublisherId);
+                    Assert.That(networkMessage, Is.Not.Null, "uaNetworkMessage shall not return null");
 
                     return networkMessage.Encode(m_messageContext);
                 }
@@ -1200,7 +1172,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }
@@ -1280,15 +1252,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     .CreateDataSetWriterCofigurationMessage([.. dataSetWriterIds])
                     .First();
 
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessage,
+                    Is.Not.Null,
                     "CreateDataSetWriterCofigurationMessages returned null");
 
                 return networkMessage.Encode(m_messageContext);
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Fail(ex.Message);
+                Assert.Fail(ex.Message);
                 throw;
             }
         }
@@ -1308,21 +1281,20 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     WriterGroupDataType config = e.DataSetWriterConfiguration;
 
-                    Assert.IsNotEmpty(config.Name);
-                    Assert.IsNotNull(config.SecurityKeyServices);
-                    Assert.IsNotNull(config.GroupProperties);
-                    Assert.IsNotNull(config.SecurityMode);
-                    Assert.IsNotNull(config.TransportSettings);
-                    Assert.IsNotNull(config.MessageSettings);
-                    Assert.IsNotEmpty(config.HeaderLayoutUri);
-                    Assert.IsTrue(config.DataSetWriters != null);
+                    Assert.That(config.Name, Is.Not.Empty);
+                    Assert.That(config.SecurityKeyServices.IsNull, Is.False);
+                    Assert.That(config.GroupProperties.IsNull, Is.False);
+                    Assert.That(config.TransportSettings.IsNull, Is.False);
+                    Assert.That(config.MessageSettings.IsNull, Is.False);
+                    Assert.That(config.HeaderLayoutUri, Is.Not.Empty);
+                    Assert.That(config.DataSetWriters.IsNull, Is.False);
 
                     foreach (DataSetWriterDataType writer in config.DataSetWriters)
                     {
-                        Assert.IsNotEmpty(writer.Name);
-                        Assert.IsNotNull(writer.DataSetWriterProperties);
-                        Assert.IsNotNull(writer.MessageSettings);
-                        Assert.IsNotEmpty(writer.DataSetName);
+                        Assert.That(writer.Name, Is.Not.Empty);
+                        Assert.That(writer.DataSetWriterProperties.IsNull, Is.False);
+                        Assert.That(writer.MessageSettings.IsNull, Is.False);
+                        Assert.That(writer.DataSetName, Is.Not.Empty);
                     }
                     m_shutdownEvent.Set();
                 }
@@ -1352,8 +1324,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 ids.AddRange(
                     connection
-                        .WriterGroups.Select(group => group.DataSetWriters)
-                        .SelectMany(writer => writer.Select(x => x.DataSetWriterId)));
+                        .WriterGroups
+                        .ToList()
+                        .Select(group => group.DataSetWriters)
+                        .SelectMany(writer => writer.ToList().Select(x => x.DataSetWriterId)));
             }
             return ids;
         }

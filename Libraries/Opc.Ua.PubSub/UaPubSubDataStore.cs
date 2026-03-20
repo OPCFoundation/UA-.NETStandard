@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub
                 {
                     WrappedValue = value,
                     StatusCode = status ?? StatusCodes.Good,
-                    SourceTimestamp = timestamp ?? DateTime.UtcNow
+                    SourceTimestamp = timestamp ?? DateTimeUtc.Now
                 };
 
                 if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary))

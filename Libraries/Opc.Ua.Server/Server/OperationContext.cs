@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
@@ -242,7 +241,7 @@ namespace Opc.Ua.Server
         /// The locales to use for the operation.
         /// </summary>
         /// <value>The preferred locales.</value>
-        public IList<string> PreferredLocales { get; }
+        public ArrayOf<string> PreferredLocales { get; }
 
         /// <summary>
         /// The diagnostics mask specified with the request.

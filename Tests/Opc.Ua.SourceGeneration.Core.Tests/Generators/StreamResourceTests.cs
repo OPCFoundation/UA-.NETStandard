@@ -140,7 +140,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             long actualLength = resource.GetLength(mockFileSystem.Object);
             // Assert
-            Assert.That(actualLength, Is.EqualTo(0L));
+            Assert.That(actualLength, Is.Zero);
         }
 
         /// <summary>

@@ -39,8 +39,6 @@ namespace Opc.Ua.Buffers
     /// <typeparam name="T"></typeparam>
     public sealed class ArrayPoolBufferSegment<T> : ReadOnlySequenceSegment<T>
     {
-        private T[] m_array;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferSegment{T}"/> class.
         /// </summary>
@@ -75,5 +73,7 @@ namespace Opc.Ua.Buffers
             Next = segment;
             return segment;
         }
+
+        private T[] m_array;
     }
 }
