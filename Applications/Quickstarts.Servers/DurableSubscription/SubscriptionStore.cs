@@ -178,7 +178,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static void EncodeSubscription(
+        internal static void EncodeSubscription(
             BinaryEncoder encoder, StoredSubscription subscription)
         {
             encoder.WriteUInt32(null, subscription.Id);
@@ -214,7 +214,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static void EncodeMonitoredItem(
+        internal static void EncodeMonitoredItem(
             BinaryEncoder encoder, StoredMonitoredItem item)
         {
             encoder.WriteBoolean(null, item.IsRestored);
@@ -250,7 +250,7 @@ namespace Quickstarts.Servers
             encoder.WriteString(null, item.ParsedIndexRange.ToString());
         }
 
-        private static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        internal static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
         {
             var subscription = new StoredSubscription
             {
@@ -300,7 +300,7 @@ namespace Quickstarts.Servers
             return subscription;
         }
 
-        private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
+        internal static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
         {
             var item = new StoredMonitoredItem
             {
@@ -351,3 +351,4 @@ namespace Quickstarts.Servers
         }
     }
 }
+
