@@ -314,7 +314,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static void EncodeDataChangeQueue(BinaryEncoder encoder, StorableDataChangeQueue q)
+        internal static void EncodeDataChangeQueue(BinaryEncoder encoder, StorableDataChangeQueue q)
         {
             encoder.WriteBoolean(null, q.IsDurable);
             encoder.WriteUInt32(null, q.MonitoredItemId);
@@ -334,7 +334,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
+        internal static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
         {
             var q = new StorableDataChangeQueue
             {
@@ -355,7 +355,7 @@ namespace Quickstarts.Servers
             return q;
         }
 
-        private static void EncodeDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
+        internal static void EncodeDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
         {
             bool hasValue = batch != null;
             encoder.WriteBoolean(null, hasValue);
@@ -383,7 +383,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static DataChangeBatch DecodeDataChangeBatch(BinaryDecoder decoder)
+        internal static DataChangeBatch DecodeDataChangeBatch(BinaryDecoder decoder)
         {
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
@@ -415,7 +415,7 @@ namespace Quickstarts.Servers
             }
             return batch;
         }
-        private static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
+        internal static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
         {
             encoder.WriteBoolean(null, q.IsDurable);
             encoder.WriteUInt32(null, q.MonitoredItemId);
@@ -434,7 +434,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static StorableEventQueue DecodeEventQueue(BinaryDecoder decoder)
+        internal static StorableEventQueue DecodeEventQueue(BinaryDecoder decoder)
         {
             var q = new StorableEventQueue
             {
@@ -454,7 +454,7 @@ namespace Quickstarts.Servers
             return q;
         }
 
-        private static void EncodeEventBatch(
+        internal static void EncodeEventBatch(
             BinaryEncoder encoder, EventBatch batch)
         {
             bool hasValue = batch != null;
@@ -480,7 +480,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static EventBatch DecodeEventBatch(BinaryDecoder decoder)
+        internal static EventBatch DecodeEventBatch(BinaryDecoder decoder)
         {
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
@@ -516,3 +516,4 @@ namespace Quickstarts.Servers
         }
     }
 }
+
