@@ -11,7 +11,7 @@ jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
-    vmImage: 'windows-2025'
+    vmImage: 'windows-2025-vs2026'
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -92,3 +92,8 @@ jobs:
       command: test
       projects: $(file)
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Fuzzing artifacts on failure'
+    condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
+    inputs:
+      PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
