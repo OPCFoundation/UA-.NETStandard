@@ -34,7 +34,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.CompilerServices;
 #endif
@@ -170,19 +169,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void UtilsIsEqualObjectCompareTest()
         {
             bool result = UtilsIsEqualGenericByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualObjectCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = UtilsIsEqualIEnumerableCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = SequenceEqualsByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = ForLoopBinaryCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = MemCmpByteArrayCompare();
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -190,45 +189,42 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             // byte arrays and null
 
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)m_bufferB),
-                Utils.IsEqual(m_bufferA, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, m_bufferB),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
+            Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+            Assert.That(Utils.IsEqual(null, null), Is.True);
 
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)m_bufferB),
-                Utils.IsEqual(m_bufferA, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, m_bufferB),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
+            Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
 
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)m_bufferB),
-                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
-            Assert.AreEqual(
-                Utils.IsEqual(null, (object)m_bufferB),
-                Utils.IsEqual(null, (IEnumerable)m_bufferB));
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)null),
-                Utils.IsEqual(m_bufferA, (IEnumerable)null));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
+            Assert.That(
+                Utils.IsEqual(null, (IEnumerable)m_bufferB),
+                Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, (IEnumerable)null),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
 
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)m_bufferB),
-                Utils.IsEqual(m_bufferA, (Array)m_bufferB));
-            Assert.AreEqual(
-                Utils.IsEqual(null, (object)m_bufferB),
-                Utils.IsEqual(null, (Array)m_bufferB));
-            Assert.AreEqual(
-                Utils.IsEqual(m_bufferA, (object)null),
-                Utils.IsEqual(m_bufferA, (Array)null));
-
-            const int i = 1;
-            Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, (Array)m_bufferB),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
+            Assert.That(
+                Utils.IsEqual(null, (Array)m_bufferB),
+                Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
+            Assert.That(
+                Utils.IsEqual(m_bufferA, (Array)null),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
         }
 
         [OneTimeSetUp]
+        [GlobalSetup]
         public void OneTimeSetUp()
         {
             // for validating benchmark tests
@@ -239,35 +235,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-        }
-
-        /// <summary>
-        /// Set up some variables for benchmarks.
-        /// </summary>
-        [GlobalSetup]
-        public void GlobalSetup()
-        {
-            // for validating benchmark tests
-            m_bufferA = new byte[PayLoadSize];
-            m_bufferB = new byte[PayLoadSize];
-            UnsecureRandom.Shared.NextBytes(m_bufferA);
-            Array.Copy(m_bufferA, m_bufferB, m_bufferA.Length);
-        }
-
-        /// <summary>
-        /// Tear down benchmark variables.
-        /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
+        public void OneTimeTearDown()
         {
         }
 
         /// <summary>
         /// Checks if two byte[] values are equal.
         /// </summary>
-        public static bool IsEqual(byte[] value1, byte[] value2)
+        private static bool IsEqual(byte[] value1, byte[] value2)
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))
@@ -286,7 +262,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// For backward comparison the original generic version of IsEqual up to release 1.4.372.106.
         /// </summary>
-        public static bool IsEqualGeneric(object value1, object value2)
+#pragma warning disable CA1859 // Use concrete types when possible for improved performance
+        private static bool IsEqualGeneric(object value1, object value2)
+#pragma warning restore CA1859 // Use concrete types when possible for improved performance
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))

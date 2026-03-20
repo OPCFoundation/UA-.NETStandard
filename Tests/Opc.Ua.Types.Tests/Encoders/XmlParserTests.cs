@@ -279,7 +279,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -300,7 +300,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.False);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -384,7 +384,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(0));
+            Assert.That(stringTable.Count, Is.Zero);
         }
 
         [Test]
@@ -518,7 +518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
-            Assert.That(result.GetBoolean(), Is.EqualTo(true));
+            Assert.That(result.GetBoolean(), Is.True);
         }
 
         [Test]
@@ -1406,7 +1406,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             uint result = decoder.ReadEncodingMask(null);
 
             // Assert
-            Assert.That(result, Is.EqualTo(0u));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -1784,7 +1784,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "TestEncodeableWithTypeId", Namespace = Namespaces.OpcUaXsd)]
         private sealed class TestEncodeableWithTypeId : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(12345, 0);
+            public ExpandedNodeId TypeId => new(12345, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
@@ -1810,7 +1810,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "TestEncodeableWithData", Namespace = Namespaces.OpcUaXsd)]
         private sealed class TestEncodeableWithData : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(99999, 0);
+            public ExpandedNodeId TypeId => new(99999, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
@@ -1926,8 +1926,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new XmlParser("<Root/>", ctx);
 
-            Assert.DoesNotThrow(() => decoder.Close(true));
-            Assert.DoesNotThrow(() => decoder.Close(false));
+            Assert.DoesNotThrow(() => decoder.Close());
+            Assert.DoesNotThrow(() => decoder.Close());
         }
 
         [Test]
@@ -2111,8 +2111,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue("DataValue");
 
             Assert.That(result.WrappedValue.GetString(), Is.EqualTo("Hello"));
-            Assert.That(result.SourcePicoseconds, Is.EqualTo((ushort)0));
-            Assert.That(result.ServerPicoseconds, Is.EqualTo((ushort)0));
+            Assert.That(result.SourcePicoseconds, Is.Zero);
+            Assert.That(result.ServerPicoseconds, Is.Zero);
         }
 
         [Test]
@@ -2160,7 +2160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo((sbyte)-128));
-            Assert.That(result[1], Is.EqualTo((sbyte)0));
+            Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.EqualTo((sbyte)127));
         }
 
@@ -2181,7 +2181,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<byte> result = decoder.ReadByteArray("ListOfByte");
 
             Assert.That(result.Count, Is.EqualTo(3));
-            Assert.That(result[0], Is.EqualTo((byte)0));
+            Assert.That(result[0], Is.Zero);
             Assert.That(result[2], Is.EqualTo((byte)255));
         }
 
@@ -2222,7 +2222,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ushort> result = decoder.ReadUInt16Array("ListOfUInt16");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0], Is.EqualTo((ushort)0));
+            Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.EqualTo((ushort)65535));
         }
 
@@ -2263,7 +2263,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<uint> result = decoder.ReadUInt32Array("ListOfUInt32");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0], Is.EqualTo(0u));
+            Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.EqualTo(4294967295u));
         }
 
@@ -2303,7 +2303,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ulong> result = decoder.ReadUInt64Array("ListOfUInt64");
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0], Is.EqualTo(0ul));
+            Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.EqualTo(ulong.MaxValue));
         }
 
@@ -3038,7 +3038,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             ArrayOf<int> result = decoder.ReadInt32Array("ListOfInt32");
 
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3051,7 +3051,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             ArrayOf<bool> result = decoder.ReadBooleanArray("ListOfBoolean");
 
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -3508,7 +3508,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             ArrayOf<ExtensionObject> result = decoder.ReadExtensionObjectArray("ListOfExtensionObject");
 
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
@@ -4390,8 +4390,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
+            public void Encode(IEncoder encoder)
+            {
+            }
+            public void Decode(IDecoder decoder)
+            {
+            }
 
             public bool IsEqual(IEncodeable encodeable) => false;
             public object Clone() => new CoverageTestEncodeable();
@@ -4400,7 +4404,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [DataContract(Name = "CoverageTestEncodeableWithData", Namespace = Namespaces.OpcUaXsd)]
         public sealed class CoverageTestEncodeableWithData : IEncodeable
         {
-            public ExpandedNodeId TypeId => new ExpandedNodeId(88888, 0);
+            public ExpandedNodeId TypeId => new(88888, 0);
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 

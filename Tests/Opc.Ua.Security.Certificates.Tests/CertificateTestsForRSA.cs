@@ -33,7 +33,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -102,19 +101,19 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetHashAlgorithm(keyHash.HashAlgorithmName)
                     .SetRSAKeySize(keyHash.KeySize)
                     .CreateForRSA();
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(
                     cert,
                     $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature.");
-                Assert.AreEqual(
-                    keyHash.HashAlgorithmName,
-                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+                Assert.That(
+                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                    Is.EqualTo(keyHash.HashAlgorithmName));
                 // ensure serial numbers are different
-                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                Assert.That(cert.GetSerialNumber(), Is.Not.EqualTo(previousSerialNumber));
                 X509PfxUtils.VerifyRSAKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert));
-                Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
-                Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
+                Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
+                Assert.That(cert.IssuerName.Name, Is.EqualTo(cert.SubjectName.Name));
+                Assert.That(cert.IssuerName.RawData, Is.EqualTo(cert.SubjectName.RawData));
                 CheckPEMWriter(cert);
             }
         }
@@ -127,32 +126,32 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             using X509Certificate2 cert = CertificateBuilder.Create(Subject).CreateForRSA();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, "Default RSA cert");
             using (RSA privateKey = cert.GetRSAPrivateKey())
             {
-                Assert.NotNull(privateKey);
+                Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
             using (RSA publicKey = cert.GetRSAPublicKey())
             {
-                Assert.NotNull(publicKey);
-                Assert.AreEqual(X509Defaults.RSAKeySize, publicKey.KeySize);
+                Assert.That(publicKey, Is.Not.Null);
+                Assert.That(publicKey.KeySize, Is.EqualTo(X509Defaults.RSAKeySize));
                 publicKey.ExportParameters(false);
             }
-            Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
-            Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
-            Assert.AreEqual(
-                X509Defaults.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
-            Assert.GreaterOrEqual(
+            Assert.That(cert.IssuerName.Name, Is.EqualTo(cert.SubjectName.Name));
+            Assert.That(cert.IssuerName.RawData, Is.EqualTo(cert.SubjectName.RawData));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(X509Defaults.HashAlgorithmName));
+            Assert.That(DateTime.UtcNow, Is.GreaterThanOrEqualTo(cert.NotBefore));
+            Assert.That(
                 DateTime.UtcNow.AddMonths(X509Defaults.LifeTime),
-                cert.NotAfter.ToUniversalTime());
+                Is.GreaterThanOrEqualTo(cert.NotAfter.ToUniversalTime()));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
         }
 
         [Theory]
@@ -177,15 +176,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert, $"Default RSA {keyHashPair.KeySize} cert");
 
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.AreEqual(Subject, cert.Subject);
-            Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
-            Assert.AreEqual(
-                X509Defaults.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(cert.Subject, Is.EqualTo(Subject));
+            Assert.That(cert.GetRSAPublicKey().KeySize, Is.EqualTo(keyHashPair.KeySize));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(X509Defaults.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
-            Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
-            Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(cert.IssuerName.Name, Is.EqualTo(cert.SubjectName.Name));
+            Assert.That(cert.IssuerName.RawData, Is.EqualTo(cert.SubjectName.RawData));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
         }
 
         [Theory]
@@ -196,16 +195,16 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .Create(Subject)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .CreateForRSA();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, $"Default RSA {keyHashPair.HashAlgorithmName} cert");
-            Assert.AreEqual(Subject, cert.Subject);
-            Assert.AreEqual(X509Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
-            Assert.AreEqual(
-                keyHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(cert.Subject, Is.EqualTo(Subject));
+            Assert.That(cert.GetRSAPublicKey().KeySize, Is.EqualTo(X509Defaults.RSAKeySize));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(keyHashPair.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
         }
 
         [Theory]
@@ -222,29 +221,29 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(
                 cert,
                 $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension");
-            Assert.AreEqual(Subject, cert.Subject);
+            Assert.That(cert.Subject, Is.EqualTo(Subject));
             using (RSA privateKey = cert.GetRSAPrivateKey())
             {
-                Assert.NotNull(privateKey);
+                Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
             using (RSA publicKey = cert.GetRSAPublicKey())
             {
-                Assert.NotNull(publicKey);
+                Assert.That(publicKey, Is.Not.Null);
                 publicKey.ExportParameters(false);
             }
-            Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
-            Assert.AreEqual(
-                keyHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(cert.GetRSAPublicKey().KeySize, Is.EqualTo(keyHashPair.KeySize));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(keyHashPair.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriter(cert);
         }
 
@@ -260,21 +259,21 @@ namespace Opc.Ua.Security.Certificates.Tests
                     X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(
                 cert,
                 "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
-            Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
-            Assert.AreEqual(
-                keyHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(cert.GetRSAPublicKey().KeySize, Is.EqualTo(keyHashPair.KeySize));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(keyHashPair.HashAlgorithmName));
             X509BasicConstraintsExtension basicConstraintsExtension =
                 cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
-            Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
+            Assert.That(basicConstraintsExtension, Is.Not.Null);
+            Assert.That(basicConstraintsExtension.CertificateAuthority, Is.True);
+            Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriter(cert);
         }
 
@@ -282,9 +281,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateRSADefaultWithSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                 .CreateForRSA());
@@ -297,22 +296,22 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert1.GetSerialNumber().Length);
-            Assert.GreaterOrEqual(
+                Is.GreaterThanOrEqualTo(cert1.GetSerialNumber().Length));
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Test]
         public void CreateRSAManualSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                 .CreateForRSA());
@@ -326,12 +325,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             ICertificateBuilder builder = CertificateBuilder.Create(Subject)
                 .SetSerialNumber(serial);
             serial[^1] &= 0x7f;
-            Assert.AreEqual(serial, builder.GetSerialNumber());
+            Assert.That(builder.GetSerialNumber(), Is.EqualTo(serial));
             X509Certificate2 cert1 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
-            Assert.AreEqual(serial, cert1.GetSerialNumber());
-            Assert.AreEqual(X509Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
+            Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
+            Assert.That(cert1.GetSerialNumber().Length, Is.EqualTo(X509Defaults.SerialNumberLengthMax));
 
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
@@ -339,10 +338,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.CreateForRSA();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Test]
@@ -361,7 +360,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetRSAPublicKey(rsaKeyPair)
                     .CreateForRSA(generator))
             {
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 issuer = CertificateFactory.Create(cert.RawData);
                 WriteCertificate(cert, "Default root cert with supplied RSA cert");
                 CheckPEMWriter(cert);
@@ -372,7 +371,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .Create("CN=App Cert")
                 .SetIssuer(issuer)
                 .CreateForRSA(generator);
-            Assert.NotNull(appCert);
+            Assert.That(appCert, Is.Not.Null);
             WriteCertificate(appCert, "Signed RSA app cert");
             CheckPEMWriter(appCert);
         }
@@ -383,7 +382,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                NUnit.Framework.Assert.Ignore("Cng provider only available on windows");
+                Assert.Ignore("Cng provider only available on windows");
             }
             X509Certificate2 issuer = null;
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -411,7 +410,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetRSAPublicKey(rsaKeyPair)
                     .CreateForRSA(generator))
             {
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 issuer = CertificateFactory.Create(cert.RawData);
                 WriteCertificate(cert, "Default root cert with supplied RSA cert");
                 CheckPEMWriter(cert);
@@ -422,9 +421,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .Create("CN=App Cert")
                 .SetIssuer(issuer)
                 .CreateForRSA(generator);
-            Assert.NotNull(appCert);
-            Assert.AreEqual(issuer.SubjectName.Name, appCert.IssuerName.Name);
-            Assert.AreEqual(issuer.SubjectName.RawData, appCert.IssuerName.RawData);
+            Assert.That(appCert, Is.Not.Null);
+            Assert.That(appCert.IssuerName.Name, Is.EqualTo(issuer.SubjectName.Name));
+            Assert.That(appCert.IssuerName.RawData, Is.EqualTo(issuer.SubjectName.RawData));
             WriteCertificate(appCert, "Signed RSA app cert");
             CheckPEMWriter(appCert);
         }
@@ -455,9 +454,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .Create("CN=App Cert")
                     .SetIssuer(issuer)
                     .CreateForRSA(generator);
-                Assert.NotNull(cert);
-                Assert.AreEqual(issuer.SubjectName.Name, cert.IssuerName.Name);
-                Assert.AreEqual(issuer.SubjectName.RawData, cert.IssuerName.RawData);
+                Assert.That(cert, Is.Not.Null);
+                Assert.That(cert.IssuerName.Name, Is.EqualTo(issuer.SubjectName.Name));
+                Assert.That(cert.IssuerName.RawData, Is.EqualTo(issuer.SubjectName.RawData));
                 WriteCertificate(cert, "Default signed RSA cert");
                 CheckPEMWriter(cert);
             }
@@ -476,10 +475,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(issuer)
                     .SetRSAPublicKey(rsaPublicKey)
                     .CreateForRSA(generator);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed RSA cert with Public Key");
-                Assert.AreEqual(issuer.SubjectName.Name, cert.IssuerName.Name);
-                Assert.AreEqual(issuer.SubjectName.RawData, cert.IssuerName.RawData);
+                Assert.That(cert.IssuerName.Name, Is.EqualTo(issuer.SubjectName.Name));
+                Assert.That(cert.IssuerName.RawData, Is.EqualTo(issuer.SubjectName.RawData));
                 CheckPEMWriter(cert);
             }
 
@@ -496,15 +495,15 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(issuer)
                     .SetRSAKeySize(keyHashPair.KeySize)
                     .CreateForRSA(generator);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed RSA cert");
-                Assert.AreEqual(issuer.SubjectName.Name, cert.IssuerName.Name);
-                Assert.AreEqual(issuer.SubjectName.RawData, cert.IssuerName.RawData);
+                Assert.That(cert.IssuerName.Name, Is.EqualTo(issuer.SubjectName.Name));
+                Assert.That(cert.IssuerName.RawData, Is.EqualTo(issuer.SubjectName.RawData));
                 CheckPEMWriter(cert);
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            Assert.Throws<NotSupportedException>(() =>
             {
                 using RSA rsaPrivateKey = signingCert.GetRSAPrivateKey();
                 var generator = X509SignatureGenerator.CreateForRSA(

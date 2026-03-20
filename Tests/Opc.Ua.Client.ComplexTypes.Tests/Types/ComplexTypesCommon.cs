@@ -36,7 +36,6 @@ using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Test;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -133,7 +132,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             .. GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s))
         ];
 
-        public Type BuildComplexTypeWithAllBuiltInTypes(
+        internal Type BuildComplexTypeWithAllBuiltInTypes(
             StructureType structureType,
             string testFunc)
         {
@@ -143,7 +142,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Builds a complex type with all BuiltInTypes as properties.
         /// </summary>
-        public Type BuildComplexTypeWithAllBuiltInTypes(
+        private Type BuildComplexTypeWithAllBuiltInTypes(
             IServiceMessageContext context,
             StructureType structureType,
             string testFunc,
@@ -189,7 +188,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Return a collection of fields with BuiltInTypes.
         /// </summary>
-        public static List<StructureField> GetAllBuiltInTypesFields()
+        private static List<StructureField> GetAllBuiltInTypesFields()
         {
             var collection = new List<StructureField>();
             foreach (BuiltInType builtInType in BuiltInTypes)
@@ -222,7 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Create array of types for tests.
         /// </summary>
-        public void CreateComplexTypes(
+        internal void CreateComplexTypes(
             IServiceMessageContext context,
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
@@ -241,7 +240,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Helper to fill type with default values or random Data.
         /// </summary>
-        public void FillStructWithValues(
+        internal void FillStructWithValues(
             BaseComplexType structType,
             bool randomValues,
             NamespaceTable namespaceUris)
@@ -278,8 +277,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                 }
                 structType[property.Name] = newObj;
-                Assert.AreEqual(structType[property.Name], newObj);
-                Assert.AreEqual(structType[index], newObj);
+                Assert.That(newObj, Is.EqualTo(structType[property.Name]));
+                Assert.That(newObj, Is.EqualTo(structType[index]));
                 index++;
             }
         }
@@ -301,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
             ExtensionObject expected = CreateExtensionObject(structureType, nodeId, data);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
 
@@ -344,9 +343,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-            Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-            Assert.AreEqual(expected, result,
+            Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.That(result.Encoding, Is.EqualTo(expected.Encoding), encodeInfo);
+            Assert.That(result, Is.EqualTo(expected),
                 $"Failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected}\r\n!=\r\n{result}.");
         }
 

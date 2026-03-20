@@ -44,7 +44,6 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -121,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void TearDown()
         {
             // ensure after every test that the Null NodeId was not modified
-            Assert.True(NodeId.Null.IsNull);
+            Assert.That(NodeId.Null.IsNull, Is.True);
         }
 
         /// <summary>
@@ -197,7 +196,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
-
         /// <summary>
         /// Encode data value and return encoded string.
         /// </summary>
@@ -214,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             DataValue expected = CreateDataValue(builtInType, data);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
             using MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType);
             using (IEncoder encoder = CreateEncoder(
                 encoderType,
@@ -245,7 +243,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
             DataValue expected = CreateDataValue(builtInType, data);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
 
             string formatted = null;
             DataValue result = null;
@@ -288,10 +286,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     result = decoder.ReadDataValue("DataValue");
                 }
 
-                Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-                Assert.AreEqual(expected, result, encodeInfo);
-                Assert.IsTrue(
+                Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
+                Assert.That(result, Is.EqualTo(expected), encodeInfo);
+                Assert.That(
                     Utils.IsEqual(expected, result),
+                    Is.True,
                     "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
@@ -366,7 +365,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
                 }
 
-                Assert.AreEqual(expected, result, encodeInfo);
+                Assert.That(result, Is.EqualTo(expected), encodeInfo);
             }
             catch
             {
@@ -440,7 +439,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var expectedParsed = JsonNode.Parse(expected,
                     documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
                 bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
-                Assert.IsTrue(areEqual, encodeInfo);
+                Assert.That(areEqual, Is.True, encodeInfo);
             }
             catch
             {
@@ -496,7 +495,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(xml);
-                NUnit.Framework.Assert.Fail("Invalid xml data: " + ex.Message);
+                Assert.Fail("Invalid xml data: " + ex.Message);
             }
             return Encoding.UTF8.GetString(xml);
         }
@@ -536,7 +535,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
+                Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }

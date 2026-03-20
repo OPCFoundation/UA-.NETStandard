@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             // for validating benchmark tests
             switch (DateTimeOmittedZeros)
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
         }
 

@@ -39,7 +39,7 @@ using Microsoft.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -335,17 +335,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EscapeStringSystemTextJson(s_testString);
             byte[] resultSystemTextJson = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSystemTextJson));
+            Assert.That(Utils.IsEqual(resultLegacy, resultSystemTextJson), Is.True);
 #endif
 
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
+            Assert.That(Utils.IsEqual(resultLegacy, result), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultLegacyPlus), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpan), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanChars), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInline), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanIndex), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanDict), Is.True);
         }
 
         [OneTimeSetUp]
@@ -374,7 +374,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
             m_streamWriter?.Dispose();
             m_streamWriter = null;

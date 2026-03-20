@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
@@ -43,20 +42,20 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 };
 
                 //act and validate it does not throw
-                NUnit.Framework.Assert.DoesNotThrow(() => envelope.Encode(jsonEncoder));
+                Assert.DoesNotThrow(() => envelope.Encode(jsonEncoder));
 
                 result = jsonEncoder.CloseAndReturnText();
             }
 
             var jObject = JsonNode.Parse(result);
-            Assert.IsNotNull(jObject);
+            Assert.That(jObject, Is.Not.Null);
             uint version = (uint)jObject["UriVersion"];
-            Assert.AreEqual(uriVersion, version);
+            Assert.That(version, Is.EqualTo(uriVersion));
             JsonNode serverUrisToken = jObject["ServerUris"];
-            Assert.IsNotNull(serverUrisToken);
+            Assert.That(serverUrisToken, Is.Not.Null);
             string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString());
-            Assert.IsNotNull(serverUrisEncoded);
-            Assert.AreEqual(1, serverUrisEncoded.Length);
+            Assert.That(serverUrisEncoded, Is.Not.Null);
+            Assert.That(serverUrisEncoded.Length, Is.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
         }
     }

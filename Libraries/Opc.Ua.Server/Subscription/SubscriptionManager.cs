@@ -75,6 +75,7 @@ namespace Opc.Ua.Server
             m_subscriptionStore = server.SubscriptionStore;
 
             m_subscriptions = [];
+            m_abandonedSubscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
             m_lastSubscriptionId = BitConverter.ToUInt32(
@@ -298,12 +299,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
+        public virtual ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             // only store subscriptions if durable subscriptions are enabled
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
-                return;
+                return default;
             }
             var subscriptionsToStore = new List<IStoredSubscription>();
 
@@ -319,7 +320,7 @@ namespace Opc.Ua.Server
 
             if (subscriptionsToStore.Count == 0)
             {
-                return;
+                return default;
             }
 
             try
@@ -333,6 +334,7 @@ namespace Opc.Ua.Server
             {
                 m_logger.LogError(ex, "Failed to store {Count} subscriptions", subscriptionsToStore.Count);
             }
+            return default;
         }
 
         /// <summary>
@@ -528,17 +530,11 @@ namespace Opc.Ua.Server
                     // mark the subscriptions as abandoned.
                     else
                     {
-                        await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        try
+                        if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
                         {
-                            (m_abandonedSubscriptions ??= []).Add(subscription);
                             m_logger.LogWarning(
                                 "Subscription ABANDONED, Id={SubscriptionId}.",
                                 subscription.Id);
-                        }
-                        finally
-                        {
-                            m_semaphoreSlim.Release();
                         }
                     }
                 }
@@ -699,19 +695,11 @@ namespace Opc.Ua.Server
                 }
 
                 // check for abandoned subscription.
-                if (m_abandonedSubscriptions != null)
+                if (m_abandonedSubscriptions.TryRemove(subscriptionId, out _))
                 {
-                    for (int ii = 0; ii < m_abandonedSubscriptions.Count; ii++)
-                    {
-                        if (m_abandonedSubscriptions[ii].Id == subscriptionId)
-                        {
-                            m_abandonedSubscriptions.RemoveAt(ii);
-                            m_logger.LogWarning(
-                                "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
-                                subscriptionId);
-                            break;
-                        }
-                    }
+                    m_logger.LogWarning(
+                        "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
+                        subscriptionId);
                 }
 
                 // remove subscription.
@@ -965,7 +953,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
@@ -1330,7 +1318,7 @@ namespace Opc.Ua.Server
                         m_logger.LogError(e, "Error occurred in SetPublishingMode");
                     }
 
-                    var result = ServiceResult.Create(
+                    ServiceResult result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
@@ -2063,34 +2051,10 @@ namespace Opc.Ua.Server
 
                 while (true)
                 {
-                    DateTime start = HiResClock.UtcNow;
-
-                    SessionPublishQueue[] queues = null;
-                    ISubscription[] abandonedSubscriptions = null;
-
-                    await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
-                    {
-                        // collect active session queues.
-                        queues = new SessionPublishQueue[m_publishQueues.Count];
-                        m_publishQueues.Values.CopyTo(queues, 0);
-
-                        // collect abandoned subscriptions.
-                        if (m_abandonedSubscriptions != null && m_abandonedSubscriptions.Count > 0)
-                        {
-                            abandonedSubscriptions = new ISubscription[m_abandonedSubscriptions
-                                .Count];
-
-                            for (int ii = 0; ii < abandonedSubscriptions.Length; ii++)
-                            {
-                                abandonedSubscriptions[ii] = m_abandonedSubscriptions[ii];
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        m_semaphoreSlim.Release();
-                    }
+                    // ConcurrentDictionary enumeration is thread-safe and provides a stable
+                    // snapshot for the current pass without taking the manager semaphore.
+                    SessionPublishQueue[] queues = [.. m_publishQueues.Values];
+                    ISubscription[] abandonedSubscriptions = [.. m_abandonedSubscriptions.Values];
 
                     // check the publish timer for each subscription.
                     for (int ii = 0; ii < queues.Length; ii++)
@@ -2099,7 +2063,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check the publish timer for each abandoned subscription.
-                    if (abandonedSubscriptions != null)
+                    if (abandonedSubscriptions.Length > 0)
                     {
                         var subscriptionsToDelete = new List<ISubscription>();
 
@@ -2122,17 +2086,9 @@ namespace Opc.Ua.Server
                         // schedule cleanup on a background thread.
                         if (subscriptionsToDelete.Count > 0)
                         {
-                            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                            try
+                            for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
                             {
-                                for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
-                                {
-                                    m_abandonedSubscriptions.Remove(subscriptionsToDelete[ii]);
-                                }
-                            }
-                            finally
-                            {
-                                m_semaphoreSlim.Release();
+                                m_abandonedSubscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
                             }
 
                             CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
@@ -2329,7 +2285,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxSubscriptionCount;
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscription> m_subscriptions;
-        private List<ISubscription> m_abandonedSubscriptions;
+        private readonly ConcurrentDictionary<uint, ISubscription> m_abandonedSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;

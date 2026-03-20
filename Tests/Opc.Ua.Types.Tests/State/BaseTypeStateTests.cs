@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             dt.Export(m_context, table);
-            Assert.That(table.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(table, Is.Not.Empty);
             dt.Dispose();
         }
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             ot.Export(m_context, table);
-            Assert.That(table.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(table, Is.Not.Empty);
             ot.Dispose();
         }
     }

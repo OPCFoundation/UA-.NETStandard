@@ -893,7 +893,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
-            var serverNonce = Nonce.CreateNonce(
+            Nonce serverNonce = Nonce.CreateNonce(
                 m_endpoint.Description?.SecurityPolicyUri,
                 m_serverNonce.ToArray());
             sessionConfiguration = new SessionConfiguration
@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Client
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    var error = ServiceResult.Create(
+                    ServiceResult error = ServiceResult.Create(
                         StatusCodes.BadRequestTimeout,
                         "ACTIVATE SESSION timed out. {0}/{1}",
                         GoodPublishRequestCount,

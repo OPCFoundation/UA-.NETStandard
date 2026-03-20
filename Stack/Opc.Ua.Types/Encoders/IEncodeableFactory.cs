@@ -82,7 +82,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the xml qualified name for the type.
         /// </summary>
-        System.Xml.XmlQualifiedName XmlName { get; }
+        XmlQualifiedName XmlName { get; }
 
         /// <summary>
         /// Create instance of structure type during

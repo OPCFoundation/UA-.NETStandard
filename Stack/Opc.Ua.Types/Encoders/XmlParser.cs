@@ -202,17 +202,8 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// No-op for DOM-based parser. No stream to close.
-        /// </summary>
+        /// <inheritdoc/>
         public void Close()
-        {
-        }
-
-        /// <summary>
-        /// No-op for DOM-based parser. No stream to close.
-        /// </summary>
-        public void Close(bool checkEof)
         {
         }
 
@@ -227,7 +218,7 @@ namespace Opc.Ua
             {
                 if (!context.Consumed.Contains(i))
                 {
-                    if (nodeType != XmlNodeType.None && nodeType != XmlNodeType.Element)
+                    if (nodeType is not XmlNodeType.None and not XmlNodeType.Element)
                     {
                         return null;
                     }
@@ -238,14 +229,12 @@ namespace Opc.Ua
             }
 
             // No unconsumed children - check current element.
-            if (context.Element != null)
+            if (context.Element != null &&
+                nodeType is XmlNodeType.None or XmlNodeType.Element)
             {
-                if (nodeType == XmlNodeType.None || nodeType == XmlNodeType.Element)
-                {
-                    return new XmlQualifiedName(
-                        context.Element.LocalName,
-                        context.Element.NamespaceURI);
-                }
+                return new XmlQualifiedName(
+                    context.Element.LocalName,
+                    context.Element.NamespaceURI);
             }
 
             return null;
@@ -264,7 +253,7 @@ namespace Opc.Ua
                 if (!context.Consumed.Contains(i))
                 {
                     return context.ChildElements[i].LocalName == fieldName &&
-                           context.ChildElements[i].NamespaceURI == ns;
+                        context.ChildElements[i].NamespaceURI == ns;
                 }
             }
 
@@ -706,8 +695,7 @@ namespace Opc.Ua
                     context.Cursor = childIdx + 1;
 
                     var document = new XmlDocument();
-                    System.Xml.XmlElement imported =
-                        (System.Xml.XmlElement)document.ImportNode(found, true);
+                    var imported = (System.Xml.XmlElement)document.ImportNode(found, true);
                     document.AppendChild(imported);
 
                     EndField(fieldName);
@@ -2576,7 +2564,7 @@ namespace Opc.Ua
 
             // check for empty element.
             bool hasElementChildren = false;
-            foreach (System.Xml.XmlNode child in found.ChildNodes)
+            foreach (XmlNode child in found.ChildNodes)
             {
                 if (child is System.Xml.XmlElement)
                 {
@@ -2799,7 +2787,7 @@ namespace Opc.Ua
                 Element = element;
                 if (element != null)
                 {
-                    foreach (System.Xml.XmlNode child in element.ChildNodes)
+                    foreach (XmlNode child in element.ChildNodes)
                     {
                         if (child is System.Xml.XmlElement childElem)
                         {

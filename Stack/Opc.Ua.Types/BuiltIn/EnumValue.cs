@@ -42,20 +42,20 @@ namespace Opc.Ua
         /// <summary>
         /// The symbol for the value
         /// </summary>
-        public string Symbol => m_symbol;
+        public string Symbol { get; }
 
         /// <summary>
         /// The enum value
         /// </summary>
-        public long Value => m_value;
+        public long Value { get; }
 
         /// <summary>
         /// Create enum value
         /// </summary>
         public EnumValue(long value, string symbol)
         {
-            m_symbol = symbol;
-            m_value = value;
+            Symbol = symbol;
+            Value = value;
         }
 
         /// <inheritdoc/>
@@ -74,20 +74,20 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(m_value);
+            return HashCode.Combine(Value);
         }
 
         /// <inheritdoc/>
         public bool Equals(EnumValue other)
         {
-            return m_value == other.m_value;
+            return Value == other.Value;
         }
 
         /// <inheritdoc/>
         public bool Equals(string other)
         {
             return string.Equals(
-                m_symbol,
+                Symbol,
                 other,
                 StringComparison.OrdinalIgnoreCase);
         }
@@ -95,7 +95,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(long value)
         {
-            return m_value == value;
+            return Value == value;
         }
 
         /// <inheritdoc/>
@@ -133,8 +133,5 @@ namespace Opc.Ua
         {
             return !(left == right);
         }
-
-        private readonly long m_value;
-        private readonly string m_symbol;
     }
 }

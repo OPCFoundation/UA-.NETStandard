@@ -118,12 +118,12 @@ namespace Quickstarts.ConsoleReferencePublisher
                         }
                     }
 
-                    // Create the UA Publisher application using configuration file
-                    using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
-                    {
-                        // Start values simulator
-                        var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
-                        valuesSimulator.Start();
+                // Create the UA Publisher application using configuration file
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                {
+                    // Start values simulator
+                    var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
+                    valuesSimulator.Start();
 
                         // Start the publisher
                         uaPubSubApplication.Start();

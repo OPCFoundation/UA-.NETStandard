@@ -1114,8 +1114,8 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetWriterDataType != null && dataSetWriterId != InvalidId)
                     {
                         // find parent writerGroup
-                        var parentWriterGroup = FindParentForObject(dataSetWriterDataType)
-                            as WriterGroupDataType;
+                        var parentWriterGroup = FindParentForObject(dataSetWriterDataType) as
+                            WriterGroupDataType;
                         uint parentWriterGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parentWriterGroupId != InvalidId)
                         {

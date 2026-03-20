@@ -5729,7 +5729,6 @@ namespace Opc.Ua.Schema.Model
         /// <returns></returns>
         private ModelDesign LoadModelDesign(string fileToLoad)
         {
-            string fileExtension = Path.GetExtension(fileToLoad);
             return Load<ModelDesign>(fileToLoad);
         }
 

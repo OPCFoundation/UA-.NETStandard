@@ -920,7 +920,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
-        public virtual async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
@@ -929,6 +929,7 @@ namespace Opc.Ua.Server
             {
                 Utils.SilentDispose(node);
             }
+            return default;
         }
 
         /// <summary>
@@ -1786,7 +1787,7 @@ namespace Opc.Ua.Server
         /// <param name="cache">The cache to search.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The node if found. Null otherwise.</returns>
-        protected virtual async ValueTask<NodeState> FindNodeInCacheAsync(
+        protected virtual ValueTask<NodeState> FindNodeInCacheAsync(
             ServerSystemContext context,
             NodeHandle handle,
             IDictionary<NodeId, NodeState> cache,
@@ -1795,13 +1796,13 @@ namespace Opc.Ua.Server
             // not valid if no root.
             if (handle == null)
             {
-                return null;
+                return default;
             }
 
             // check if previously validated.
             if (handle.Validated)
             {
-                return handle.Node;
+                return new ValueTask<NodeState>(handle.Node);
             }
 
             // construct id for root node.
@@ -1812,7 +1813,7 @@ namespace Opc.Ua.Server
                 // lookup component in local cache for request.
                 if (cache.TryGetValue(handle.NodeId, out NodeState target))
                 {
-                    return target;
+                    return new ValueTask<NodeState>(target);
                 }
 
                 // lookup root in local cache for request.
@@ -1828,13 +1829,13 @@ namespace Opc.Ua.Server
                     // component exists.
                     if (child != null)
                     {
-                        return child;
+                        return new ValueTask<NodeState>(child);
                     }
                 }
             }
 
             // lookup component in shared cache.
-            return LookupNodeInComponentCache(context, handle);
+            return new ValueTask<NodeState>(LookupNodeInComponentCache(context, handle));
         }
 
         /// <summary>
@@ -3445,7 +3446,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="notifier">The notifier.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual async ValueTask RemoveRootNotifierAsync(NodeState notifier, CancellationToken cancellationToken = default)
+        protected virtual ValueTask RemoveRootNotifierAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken = default)
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier))
             {
@@ -3465,6 +3468,7 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+            return default;
         }
 
         /// <summary>

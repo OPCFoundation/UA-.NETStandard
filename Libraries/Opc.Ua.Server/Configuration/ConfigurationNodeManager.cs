@@ -290,14 +290,12 @@ namespace Opc.Ua.Server
                 .. configuration.ServerConfiguration.ServerCapabilities
             ];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions = [0];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.Value =
             [
                 .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
             ];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions = [0];
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration
                 .ServerConfiguration
                 .MaxTrustListSize;

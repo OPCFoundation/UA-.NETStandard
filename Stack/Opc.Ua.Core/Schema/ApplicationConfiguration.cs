@@ -2150,7 +2150,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_serverNames = [];
+            ServerNames = [];
             ServerRegistrations = [];
         }
 
@@ -2169,11 +2169,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The server names.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public ArrayOf<LocalizedText> ServerNames
-        {
-            get => m_serverNames;
-            set => m_serverNames = value;
-        }
+        public ArrayOf<LocalizedText> ServerNames { get; set; }
 
         /// <summary>
         /// The path to the file containing servers saved by the discovery server.
@@ -2188,8 +2184,6 @@ namespace Opc.Ua
         /// <value>The server registrations.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public ServerRegistrationCollection ServerRegistrations { get; set; }
-
-        private ArrayOf<LocalizedText> m_serverNames;
     }
 
     /// <summary>
@@ -2212,7 +2206,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             ApplicationUri = null;
-            m_alternateDiscoveryUrls = [];
+            AlternateDiscoveryUrls = [];
         }
 
         /// <summary>
@@ -2250,13 +2244,7 @@ namespace Opc.Ua
         /// </para>
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public ArrayOf<string> AlternateDiscoveryUrls
-        {
-            get => m_alternateDiscoveryUrls;
-            set => m_alternateDiscoveryUrls = value;
-        }
-
-        private ArrayOf<string> m_alternateDiscoveryUrls;
+        public ArrayOf<string> AlternateDiscoveryUrls { get; set; }
     }
 
     /// <summary>

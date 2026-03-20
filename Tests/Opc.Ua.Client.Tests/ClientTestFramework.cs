@@ -39,7 +39,6 @@ using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Microsoft.Extensions.Logging;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -194,11 +193,11 @@ namespace Opc.Ua.Client.Tests
                     Session = await ClientFixture
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
-                    Assert.NotNull(Session);
+                    Assert.That(Session, Is.Not.Null);
                 }
                 catch (Exception e)
                 {
-                    NUnit.Framework.Assert.Warn(
+                    Assert.Warn(
                         $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
@@ -373,7 +372,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    NUnit.Framework.Assert.Ignore(
+                    Assert.Ignore(
                         $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }

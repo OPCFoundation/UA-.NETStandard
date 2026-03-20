@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
-            Assert.That(fieldObj["Value"]?.Value<uint>(), Is.EqualTo(0u),
+            Assert.That(fieldObj["Value"]?.Value<uint>(), Is.Zero,
                 "UInt32 zero value must be preserved in Reversible encoding.");
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
-            Assert.That(fieldObj["Value"]?.Value<uint>(), Is.EqualTo(0u),
+            Assert.That(fieldObj["Value"]?.Value<uint>(), Is.Zero,
                 "UInt32 zero value must be preserved in NonReversible encoding.");
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
-            Assert.That(payload["TestField"]?.Value<uint>(), Is.EqualTo(0u),
+            Assert.That(payload["TestField"]?.Value<uint>(), Is.Zero,
                 "UInt32 zero value must be preserved in RawData mode with Reversible encoding.");
         }
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var root = JObject.Parse(json);
             JObject payload = (root["Payload"] as JObject) ?? root;
 
-            Assert.That(payload["TestField"]?.Value<uint>(), Is.EqualTo(0u),
+            Assert.That(payload["TestField"]?.Value<uint>(), Is.Zero,
                 "UInt32 zero value must be preserved in RawData mode with NonReversible encoding.");
         }
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // In Variant mode with Reversible encoding, format is { "Type": 7, "Body": 0 }
             var variantObj = payload["TestField"] as JObject;
             Assert.That(variantObj, Is.Not.Null, "Field should be encoded as Variant object.");
-            Assert.That(variantObj["Body"]?.Value<uint>(), Is.EqualTo(0u),
+            Assert.That(variantObj["Body"]?.Value<uint>(), Is.Zero,
                 "UInt32 zero value must be preserved in Variant Body.");
         }
 

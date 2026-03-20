@@ -98,7 +98,7 @@ namespace Opc.Ua
             Description = default;
             WriteMask = 0;
             UserWriteMask = 0;
-            m_rolePermissions = [];
+            RolePermissions = [];
             UserRolePermissions = [];
             AccessRestrictions = 0;
             References = [];
@@ -150,15 +150,7 @@ namespace Opc.Ua
         /// Role permissions
         /// </summary>
         [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
-        public ArrayOf<RolePermissionType> RolePermissions
-        {
-            get => m_rolePermissions;
-
-            set
-            {
-                m_rolePermissions = value;
-            }
-        }
+        public ArrayOf<RolePermissionType> RolePermissions { get; set; }
 
         /// <summary>
         /// User role permissions
@@ -278,7 +270,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_rolePermissions != value.m_rolePermissions)
+            if (RolePermissions != value.RolePermissions)
             {
                 return false;
             }
@@ -319,7 +311,7 @@ namespace Opc.Ua
             clone.Description = CoreUtils.Clone(Description);
             clone.WriteMask = CoreUtils.Clone(WriteMask);
             clone.UserWriteMask = CoreUtils.Clone(UserWriteMask);
-            clone.m_rolePermissions = CoreUtils.Clone(m_rolePermissions);
+            clone.RolePermissions = CoreUtils.Clone(RolePermissions);
             clone.UserRolePermissions = CoreUtils.Clone(UserRolePermissions);
             clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
             clone.References = CoreUtils.Clone(References);
@@ -716,7 +708,7 @@ namespace Opc.Ua
                 case Attributes.UserWriteMask:
                     return UserWriteMask;
                 case Attributes.RolePermissions:
-                    return Variant.FromStructure(m_rolePermissions);
+                    return Variant.FromStructure(RolePermissions);
                 case Attributes.UserRolePermissions:
                     return Variant.FromStructure(UserRolePermissions);
                 case Attributes.AccessRestrictions:
@@ -753,7 +745,7 @@ namespace Opc.Ua
                     UserWriteMask = (uint)value;
                     break;
                 case Attributes.RolePermissions:
-                    m_rolePermissions = value.GetStructureArray<RolePermissionType>();
+                    RolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.UserRolePermissions:
                     UserRolePermissions = value.GetStructureArray<RolePermissionType>();
@@ -770,6 +762,5 @@ namespace Opc.Ua
         }
 
         private ReferenceCollection m_referenceTable;
-        private ArrayOf<RolePermissionType> m_rolePermissions;
     }
 }

@@ -141,21 +141,25 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
         public void EqualsObjectWithNonReferenceNodeReturnsFalse()
         {
             ReferenceNode node = CreateNode();
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             Assert.That(node.Equals("not a reference node"), Is.False);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void EqualsReferenceNodeWithNullReturnsFalse()
         {
             ReferenceNode node = CreateNode();
-            Assert.That(node.Equals((ReferenceNode)null), Is.False);
+#pragma warning disable NUnit4002 // Use Specific constraint
+            Assert.That(node, Is.Not.EqualTo((ReferenceNode)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
         }
 
         [Test]
@@ -163,7 +167,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 100);
-            Assert.That(a.Equals(b), Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -171,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(99, false, 100);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -179,7 +183,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             ReferenceNode b = CreateNode(42, false, 100);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -187,14 +191,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 200);
-            Assert.That(a.Equals(b), Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
         public void GetHashCodeReturnsSameValueOnMultipleCalls()
         {
             ReferenceNode node = CreateNode(42, true, 100);
-            Assert.That(node.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(node.GetHashCode(), Is.Not.Zero);
         }
 
         [Test]
@@ -211,7 +215,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, true, 100);
             object b = CreateNode(42, true, 100);
-            Assert.That(a == b, Is.True);
+            Assert.That(a, Is.EqualTo(b));
         }
 
         [Test]
@@ -219,7 +223,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a == (object)null, Is.True);
+#pragma warning disable NUnit4002 // Use Specific constraint
+            Assert.That(a, Is.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -228,7 +234,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             object b = CreateNode();
-            Assert.That(a == b, Is.False);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -236,7 +242,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             object b = CreateNode();
-            Assert.That(a != b, Is.True);
+            Assert.That(a, Is.Not.EqualTo(b));
         }
 
         [Test]
@@ -244,7 +250,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a != (object)null, Is.False);
+#pragma warning disable NUnit4002 // Use Specific constraint
+            Assert.That(a, Is.EqualTo((object)null));
+#pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -269,7 +277,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CompareToObjectWithSameReferenceReturnsZero()
         {
             ReferenceNode node = CreateNode();
-            Assert.That(node.CompareTo((object)node), Is.EqualTo(0));
+            Assert.That(node.CompareTo((object)node), Is.Zero);
         }
 
         [Test]
@@ -284,7 +292,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             object b = CreateNode(42, false, 100);
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -292,7 +300,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var a = new ReferenceNode(NodeId.Null, false, new ExpandedNodeId(100));
             var b = new ReferenceNode(NodeId.Null, false, new ExpandedNodeId(100));
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -308,7 +316,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(10, false, 100);
             ReferenceNode b = CreateNode(20, false, 100);
-            Assert.That(a.CompareTo(b), Is.Not.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Not.Zero);
         }
 
         [Test]
@@ -332,7 +340,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var a = new ReferenceNode(new NodeId(42), false, ExpandedNodeId.Null);
             var b = new ReferenceNode(new NodeId(42), false, ExpandedNodeId.Null);
-            Assert.That(a.CompareTo(b), Is.EqualTo(0));
+            Assert.That(a.CompareTo(b), Is.Zero);
         }
 
         [Test]
@@ -356,7 +364,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(10, false, 100);
             ReferenceNode b = CreateNode(20, false, 100);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a < b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -364,7 +374,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = CreateNode();
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a < b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -372,7 +384,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = null;
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a < b, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -380,7 +394,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 100);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a <= b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -388,7 +404,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = CreateNode();
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a <= b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -396,7 +414,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(20, false, 100);
             ReferenceNode b = CreateNode(10, false, 100);
-            Assert.That(a > b, Is.True);
+            Assert.That(a, Is.GreaterThan(b));
         }
 
         [Test]
@@ -404,7 +422,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = CreateNode();
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a > b, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -412,7 +432,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = CreateNode(42, false, 100);
             ReferenceNode b = CreateNode(42, false, 100);
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a >= b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -420,7 +442,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = null;
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a >= b, Is.True);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
@@ -428,7 +452,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode a = null;
             ReferenceNode b = CreateNode();
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(a >= b, Is.False);
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]

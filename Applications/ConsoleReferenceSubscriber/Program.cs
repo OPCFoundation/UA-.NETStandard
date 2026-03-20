@@ -126,11 +126,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         }
                     }
 
-                    // Create the UA Publisher application
-                    using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
-                    {
-                        // Subscribte to RawDataReceived event
-                        uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
+                // Create the UA Publisher application
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                {
+                    // Subscribte to RawDataReceived event
+                    uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
 
                         // Subscribte to DataReceived event
                         uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;

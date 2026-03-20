@@ -38,7 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -277,7 +276,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(carType);
+            Assert.That(carType, Is.Not.Null);
 
             var car = (BaseComplexType)Activator.CreateInstance(carType);
 
@@ -329,8 +328,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.AreEqual(1, definitions.Count);
-            Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
+            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
         /// <summary>
@@ -474,7 +473,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(arraysTypes);
+            Assert.That(arraysTypes, Is.Not.Null);
 
             var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
 
@@ -570,8 +569,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.AreEqual(1, definitions.Count);
-            Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
+            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
         /// <summary>
@@ -665,10 +664,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
             Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(arraysTypes);
+            Assert.That(arraysTypes, Is.Not.Null);
 
             var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
-            Assert.NotNull(testType);
+            Assert.That(testType, Is.Not.Null);
 
             TestContext.Out.WriteLine(testType.ToString());
 
@@ -776,8 +775,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.AreEqual(1, definitions.Count);
-            Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
+            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
         [Test]
@@ -885,7 +884,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 };
             }
 
-            NUnit.Framework.Assert.Fail($"Unexpected ValueType {valueType}");
+            Assert.Fail($"Unexpected ValueType {valueType}");
             return null;
         }
 
@@ -925,28 +924,34 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
         }
 
-        public static Variant CreateVariantForStructureMatrix(Type type, Array array)
+        private static Variant CreateVariantForStructureMatrix(Type type, Array array)
         {
             return (Variant)typeof(MockResolverTests)
-                .GetMethod(nameof(CreateVariantForStructureMatrixT))
+                .GetMethod(
+                    nameof(CreateVariantForStructureMatrixT),
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic)
                 .MakeGenericMethod([type])
                 .Invoke(null, [array]);
         }
 
-        public static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
+        private static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
         {
-            return Variant.FromStructure<T>(MatrixOf.From<T>(array));
+            return Variant.FromStructure(MatrixOf.From<T>(array));
         }
 
-        public static Variant CreateVariantForMatrixOf(Type type, Array array)
+        private static Variant CreateVariantForMatrixOf(Type type, Array array)
         {
             return (Variant)typeof(MockResolverTests)
-                .GetMethod(nameof(CreateVariantForMatrixOfT))
+                .GetMethod(
+                    nameof(CreateVariantForMatrixOfT),
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic)
                 .MakeGenericMethod([type])
                 .Invoke(null, [array]);
         }
 
-        public static Variant CreateVariantForMatrixOfT<T>(Array array)
+        private static Variant CreateVariantForMatrixOfT<T>(Array array)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
             return new Variant(MatrixOf.From<T>(array));

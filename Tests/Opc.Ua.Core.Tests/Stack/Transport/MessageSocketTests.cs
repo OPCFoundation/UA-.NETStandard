@@ -31,7 +31,6 @@ using System.Net;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
@@ -75,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             IMessageSocket messageSocket = messageSocketMock.Object;
             EndPoint gotEndpoint = messageSocket.LocalEndpoint;
 
-            Assert.IsTrue(gotEndpoint.Equals(endPoint));
+            Assert.That(gotEndpoint, Is.EqualTo(endPoint));
         }
     }
 }
