@@ -366,7 +366,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> Clone<T>(in ArrayOf<T> values) where T : struct
         {
-            return values.ConvertAll(v => Clone(in v));
+            return values.IsNull ? default : values.ConvertAll(v => Clone(in v));
         }
 
         /// <summary>
@@ -375,7 +375,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> Clone<T>(in MatrixOf<T> values) where T : struct
         {
-            return values.ConvertAll(v => Clone(in v));
+            return values.IsNull ? default : values.ConvertAll(v => Clone(in v));
         }
 
         /// <summary>
@@ -394,7 +394,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> Clone<T>(ArrayOf<T> values) where T : ICloneable
         {
-            return values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(Clone);
         }
 
         /// <summary>
@@ -403,7 +403,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> Clone<T>(MatrixOf<T> values) where T : ICloneable
         {
-            return values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(Clone);
         }
 
         /// <summary>
@@ -443,7 +443,7 @@ namespace Opc.Ua
         /// </summary>
         public static ArrayOf<Variant> Clone(ArrayOf<Variant> values)
         {
-            return values.ConvertAll(v => v.Copy());
+            return values.IsNull ? default : values.ConvertAll(v => v.Copy());
         }
 
         /// <summary>
@@ -451,7 +451,7 @@ namespace Opc.Ua
         /// </summary>
         public static MatrixOf<Variant> Clone(MatrixOf<Variant> values)
         {
-            return values.ConvertAll(v => v.Copy());
+            return values.IsNull ? default : values.ConvertAll(v => v.Copy());
         }
 
         /// <summary>
@@ -471,7 +471,7 @@ namespace Opc.Ua
         /// </summary>
         public static ArrayOf<ExtensionObject> Clone(ArrayOf<ExtensionObject> values)
         {
-            return values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(Clone);
         }
 
         /// <summary>
@@ -479,7 +479,7 @@ namespace Opc.Ua
         /// </summary>
         public static MatrixOf<ExtensionObject> Clone(MatrixOf<ExtensionObject> values)
         {
-            return values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(Clone);
         }
 
         /// <summary>
