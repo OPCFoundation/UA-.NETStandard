@@ -84,16 +84,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
-            Justification = "The type's constructor is preserved because this instance already exists.")]
-        public override object Clone()
-        {
-            var clone = (ReferenceTypeState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not ReferenceTypeState state)
@@ -125,6 +115,12 @@ namespace Opc.Ua
                 state.Symmetric = Symmetric;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new ReferenceTypeState();
         }
 
         /// <summary>

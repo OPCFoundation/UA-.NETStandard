@@ -59,6 +59,14 @@ namespace Opc.Ua.Server
         IList<ISubscription> GetSubscriptions();
 
         /// <summary>
+        /// Get the subscription with the specified id
+        /// </summary>
+        /// <param name="id">The id of the subscription</param>
+        /// <param name="subscription">The subscription if found else null</param>
+        /// <returns>True if found</returns>
+        bool TryGetSubscription(uint id, out ISubscription subscription);
+
+        /// <summary>
         /// Set a subscription into durable mode
         /// </summary>
         ServiceResult SetSubscriptionDurable(

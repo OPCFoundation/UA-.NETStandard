@@ -174,17 +174,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
-        public void Clone()
-        {
-            var testClone = new TestClone(1);
-            Assert.That(CoreUtils.Clone(testClone), Is.Not.Null);
-            var testMemberwiseClone = new TestMemberwiseClone(2);
-            Assert.That(CoreUtils.Clone(testMemberwiseClone), Is.Not.Null);
-            var testNoClone = new TestNoClone(3);
-            Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
-        }
-
-        [Test]
         public void IsEqualUserIdentity()
         {
             var anonymousIdentity1 = new AnonymousIdentityToken();

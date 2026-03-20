@@ -57,6 +57,12 @@ namespace Opc.Ua
             return new PropertyState(parent);
         }
 
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new PropertyState(Parent);
+        }
+
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -161,6 +167,12 @@ namespace Opc.Ua
             {
                 get => m_builder.GetValue(WrappedValue);
                 set => WrappedValue = m_builder.WithValue(value);
+            }
+
+            /// <inheritdoc/>
+            protected override NodeState CreateCopy()
+            {
+                return new Implementation<TBuilder>(Parent);
             }
 
             private readonly TBuilder m_builder = new();

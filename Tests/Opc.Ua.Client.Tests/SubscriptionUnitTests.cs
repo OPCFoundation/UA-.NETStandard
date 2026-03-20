@@ -169,9 +169,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             CancellationToken cancellationToken)
         {
-            TaskCompletionSource<bool>[] messageAwaiters = messagesToProcess
-                .Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))
-                .ToArray();
+            TaskCompletionSource<bool>[] messageAwaiters =
+                [.. messagesToProcess.Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously))];
             messageAwaiters[0].SetResult(true);
             List<uint> availableSequenceNumbers = [.. messagesToProcess.Skip(1).Select(x => x.SequenceNumber)];
 

@@ -173,6 +173,7 @@ Also: `ReadOnlyList<T>` → `ArrayOf<T>`, `IList<T>` parameters → `ArrayOf<T>`
 - Use `List<T>` when items are added/removed/modified, then convert to `ArrayOf<T>` with `.ToArrayOf()`.
 - `ArrayOf<T>` implicitly converts from `List<T>` but not vice versa. Use `.ToList()` to convert back.
 - `ArrayOf<T>` supports collection expressions: `ArrayOf<int> arr = [1, 2, 3];`
+- To follow best coding practices Do NOT use casts to create the ArrayOf but use `.ToArrayOf()` or create it directly using a collection expression
 
 ### ArrayOf<T> Key API
 

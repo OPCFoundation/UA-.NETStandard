@@ -131,14 +131,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfNonMandatoryChildren}}
 
                 /// <inheritdoc/>
-                public override object Clone()
-                {
-                    {{Tokens.ClassName}}State clone = new {{Tokens.ClassName}}State(null);
-                    CopyTo(clone);
-                    return clone;
-                }
-
-                /// <inheritdoc/>
                 public override bool DeepEquals(global::Opc.Ua.NodeState node)
                 {
                     if (!(node is {{Tokens.ClassName}}State state) || !base.DeepEquals(state))
@@ -168,6 +160,12 @@ namespace Opc.Ua.SourceGeneration
                     }
                     {{Tokens.ListOfChildCopies}}
                     base.CopyTo(target);
+                }
+
+                /// <inheritdoc/>
+                protected override global::Opc.Ua.NodeState CreateCopy()
+                {
+                    return new {{Tokens.ClassName}}State(null);
                 }
 
                 /// <inheritdoc/>
@@ -249,14 +247,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfNonMandatoryChildren}}
 
                 /// <inheritdoc/>
-                public override object Clone()
-                {
-                    {{Tokens.ClassName}} clone = new {{Tokens.ClassName}}(null);
-                    CopyTo(clone);
-                    return clone;
-                }
-
-                /// <inheritdoc/>
                 public override bool DeepEquals(global::Opc.Ua.NodeState node)
                 {
                     if (!(node is {{Tokens.ClassName}} state) || !base.DeepEquals(state))
@@ -286,6 +276,12 @@ namespace Opc.Ua.SourceGeneration
                     }
                     {{Tokens.ListOfChildCopies}}
                     base.CopyTo(target);
+                }
+
+                /// <inheritdoc/>
+                protected override global::Opc.Ua.NodeState CreateCopy()
+                {
+                    return new {{Tokens.ClassName}}(null);
                 }
 
                 /// <inheritdoc/>
@@ -416,14 +412,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfNonMandatoryChildren}}
 
                 /// <inheritdoc/>
-                public override object Clone()
-                {
-                    {{Tokens.ClassName}}State clone = new {{Tokens.ClassName}}State(null);
-                    CopyTo(clone);
-                    return clone;
-                }
-
-                /// <inheritdoc/>
                 public override bool DeepEquals(global::Opc.Ua.NodeState node)
                 {
                     if (!(node is {{Tokens.ClassName}}State state) || !base.DeepEquals(state))
@@ -453,6 +441,12 @@ namespace Opc.Ua.SourceGeneration
                     }
                     {{Tokens.ListOfChildCopies}}
                     base.CopyTo(target);
+                }
+
+                /// <inheritdoc/>
+                protected override global::Opc.Ua.NodeState CreateCopy()
+                {
+                    return new {{Tokens.ClassName}}State(null);
                 }
 
                 /// <inheritdoc/>
@@ -613,11 +607,9 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     /// <inheritdoc/>
-                    public override object Clone()
+                    protected override global::Opc.Ua.NodeState CreateCopy()
                     {
-                        Implementation<TBuilder> clone = new Implementation<TBuilder>(null);
-                        CopyTo(clone);
-                        return clone;
+                        return new Implementation<TBuilder>(Parent);
                     }
 
                     private readonly TBuilder m_builder;
@@ -690,8 +682,12 @@ namespace Opc.Ua.SourceGeneration
             {
                 lock (Lock)
                 {
+                    if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
+                    {
+                        newValue = default;
+                    }
                     UpdateChildVariableStatus(m_variable.{{Tokens.ChildPath}}, ref statusCode, ref timestamp);
-                    m_value.{{Tokens.ChildPath}} = ({{Tokens.ChildDataType}})Write(value);
+                    m_value.{{Tokens.ChildPath}} = {{Tokens.ValueWrite}};
                     UpdateParent(context, ref statusCode, ref timestamp);
                 }
 
@@ -810,11 +806,11 @@ namespace Opc.Ua.SourceGeneration
                             newValue = default;
                         }
 
-                        if (!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue))
+                        if ({{Tokens.ValueComparison}})
                         {
                             UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
                             Timestamp = timestamp;
-                            m_value = ({{Tokens.DataType}})Write(newValue);
+                            m_value = {{Tokens.ValueWrite}};
                             m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
                         }
                     }

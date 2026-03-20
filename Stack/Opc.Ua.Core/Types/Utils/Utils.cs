@@ -1256,18 +1256,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a deep copy of the value.
-        /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses CoreUtils.Clone which uses reflection.")]
-        [RequiresDynamicCode(
-            "Uses CoreUtils.Clone which may require dynamic code.")]
-        public static object Clone(object value)
-        {
-            return CoreUtils.Clone(value);
-        }
-
-        /// <summary>
         /// Checks if two identities are equal.
         /// </summary>
         public static bool IsEqualUserIdentity(
@@ -1312,14 +1300,6 @@ namespace Opc.Ua
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Checks if two DateTime values are equal.
-        /// </summary>
-        public static bool IsEqual(DateTime time1, DateTime time2)
-        {
-            return CoreUtils.IsEqual(time1, time2);
         }
 
         /// <summary>

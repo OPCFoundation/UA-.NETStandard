@@ -100,14 +100,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = new BaseObjectState(Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not BaseObjectState state)
@@ -126,6 +118,12 @@ namespace Opc.Ua
             hash.Add(base.DeepGetHashCode());
             hash.Add(EventNotifier);
             return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new BaseObjectState(Parent);
         }
 
         /// <inheritdoc/>

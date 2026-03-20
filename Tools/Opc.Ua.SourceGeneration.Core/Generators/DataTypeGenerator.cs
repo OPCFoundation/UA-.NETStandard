@@ -1101,13 +1101,21 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
-                field.GetChildFieldName(),
-                field.DataTypeNode.GetDotNetTypeName(
-                    field.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes));
+            if (field.DataTypeNode.NeedsCloning())
+            {
+                context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
+                    field.GetChildFieldName(),
+                    field.DataTypeNode.GetDotNetTypeName(
+                        field.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        nullable: NullableAnnotation.NullableExceptDataTypes));
+            }
+            else
+            {
+                context.Out.WriteLine("clone.{0} = this.{0};",
+                    field.GetChildFieldName());
+            }
 
             if (dataType.IsUnion)
             {

@@ -181,13 +181,17 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns all of the subscriptions known to the subscription manager.
-        /// </summary>
-        /// <returns>A list of the subscriptions.</returns>
+
+        /// <inheritdoc/>
         public IList<ISubscription> GetSubscriptions()
         {
             return [.. m_subscriptions.Values];
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetSubscription(uint id, out ISubscription subscription)
+        {
+            return m_subscriptions.TryGetValue(id, out subscription);
         }
 
         /// <summary>

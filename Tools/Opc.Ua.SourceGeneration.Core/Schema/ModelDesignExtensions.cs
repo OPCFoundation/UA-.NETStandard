@@ -729,6 +729,27 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// If the type needs to be cloned
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool NeedsCloning(this DataTypeDesign dataType)
+        {
+            if (dataType is null)
+            {
+                throw new ArgumentNullException(nameof(dataType));
+            }
+            switch (dataType.BasicDataType)
+            {
+                case BasicDataType.DataValue:
+                case BasicDataType.Structure: // Extension object
+                case BasicDataType.BaseDataType: // Variant
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
         /// Whether a template parameter is required.
         /// </summary>
         public static string GetValueAsCode(

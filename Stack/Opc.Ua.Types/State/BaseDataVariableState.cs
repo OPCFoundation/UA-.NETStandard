@@ -97,15 +97,6 @@ namespace Opc.Ua
             return VariableTypeIds.BaseDataVariableType;
         }
 
-        /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
-            Justification = "The type's constructor is preserved because this instance already exists.")]
-        public override object Clone()
-        {
-            var clone = (BaseDataVariableState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
 
         /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
@@ -136,6 +127,12 @@ namespace Opc.Ua
                 state.EnumStrings = EnumStrings;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new BaseDataVariableState(Parent);
         }
 
         /// <summary>
@@ -281,6 +278,12 @@ namespace Opc.Ua
             {
                 get => m_builder.GetValue(WrappedValue);
                 set => WrappedValue = m_builder.WithValue(value);
+            }
+
+            /// <inheritdoc/>
+            protected override NodeState CreateCopy()
+            {
+                return new Implementation<TBuilder>(Parent);
             }
 
             private readonly TBuilder m_builder = new();

@@ -230,16 +230,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
-            Justification = "The type's constructor is preserved because this instance already exists.")]
-        public override object Clone()
-        {
-            var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not BaseVariableState state)
@@ -1897,50 +1887,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the current value.
+        /// Copy the current value on write.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
-        protected ServiceResult Read(object currentValue, ref object valueToRead)
-        {
-            lock (Lock)
-            {
-                if (ServiceResult.IsBad(Error))
-                {
-                    valueToRead = null;
-                    return Error;
-                }
-
-                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
-                {
-                    valueToRead = CoreUtils.Clone(currentValue);
-                }
-                else
-                {
-                    valueToRead = currentValue;
-                }
-
-                return ServiceResult.Good;
-            }
-        }
-
-        /// <summary>
-        /// Writes the current value.
-        /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Clone is used for deep copy of OPC UA data values whose types are preserved.")]
-        protected object Write(object valueToWrite)
-        {
-            lock (Lock)
-            {
-                if ((CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
-                {
-                    return CoreUtils.Clone(valueToWrite);
-                }
-
-                return valueToWrite;
-            }
-        }
+        protected bool CopyOnWrite => (CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0;
 
         /// <summary>
         /// Sets the list of nodes which are updated when ClearChangeMasks is called.
