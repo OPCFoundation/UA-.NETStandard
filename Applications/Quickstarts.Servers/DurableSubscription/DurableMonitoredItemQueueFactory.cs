@@ -46,10 +46,9 @@ namespace Quickstarts.Servers
         private readonly BatchPersistor m_batchPersistor;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private readonly SubscriptionStoreEncoding m_encoding;
         private readonly IServiceMessageContext m_messageContext;
         private const string kQueueDirectory = "Queues";
-        private const string kBase_filename = "_queue.dat";
+        private const string kBase_filename = "_queue.bin";
 
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new();
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new();
@@ -59,11 +58,9 @@ namespace Quickstarts.Servers
 
         public DurableMonitoredItemQueueFactory(
             ITelemetryContext telemetry,
-            IServiceMessageContext messageContext,
-            SubscriptionStoreEncoding encoding = SubscriptionStoreEncoding.Json)
+            IServiceMessageContext messageContext)
         {
             m_telemetry = telemetry;
-            m_encoding = encoding;
             m_messageContext = messageContext;
             m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
             m_batchPersistor = new BatchPersistor(telemetry);
@@ -146,7 +143,12 @@ namespace Quickstarts.Servers
                     {
                         string filePath = Path.Combine(targetPath, id + kBase_filename);
                         using FileStream stream = File.Create(filePath);
-                        using IEncoder encoder = CreateEncoder(stream);
+                        using var encoder = new BinaryEncoder(
+                            stream, m_messageContext, true);
+                        encoder.WriteStringArray(
+                            null, m_messageContext.NamespaceUris.ToArrayOf());
+                        encoder.WriteStringArray(
+                            null, m_messageContext.ServerUris.ToArrayOf());
                         EncodeDataChangeQueue(encoder, queue.ToStorableQueue());
                         continue;
                     }
@@ -157,7 +159,12 @@ namespace Quickstarts.Servers
                     {
                         string filePath = Path.Combine(targetPath, id + kBase_filename);
                         using FileStream stream = File.Create(filePath);
-                        using IEncoder encoder = CreateEncoder(stream);
+                        using var encoder = new BinaryEncoder(
+                            stream, m_messageContext, true);
+                        encoder.WriteStringArray(
+                            null, m_messageContext.NamespaceUris.ToArrayOf());
+                        encoder.WriteStringArray(
+                            null, m_messageContext.ServerUris.ToArrayOf());
                         EncodeEventQueue(encoder, eventQueue.ToStorableQueue());
                         continue;
                     }
@@ -194,8 +201,14 @@ namespace Quickstarts.Servers
                 }
                 StorableEventQueue template;
                 using (FileStream stream = File.OpenRead(targetFile))
-                using (IDecoder decoder = CreateDecoder(stream))
+                using (var decoder = new BinaryDecoder(
+                    stream, m_messageContext, true))
                 {
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                    decoder.SetMappingTables(
+                        new NamespaceTable(nsUris.Memory.ToArray()),
+                        new StringTable(serverUris.Memory.ToArray()));
                     template = DecodeEventQueue(decoder);
                 }
                 File.Delete(targetFile);
@@ -229,8 +242,14 @@ namespace Quickstarts.Servers
                 }
                 StorableDataChangeQueue template;
                 using (FileStream stream = File.OpenRead(targetFile))
-                using (IDecoder decoder = CreateDecoder(stream))
+                using (var decoder = new BinaryDecoder(
+                    stream, m_messageContext, true))
                 {
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                    decoder.SetMappingTables(
+                        new NamespaceTable(nsUris.Memory.ToArray()),
+                        new StringTable(serverUris.Memory.ToArray()));
                     template = DecodeDataChangeQueue(decoder);
                 }
                 File.Delete(targetFile);
@@ -295,99 +314,94 @@ namespace Quickstarts.Servers
             }
         }
 
-        private static void EncodeDataChangeQueue(
-            IEncoder encoder, StorableDataChangeQueue q)
+        private static void EncodeDataChangeQueue(BinaryEncoder encoder, StorableDataChangeQueue q)
         {
-            encoder.WriteBoolean("IsDurable", q.IsDurable);
-            encoder.WriteUInt32("MonitoredItemId", q.MonitoredItemId);
-            encoder.WriteInt32("ItemsInQueue", q.ItemsInQueue);
-            encoder.WriteUInt32("QueueSize", q.QueueSize);
-            EncodeDataChangeBatch(encoder, "EnqueueBatch", q.EnqueueBatch);
-            EncodeDataChangeBatch(encoder, "DequeueBatch", q.DequeueBatch);
+            encoder.WriteBoolean(null, q.IsDurable);
+            encoder.WriteUInt32(null, q.MonitoredItemId);
+            encoder.WriteInt32(null, q.ItemsInQueue);
+            encoder.WriteUInt32(null, q.QueueSize);
+            EncodeDataChangeBatch(encoder, q.EnqueueBatch);
+            EncodeDataChangeBatch(encoder, q.DequeueBatch);
 
             int batchCount = q.DataChangeBatches?.Count ?? 0;
-            encoder.WriteInt32("DataChangeBatchCount", batchCount);
+            encoder.WriteInt32(null, batchCount);
             if (q.DataChangeBatches != null)
             {
                 for (int i = 0; i < batchCount; i++)
                 {
-                    EncodeDataChangeBatch(
-                        encoder, "DCBatch_" + i, q.DataChangeBatches[i]);
+                    EncodeDataChangeBatch(encoder, q.DataChangeBatches[i]);
                 }
             }
         }
 
-        private static StorableDataChangeQueue DecodeDataChangeQueue(IDecoder decoder)
+        private static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
         {
             var q = new StorableDataChangeQueue
             {
-                IsDurable = decoder.ReadBoolean("IsDurable"),
-                MonitoredItemId = decoder.ReadUInt32("MonitoredItemId"),
-                ItemsInQueue = decoder.ReadInt32("ItemsInQueue"),
-                QueueSize = decoder.ReadUInt32("QueueSize"),
-                EnqueueBatch = DecodeDataChangeBatch(decoder, "EnqueueBatch"),
-                DequeueBatch = DecodeDataChangeBatch(decoder, "DequeueBatch"),
+                IsDurable = decoder.ReadBoolean(null),
+                MonitoredItemId = decoder.ReadUInt32(null),
+                ItemsInQueue = decoder.ReadInt32(null),
+                QueueSize = decoder.ReadUInt32(null),
+                EnqueueBatch = DecodeDataChangeBatch(decoder),
+                DequeueBatch = DecodeDataChangeBatch(decoder),
             };
 
-            int batchCount = decoder.ReadInt32("DataChangeBatchCount");
+            int batchCount = decoder.ReadInt32(null);
             q.DataChangeBatches = new List<DataChangeBatch>(batchCount);
             for (int i = 0; i < batchCount; i++)
             {
-                q.DataChangeBatches.Add(
-                    DecodeDataChangeBatch(decoder, "DCBatch_" + i));
+                q.DataChangeBatches.Add(DecodeDataChangeBatch(decoder));
             }
             return q;
         }
 
-        private static void EncodeDataChangeBatch(
-            IEncoder encoder, string prefix, DataChangeBatch batch)
+        private static void EncodeDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
         {
             bool hasValue = batch != null;
-            encoder.WriteBoolean(prefix + "_HasValue", hasValue);
+            encoder.WriteBoolean(null, hasValue);
             if (!hasValue)
             {
                 return;
             }
 
-            encoder.WriteGuid(prefix + "_Id", batch.Id);
-            encoder.WriteUInt32(prefix + "_BatchSize", batch.BatchSize);
-            encoder.WriteUInt32(prefix + "_MonItemId", batch.MonitoredItemId);
-            encoder.WriteBoolean(prefix + "_IsPersisted", batch.IsPersisted);
+            encoder.WriteGuid(null, batch.Id);
+            encoder.WriteUInt32(null, batch.BatchSize);
+            encoder.WriteUInt32(null, batch.MonitoredItemId);
+            encoder.WriteBoolean(null, batch.IsPersisted);
 
             int count = batch.Values?.Count ?? 0;
-            encoder.WriteInt32(prefix + "_ValueCount", count);
+            encoder.WriteInt32(null, count);
             if (batch.Values != null)
             {
                 for (int i = 0; i < count; i++)
                 {
                     (DataValue dv, ServiceResult sr) = batch.Values[i];
-                    encoder.WriteDataValue(prefix + "_DV_" + i, dv);
-                    encoder.WriteStatusCode(prefix + "_SR_" + i,
+                    encoder.WriteDataValue(null, dv);
+                    encoder.WriteStatusCode(null,
                         sr?.StatusCode ?? StatusCodes.Good);
                 }
             }
         }
 
-        private static DataChangeBatch DecodeDataChangeBatch(
-            IDecoder decoder, string prefix)
+        private static DataChangeBatch DecodeDataChangeBatch(BinaryDecoder decoder)
         {
-            bool hasValue = decoder.ReadBoolean(prefix + "_HasValue");
+            bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
             {
                 return null;
             }
 
-            Uuid id = decoder.ReadGuid(prefix + "_Id");
-            uint batchSize = decoder.ReadUInt32(prefix + "_BatchSize");
-            uint monItemId = decoder.ReadUInt32(prefix + "_MonItemId");
-            bool isPersisted = decoder.ReadBoolean(prefix + "_IsPersisted");
+            Uuid id = decoder.ReadGuid(null);
+            uint batchSize = decoder.ReadUInt32(null);
+            uint monItemId = decoder.ReadUInt32(null);
+            bool isPersisted = decoder.ReadBoolean(null);
 
-            int count = decoder.ReadInt32(prefix + "_ValueCount");
+            int count = decoder.ReadInt32(null);
             var values = new List<(DataValue, ServiceResult)>(count);
             for (int i = 0; i < count; i++)
             {
-                DataValue dv = decoder.ReadDataValue(prefix + "_DV_" + i);
-                StatusCode sc = decoder.ReadStatusCode(prefix + "_SR_" + i);
+                DataValue dv = decoder.ReadDataValue(null);
+                StatusCode sc = decoder.ReadStatusCode(null);
                 ServiceResult sr = sc == StatusCodes.Good
                     ? null : new ServiceResult(sc);
                 values.Add((dv, sr));
@@ -401,94 +415,89 @@ namespace Quickstarts.Servers
             }
             return batch;
         }
-        private static void EncodeEventQueue(
-            IEncoder encoder, StorableEventQueue q)
+        private static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
         {
-            encoder.WriteBoolean("IsDurable", q.IsDurable);
-            encoder.WriteUInt32("MonitoredItemId", q.MonitoredItemId);
-            encoder.WriteUInt32("QueueSize", q.QueueSize);
-            EncodeEventBatch(encoder, "EnqueueBatch", q.EnqueueBatch);
-            EncodeEventBatch(encoder, "DequeueBatch", q.DequeueBatch);
+            encoder.WriteBoolean(null, q.IsDurable);
+            encoder.WriteUInt32(null, q.MonitoredItemId);
+            encoder.WriteUInt32(null, q.QueueSize);
+            EncodeEventBatch(encoder, q.EnqueueBatch);
+            EncodeEventBatch(encoder, q.DequeueBatch);
 
             int batchCount = q.EventBatches?.Count ?? 0;
-            encoder.WriteInt32("EventBatchCount", batchCount);
+            encoder.WriteInt32(null, batchCount);
             if (q.EventBatches != null)
             {
                 for (int i = 0; i < batchCount; i++)
                 {
-                    EncodeEventBatch(
-                        encoder, "EvBatch_" + i, q.EventBatches[i]);
+                    EncodeEventBatch(encoder, q.EventBatches[i]);
                 }
             }
         }
 
-        private static StorableEventQueue DecodeEventQueue(IDecoder decoder)
+        private static StorableEventQueue DecodeEventQueue(BinaryDecoder decoder)
         {
             var q = new StorableEventQueue
             {
-                IsDurable = decoder.ReadBoolean("IsDurable"),
-                MonitoredItemId = decoder.ReadUInt32("MonitoredItemId"),
-                QueueSize = decoder.ReadUInt32("QueueSize"),
-                EnqueueBatch = DecodeEventBatch(decoder, "EnqueueBatch"),
-                DequeueBatch = DecodeEventBatch(decoder, "DequeueBatch"),
+                IsDurable = decoder.ReadBoolean(null),
+                MonitoredItemId = decoder.ReadUInt32(null),
+                QueueSize = decoder.ReadUInt32(null),
+                EnqueueBatch = DecodeEventBatch(decoder),
+                DequeueBatch = DecodeEventBatch(decoder),
             };
 
-            int batchCount = decoder.ReadInt32("EventBatchCount");
+            int batchCount = decoder.ReadInt32(null);
             q.EventBatches = new List<EventBatch>(batchCount);
             for (int i = 0; i < batchCount; i++)
             {
-                q.EventBatches.Add(
-                    DecodeEventBatch(decoder, "EvBatch_" + i));
+                q.EventBatches.Add(DecodeEventBatch(decoder));
             }
             return q;
         }
 
         private static void EncodeEventBatch(
-            IEncoder encoder, string prefix, EventBatch batch)
+            BinaryEncoder encoder, EventBatch batch)
         {
             bool hasValue = batch != null;
-            encoder.WriteBoolean(prefix + "_HasValue", hasValue);
+            encoder.WriteBoolean(null, hasValue);
             if (!hasValue)
             {
                 return;
             }
 
-            encoder.WriteGuid(prefix + "_Id", batch.Id);
-            encoder.WriteUInt32(prefix + "_BatchSize", batch.BatchSize);
-            encoder.WriteUInt32(prefix + "_MonItemId", batch.MonitoredItemId);
-            encoder.WriteBoolean(prefix + "_IsPersisted", batch.IsPersisted);
+            encoder.WriteGuid(null, batch.Id);
+            encoder.WriteUInt32(null, batch.BatchSize);
+            encoder.WriteUInt32(null, batch.MonitoredItemId);
+            encoder.WriteBoolean(null, batch.IsPersisted);
 
             int count = batch.Events?.Count ?? 0;
-            encoder.WriteInt32(prefix + "_EventCount", count);
+            encoder.WriteInt32(null, count);
             if (batch.Events != null)
             {
                 for (int i = 0; i < count; i++)
                 {
-                    encoder.WriteEncodeableAsExtensionObject(
-                        prefix + "_Ev_" + i, batch.Events[i]);
+                    encoder.WriteEncodeableAsExtensionObject(null, batch.Events[i]);
                 }
             }
         }
 
-        private static EventBatch DecodeEventBatch(
-            IDecoder decoder, string prefix)
+        private static EventBatch DecodeEventBatch(BinaryDecoder decoder)
         {
-            bool hasValue = decoder.ReadBoolean(prefix + "_HasValue");
+            bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
             {
                 return null;
             }
 
-            Uuid id = decoder.ReadGuid(prefix + "_Id");
-            uint batchSize = decoder.ReadUInt32(prefix + "_BatchSize");
-            uint monItemId = decoder.ReadUInt32(prefix + "_MonItemId");
-            bool isPersisted = decoder.ReadBoolean(prefix + "_IsPersisted");
+            Uuid id = decoder.ReadGuid(null);
+            uint batchSize = decoder.ReadUInt32(null);
+            uint monItemId = decoder.ReadUInt32(null);
+            bool isPersisted = decoder.ReadBoolean(null);
 
-            int count = decoder.ReadInt32(prefix + "_EventCount");
+            int count = decoder.ReadInt32(null);
             var events = new List<EventFieldList>(count);
             for (int i = 0; i < count; i++)
             {
-                ExtensionObject eo = decoder.ReadExtensionObject(prefix + "_Ev_" + i);
+                ExtensionObject eo = decoder.ReadExtensionObject(null);
                 if (!eo.IsNull &&
                     eo.TryGetEncodeable(out IEncodeable e) &&
                     e is EventFieldList efl)
@@ -504,26 +513,6 @@ namespace Quickstarts.Servers
                 batch.Restore(events);
             }
             return batch;
-        }
-
-        private IEncoder CreateEncoder(Stream stream)
-        {
-            return m_encoding switch
-            {
-                SubscriptionStoreEncoding.Binary =>
-                    new BinaryEncoder(stream, m_messageContext, true),
-                _ => new JsonEncoder(stream, m_messageContext)
-            };
-        }
-
-        private IDecoder CreateDecoder(Stream stream)
-        {
-            return m_encoding switch
-            {
-                SubscriptionStoreEncoding.Binary =>
-                    new BinaryDecoder(stream, m_messageContext, true),
-                _ => new JsonDecoder(stream, m_messageContext)
-            };
         }
     }
 }

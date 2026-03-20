@@ -37,50 +37,25 @@ using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
 {
-    /// <summary>
-    /// Specifies the encoding format used by <see cref="SubscriptionStore"/>.
-    /// </summary>
-    public enum SubscriptionStoreEncoding
-    {
-        /// <summary>
-        /// OPC UA JSON encoding.
-        /// </summary>
-        Json,
-
-        /// <summary>
-        /// OPC UA binary encoding.
-        /// </summary>
-        Binary
-    }
-
     public class SubscriptionStore : ISubscriptionStore
     {
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions");
 
-        private readonly SubscriptionStoreEncoding m_encoding;
-        private readonly string m_filename;
+        private const string kFilename = "subscriptionsStore.bin";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly IServiceMessageContext m_messageContext;
 
-        public SubscriptionStore(
-            IServerInternal server,
-            SubscriptionStoreEncoding encoding = SubscriptionStoreEncoding.Json)
+        public SubscriptionStore(IServerInternal server)
         {
             m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
             m_telemetry = server.Telemetry;
             m_messageContext = server.MessageContext;
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
-            m_encoding = encoding;
-            m_filename = encoding switch
-            {
-                SubscriptionStoreEncoding.Binary => "subscriptionsStore.bin",
-                _ => "subscriptionsStore.json"
-            };
         }
 
         public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
@@ -93,27 +68,28 @@ namespace Quickstarts.Servers
                 }
 
                 var subs = subscriptions.Cast<StoredSubscription>().ToList();
-                using (FileStream fileStream = File.Create(Path.Combine(s_storage_path, m_filename)))
-                using (IEncoder encoder = CreateEncoder(fileStream))
+                using (FileStream fileStream = File.Create(
+                    Path.Combine(s_storage_path, kFilename)))
+                using (var encoder = new BinaryEncoder(
+                    fileStream, m_messageContext, true))
                 {
-                    var subBlobs = new List<ByteString>(subs.Count);
+                    encoder.WriteStringArray(
+                        null, m_messageContext.NamespaceUris.ToArrayOf());
+                    encoder.WriteStringArray(
+                        null, m_messageContext.ServerUris.ToArrayOf());
+
+                    encoder.WriteInt32(null, subs.Count);
                     foreach (StoredSubscription sub in subs)
                     {
-                        using var subStream = new MemoryStream();
-                        using (IEncoder subEncoder = CreateEncoder(subStream))
-                        {
-                            EncodeSubscription(subEncoder, sub);
-                        }
-                        subBlobs.Add(new ByteString(subStream.ToArray()));
+                        EncodeSubscription(encoder, sub);
                     }
-                    encoder.WriteByteStringArray("SubscriptionBlobs",
-                        new ArrayOf<ByteString>(subBlobs.ToArray()));
                 }
 
                 if (m_durableMonitoredItemQueueFactory != null)
                 {
-                    IEnumerable<uint> ids = subscriptions.SelectMany(
-                        s => s.MonitoredItems.Select(m => m.Id));
+                    IEnumerable<uint> ids = subscriptions
+                        .SelectMany(s => s.MonitoredItems
+                            .Select(m => m.Id));
                     m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
                 }
                 return true;
@@ -127,29 +103,27 @@ namespace Quickstarts.Servers
 
         public RestoreSubscriptionResult RestoreSubscriptions()
         {
-            string filePath = Path.Combine(s_storage_path, m_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
             try
             {
                 if (File.Exists(filePath))
                 {
                     List<IStoredSubscription> result;
                     using (FileStream fileStream = File.OpenRead(filePath))
-                    using (IDecoder decoder = CreateDecoder(fileStream))
+                    using (var decoder = new BinaryDecoder(
+                        fileStream, m_messageContext, true))
                     {
-                        ArrayOf<ByteString> subBlobs =
-                            decoder.ReadByteStringArray("SubscriptionBlobs");
-                        result = [];
-                        if (!subBlobs.IsNull)
+                        ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+                        ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                        decoder.SetMappingTables(
+                            new NamespaceTable(nsUris.Memory.ToArray()),
+                            new StringTable(serverUris.Memory.ToArray()));
+
+                        int count = decoder.ReadInt32(null);
+                        result = new List<IStoredSubscription>(count);
+                        for (int i = 0; i < count; i++)
                         {
-                            foreach (ByteString blob in subBlobs.Memory.ToArray())
-                            {
-                                if (!blob.IsNull && blob.Length > 0)
-                                {
-                                    using var subStream = new MemoryStream(blob.ToArray());
-                                    using IDecoder subDecoder = CreateDecoder(subStream);
-                                    result.Add(DecodeSubscription(subDecoder));
-                                }
-                            }
+                            result.Add(DecodeSubscription(decoder));
                         }
                     }
 
@@ -182,7 +156,7 @@ namespace Quickstarts.Servers
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
         {
-            string filePath = Path.Combine(s_storage_path, m_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
 
             // remove old file
             if (File.Exists(filePath))
@@ -204,22 +178,22 @@ namespace Quickstarts.Servers
             }
         }
 
-        private void EncodeSubscription(IEncoder encoder, StoredSubscription subscription)
+        private static void EncodeSubscription(
+            BinaryEncoder encoder, StoredSubscription subscription)
         {
-            encoder.WriteUInt32("Id", subscription.Id);
-            encoder.WriteBoolean("IsDurable", subscription.IsDurable);
-            encoder.WriteUInt32("LifetimeCounter", subscription.LifetimeCounter);
-            encoder.WriteUInt32("MaxLifetimeCount", subscription.MaxLifetimeCount);
-            encoder.WriteUInt32("MaxKeepaliveCount", subscription.MaxKeepaliveCount);
-            encoder.WriteUInt32("MaxMessageCount", subscription.MaxMessageCount);
-            encoder.WriteUInt32("MaxNotificationsPerPublish",
-                subscription.MaxNotificationsPerPublish);
-            encoder.WriteDouble("PublishingInterval", subscription.PublishingInterval);
-            encoder.WriteByte("Priority", subscription.Priority);
-            encoder.WriteInt32("LastSentMessage", subscription.LastSentMessage);
-            encoder.WriteUInt32("SequenceNumber", subscription.SequenceNumber);
+            encoder.WriteUInt32(null, subscription.Id);
+            encoder.WriteBoolean(null, subscription.IsDurable);
+            encoder.WriteUInt32(null, subscription.LifetimeCounter);
+            encoder.WriteUInt32(null, subscription.MaxLifetimeCount);
+            encoder.WriteUInt32(null, subscription.MaxKeepaliveCount);
+            encoder.WriteUInt32(null, subscription.MaxMessageCount);
+            encoder.WriteUInt32(null, subscription.MaxNotificationsPerPublish);
+            encoder.WriteDouble(null, subscription.PublishingInterval);
+            encoder.WriteByte(null, subscription.Priority);
+            encoder.WriteInt32(null, subscription.LastSentMessage);
+            encoder.WriteUInt32(null, subscription.SequenceNumber);
 
-            encoder.WriteExtensionObject("UserIdentityToken",
+            encoder.WriteExtensionObject(null,
                 subscription.UserIdentityToken != null
                     ? new ExtensionObject(subscription.UserIdentityToken)
                     : ExtensionObject.Null);
@@ -227,86 +201,80 @@ namespace Quickstarts.Servers
             ExtensionObject[] sentMsgs = subscription.SentMessages?
                 .Select(m => new ExtensionObject(m)).ToArray() ??
                 [];
-            encoder.WriteExtensionObjectArray("SentMessages",
+            encoder.WriteExtensionObjectArray(null,
                 new ArrayOf<ExtensionObject>(sentMsgs));
 
             List<StoredMonitoredItem> items = subscription.MonitoredItems?
                 .Cast<StoredMonitoredItem>().ToList() ??
                 [];
-            var itemBlobs = new List<ByteString>(items.Count);
+            encoder.WriteInt32(null, items.Count);
             foreach (StoredMonitoredItem item in items)
             {
-                using var itemStream = new MemoryStream();
-                using (IEncoder itemEncoder = CreateEncoder(itemStream))
-                {
-                    EncodeMonitoredItem(itemEncoder, item);
-                }
-                itemBlobs.Add(new ByteString(itemStream.ToArray()));
+                EncodeMonitoredItem(encoder, item);
             }
-            encoder.WriteByteStringArray("MonitoredItemBlobs",
-                new ArrayOf<ByteString>(itemBlobs.ToArray()));
         }
 
-        private void EncodeMonitoredItem(IEncoder encoder, StoredMonitoredItem item)
+        private static void EncodeMonitoredItem(
+            BinaryEncoder encoder, StoredMonitoredItem item)
         {
-            encoder.WriteBoolean("IsRestored", item.IsRestored);
-            encoder.WriteUInt32("SubscriptionId", item.SubscriptionId);
-            encoder.WriteUInt32("Id", item.Id);
-            encoder.WriteInt32("TypeMask", item.TypeMask);
-            encoder.WriteNodeId("NodeId", item.NodeId);
-            encoder.WriteUInt32("AttributeId", item.AttributeId);
-            encoder.WriteString("IndexRange", item.IndexRange);
-            encoder.WriteQualifiedName("Encoding", item.Encoding);
-            encoder.WriteEnumerated("DiagnosticsMasks", item.DiagnosticsMasks);
-            encoder.WriteEnumerated("TimestampsToReturn", item.TimestampsToReturn);
-            encoder.WriteUInt32("ClientHandle", item.ClientHandle);
-            encoder.WriteEnumerated("MonitoringMode", item.MonitoringMode);
-            encoder.WriteExtensionObject("OriginalFilter",
+            encoder.WriteBoolean(null, item.IsRestored);
+            encoder.WriteUInt32(null, item.SubscriptionId);
+            encoder.WriteUInt32(null, item.Id);
+            encoder.WriteInt32(null, item.TypeMask);
+            encoder.WriteNodeId(null, item.NodeId);
+            encoder.WriteUInt32(null, item.AttributeId);
+            encoder.WriteString(null, item.IndexRange);
+            encoder.WriteQualifiedName(null, item.Encoding);
+            encoder.WriteEnumerated(null, item.DiagnosticsMasks);
+            encoder.WriteEnumerated(null, item.TimestampsToReturn);
+            encoder.WriteUInt32(null, item.ClientHandle);
+            encoder.WriteEnumerated(null, item.MonitoringMode);
+            encoder.WriteExtensionObject(null,
                 item.OriginalFilter != null
                     ? new ExtensionObject(item.OriginalFilter)
                     : ExtensionObject.Null);
-            encoder.WriteExtensionObject("FilterToUse",
+            encoder.WriteExtensionObject(null,
                 item.FilterToUse != null
                     ? new ExtensionObject(item.FilterToUse)
                     : ExtensionObject.Null);
-            encoder.WriteDouble("Range", item.Range);
-            encoder.WriteDouble("SamplingInterval", item.SamplingInterval);
-            encoder.WriteUInt32("QueueSize", item.QueueSize);
-            encoder.WriteBoolean("DiscardOldest", item.DiscardOldest);
-            encoder.WriteInt32("SourceSamplingInterval", item.SourceSamplingInterval);
-            encoder.WriteBoolean("AlwaysReportUpdates", item.AlwaysReportUpdates);
-            encoder.WriteBoolean("IsDurable", item.IsDurable);
-            encoder.WriteDataValue("LastValue", item.LastValue);
-            encoder.WriteStatusCode("LastError",
+            encoder.WriteDouble(null, item.Range);
+            encoder.WriteDouble(null, item.SamplingInterval);
+            encoder.WriteUInt32(null, item.QueueSize);
+            encoder.WriteBoolean(null, item.DiscardOldest);
+            encoder.WriteInt32(null, item.SourceSamplingInterval);
+            encoder.WriteBoolean(null, item.AlwaysReportUpdates);
+            encoder.WriteBoolean(null, item.IsDurable);
+            encoder.WriteDataValue(null, item.LastValue);
+            encoder.WriteStatusCode(null,
                 item.LastError?.StatusCode ?? StatusCodes.Good);
-            encoder.WriteString("ParsedIndexRange", item.ParsedIndexRange.ToString());
+            encoder.WriteString(null, item.ParsedIndexRange.ToString());
         }
 
-        private StoredSubscription DecodeSubscription(IDecoder decoder)
+        private static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
         {
             var subscription = new StoredSubscription
             {
-                Id = decoder.ReadUInt32("Id"),
-                IsDurable = decoder.ReadBoolean("IsDurable"),
-                LifetimeCounter = decoder.ReadUInt32("LifetimeCounter"),
-                MaxLifetimeCount = decoder.ReadUInt32("MaxLifetimeCount"),
-                MaxKeepaliveCount = decoder.ReadUInt32("MaxKeepaliveCount"),
-                MaxMessageCount = decoder.ReadUInt32("MaxMessageCount"),
-                MaxNotificationsPerPublish = decoder.ReadUInt32("MaxNotificationsPerPublish"),
-                PublishingInterval = decoder.ReadDouble("PublishingInterval"),
-                Priority = decoder.ReadByte("Priority"),
-                LastSentMessage = decoder.ReadInt32("LastSentMessage"),
-                SequenceNumber = decoder.ReadUInt32("SequenceNumber"),
+                Id = decoder.ReadUInt32(null),
+                IsDurable = decoder.ReadBoolean(null),
+                LifetimeCounter = decoder.ReadUInt32(null),
+                MaxLifetimeCount = decoder.ReadUInt32(null),
+                MaxKeepaliveCount = decoder.ReadUInt32(null),
+                MaxMessageCount = decoder.ReadUInt32(null),
+                MaxNotificationsPerPublish = decoder.ReadUInt32(null),
+                PublishingInterval = decoder.ReadDouble(null),
+                Priority = decoder.ReadByte(null),
+                LastSentMessage = decoder.ReadInt32(null),
+                SequenceNumber = decoder.ReadUInt32(null),
             };
 
-            ExtensionObject tokenEo = decoder.ReadExtensionObject("UserIdentityToken");
+            ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
             if (!tokenEo.IsNull && tokenEo.TryGetEncodeable(out IEncodeable tokenBody))
             {
                 subscription.UserIdentityToken = tokenBody as UserIdentityToken;
             }
 
             ArrayOf<ExtensionObject> sentMsgEos =
-                decoder.ReadExtensionObjectArray("SentMessages");
+                decoder.ReadExtensionObjectArray(null);
             var sentList = new List<NotificationMessage>();
             if (!sentMsgEos.IsNull)
             {
@@ -322,94 +290,64 @@ namespace Quickstarts.Servers
             }
             subscription.SentMessages = sentList;
 
-            ArrayOf<ByteString> itemBlobs =
-                decoder.ReadByteStringArray("MonitoredItemBlobs");
-            var items = new List<IStoredMonitoredItem>();
-            if (!itemBlobs.IsNull)
+            int itemCount = decoder.ReadInt32(null);
+            var items = new List<IStoredMonitoredItem>(itemCount);
+            for (int i = 0; i < itemCount; i++)
             {
-                foreach (ByteString blob in itemBlobs.Memory.ToArray())
-                {
-                    if (!blob.IsNull && blob.Length > 0)
-                    {
-                        using var itemStream = new MemoryStream(blob.ToArray());
-                        using IDecoder itemDecoder =
-                            CreateDecoder(itemStream);
-                        items.Add(DecodeMonitoredItem(itemDecoder));
-                    }
-                }
+                items.Add(DecodeMonitoredItem(decoder));
             }
             subscription.MonitoredItems = items;
             return subscription;
         }
 
-        private static StoredMonitoredItem DecodeMonitoredItem(IDecoder decoder)
+        private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
         {
             var item = new StoredMonitoredItem
             {
-                IsRestored = decoder.ReadBoolean("IsRestored"),
-                SubscriptionId = decoder.ReadUInt32("SubscriptionId"),
-                Id = decoder.ReadUInt32("Id"),
-                TypeMask = decoder.ReadInt32("TypeMask"),
-                NodeId = decoder.ReadNodeId("NodeId"),
-                AttributeId = decoder.ReadUInt32("AttributeId"),
-                IndexRange = decoder.ReadString("IndexRange"),
-                Encoding = decoder.ReadQualifiedName("Encoding"),
-                DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>("DiagnosticsMasks"),
-                TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>("TimestampsToReturn"),
-                ClientHandle = decoder.ReadUInt32("ClientHandle"),
-                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>("MonitoringMode"),
+                IsRestored = decoder.ReadBoolean(null),
+                SubscriptionId = decoder.ReadUInt32(null),
+                Id = decoder.ReadUInt32(null),
+                TypeMask = decoder.ReadInt32(null),
+                NodeId = decoder.ReadNodeId(null),
+                AttributeId = decoder.ReadUInt32(null),
+                IndexRange = decoder.ReadString(null),
+                Encoding = decoder.ReadQualifiedName(null),
+                DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null),
+                TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null),
+                ClientHandle = decoder.ReadUInt32(null),
+                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null),
             };
 
-            ExtensionObject origFilterEo = decoder.ReadExtensionObject("OriginalFilter");
+            ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
             if (!origFilterEo.IsNull && origFilterEo.TryGetEncodeable(out IEncodeable origBody))
             {
                 item.OriginalFilter = origBody as MonitoringFilter;
             }
 
-            ExtensionObject filterEo = decoder.ReadExtensionObject("FilterToUse");
+            ExtensionObject filterEo = decoder.ReadExtensionObject(null);
             if (!filterEo.IsNull && filterEo.TryGetEncodeable(out IEncodeable filterBody))
             {
                 item.FilterToUse = filterBody as MonitoringFilter;
             }
 
-            item.Range = decoder.ReadDouble("Range");
-            item.SamplingInterval = decoder.ReadDouble("SamplingInterval");
-            item.QueueSize = decoder.ReadUInt32("QueueSize");
-            item.DiscardOldest = decoder.ReadBoolean("DiscardOldest");
-            item.SourceSamplingInterval = decoder.ReadInt32("SourceSamplingInterval");
-            item.AlwaysReportUpdates = decoder.ReadBoolean("AlwaysReportUpdates");
-            item.IsDurable = decoder.ReadBoolean("IsDurable");
-            item.LastValue = decoder.ReadDataValue("LastValue");
+            item.Range = decoder.ReadDouble(null);
+            item.SamplingInterval = decoder.ReadDouble(null);
+            item.QueueSize = decoder.ReadUInt32(null);
+            item.DiscardOldest = decoder.ReadBoolean(null);
+            item.SourceSamplingInterval = decoder.ReadInt32(null);
+            item.AlwaysReportUpdates = decoder.ReadBoolean(null);
+            item.IsDurable = decoder.ReadBoolean(null);
+            item.LastValue = decoder.ReadDataValue(null);
 
-            StatusCode lastErrorStatus = decoder.ReadStatusCode("LastError");
+            StatusCode lastErrorStatus = decoder.ReadStatusCode(null);
             item.LastError = lastErrorStatus == StatusCodes.Good
                 ? null : new ServiceResult(lastErrorStatus);
 
-            string rangeStr = decoder.ReadString("ParsedIndexRange");
+            string rangeStr = decoder.ReadString(null);
             item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
                 ? NumericRange.Null : NumericRange.Parse(rangeStr);
 
             return item;
-        }
-
-        private IEncoder CreateEncoder(Stream stream)
-        {
-            return m_encoding switch
-            {
-                SubscriptionStoreEncoding.Binary =>
-                    new BinaryEncoder(stream, m_messageContext, true),
-                _ => new JsonEncoder(stream, m_messageContext)
-            };
-        }
-
-        private IDecoder CreateDecoder(Stream stream)
-        {
-            return m_encoding switch
-            {
-                SubscriptionStoreEncoding.Binary =>
-                    new BinaryDecoder(stream, m_messageContext, true),
-                _ => new JsonDecoder(stream, m_messageContext)
-            };
         }
     }
 }
