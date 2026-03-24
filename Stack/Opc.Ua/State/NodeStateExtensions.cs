@@ -42,7 +42,7 @@ namespace Opc.Ua
         public static void UpdateValues(
             this NodeState state,
             ISystemContext context,
-            SimpleAttributeOperandCollection attributes,
+            ArrayOf<SimpleAttributeOperand> attributes,
             EventFieldList values)
         {
             for (int ii = 0; ii < attributes.Count; ii++)
@@ -83,7 +83,7 @@ namespace Opc.Ua
         public static void Update(
             this BaseInstanceState state,
             ISystemContext context,
-            SimpleAttributeOperandCollection fields,
+            ArrayOf<SimpleAttributeOperand> fields,
             EventFieldList e)
         {
             for (int ii = 0; ii < fields.Count; ii++)

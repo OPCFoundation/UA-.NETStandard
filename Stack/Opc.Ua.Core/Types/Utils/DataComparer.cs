@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 
 namespace Opc.Ua.Test
 {
@@ -280,31 +279,14 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareDateTime(DateTime value1, DateTime value2)
+        public bool CompareDateTime(DateTimeUtc value1, DateTimeUtc value2)
         {
-            if (value1.Kind != value2.Kind)
+            if (value1 != value2)
             {
-                value1 = Utils.ToOpcUaUniversalTime(value1);
-                value2 = Utils.ToOpcUaUniversalTime(value2);
+                return ReportError(value1, value2);
             }
 
-            if (value1 < Utils.TimeBase)
-            {
-                value1 = DateTime.MinValue;
-            }
-
-            if (value2 < Utils.TimeBase)
-            {
-                value2 = DateTime.MinValue;
-            }
-
-            if (value1 == value2)
-            {
-                return true;
-            }
-
-            // allow milliseconds to be truncated.
-            return Math.Abs((value1 - value2).Ticks) < 10000;
+            return true;
         }
 
         /// <summary>
@@ -331,43 +313,26 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareByteString(byte[] value1, byte[] value2)
+        public bool CompareByteString(ByteString value1, ByteString value2)
         {
-            if (value1 == null || value2 == null)
-            {
-                if (value1 != value2)
-                {
-                    return ReportError(value1, value2);
-                }
-
-                return true;
-            }
-
-            if (value1.Length != value2.Length)
+            if (value1 != value2)
             {
                 return ReportError(value1, value2);
             }
-
-            for (int ii = 0; ii < value1.Length; ii++)
-            {
-                if (value1[ii] != value2[ii])
-                {
-                    return ReportError(value1[ii], value1[ii]);
-                }
-            }
-
             return true;
         }
 
         /// <summary>
         /// This method compares two XmlElement values.
         /// </summary>
-        /// <param name="value1">First Value.</param>
-        /// <param name="value2">Second Value.</param>
+        /// <param name="xml1">First Value.</param>
+        /// <param name="xml2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareXmlElement(XmlElement value1, XmlElement value2)
+        public bool CompareXmlElement(XmlElement xml1, XmlElement xml2)
         {
+            var value1 = (System.Xml.XmlElement)xml1;
+            var value2 = (System.Xml.XmlElement)xml2;
             if (value1 == null || value2 == null)
             {
                 if (value1 != value2)
@@ -388,9 +353,9 @@ namespace Opc.Ua.Test
                 return ReportError(value1.NamespaceURI, value2.NamespaceURI);
             }
 
-            foreach (XmlAttribute attribute1 in value1.Attributes)
+            foreach (System.Xml.XmlAttribute attribute1 in value1.Attributes)
             {
-                XmlAttribute attribute2 = value2.GetAttributeNode(attribute1.Name);
+                System.Xml.XmlAttribute attribute2 = value2.GetAttributeNode(attribute1.Name);
 
                 if (attribute2 == null)
                 {
@@ -414,14 +379,14 @@ namespace Opc.Ua.Test
                 }
             }
 
-            XmlNode child1 = value1.FirstChild;
-            XmlNode child2 = value2.FirstChild;
+            System.Xml.XmlNode child1 = value1.FirstChild;
+            System.Xml.XmlNode child2 = value2.FirstChild;
 
             while (child1 != null && child2 != null)
             {
                 while (child1 != null)
                 {
-                    if (child1.NodeType == XmlNodeType.Element)
+                    if (child1.NodeType == System.Xml.XmlNodeType.Element)
                     {
                         break;
                     }
@@ -431,7 +396,7 @@ namespace Opc.Ua.Test
 
                 while (child2 != null)
                 {
-                    if (child2.NodeType == XmlNodeType.Element)
+                    if (child2.NodeType == System.Xml.XmlNodeType.Element)
                     {
                         break;
                     }
@@ -439,7 +404,9 @@ namespace Opc.Ua.Test
                     child2 = child2.NextSibling;
                 }
 
-                if (!CompareXmlElement((XmlElement)child1, (XmlElement)child2))
+                if (!CompareXmlElement(
+                    XmlElement.From((System.Xml.XmlElement)child1),
+                    XmlElement.From((System.Xml.XmlElement)child2)))
                 {
                     return false;
                 }
@@ -696,9 +663,9 @@ namespace Opc.Ua.Test
                 {
                     return CompareGuid((Uuid)value1.Value, (Uuid)value2.Value);
                 }
-                if (systemType == typeof(byte[]))
+                if (systemType == typeof(ByteString))
                 {
-                    return CompareByteString((byte[])value1.Value, (byte[])value2.Value);
+                    return CompareByteString((ByteString)value1.Value, (ByteString)value2.Value);
                 }
                 if (systemType == typeof(XmlElement))
                 {
@@ -813,22 +780,25 @@ namespace Opc.Ua.Test
                         (string[])value2.Value,
                         CompareString);
                 }
-                if (systemType == typeof(DateTime[]))
+                if (systemType == typeof(DateTimeUtc[]))
                 {
                     return CompareArray(
-                        (DateTime[])value1.Value,
-                        (DateTime[])value2.Value,
+                        (DateTimeUtc[])value1.Value,
+                        (DateTimeUtc[])value2.Value,
                         CompareDateTime);
                 }
                 if (systemType == typeof(Uuid[]))
                 {
-                    return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareGuid);
+                    return CompareArray(
+                        (Uuid[])value1.Value,
+                        (Uuid[])value2.Value,
+                        CompareGuid);
                 }
                 if (systemType == typeof(byte[][]))
                 {
                     return CompareArray(
-                        (byte[][])value1.Value,
-                        (byte[][])value2.Value,
+                        (ByteString[])value1.Value,
+                        (ByteString[])value2.Value,
                         CompareByteString);
                 }
                 if (systemType == typeof(XmlElement[]))
@@ -977,7 +947,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             if (!CompareVariant(new Variant(value1.Elements), new Variant(value2.Elements)))
+#pragma warning restore CS0618 // Type or member is obsolete
             {
                 return false;
             }
@@ -995,11 +967,9 @@ namespace Opc.Ua.Test
         /// </summary>
         /// <param name="value">Extension object.</param>
         /// <returns>IEncodeable object</returns>
-        private object GetExtensionObjectBody(ExtensionObject value)
+        private IEncodeable GetExtensionObjectBody(ExtensionObject value)
         {
-            object body = value.Body;
-
-            if (body is IEncodeable encodeable)
+            if (value.TryGetEncodeable(out IEncodeable encodeable))
             {
                 return encodeable;
             }
@@ -1008,33 +978,35 @@ namespace Opc.Ua.Test
 
             if (expectedType == null)
             {
-                return body;
+                return null;
             }
 
-            if (body is XmlElement xml)
+            if (value.TryGetAsXml(out XmlElement xml))
             {
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(expectedType);
+                IEncodeable body;
+                System.Xml.XmlQualifiedName xmlName = TypeInfo.GetXmlName(expectedType);
                 using (var decoder = new XmlDecoder(xml, m_context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
-                    body = decoder.ReadEncodeable(xmlName.Name, expectedType);
+                    body = decoder.ReadEncodeable<IEncodeable>(xmlName.Name, value.TypeId);
                     decoder.PopNamespace();
                 }
 
-                return (IEncodeable)body;
+                return body;
             }
 
-            if (body is byte[] bytes)
+            if (value.TryGetAsBinary(out ByteString bytes))
             {
-                using (var decoder = new BinaryDecoder(bytes, m_context))
+                IEncodeable body;
+                using (var decoder = new BinaryDecoder(bytes.ToArray(), m_context))
                 {
-                    body = decoder.ReadEncodeable(null, expectedType);
+                    body = decoder.ReadEncodeable<IEncodeable>(null, value.TypeId);
                 }
 
-                return (IEncodeable)body;
+                return body;
             }
 
-            return body;
+            return null;
         }
 
         /// <summary>
@@ -1046,15 +1018,13 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareExtensionObject(ExtensionObject value1, ExtensionObject value2)
         {
-            object body1 = value1.Body;
-            object body2 = value2.Body;
-
-            if (body1 == null || body2 == null)
+            if (value1.IsNull || value2.IsNull)
             {
-                return body1 == body2;
+                return value1.IsNull == value2.IsNull;
             }
 
-            if (value1.Body is byte[] bytes1 && value2.Body is byte[] bytes2)
+            if (value1.TryGetAsBinary(out ByteString bytes1) &&
+                value2.TryGetAsBinary(out ByteString bytes2))
             {
                 if (!CompareExpandedNodeId(value1.TypeId, value2.TypeId))
                 {
@@ -1064,7 +1034,8 @@ namespace Opc.Ua.Test
                 return CompareByteString(bytes1, bytes2);
             }
 
-            if (value1.Body is XmlElement xml1 && value2.Body is XmlElement xml2)
+            if (value1.TryGetAsXml(out XmlElement xml1) &&
+                value2.TryGetAsXml(out XmlElement xml2))
             {
                 if (!CompareExpandedNodeId(value1.TypeId, value2.TypeId))
                 {
@@ -1074,8 +1045,8 @@ namespace Opc.Ua.Test
                 return CompareXmlElement(xml1, xml2);
             }
 
-            body1 = GetExtensionObjectBody(value1);
-            body2 = GetExtensionObjectBody(value2);
+            IEncodeable body1 = GetExtensionObjectBody(value1);
+            IEncodeable body2 = GetExtensionObjectBody(value2);
 
             if (!CompareExtensionObjectBody(body1, body2))
             {
@@ -1088,20 +1059,19 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Compares the value of two extension object body.
         /// </summary>
-        protected virtual bool CompareExtensionObjectBody(object value1, object value2)
+        protected virtual bool CompareExtensionObjectBody(
+            IEncodeable encodeable1,
+            IEncodeable encodeable2)
         {
-            if (ReferenceEquals(value1, value2))
+            if (ReferenceEquals(encodeable1, encodeable2))
             {
                 return true;
             }
 
-            if (value1 is IEncodeable encodeable1 &&
-                value2 is IEncodeable encodeable2 &&
-                encodeable1.IsEqual(encodeable2))
+            if (encodeable1.IsEqual(encodeable2))
             {
                 return true;
             }
-
             return false;
         }
 

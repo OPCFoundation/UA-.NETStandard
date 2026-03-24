@@ -93,7 +93,7 @@ namespace Quickstarts.ReferenceServer
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers;
+            var nodeManagers = new List<INodeManager>();
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
             if (ProvisioningMode)
@@ -105,7 +105,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                nodeManagers =
+                asyncNodeManagers =
                 [
                     // create the custom node manager.
                     new ReferenceNodeManager(
@@ -239,35 +239,35 @@ namespace Quickstarts.ReferenceServer
         /// <remarks>
         /// Sample to show how to override default user token policies.
         /// </remarks>
-        public override UserTokenPolicyCollection GetUserTokenPolicies(
+        public override ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
             EndpointDescription description)
         {
-            UserTokenPolicyCollection policies = base.GetUserTokenPolicies(
+            ArrayOf<UserTokenPolicy> policies = base.GetUserTokenPolicies(
                 configuration,
                 description);
 
             // In provisioning mode, remove anonymous authentication
             if (ProvisioningMode)
             {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
+                return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
             }
 
             // sample how to modify default user token policies
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
+                return policies.Filter(u => u.TokenType != UserTokenType.Certificate);
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.Sign)
             {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
+                return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
+                return policies.Filter(u => u.TokenType != UserTokenType.UserName);
             }
             return policies;
         }
@@ -344,11 +344,10 @@ namespace Quickstarts.ReferenceServer
             // check for issued identity token.
             if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
             {
-                args.Identity = VerifyIssuedToken(issuedToken);
-
                 // set AuthenticatedUser role for accepted identity token
-                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
-
+                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken),
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 

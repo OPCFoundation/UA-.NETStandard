@@ -138,9 +138,9 @@ namespace Opc.Ua
                 AttributeId = Attributes.Value
             };
 
-            clause.BrowsePath.Add(propertyName);
+            clause.BrowsePath = clause.BrowsePath.AddItem(propertyName);
 
-            SelectClauses.Add(clause);
+            SelectClauses = SelectClauses.AddItem(clause);
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Opc.Ua
                 clause.BrowsePath = SimpleAttributeOperand.Parse(browsePath);
             }
 
-            SelectClauses.Add(clause);
+            SelectClauses = SelectClauses.AddItem(clause);
         }
 
         /// <summary>
@@ -269,8 +269,8 @@ namespace Opc.Ua
                     {
                         if (ServiceResult.IsBad(clauseResult))
                         {
-                            result.SelectClauseResults.Add(clauseResult.StatusCode);
-                            result.SelectClauseDiagnosticInfos.Add(
+                            result.SelectClauseResults = result.SelectClauseResults.AddItem(clauseResult.StatusCode);
+                            result.SelectClauseDiagnosticInfos = result.SelectClauseDiagnosticInfos.AddItem(
                                 new DiagnosticInfo(
                                     clauseResult,
                                     diagnosticsMasks,
@@ -280,8 +280,10 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            result.SelectClauseResults.Add(StatusCodes.Good);
-                            result.SelectClauseDiagnosticInfos.Add(null);
+                            result.SelectClauseResults =
+                                result.SelectClauseResults.AddItem(StatusCodes.Good);
+                            result.SelectClauseDiagnosticInfos =
+                                result.SelectClauseDiagnosticInfos.AddItem(null);
                         }
                     }
                 }
@@ -308,7 +310,7 @@ namespace Opc.Ua
             var result = new Result();
 
             // check for top level error.
-            if (m_selectClauses == null || m_selectClauses.Count == 0)
+            if (m_selectClauses.IsEmpty)
             {
                 result.Status = ServiceResult.Create(
                     StatusCodes.BadStructureMissing,
@@ -393,20 +395,18 @@ namespace Opc.Ua
         public SimpleAttributeOperand(NodeId typeId, QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = [];
+            m_browsePath = [browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
-
-            m_browsePath.Add(browsePath);
         }
 
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(NodeId typeId, IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(NodeId typeId, ArrayOf<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = [.. browsePath];
+            m_browsePath = browsePath;
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -417,10 +417,10 @@ namespace Opc.Ua
         public SimpleAttributeOperand(
             IFilterContext context,
             ExpandedNodeId typeId,
-            IList<QualifiedName> browsePath)
+            ArrayOf<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-            m_browsePath = [.. browsePath];
+            m_browsePath = browsePath;
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -472,17 +472,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
         /// Whether the operand has been validated.
         /// </summary>
         /// <remarks>
@@ -515,7 +504,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            m_parsedIndexRange = NumericRange.Empty;
+            m_parsedIndexRange = default;
 
             // parse the index range.
             if (!string.IsNullOrEmpty(m_indexRange))
@@ -566,7 +555,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
 
-            if (BrowsePath != null && BrowsePath.Count > 0)
+            if (!BrowsePath.IsEmpty)
             {
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", Format(BrowsePath));
             }
@@ -586,9 +575,9 @@ namespace Opc.Ua
         /// Formats a browse path.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static string Format(IList<QualifiedName> browsePath)
+        public static string Format(ArrayOf<QualifiedName> browsePath)
         {
-            if (browsePath == null || browsePath.Count == 0)
+            if (browsePath.IsEmpty)
             {
                 return string.Empty;
             }
@@ -635,9 +624,9 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a browse path.
         /// </summary>
-        public static QualifiedNameCollection Parse(string browsePath)
+        public static ArrayOf<QualifiedName> Parse(string browsePath)
         {
-            var browseNames = new QualifiedNameCollection();
+            var browseNames = new List<QualifiedName>();
 
             if (string.IsNullOrEmpty(browsePath))
             {

@@ -1,5 +1,4 @@
 Tools\Opc.Ua.SourceGeneration.Core\bin\Release\netstandard2.0\Opc.Ua.SourceGeneration.Core.dll
-Tools\Opc.Ua.SourceGeneration\bin\Release\netstandard2.0\Opc.Ua.SourceGeneration.dll
 Stack\Opc.Ua.Types\bin\Release\netstandard2.0\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\netstandard2.1\Opc.Ua.Types.dll
 Stack\Opc.Ua.Types\bin\Release\net472\Opc.Ua.Types.dll

@@ -1277,17 +1277,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a deep copy of the value.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(T value)
-            where T : class
-        {
-            return CoreUtils.Clone(value);
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the value.
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
         public static object Clone(object value)
         {
             return CoreUtils.Clone(value);
@@ -1427,12 +1416,12 @@ namespace Opc.Ua
         /// </returns>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
         public static T ParseExtension<T>(
-            IList<XmlElement> extensions,
+            ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
             ITelemetryContext telemetry)
         {
             // check if nothing to search for.
-            if (extensions == null || extensions.Count == 0)
+            if (extensions.IsEmpty)
             {
                 return default;
             }
@@ -1454,7 +1443,7 @@ namespace Opc.Ua
             // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                XmlElement element = extensions[ii];
+                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
 
                 if (element.LocalName != elementName.Name ||
                     element.NamespaceURI != elementName.Namespace)
@@ -1496,7 +1485,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
         public static void UpdateExtension<T>(
-            ref XmlElementCollection extensions,
+            ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
             object value,
             ITelemetryContext telemetry)
@@ -1537,22 +1526,26 @@ namespace Opc.Ua
             }
 
             // replace existing element.
-            if (extensions != null)
+            var xmlElements = extensions.ToList();
+            if (xmlElements.Count > 0)
             {
-                for (int ii = 0; ii < extensions.Count; ii++)
+                for (int ii = 0; ii < xmlElements.Count; ii++)
                 {
-                    if (extensions[ii] != null &&
-                        extensions[ii].LocalName == elementName.Name &&
-                        extensions[ii].NamespaceURI == elementName.Namespace)
+                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    if (element != null &&
+                        element.LocalName == elementName.Name &&
+                        element.NamespaceURI == elementName.Namespace)
                     {
                         // remove the existing value if the value is null.
                         if (value == null)
                         {
-                            extensions.RemoveAt(ii);
+                            xmlElements.RemoveAt(ii);
+                            extensions = xmlElements.ToArrayOf();
                             return;
                         }
 
-                        extensions[ii] = document.DocumentElement;
+                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
+                        extensions = xmlElements.ToArrayOf();
                         return;
                     }
                 }
@@ -1561,7 +1554,8 @@ namespace Opc.Ua
             // add new element.
             if (value != null)
             {
-                (extensions ??= []).Add(document.DocumentElement);
+                xmlElements.Add(XmlElement.From(document.DocumentElement));
+                extensions = xmlElements.ToArrayOf();
             }
         }
 

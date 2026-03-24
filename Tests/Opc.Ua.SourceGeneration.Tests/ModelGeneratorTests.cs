@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
             var xmlSchemaSource = generatorResult.GeneratedSources
                 .Where(s => s.HintName.EndsWith("XmlSchemas.g.cs", StringComparison.Ordinal))
                 .ToList();
-            Assert.That(xmlSchemaSource.Count, Is.EqualTo(1));
+            Assert.That(xmlSchemaSource, Has.Count.EqualTo(1));
 
             // Parse the generated source and verify it contains expected schema
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(xmlSchemaSource[0].SourceText);
@@ -177,13 +177,13 @@ namespace Opc.Ua.SourceGeneration
                 .OfType<ClassDeclarationSyntax>()
                 .Where(c => c.Identifier.Text == "XmlSchemas")
                 .ToList();
-            Assert.That(classNodes.Count, Is.EqualTo(1));
+            Assert.That(classNodes, Has.Count.EqualTo(1));
             ClassDeclarationSyntax classNode = classNodes[0];
             var properrtyNodes = classNode.DescendantNodes()
                 .OfType<PropertyDeclarationSyntax>()
                 .Where(f => f.Identifier.Text == "TypesXsd")
                 .ToList();
-            Assert.That(properrtyNodes.Count, Is.EqualTo(1));
+            Assert.That(properrtyNodes, Has.Count.EqualTo(1));
 
             PropertyDeclarationSyntax propertyNode = properrtyNodes[0];
             LiteralExpressionSyntax stringLiteral = propertyNode.DescendantNodes()
@@ -192,7 +192,7 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(stringLiteral, Is.Not.Null);
             // Verify that the getter contains the expected schema string
             var stringTokens = stringLiteral.ChildTokens().ToList();
-            Assert.That(stringTokens.Count, Is.EqualTo(1));
+            Assert.That(stringTokens, Has.Count.EqualTo(1));
             string stringLiteralText = stringTokens[0].ToFullString().Trim();
             if (stringLiteralText.EndsWith("u8", StringComparison.Ordinal))
             {
@@ -231,23 +231,23 @@ namespace Opc.Ua.SourceGeneration
                 out int warnings,
                 filterLinkerAndReferenceErrors);
 
-            Assert.That(errors, Is.EqualTo(0), $"Compilation produced {errors} errors");
+            Assert.That(errors, Is.Zero, $"Compilation produced {errors} errors");
 #if NETFRAMEWORK
             TestContext.Out.WriteLine($"Compilation produced {warnings} warnings");
 #else
-            Assert.That(warnings, Is.EqualTo(0), $"Compilation produced {warnings} warnings");
+            Assert.That(warnings, Is.Zero, $"Compilation produced {warnings} warnings");
 #endif
             // Get the results
             GeneratorDriverRunResult runResult = driver.GetRunResult();
             // Test the results
             Assert.That(runResult.GeneratedTrees, Is.Not.Empty);
             runResult.Diagnostics.Check(TestContext.Out, out errors, out warnings);
-            Assert.That(errors, Is.EqualTo(0));
+            Assert.That(errors, Is.Zero);
             TestContext.Out.WriteLine($"Run result produced {warnings} warnings");
 
             GeneratorRunResult generatorResult = runResult.Results[0];
             generatorResult.Diagnostics.Check(TestContext.Out, out errors, out warnings);
-            Assert.That(errors, Is.EqualTo(0));
+            Assert.That(errors, Is.Zero);
             TestContext.Out.WriteLine($"Generate run produced {warnings} warnings");
 
             Assert.That(generatorResult.Exception, Is.Null);

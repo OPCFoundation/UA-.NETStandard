@@ -388,9 +388,9 @@ namespace Opc.Ua
             }
 
             // extract the send certificate and any chain.
-            byte[] senderCertificate = decoder.ReadByteString(null);
+            ByteString senderCertificate = decoder.ReadByteString(null);
 
-            if (senderCertificate == null || senderCertificate.Length == 0)
+            if (senderCertificate.Length == 0)
             {
                 if (SenderCertificate == null)
                 {
@@ -400,7 +400,7 @@ namespace Opc.Ua
             else
             {
                 X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
-                    senderCertificate,
+                    senderCertificate.ToArray(),
                     telemetry);
 
                 SenderCertificate = senderCertificateChain[0];
@@ -416,7 +416,7 @@ namespace Opc.Ua
             }
 
             // extract the send certificate and any chain.
-            DateTime signingTime = decoder.ReadDateTime(null);
+            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
 
             if (signingTime < earliestTime)
             {
@@ -433,9 +433,9 @@ namespace Opc.Ua
 
             // read the key data.
             int senderNonceStart = decoder.Position;
-            byte[] senderPublicKey = decoder.ReadByteString(null);
+            ByteString senderPublicKey = decoder.ReadByteString(null);
             int senderNonceEnd = decoder.Position;
-            byte[] receiverPublicKey = decoder.ReadByteString(null);
+            ByteString receiverPublicKey = decoder.ReadByteString(null);
             int receiverNonceEnd = decoder.Position;
 
             if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
@@ -447,9 +447,9 @@ namespace Opc.Ua
 
             int startOfEncryption = decoder.Position;
 
-            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey);
+            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
 
-            if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
+            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce.Data))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -536,7 +536,7 @@ namespace Opc.Ua
                 plainText.Count - dataToDecrypt.Offset,
                 Context);
 
-            byte[] actualNonce = decoder.ReadByteString(null);
+            ByteString actualNonce = decoder.ReadByteString(null);
 
             if (expectedNonce != null && expectedNonce.Length > 0)
             {
@@ -544,7 +544,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
                 {
-                    notvalid |= expectedNonce[ii] ^ actualNonce[ii];
+                    notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
                 }
 
                 if (notvalid != 0)
@@ -553,7 +553,7 @@ namespace Opc.Ua
                 }
             }
 
-            var key = decoder.ReadByteString(null);
+            ByteString key = decoder.ReadByteString(null);
             var paddingCount = decoder.ReadByte(null);
 
             int error = 0;
@@ -571,7 +571,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDecodingError);
             }
 
-            return key;
+            return key.ToArray();
         }
     }
 }

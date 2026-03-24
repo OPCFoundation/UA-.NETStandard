@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -151,8 +152,8 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration to use.</param>
         public IAggregateCalculator CreateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
@@ -194,17 +195,19 @@ namespace Opc.Ua.Server
         /// <param name="aggregateId">The id of the aggregate function.</param>
         /// <param name="aggregateName">The id of the aggregate name.</param>
         /// <param name="factory">The factory used to create calculators.</param>
-        public void RegisterFactory(
+        /// <param name="cancellationToken">A cancellation token.</param>
+        public async ValueTask RegisterFactoryAsync(
             NodeId aggregateId,
             string aggregateName,
-            AggregatorFactory factory)
+            AggregatorFactory factory,
+            CancellationToken cancellationToken = default)
         {
             lock (m_lock)
             {
                 m_factories[aggregateId] = factory;
             }
 
-            m_server?.DiagnosticsNodeManager.AddAggregateFunction(aggregateId, aggregateName, true);
+            await m_server.DiagnosticsNodeManager.AddAggregateFunctionAsync(aggregateId, aggregateName, true, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -37,10 +38,14 @@ namespace Opc.Ua
     /// Relative path
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class RelativePath : IEncodeable, IJsonEncodeable
+    public class RelativePath :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<RelativePath>
     {
         /// <summary>
-        /// Creates a relative path to follow any hierarchial references to find the specified browse name.
+        /// Creates a relative path to follow any hierarchial
+        /// references to find the specified browse name.
         /// </summary>
         public RelativePath(QualifiedName browseName)
             : this(ReferenceTypeIds.HierarchicalReferences, false, true, browseName)
@@ -48,7 +53,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a relative path to follow the forward reference type to find the specified browse name.
+        /// Creates a relative path to follow the forward
+        /// reference type to find the specified browse name.
         /// </summary>
         public RelativePath(NodeId referenceTypeId, QualifiedName browseName)
             : this(referenceTypeId, false, true, browseName)
@@ -56,7 +62,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a relative path to follow the forward reference type to find the specified browse name.
+        /// Creates a relative path to follow the forward reference
+        /// type to find the specified browse name.
         /// </summary>
         public RelativePath(
             NodeId referenceTypeId,
@@ -64,8 +71,6 @@ namespace Opc.Ua
             bool includeSubtypes,
             QualifiedName browseName)
         {
-            Initialize();
-
             var element = new RelativePathElement
             {
                 ReferenceTypeId = referenceTypeId,
@@ -74,44 +79,19 @@ namespace Opc.Ua
                 TargetName = browseName
             };
 
-            m_elements.Add(element);
+            Elements = [element];
         }
 
         /// <inheritdoc/>
         public RelativePath()
         {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_elements = [];
         }
 
         /// <summary>
         /// Elements of the relative path
         /// </summary>
         [DataMember(Name = "Elements", IsRequired = false, Order = 1)]
-        public RelativePathElementCollection Elements
-        {
-            get => m_elements;
-
-            set
-            {
-                m_elements = value;
-
-                if (value == null)
-                {
-                    m_elements = [];
-                }
-            }
-        }
+        public ArrayOf<RelativePathElement> Elements { get; set; }
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RelativePath;
@@ -130,7 +110,7 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("Elements", [.. Elements], typeof(RelativePathElement));
+            encoder.WriteEncodeableArray("Elements", Elements);
 
             encoder.PopNamespace();
         }
@@ -140,7 +120,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Elements = (RelativePathElementCollection)decoder.ReadEncodeableArray("Elements", typeof(RelativePathElement));
+            Elements = decoder.ReadEncodeableArray<RelativePathElement>("Elements");
 
             decoder.PopNamespace();
         }
@@ -158,12 +138,36 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_elements, value.m_elements))
+            if (Elements != value.Elements)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(RelativePath other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return Elements.ToString();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return Elements.GetHashCode();
         }
 
         /// <inheritdoc/>
@@ -176,9 +180,7 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             var clone = (RelativePath)base.MemberwiseClone();
-
-            clone.m_elements = CoreUtils.Clone(m_elements);
-
+            clone.Elements = CoreUtils.Clone(Elements);
             return clone;
         }
 
@@ -198,9 +200,8 @@ namespace Opc.Ua
         {
             if (relativePath != null)
             {
-                return relativePath.Elements.Count == 0;
+                return relativePath.Elements.IsEmpty;
             }
-
             return true;
         }
 
@@ -218,9 +219,7 @@ namespace Opc.Ua
 
             // parse the string.
             var formatter = RelativePathFormatter.Parse(browsePath);
-
-            // convert the browse names to node ids.
-            var relativePath = new RelativePath();
+            var elements = new List<RelativePathElement>();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
@@ -262,10 +261,14 @@ namespace Opc.Ua
                         element.ReferenceTypeName);
                 }
 
-                relativePath.Elements.Add(parsedElement);
+                elements.Add(parsedElement);
             }
 
-            return relativePath;
+            // convert the browse names to node ids.
+            return new RelativePath
+            {
+                Elements = elements
+            };
         }
 
         /// <summary>
@@ -281,9 +284,7 @@ namespace Opc.Ua
         {
             // parse the string.
             var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
-
-            // convert the browse names to node ids.
-            var relativePath = new RelativePath();
+            var elements = new List<RelativePathElement>();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
@@ -331,12 +332,14 @@ namespace Opc.Ua
                         element.ReferenceTypeName);
                 }
 
-                relativePath.Elements.Add(parsedElement);
+                elements.Add(parsedElement);
             }
 
-            return relativePath;
+            // convert the browse names to node ids.
+            return new RelativePath
+            {
+                Elements = elements
+            };
         }
-
-        private RelativePathElementCollection m_elements;
     }
 }

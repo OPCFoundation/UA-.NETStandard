@@ -111,7 +111,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 analysisResults.GetAllDiagnostics().Check(TestContext.Out,
                     out int analyzerErrors,
                     out int analzyerWarnings);
-                Assert.That(analyzerErrors, Is.EqualTo(0), $"Analyzers produced {analyzerErrors} errors");
+                Assert.That(analyzerErrors, Is.Zero, $"Analyzers produced {analyzerErrors} errors");
                 TestContext.Out.WriteLine($"Analyzers produced {analzyerWarnings} warnings");
             }
             Assert.That(
@@ -125,7 +125,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
 
         [GlobalSetup(Target = nameof(GenerateToFile))]
         [GlobalCleanup(Target = nameof(GenerateToFile))]
+#pragma warning disable NUnit1028 // The non-test method is public
         public void Setup()
+#pragma warning restore NUnit1028 // The non-test method is public
         {
             try
             {
@@ -138,7 +140,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Benchmark]
+#pragma warning disable NUnit1028 // The non-test method is public
         public void GenerateToFile()
+#pragma warning restore NUnit1028 // The non-test method is public
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.CreateForBenchmarks(logLevel: LogLevel.Error);
             Generators.GenerateStack(
@@ -148,7 +152,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Benchmark]
+#pragma warning disable NUnit1028 // The non-test method is public
         public void GenerateToMemory()
+#pragma warning restore NUnit1028 // The non-test method is public
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.CreateForBenchmarks(logLevel: LogLevel.Error);
             GenerateStack(StackGenerationType.All, telemetry, out _);
@@ -157,7 +163,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         [Benchmark]
         [Arguments(OptimizationLevel.Release)]
         [Arguments(OptimizationLevel.Debug)]
+#pragma warning disable NUnit1028 // The non-test method is public
         public void GenerateAndComile(OptimizationLevel optimizationLevel)
+#pragma warning restore NUnit1028 // The non-test method is public
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.CreateForBenchmarks(logLevel: LogLevel.Error);
             Dictionary<string, string> generatedText = GenerateStack(StackGenerationType.All, telemetry, out _);
@@ -173,7 +181,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         /// <summary>
         /// Generate stack code
         /// </summary>
+#pragma warning disable NUnit1028 // The non-test method is public
         internal static Dictionary<string, string> GenerateStack(
+#pragma warning restore NUnit1028 // The non-test method is public
             StackGenerationType generationType,
             ITelemetryContext telemetry,
             out Dictionary<string, string> nonSourceCode)
@@ -195,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             return generatedText;
         }
 
-        internal static void AddPredefinedNodeLoader(Dictionary<string, string> generated)
+        private static void AddPredefinedNodeLoader(Dictionary<string, string> generated)
         {
             generated.Add("Test.cs",
                 """

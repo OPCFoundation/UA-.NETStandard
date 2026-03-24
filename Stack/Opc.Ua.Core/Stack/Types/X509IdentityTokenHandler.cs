@@ -44,7 +44,7 @@ namespace Opc.Ua
         {
             m_token = token;
 
-            if (m_token.CertificateData != null)
+            if (!m_token.CertificateData.IsEmpty)
             {
                 m_certificate = CertificateFactory.Create(m_token.CertificateData);
             }
@@ -76,7 +76,7 @@ namespace Opc.Ua
             m_ownsCertificate = true;
             m_token = new X509IdentityToken
             {
-                CertificateData = certificate.RawData
+                CertificateData = certificate.RawData.ToByteString()
             };
         }
 
@@ -103,7 +103,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_certificate == null && m_token.CertificateData != null)
+                if (m_certificate == null && !m_token.CertificateData.IsEmpty)
                 {
                     m_certificate = CertificateFactory.Create(m_token.CertificateData);
                 }
@@ -159,10 +159,11 @@ namespace Opc.Ua
             string securityPolicyUri)
         {
             var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            X509Certificate2 certificate = Certificate;
 
             var signatureData = SecurityPolicies.CreateSignatureData(
                 info,
-                m_certificate,
+                certificate,
                 dataToSign);
 
             return signatureData;
@@ -177,11 +178,12 @@ namespace Opc.Ua
             try
             {
                 var info = SecurityPolicies.GetInfo(securityPolicyUri);
+                X509Certificate2 certificate = Certificate;
 
                 bool valid = SecurityPolicies.VerifySignatureData(
                     signatureData,
                     info,
-                    m_certificate,
+                    certificate,
                     dataToVerify);
 
                 return valid;
@@ -209,7 +211,7 @@ namespace Opc.Ua
         public object Clone()
         {
             return new X509IdentityTokenHandler(
-                Utils.Clone(m_token),
+                (X509IdentityToken)Utils.Clone(m_token),
                 m_certificate);
         }
 

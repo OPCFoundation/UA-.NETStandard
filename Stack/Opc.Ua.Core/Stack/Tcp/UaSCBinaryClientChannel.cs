@@ -67,9 +67,9 @@ namespace Opc.Ua.Bindings
                 bufferManager,
                 quotas,
                 serverCertificate,
-                endpoint != null ? [.. new EndpointDescription[] { endpoint }] : null,
-                endpoint != null ? endpoint.SecurityMode : MessageSecurityMode.None,
-                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
+                endpoint is not null ? [.. new EndpointDescription[] { endpoint }] : null,
+                endpoint is not null ? endpoint.SecurityMode : MessageSecurityMode.None,
+                endpoint is not null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
                 telemetry)
         {
             m_telemetry = telemetry;
@@ -565,7 +565,7 @@ namespace Opc.Ua.Bindings
                 ? SecurityTokenRequestType.Renew
                 : SecurityTokenRequestType.Issue;
             request.SecurityMode = SecurityMode;
-            request.ClientNonce = token.ClientNonce;
+            request.ClientNonce = token.ClientNonce.ToByteString();
             request.RequestedLifetime = (uint)Quotas.SecurityTokenLifetime;
 
             // encode the request.
@@ -732,9 +732,9 @@ namespace Opc.Ua.Bindings
 
                 m_requestedToken.TokenId = response.SecurityToken.TokenId;
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
-                m_requestedToken.ServerNonce = response.ServerNonce;
+                m_requestedToken.ServerNonce = response.ServerNonce.ToArray();
 
-                if (!ValidateNonce(ServerCertificate, response.ServerNonce))
+                if (!ValidateNonce(ServerCertificate, response.ServerNonce.ToArray()))
                 {
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
@@ -964,7 +964,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    var fault = ServiceResult.Create(
+                    ServiceResult fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
                         "An unexpected error occurred while connecting to the server.");
@@ -1243,11 +1243,10 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            if (BinaryDecoder.DecodeMessage(
-                    new ArraySegmentStream(chunksToProcess),
-                    null,
-                    Quotas.MessageContext)
-                is not IServiceResponse response)
+            IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                new ArraySegmentStream(chunksToProcess),
+                Quotas.MessageContext);
+            if (response == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,

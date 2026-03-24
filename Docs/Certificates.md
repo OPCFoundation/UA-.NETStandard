@@ -32,18 +32,22 @@ The UA .NET Standard stack supports the following certificate stores:
 - The **Trusted Https** store  `<root>/trustedHttps` which contains https certificates which are trusted by an application. To establish trust, the same rules apply as explained for the *Trusted* and the *Issuer* store.
 
 ### X509Store on Windows
+
 Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store supports the storage and retrieval of CRLS, if used on the **Windows OS**.
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
 ### Windows .NET applications
+
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**.
 
 ### Windows UWP applications
+
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc).
 
 The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
 
-### .NET Core applications on Windows, Linux, iOS etc.
+### .NET Core applications on Windows, Linux, iOS etc
+
 The self signed certificates are stored in a folder called **OPC Foundation/pki/own** with a root folder which is specified by the `SpecialFolder` variable **%LocalApplicationData%** or in a **X509Store** called **CurrentUser\\My**, depending on the configuration. For best cross platform support the personal store **CurrentUser\\My** was chosen to support all platforms with the same configuration. Some platforms, like macOS, do not support arbitrary certificate stores.
 
 The *trusted*, *issuer* and *rejected* stores remain in a shared folder called **OPC Foundation\pki** with a root folder specified by the `SpecialFolder` variable **%LocalApplicationData%**. Depending on the target platform, this folder maps to a hidden locations under the user home directory.
@@ -528,11 +532,13 @@ m_applicationCertificates = config.SecurityConfiguration.ApplicationCertificates
 During validation, certificates are searched in the following order:
 
 **For Trusted Certificates:**
+
 1. Search `m_trustedCertificateList` (explicit list) - if populated
 2. Search `m_trustedCertificateStore` (file system or X509Store)
 3. Search `m_applicationCertificates` (application's own certificates)
 
 **For Issuer Certificates:**
+
 1. Search `m_issuerCertificateList` (explicit list) - if populated
 2. Search `m_issuerCertificateStore` (file system or X509Store)
 
@@ -607,55 +613,67 @@ The validator supports both explicit lists and certificate stores:
 The certificate validation behavior is controlled by several configuration settings in the `SecurityConfiguration` class:
 
 #### AutoAcceptUntrustedCertificates
+
 - **Type**: `bool`
 - **Default**: `false`
 - **Description**: When `true`, automatically accepts certificates that have the `BadCertificateUntrusted` status. This is useful for development environments but should not be used in production.
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
 ```
 
 #### RejectSHA1SignedCertificates
+
 - **Type**: `bool`
 - **Default**: `true` (when default hash size >= 256)
 - **Description**: When `true`, rejects certificates signed with SHA-1 algorithms as they are considered cryptographically weak.
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.RejectSHA1SignedCertificates = true;
 ```
 
 #### RejectUnknownRevocationStatus
+
 - **Type**: `bool`
 - **Default**: `false`
 - **Description**: When `true`, rejects certificates when the revocation status cannot be determined (e.g., CRL is not available).
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.RejectUnknownRevocationStatus = true;
 ```
 
 #### MinimumCertificateKeySize
+
 - **Type**: `ushort`
 - **Default**: `2048` (CertificateFactory.DefaultKeySize)
 - **Description**: The minimum RSA key size in bits that will be accepted. Common values are 2048, 3072, or 4096.
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.MinimumCertificateKeySize = 2048;
 ```
 
 #### UseValidatedCertificates
+
 - **Type**: `bool`
 - **Default**: `false`
 - **Description**: When `true`, skips validation for certificates that have already been successfully validated in the current session. This improves performance by caching validation results.
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.UseValidatedCertificates = true;
 ```
 
 #### MaxRejectedCertificates
+
 - **Type**: `int`
 - **Default**: `5`
 - **Description**: Limits the number of rejected certificates kept in history. A value of 0 means all rejected certificates are kept. A negative value means no history is kept.
 - **Example**:
+
 ```csharp
 configuration.SecurityConfiguration.MaxRejectedCertificates = 10;
 ```

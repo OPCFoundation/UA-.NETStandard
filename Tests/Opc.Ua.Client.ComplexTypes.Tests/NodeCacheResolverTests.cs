@@ -32,7 +32,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -106,7 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t
@@ -114,19 +113,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
                             .ConfigureAwait(false);
                     });
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> typeSystem
                 = await nodeResolver
                 .LoadDataTypeSystem()
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
             typeSystem = await nodeResolver
                 .LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem)
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
             typeSystem = await nodeResolver.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem)
                 .ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
+            Assert.That(typeSystem, Is.Not.Null);
         }
 
         [Test]
@@ -143,16 +142,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 NodeClassMask = 0
             };
 
-            ReferenceDescriptionCollection references =
+            ArrayOf<ReferenceDescription> references =
                 await browser.BrowseAsync(dataTypeSystem).ConfigureAwait(false);
-            Assert.NotNull(references);
+            Assert.That(references.IsNull, Is.False);
 
             ILogger logger = Telemetry.CreateLogger<NodeCacheResolverTests>();
             logger.LogInformation("  Found {Count} references", references.Count);
 
             // read all type dictionaries in the type system
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
-            foreach (ReferenceDescription r in references)
+            foreach (ReferenceDescription r in references.ToList())
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
                 logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);

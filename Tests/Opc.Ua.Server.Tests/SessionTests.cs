@@ -1,8 +1,6 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
@@ -23,7 +21,7 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
-                Assert.NotNull(session, "Session should exist after Create/Activate.");
+                Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
 
@@ -35,8 +33,8 @@ namespace Opc.Ua.Server.Tests
                 // Call ValidateRequest for a request type that maps to a counter (Read).
                 session.ValidateRequest(requestHeader, secureChannelContext, RequestType.Read);
 
-                Assert.IsTrue(eventRaised, "SessionDiagnosticsChanged event should be raised when a per-request counter changes.");
-                Assert.Greater(session.SessionDiagnostics.ReadCount.TotalCount, before, "ReadCount.TotalCount should have incremented.");
+                Assert.That(eventRaised, Is.True, "SessionDiagnosticsChanged event should be raised when a per-request counter changes.");
+                Assert.That(session.SessionDiagnostics.ReadCount.TotalCount, Is.GreaterThan(before), "ReadCount.TotalCount should have incremented.");
             }
             finally
             {
@@ -66,7 +64,7 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersIgnoredTest").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
-                Assert.NotNull(session, "Session should exist after Create/Activate.");
+                Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
 
@@ -79,12 +77,12 @@ namespace Opc.Ua.Server.Tests
                 // Call ValidateRequest with one of the ignored request types.
                 session.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
-                Assert.AreEqual(
-                    totalBefore + 1,
+                Assert.That(
                     session.SessionDiagnostics.TotalRequestCount.TotalCount,
+                    Is.EqualTo(totalBefore + 1),
                     "TotalRequestCount should increment for all request types.");
 
-                Assert.IsFalse(eventRaised, $"SessionDiagnosticsChanged event must NOT be raised for request type {requestType}.");
+                Assert.That(eventRaised, Is.False, $"SessionDiagnosticsChanged event must NOT be raised for request type {requestType}.");
             }
             finally
             {

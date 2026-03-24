@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Browse description
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BrowseDescription : IEncodeable, IJsonEncodeable
+    public class BrowseDescription : IEncodeable, IJsonEncodeable, IEquatable<BrowseDescription>
     {
         /// <inheritdoc/>
         public BrowseDescription()
@@ -137,7 +137,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            BrowseDirection = (BrowseDirection)decoder.ReadEnumerated("BrowseDirection", typeof(BrowseDirection));
+            BrowseDirection = decoder.ReadEnumerated<BrowseDirection>("BrowseDirection");
             ReferenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             IncludeSubtypes = decoder.ReadBoolean("IncludeSubtypes");
             NodeClassMask = decoder.ReadUInt32("NodeClassMask");
@@ -159,37 +159,73 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeId, value.NodeId))
+            if (NodeId != value.NodeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BrowseDirection, value.BrowseDirection))
+            if (BrowseDirection != value.BrowseDirection)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
+            if (IncludeSubtypes != value.IncludeSubtypes)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(NodeClassMask, value.NodeClassMask))
+            if (NodeClassMask != value.NodeClassMask)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ResultMask, value.ResultMask))
+            if (ResultMask != value.ResultMask)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                NodeId,
+                BrowseDirection,
+                ReferenceTypeId,
+                IncludeSubtypes,
+                NodeClassMask,
+                ResultMask);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(BrowseDescription other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(BrowseDescription left, BrowseDescription right)
+        {
+            return EqualityComparer<BrowseDescription>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(BrowseDescription left, BrowseDescription right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -209,74 +245,6 @@ namespace Opc.Ua
             clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
             clone.NodeClassMask = CoreUtils.Clone(NodeClassMask);
             clone.ResultMask = CoreUtils.Clone(ResultMask);
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// Browse description collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfBrowseDescription",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "BrowseDescription")]
-    public class BrowseDescriptionCollection : List<BrowseDescription>, ICloneable
-    {
-        /// <inheritdoc/>
-        public BrowseDescriptionCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public BrowseDescriptionCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator BrowseDescriptionCollection(BrowseDescription[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator BrowseDescription[](BrowseDescriptionCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (BrowseDescriptionCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new BrowseDescriptionCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
 
             return clone;
         }

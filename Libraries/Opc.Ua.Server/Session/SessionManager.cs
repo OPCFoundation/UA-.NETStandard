@@ -152,7 +152,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
-            byte[] clientNonce,
+            ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
@@ -161,9 +161,9 @@ namespace Opc.Ua.Server
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default)
         {
-            NodeId sessionId = 0;
+            NodeId sessionId = default;
             NodeId authenticationToken;
-            byte[] serverNonce;
+            ByteString serverNonce;
             double revisedSessionTimeout = requestedSessionTimeout;
 
             ISession session;
@@ -178,13 +178,14 @@ namespace Opc.Ua.Server
                 }
 
                 // check for same Nonce in another session
-                if (clientNonce != null)
+                if (!clientNonce.IsEmpty)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
                     {
-                        byte[] sessionClientNonce = sessionKeyValueIterator.Value?.ClientNonce;
-                        if (Nonce.CompareNonce(sessionClientNonce, clientNonce))
+                        ByteString sessionClientNonce =
+                            sessionKeyValueIterator.Value?.ClientNonce ?? default;
+                        if (sessionClientNonce == clientNonce)
                         {
                             throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                         }
@@ -205,7 +206,7 @@ namespace Opc.Ua.Server
                 if (authenticationToken.IsNull)
                 {
                     byte[] token = Nonce.CreateRandomNonceData(32);
-                    authenticationToken = new NodeId(token);
+                    authenticationToken = new NodeId(token.ToByteString());
                 }
 
                 // determine session timeout.
@@ -220,7 +221,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(0);
+                Nonce serverNonceObject = Nonce.CreateNonce(
+                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -248,7 +250,7 @@ namespace Opc.Ua.Server
 
                 // get the session id.
                 sessionId = session.Id;
-                serverNonce = serverNonceObject.Data;
+                serverNonce = serverNonceObject.Data.ToByteString();
 
                 // save session.
                 if (!m_sessions.TryAdd(authenticationToken, session))
@@ -279,16 +281,16 @@ namespace Opc.Ua.Server
         /// Activates an existing session
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(bool IdentityContextChanged, byte[] ServerNonce)> ActivateSessionAsync(
+        public virtual async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default)
         {
-            byte[] serverNonce = null;
+            ByteString serverNonce = default;
 
             Nonce serverNonceObject = null;
 
@@ -352,7 +354,7 @@ namespace Opc.Ua.Server
                     out newIdentity,
                     out userTokenPolicy);
 
-                serverNonce = serverNonceObject.Data;
+                serverNonce = serverNonceObject.Data.ToByteString();
             }
             catch (ServiceResultException)
             {
@@ -451,7 +453,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This method should not throw an exception if the session no longer exists.
         /// </remarks>
-        public virtual void CloseSession(NodeId sessionId)
+        public virtual async ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default)
         {
             ISession session = null;
 
@@ -476,7 +478,7 @@ namespace Opc.Ua.Server
                 RaiseSessionEvent(session, SessionEventReason.Closing);
 
                 // close the session.
-                session.Close();
+                await session.CloseAsync(cancellationToken).ConfigureAwait(false);
 
                 // update diagnostics.
                 lock (m_server.DiagnosticsWriteLock)
@@ -496,10 +498,11 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual OperationContext ValidateRequest(
+        public virtual async ValueTask<OperationContext> ValidateRequestAsync(
             RequestHeader requestHeader,
             SecureChannelContext secureChannelContext,
-            RequestType requestType)
+            RequestType requestType,
+            CancellationToken cancellationToken = default)
         {
             if (requestHeader == null)
             {
@@ -552,7 +555,7 @@ namespace Opc.Ua.Server
             {
                 if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    CloseSession(session.Id);
+                    await CloseSessionAsync(session.Id, cancellationToken).ConfigureAwait(false);
                 }
                 throw;
             }
@@ -570,7 +573,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -690,8 +693,7 @@ namespace Opc.Ua.Server
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (session.ClientLastContactTime
-                            .AddMilliseconds(m_minSessionTimeout) < DateTime.UtcNow)
+                        else if (HiResClock.TickCount64 - session.LastContactTickCount > m_minSessionTimeout)
                         {
                             // signal the channel that the session is still active.
                             RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);

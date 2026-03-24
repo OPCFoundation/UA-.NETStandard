@@ -90,7 +90,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 mockTelemetry.Object);
 
             // Assert
-            Assert.That(nodesets.Files.Count, Is.EqualTo(0));
+            Assert.That(nodesets.Files.Count, Is.Zero);
         }
 
         /// <summary>

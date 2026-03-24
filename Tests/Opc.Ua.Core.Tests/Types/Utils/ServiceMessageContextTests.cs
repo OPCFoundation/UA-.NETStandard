@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
 {
@@ -50,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             var context = new ServiceMessageContext(null, (IEncodeableFactory)null);
 
             // Assert
-            Assert.IsNotNull(context.Factory);
+            Assert.That(context.Factory, Is.Not.Null);
         }
 
         /// <summary>
@@ -66,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             var context = new ServiceMessageContext(null, customFactory);
 
             // Assert
-            Assert.AreSame(customFactory, context.Factory);
+            Assert.That(context.Factory, Is.SameAs(customFactory));
         }
 
         /// <summary>
@@ -83,9 +82,9 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             var context2 = new ServiceMessageContext(null, factory2);
 
             // Assert - the contexts should reference different factory instances
-            Assert.AreSame(factory1, context1.Factory);
-            Assert.AreSame(factory2, context2.Factory);
-            Assert.AreNotSame(context1.Factory, context2.Factory);
+            Assert.That(context1.Factory, Is.SameAs(factory1));
+            Assert.That(context2.Factory, Is.SameAs(factory2));
+            Assert.That(context2.Factory, Is.Not.SameAs(context1.Factory));
         }
 
         /// <summary>
@@ -98,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             var context = new ServiceMessageContext(null);
 
             // Assert
-            Assert.IsNotNull(context.Factory);
+            Assert.That(context.Factory, Is.Not.Null);
         }
 
         /// <summary>
@@ -115,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             context.Factory = customFactory;
 
             // Assert
-            Assert.AreSame(customFactory, context.Factory);
+            Assert.That(context.Factory, Is.SameAs(customFactory));
         }
 
         /// <summary>
@@ -132,8 +131,8 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             context.Factory = null;
 
             // Assert
-            Assert.IsNotNull(context.Factory);
-            Assert.AreNotSame(originalFactory, context.Factory);
+            Assert.That(context.Factory, Is.Not.Null);
+            Assert.That(context.Factory, Is.Not.SameAs(originalFactory));
         }
     }
 }

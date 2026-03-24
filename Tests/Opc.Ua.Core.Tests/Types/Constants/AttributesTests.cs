@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
 {
@@ -80,8 +79,8 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (uint id in attributeIds)
             {
                 string browseName = Attributes.GetBrowseName(id);
-                Assert.IsNotNull(browseName);
-                Assert.IsNotEmpty(browseName);
+                Assert.That(browseName, Is.Not.Null);
+                Assert.That(browseName, Is.Not.Empty);
             }
         }
 
@@ -92,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_ValueAttribute_ReturnsValue()
         {
             string attributeBrowseName = Attributes.GetBrowseName(Attributes.Value);
-            Assert.AreEqual("Value", attributeBrowseName);
+            Assert.That(attributeBrowseName, Is.EqualTo("Value"));
         }
 
         /// <summary>
@@ -102,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_InvalidAttributeId_ReturnsEmptyString()
         {
             string browseName = Attributes.GetBrowseName(9999);
-            Assert.AreEqual(string.Empty, browseName);
+            Assert.That(browseName, Is.Empty);
         }
 
         /// <summary>
@@ -123,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in attributeNames)
             {
                 uint id = Attributes.GetIdentifier(name);
-                Assert.AreNotEqual(0, id);
+                Assert.That(id, Is.Not.Zero);
             }
         }
 
@@ -134,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_ValueName_ReturnsValueId()
         {
             uint id = Attributes.GetIdentifier("Value");
-            Assert.AreEqual(Attributes.Value, id);
+            Assert.That(id, Is.EqualTo(Attributes.Value));
         }
 
         /// <summary>
@@ -144,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = Attributes.GetIdentifier("InvalidAttributeName");
-            Assert.AreEqual(0, id);
+            Assert.That(id, Is.Zero);
         }
 
         /// <summary>
@@ -162,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = Attributes.GetBrowseName(id);
                 uint retrievedId = Attributes.GetIdentifier(browseName);
-                Assert.AreEqual(id, retrievedId);
+                Assert.That(retrievedId, Is.EqualTo(id));
             }
         }
     }

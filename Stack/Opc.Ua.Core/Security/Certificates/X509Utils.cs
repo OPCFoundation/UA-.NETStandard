@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The DNS names.</returns>
-        public static IList<string> GetDomainsFromCertificate(X509Certificate2 certificate)
+        public static ArrayOf<string> GetDomainsFromCertificate(X509Certificate2 certificate)
         {
             var dnsNames = new List<string>();
 
@@ -296,20 +296,8 @@ namespace Opc.Ua
                 return false;
             }
 
-            IList<string> domainNames = GetDomainsFromCertificate(certificate);
-
-            for (int jj = 0; jj < domainNames.Count; jj++)
-            {
-                if (string.Equals(
-                    domainNames[jj],
-                    endpointUrl.IdnHost,
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            ArrayOf<string> domainNames = GetDomainsFromCertificate(certificate);
+            return domainNames.Contains(endpointUrl.IdnHost, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>

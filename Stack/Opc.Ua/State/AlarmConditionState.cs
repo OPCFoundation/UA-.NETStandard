@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -119,7 +120,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    ActiveState.EffectiveTransitionTime.Value = DateTime.UtcNow;
+                    ActiveState.EffectiveTransitionTime.Value = DateTimeUtc.Now;
                 }
             }
         }
@@ -162,9 +163,9 @@ namespace Opc.Ua
             ActiveState.Value = new LocalizedText(state);
             ActiveState.Id.Value = active;
 
-            ActiveState.TransitionTime?.Value = DateTime.UtcNow;
+            ActiveState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            ActiveState.Timestamp = DateTime.UtcNow;
+            ActiveState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -209,9 +210,9 @@ namespace Opc.Ua
             SuppressedState.Value = new LocalizedText(state);
             SuppressedState.Id.Value = suppressed;
 
-            SuppressedState.TransitionTime?.Value = DateTime.UtcNow;
+            SuppressedState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            SuppressedState.Timestamp = DateTime.UtcNow;
+            SuppressedState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -297,7 +298,7 @@ namespace Opc.Ua
                 ShelvingState.CauseProcessingCompleted(context, state);
             }
 
-            ShelvingState.UnshelveTime?.Timestamp = DateTime.UtcNow;
+            ShelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
@@ -489,8 +490,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnOneShotShelve(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult error = null;
 
@@ -640,7 +641,7 @@ namespace Opc.Ua
                     e.SetChildValue(
                         context,
                         BrowseNames.InputArguments,
-                        new Variant[] { shelvingTime },
+                        Variant.From([Variant.From(shelvingTime)]),
                         false);
 
                     e.SetChildValue(context, BrowseNames.ShelvingTime, shelvingTime, false);
@@ -673,8 +674,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnUnshelve(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult error = null;
 

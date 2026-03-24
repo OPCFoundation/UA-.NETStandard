@@ -63,7 +63,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(templateWriter, Is.Not.Null);
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(templateWriter, Is.Not.Null);
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -396,7 +396,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int actual = templateWriter.IndentationCharCount;
 
             // Assert
-            Assert.That(actual, Is.EqualTo(0));
+            Assert.That(actual, Is.Zero);
         }
 
         /// <summary>
@@ -438,7 +438,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int actual = templateWriter.IndentationCharCount;
 
             // Assert
-            Assert.That(actual, Is.EqualTo(0));
+            Assert.That(actual, Is.Zero);
         }
 
         /// <summary>
@@ -522,7 +522,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             int actual = templateWriter.IndentationCharCount;
 
             // Assert
-            Assert.That(actual, Is.EqualTo(0));
+            Assert.That(actual, Is.Zero);
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(writer);
 
             // Act & Assert
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
 
             templateWriter.PushIndentChars(4);
             Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(4));
@@ -554,10 +554,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(4));
 
             templateWriter.PopIndentation();
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
 
             templateWriter.PopIndentation();
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -1380,7 +1380,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(writer);
 
             // Act & Assert
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
 
             templateWriter.PushIndentChars(4);
             Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(4));
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.PopIndentation();
 
             // Assert - Should be back to initial (0)
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -1794,7 +1794,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(templateWriter.IndentationCharCount, Is.LessThan(indentationBeforePop));
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -1842,7 +1842,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.PopIndentation(); // 0 -> 0 (should not change)
 
             // Assert
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -1865,7 +1865,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.PopIndentation();
             Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(2)); // 0 + 2
             templateWriter.PopIndentation();
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0)); // base level
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero); // base level
         }
 
         /// <summary>
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.PopIndentation();
 
             // Assert
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -1928,7 +1928,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.PopIndentation();
 
             // Assert
-            Assert.That(templateWriter.IndentationCharCount, Is.EqualTo(0));
+            Assert.That(templateWriter.IndentationCharCount, Is.Zero);
         }
 
         /// <summary>
@@ -2265,7 +2265,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             string result = writer.ToString();
             int actualNewLineCount = CountNewLines(result);
-            Assert.That(actualNewLineCount, Is.EqualTo(0));
+            Assert.That(actualNewLineCount, Is.Zero);
         }
 
         /// <summary>
@@ -2291,7 +2291,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             string result = writer.ToString();
             int actualNewLineCount = CountNewLines(result);
-            Assert.That(actualNewLineCount, Is.EqualTo(0));
+            Assert.That(actualNewLineCount, Is.Zero);
         }
 
         /// <summary>
@@ -2366,7 +2366,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             string result = writer.ToString();
             int actualNewLineCount = CountNewLines(result);
-            Assert.That(actualNewLineCount, Is.EqualTo(0));
+            Assert.That(actualNewLineCount, Is.Zero);
         }
 
         /// <summary>

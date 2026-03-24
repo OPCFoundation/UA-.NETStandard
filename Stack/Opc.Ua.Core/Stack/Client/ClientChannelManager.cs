@@ -163,7 +163,7 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
+            if (description.ServerCertificate.Length > 0)
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,
@@ -242,7 +242,7 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
+            if (description.ServerCertificate.Length > 0)
             {
                 settings.ServerCertificate = Utils.ParseCertificateBlob(
                     description.ServerCertificate,

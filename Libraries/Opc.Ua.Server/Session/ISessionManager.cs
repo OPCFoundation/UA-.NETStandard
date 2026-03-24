@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
-            byte[] clientNonce,
+            ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
@@ -119,13 +119,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates an existing session
         /// </summary>
-        ValueTask<(bool IdentityContextChanged, byte[] ServerNonce)> ActivateSessionAsync(
+        ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This method should not throw an exception if the session no longer exists.
         /// </remarks>
-        void CloseSession(NodeId sessionId);
+        ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Validates request header and returns a request context.
@@ -144,7 +144,11 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
-        OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
+        ValueTask<OperationContext> ValidateRequestAsync(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Triggers the <see cref="SessionDiagnosticsChanged"/> event so subscribers can react.
@@ -175,7 +179,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The server nonce of the session.
         /// </summary>
-        public required byte[] ServerNonce { get; init; }
+        public required ByteString ServerNonce { get; init; }
 
         /// <summary>
         /// The revised session timeout.

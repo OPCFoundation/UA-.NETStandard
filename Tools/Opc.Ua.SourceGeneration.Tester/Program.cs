@@ -47,11 +47,6 @@ namespace Opc.Ua.SourceGeneration.Tester
             Generators.GenerateStack(StackGenerationType.All, fs, output, new Telemetry());
             Console.WriteLine("Stack generation completed.");
 
-            string[] models =
-            [
-                "TestDataDesign",
-                "DemoModel"
-            ];
             foreach (string file in Directory.EnumerateFiles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Resources"), "*.xml"))
             {
@@ -62,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Tester
                 }
                 Generators.GenerateCode(new DesignFileCollection
                 {
-                    DesignFiles = [ file ],
+                    DesignFiles = [file],
                     IdentifierFilePath = csvFile,
                     Options = new DesignFileOptions()
                 }, fs, output, new Telemetry());
