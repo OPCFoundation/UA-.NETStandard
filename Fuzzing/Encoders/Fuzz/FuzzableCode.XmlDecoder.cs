@@ -65,8 +65,8 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new JsonEncoder(MessageContext, true);
-                encoder.EncodeMessage(encodeable);
+                using var encoder = new JsonEncoder(MessageContext, JsonEncoderOptions.Verbose);
+                encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Fuzzing
             if (encodeable != null)
             {
                 using var encoder = new XmlEncoder(MessageContext);
-                encoder.EncodeMessage(encodeable);
+                encoder.EncodeMessage(encodeable, encodeable.TypeId);
                 encoder.Close();
             }
         }
@@ -153,7 +153,7 @@ namespace Opc.Ua.Fuzzing
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
                     using var decoder = new XmlDecoder(reader, MessageContext);
-                    return decoder.DecodeMessage(systemType);
+                    return decoder.DecodeMessage<IEncodeable>();
                 }
                 finally
                 {

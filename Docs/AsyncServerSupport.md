@@ -23,20 +23,20 @@ In order to support the TAP pattern, the following changes have been made to the
 - Update `INodeManager.CreateMonitoredItems` to support the new `MonitoredItemIdFactory`.
 - In a future release an `CustomNodeManagerAsync` class will be provided to simplify the creation of fully async NodeManagers.
 - The existing `CustomNodeManager2` class can be used as is, and async operations can be implemented as needed using the different interfaces provided by the server library:
-    - `IAsyncNodeManager` for full async support
-    - `ICallAsyncNodeManager` for async method calls
-    - `IReadAsyncNodeManager` for async reading
-    - `IWriteAsyncNodeManager` for async writing
-    - `IHistoryReadAsyncNodeManager` for async history read
-    - `IHistoryUpdateAsyncNodeManager` for async history update
-    - `IConditionRefreshAsyncNodeManager` for async condition refresh
-    - `ITranslateBrowsePathAsyncNodeManager` for async translate browse path
-    - `IBrowseAsyncNodeManager` for async browsing
-    - `ISetMonitoringModeAsyncNodeManager` for async monitoring mode changes
-    - `ITransferMonitoredItemsAsyncNodeManager` for async monitored item transfer
-    - `IDeleteMonitoredItemsAsyncNodeManager` for async monitored item deletion
-    - `IModifyMonitoredItemsAsyncNodeManager` for async monitored item modification
-    - `ICreateMonitoredItemsAsyncNodeManager` for async monitored item creation
+  - `IAsyncNodeManager` for full async support
+  - `ICallAsyncNodeManager` for async method calls
+  - `IReadAsyncNodeManager` for async reading
+  - `IWriteAsyncNodeManager` for async writing
+  - `IHistoryReadAsyncNodeManager` for async history read
+  - `IHistoryUpdateAsyncNodeManager` for async history update
+  - `IConditionRefreshAsyncNodeManager` for async condition refresh
+  - `ITranslateBrowsePathAsyncNodeManager` for async translate browse path
+  - `IBrowseAsyncNodeManager` for async browsing
+  - `ISetMonitoringModeAsyncNodeManager` for async monitoring mode changes
+  - `ITransferMonitoredItemsAsyncNodeManager` for async monitored item transfer
+  - `IDeleteMonitoredItemsAsyncNodeManager` for async monitored item deletion
+  - `IModifyMonitoredItemsAsyncNodeManager` for async monitored item modification
+  - `ICreateMonitoredItemsAsyncNodeManager` for async monitored item creation
 
 --> The MasterNodeManager automatically detects if a NodeManager implements any of the async interfaces and uses the async implementation if available. If no async interface is implemented, the sync implementation is used.
 
@@ -48,7 +48,6 @@ In order to support the TAP pattern, the following changes have been made to the
 Support for async method callbacks is already implemented by `CustomNodeManager2` to enable the support just add `IAsyncNodeManager` to your NodeManager implementation.
 All generated code already has support for Async Methods e.g. `UpdateCertificateMethodState.OnCallAsync`. If the NodeManager implements `IAsyncNodeManager` the async callback is used automatically.
 If a generic Method handler shall be used the `MethodState.OnCallMethod2Async` handler shall be used.
-
 
 ## AsyncCustomNodeManager
 

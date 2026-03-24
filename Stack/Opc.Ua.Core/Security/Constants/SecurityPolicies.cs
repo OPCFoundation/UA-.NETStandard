@@ -740,9 +740,8 @@ namespace Opc.Ua
                     break;
                 case AsymmetricSignatureAlgorithm.None:
                     signatureData.Algorithm = null;
-                    signatureData.Signature = null;
+                    signatureData.Signature = default;
                     return signatureData;
-                    ;
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
@@ -752,13 +751,13 @@ namespace Opc.Ua
 
             if (securityPolicy.SecureChannelEnhancements)
             {
-                signatureData.Signature = null;
+                signatureData.Signature = default;
             }
 
             signatureData.Signature = CryptoUtils.Sign(
                 new ArraySegment<byte>(dataToSign),
                 localCertificate,
-                securityPolicy.AsymmetricSignatureAlgorithm);
+                securityPolicy.AsymmetricSignatureAlgorithm).ToByteString();
 
             return signatureData;
         }
@@ -855,7 +854,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             signingCertificate,
                             HashAlgorithmName.SHA1,
                             RSASignaturePadding.Pkcs1);
@@ -869,7 +868,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             signingCertificate,
                             HashAlgorithmName.SHA256,
                             RSASignaturePadding.Pkcs1);
@@ -883,7 +882,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             signingCertificate,
                             HashAlgorithmName.SHA256,
                             RSASignaturePadding.Pss);
@@ -897,7 +896,7 @@ namespace Opc.Ua
                     {
                         return CryptoUtils.Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             signingCertificate,
                             securityPolicy.AsymmetricSignatureAlgorithm);
                     }
@@ -911,7 +910,7 @@ namespace Opc.Ua
                     {
                         return CryptoUtils.Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             signingCertificate,
                             securityPolicy.AsymmetricSignatureAlgorithm);
                     }

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -90,11 +89,11 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
-            StringCollection localeIds,
-            StringCollection serverUris,
+            ArrayOf<string> localeIds,
+            ArrayOf<string> serverUris,
             CancellationToken ct)
         {
-            ApplicationDescriptionCollection servers = [];
+            List<ApplicationDescription> servers = [];
 
             ValidateRequest(requestHeader);
 
@@ -114,7 +113,6 @@ namespace Opc.Ua.Server
                 // check if nothing to do.
                 if (baseAddresses.Count == 0)
                 {
-                    servers = [];
                     return new FindServersResponse
                     {
                         ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
@@ -136,9 +134,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check client is filtering by server uri.
-                    if (serverUris != null &&
-                        serverUris.Count > 0 &&
-                        !serverUris.Contains(server.ApplicationUri))
+                    if (serverUris.Count > 0 &&
+                        !serverUris.Contains(f => f == server.ApplicationUri))
                     {
                         continue;
                     }
@@ -146,7 +143,7 @@ namespace Opc.Ua.Server
                     // localize the application name if requested.
                     LocalizedText applicationName = server.ApplicationName;
 
-                    if (localeIds != null && localeIds.Count > 0)
+                    if (localeIds.Count > 0)
                     {
                         applicationName = m_serverInternal.ResourceManager
                             .Translate(localeIds, applicationName);
@@ -182,11 +179,11 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
-            StringCollection localeIds,
-            StringCollection profileUris,
+            ArrayOf<string> localeIds,
+            ArrayOf<string> profileUris,
             CancellationToken ct)
         {
-            EndpointDescriptionCollection endpoints = null;
+            ArrayOf<EndpointDescription> endpoints = default;
 
             ValidateRequest(requestHeader);
 
@@ -214,12 +211,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the endpoints that match the base address and endpoint url.
         /// </summary>
-        protected EndpointDescriptionCollection GetEndpointDescriptions(
+        protected ArrayOf<EndpointDescription> GetEndpointDescriptions(
             string endpointUrl,
             IList<BaseAddress> baseAddresses,
-            StringCollection localeIds)
+            ArrayOf<string> localeIds)
         {
-            EndpointDescriptionCollection endpoints = null;
+            ArrayOf<EndpointDescription> endpoints = default;
 
             // parse the url provided by the client.
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
@@ -235,7 +232,7 @@ namespace Opc.Ua.Server
                 // localize the application name if requested.
                 LocalizedText applicationName = ServerDescription.ApplicationName;
 
-                if (localeIds != null && localeIds.Count > 0)
+                if (localeIds.Count > 0)
                 {
                     applicationName = m_serverInternal.ResourceManager
                         .Translate(localeIds, applicationName);
@@ -300,8 +297,8 @@ namespace Opc.Ua.Server
             string serverUri,
             string endpointUrl,
             string sessionName,
-            byte[] clientNonce,
-            byte[] clientCertificate,
+            ByteString clientNonce,
+            ByteString clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken ct)
@@ -309,13 +306,13 @@ namespace Opc.Ua.Server
             NodeId sessionId;
             NodeId authenticationToken;
             double revisedSessionTimeout = 0;
-            byte[] serverNonce;
-            byte[] serverCertificate = null;
-            EndpointDescriptionCollection serverEndpoints = null;
+            ByteString serverNonce;
+            ByteString serverCertificate = default;
+            ArrayOf<EndpointDescription> serverEndpoints = default;
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CreateSession);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CreateSession, ct).ConfigureAwait(false);
             ISession session = null;
             try
             {
@@ -328,7 +325,7 @@ namespace Opc.Ua.Server
                 bool requireEncryption = RequireEncryption(
                     context?.ChannelContext?.EndpointDescription);
 
-                if (!requireEncryption && clientCertificate != null)
+                if (!requireEncryption && !clientCertificate.IsEmpty)
                 {
                     requireEncryption = true;
                 }
@@ -338,7 +335,7 @@ namespace Opc.Ua.Server
                 // validate client application instance certificate.
                 X509Certificate2 parsedClientCertificate = null;
 
-                if (requireEncryption && clientCertificate != null && clientCertificate.Length > 0)
+                if (requireEncryption && clientCertificate.Length > 0)
                 {
                     try
                     {
@@ -392,7 +389,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (clientNonce != null)
+                if (!clientNonce.IsEmpty)
                 {
                     if (clientNonce.Length < m_minNonceLength)
                     {
@@ -402,7 +399,7 @@ namespace Opc.Ua.Server
                     // ignore nonce if security policy set to none
                     if (context.SecurityPolicyUri == SecurityPolicies.None)
                     {
-                        clientNonce = null;
+                        clientNonce = default;
                     }
                 }
 
@@ -476,17 +473,16 @@ namespace Opc.Ua.Server
                         if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
                             serverCertificate = InstanceCertificateTypesProvider
-                                .LoadCertificateChainRaw(
-                                    instanceCertificate);
+                                .LoadCertificateChainRaw(instanceCertificate).ToByteString();
                         }
                         else
                         {
-                            serverCertificate = instanceCertificate.RawData;
+                            serverCertificate = instanceCertificate.RawData.ToByteString();
                         }
                     }
 
                     // return the endpoints supported by the server.
-                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
+                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
 
                     // sign the nonce provided by the client.
                     serverSignature = CreateSessionServerSignature(
@@ -550,7 +546,7 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    ServerInternal.SessionManager.CloseSession(session.Id);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, ct).ConfigureAwait(false);
                 }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -586,8 +582,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 instanceCertificate,
             X509Certificate2 parsedClientCertificate,
-            byte[] clientNonce,
-            byte[] serverNonce)
+            ByteString clientNonce,
+            ByteString serverNonce)
         {
             return SessionSecurityPolicyHelper.CreateServerSignature(
                 context,
@@ -666,17 +662,19 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SignatureData clientSignature,
-            SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection localeIds,
+            ArrayOf<SignedSoftwareCertificate> clientSoftwareCertificates,
+            ArrayOf<string> localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             CancellationToken ct)
         {
-            byte[] serverNonce;
-            StatusCodeCollection results = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
+            ByteString serverNonce;
 
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.ActivateSession,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -721,8 +719,8 @@ namespace Opc.Ua.Server
                 {
                     ResponseHeader = responseHeader,
                     ServerNonce = serverNonce,
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
+                    Results = [],
+                    DiagnosticInfos = []
                 };
             }
             catch (ServiceResultException e)
@@ -835,7 +833,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CloseSession);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CloseSession, ct).ConfigureAwait(false);
             try
             {
                 ISession session = ServerInternal.SessionManager
@@ -875,13 +873,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<CancelResponse> CancelAsync(
+        public override async ValueTask<CancelResponse> CancelAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint requestHandle,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Cancel);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Cancel, ct).ConfigureAwait(false);
             CancelResponse response;
             try
             {
@@ -911,7 +909,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<CancelResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
@@ -920,16 +918,20 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Browse);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Browse,
+                ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
 
-                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseAsync(
                         context,
                         view,
@@ -970,16 +972,16 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.BrowseNext);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.BrowseNext, ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
 
-                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.BrowseNextAsync(
                         context,
                         releaseContinuationPoints,
@@ -1015,20 +1017,20 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
+        public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            NodeIdCollection nodesToRegister,
+            ArrayOf<NodeId> nodesToRegister,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.RegisterNodes);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.RegisterNodes, ct).ConfigureAwait(false);
             RegisterNodesResponse response;
             try
             {
                 ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
 
                 m_serverInternal.NodeManager
-                    .RegisterNodes(context, nodesToRegister, out NodeIdCollection registeredNodeIds);
+                    .RegisterNodes(context, nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
 
                 response = new RegisterNodesResponse
                 {
@@ -1054,17 +1056,17 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<RegisterNodesResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
+        public override async ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister,
+            ArrayOf<NodeId> nodesToUnregister,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.UnregisterNodes);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.UnregisterNodes, ct).ConfigureAwait(false);
             UnregisterNodesResponse response;
             try
             {
@@ -1097,20 +1099,21 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<UnregisterNodesResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
         public override async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.TranslateBrowsePathsToNodeIds);
+                RequestType.TranslateBrowsePathsToNodeIds,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1125,7 +1128,7 @@ namespace Opc.Ua.Server
                         OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
                 }
 
-                (BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                         context,
                         browsePaths,
@@ -1165,16 +1168,16 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Read);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Read, ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
 
-                (DataValueCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.ReadAsync(
                         context,
                         maxAge,
@@ -1218,14 +1221,14 @@ namespace Opc.Ua.Server
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryRead);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryRead, ct).ConfigureAwait(false);
 
             try
             {
-                if (historyReadDetails.Body is ReadEventDetails)
+                if (historyReadDetails.TryGetEncodeable(out ReadEventDetails _))
                 {
                     ValidateOperationLimits(
                         nodesToRead,
@@ -1238,7 +1241,7 @@ namespace Opc.Ua.Server
                         OperationLimits.MaxNodesPerHistoryReadData);
                 }
 
-                (HistoryReadResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.HistoryReadAsync(
                         context,
                         historyReadDetails,
@@ -1281,16 +1284,16 @@ namespace Opc.Ua.Server
         public override async ValueTask<WriteResponse> WriteAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            WriteValueCollection nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Write);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Write, ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
-                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager
                         .WriteAsync(context, nodesToWrite, ct)
                         .ConfigureAwait(false);
@@ -1326,10 +1329,10 @@ namespace Opc.Ua.Server
         public override async ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
+            ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryUpdate);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryUpdate, ct).ConfigureAwait(false);
 
             try
             {
@@ -1338,7 +1341,7 @@ namespace Opc.Ua.Server
                 // must be checked in NodeManager (TODO)
                 ValidateOperationLimits(historyUpdateDetails);
 
-                (HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.HistoryUpdateAsync(context, historyUpdateDetails, ct).ConfigureAwait(false);
 
                 return new HistoryUpdateResponse
@@ -1380,10 +1383,11 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.CreateSubscription);
+                RequestType.CreateSubscription,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1425,14 +1429,15 @@ namespace Opc.Ua.Server
         public override async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.TransferSubscriptions);
+                RequestType.TransferSubscriptions,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1472,13 +1477,14 @@ namespace Opc.Ua.Server
         public override async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.DeleteSubscriptions);
+                RequestType.DeleteSubscriptions,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1517,10 +1523,10 @@ namespace Opc.Ua.Server
         public override async ValueTask<PublishResponse> PublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Publish);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Publish, ct).ConfigureAwait(false);
 
             try
             {
@@ -1582,14 +1588,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask<RepublishResponse> RepublishAsync(
+        public override async ValueTask<RepublishResponse> RepublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Republish);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Republish, ct).ConfigureAwait(false);
             RepublishResponse response;
             try
             {
@@ -1622,11 +1628,11 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<RepublishResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public override async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1637,10 +1643,12 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.ModifySubscription);
+                RequestType.ModifySubscription,
+                ct).ConfigureAwait(false);
+
             ModifySubscriptionResponse response;
             try
             {
@@ -1682,21 +1690,23 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<ModifySubscriptionResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
+        public override async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.SetPublishingMode);
+                RequestType.SetPublishingMode,
+                ct).ConfigureAwait(false);
+
             SetPublishingModeResponse response;
             try
             {
@@ -1706,8 +1716,8 @@ namespace Opc.Ua.Server
                     context,
                     publishingEnabled,
                     subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    out ArrayOf<StatusCode> results,
+                    out ArrayOf<DiagnosticInfo> diagnosticInfos);
 
                 response = new SetPublishingModeResponse
                 {
@@ -1734,32 +1744,31 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<SetPublishingModeResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
-        public override ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+        public override async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.SetTriggering);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.SetTriggering, ct).ConfigureAwait(false);
             SetTriggeringResponse response;
             try
             {
-                if ((linksToAdd == null || linksToAdd.Count == 0) &&
-                    (linksToRemove == null || linksToRemove.Count == 0))
+                if (linksToAdd.Count == 0 && linksToRemove.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
 
                 int monitoredItemsCount = 0;
-                monitoredItemsCount += (linksToAdd?.Count) ?? 0;
-                monitoredItemsCount += (linksToRemove?.Count) ?? 0;
+                monitoredItemsCount += linksToAdd.Count;
+                monitoredItemsCount += linksToRemove.Count;
                 ValidateOperationLimits(
                     monitoredItemsCount,
                     OperationLimits.MaxMonitoredItemsPerCall);
@@ -1770,10 +1779,10 @@ namespace Opc.Ua.Server
                     triggeringItemId,
                     linksToAdd,
                     linksToRemove,
-                    out StatusCodeCollection addResults,
-                    out DiagnosticInfoCollection addDiagnosticInfos,
-                    out StatusCodeCollection removeResults,
-                    out DiagnosticInfoCollection removeDiagnosticInfos);
+                    out ArrayOf<StatusCode> addResults,
+                    out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+                    out ArrayOf<StatusCode> removeResults,
+                    out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
 
                 response = new SetTriggeringResponse
                 {
@@ -1802,7 +1811,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-            return new ValueTask<SetTriggeringResponse>(response);
+            return response;
         }
 
         /// <inheritdoc/>
@@ -1811,13 +1820,14 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.CreateMonitoredItems);
+                RequestType.CreateMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1860,13 +1870,14 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.ModifyMonitoredItems);
+                RequestType.ModifyMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1908,13 +1919,14 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.DeleteMonitoredItems);
+                RequestType.DeleteMonitoredItems,
+                ct).ConfigureAwait(false);
 
             try
             {
@@ -1956,19 +1968,20 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(
+            OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
-                RequestType.SetMonitoringMode);
+                RequestType.SetMonitoringMode,
+                ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
                     context,
                     subscriptionId,
@@ -2008,16 +2021,16 @@ namespace Opc.Ua.Server
         public override async ValueTask<CallResponse> CallAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            CallMethodRequestCollection methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Call);
+            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Call, ct).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
-                (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager.CallAsync(context, methodsToCall, ct)
                         .ConfigureAwait(false);
 
@@ -2131,7 +2144,6 @@ namespace Opc.Ua.Server
                             {
                                 // update from the server.
                                 bool updateRequired = true;
-
                                 lock (m_registrationLock)
                                 {
                                     updateRequired = endpoint.UpdateBeforeConnect;
@@ -2169,7 +2181,6 @@ namespace Opc.Ua.Server
                                 // register the server.
                                 if (m_useRegisterServer2)
                                 {
-                                    var discoveryConfiguration = new ExtensionObjectCollection();
                                     var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                     {
                                         ServerCapabilities = configuration.ServerConfiguration
@@ -2177,7 +2188,7 @@ namespace Opc.Ua.Server
                                         MdnsServerName = Utils.GetHostName()
                                     };
                                     var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                    discoveryConfiguration.Add(extensionObject);
+                                    ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
                                     await client.RegisterServer2Async(
                                         requestHeader,
                                         m_registrationInfo,
@@ -2395,7 +2406,7 @@ namespace Opc.Ua.Server
         /// <param name="result">The result.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnApplicationCertificateError(
-            byte[] clientCertificate,
+            ByteString clientCertificate,
             ServiceResult result)
         {
             throw new ServiceResultException(result);
@@ -2407,11 +2418,13 @@ namespace Opc.Ua.Server
         /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual OperationContext ValidateRequest(
+        protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            RequestType requestType)
+            RequestType requestType,
+            CancellationToken cancellationToken = default)
         {
             base.ValidateRequest(requestHeader);
 
@@ -2420,8 +2433,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
 
-            OperationContext context = ServerInternal.SessionManager
-                .ValidateRequest(requestHeader, secureChannelContext, requestType);
+            OperationContext context = await ServerInternal.SessionManager
+                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, cancellationToken).ConfigureAwait(false);
 
             if (ServerUtils.EventLog.IsEnabled())
             {
@@ -2443,15 +2456,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validate operation limits.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="operation">A list of operations.</param>
         /// <param name="operationLimit">The operation limit property.</param>
         /// <exception cref="ServiceResultException">BadNothingToDo if list is null or empty.</exception>
         /// <exception cref="ServiceResultException">BadTooManyOperations if list is larger than operation limit property.</exception>
-        protected void ValidateOperationLimits(
-            IList operation,
+        protected void ValidateOperationLimits<T>(
+            ArrayOf<T> operation,
             PropertyState<uint> operationLimit = null)
         {
-            if (operation == null || operation.Count == 0)
+            if (operation.IsEmpty)
             {
                 throw new ServiceResultException(StatusCodes.BadNothingToDo);
             }
@@ -2483,7 +2497,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             ServiceResultException e)
         {
-            IList<string> preferredLocales = null;
+            ArrayOf<string> preferredLocales = default;
 
             if (context != null && context.Session != null)
             {
@@ -2502,7 +2516,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an exception thrown when a UA defined error occurs, the return type is <seealso cref="ServiceResultException"/>.</returns>
         protected virtual ServiceResultException TranslateException(
             DiagnosticsMasks diagnosticsMasks,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ServiceResultException e)
         {
             if (e == null)
@@ -2552,7 +2566,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns a class that combines the status code and diagnostic info structures.</returns>
         protected virtual ServiceResult TranslateResult(
             DiagnosticsMasks diagnosticsMasks,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ServiceResult result)
         {
             if (result == null)
@@ -2694,11 +2708,8 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out ArrayOf<EndpointDescription> endpoints)
         {
-            serverDescription = null;
-            endpoints = null;
-
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
@@ -2708,12 +2719,12 @@ namespace Opc.Ua.Server
             }
 
             // ensure at least one user token policy exists.
-            if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
+            if (configuration.ServerConfiguration.UserTokenPolicies.IsEmpty)
             {
                 var userTokenPolicy = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
-                configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+                configuration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
             }
 
             // set server description.
@@ -2726,18 +2737,16 @@ namespace Opc.Ua.Server
                 DiscoveryUrls = GetDiscoveryUrls()
             };
 
-            endpoints = [];
-            IList<EndpointDescription> endpointsForHost = null;
-
-            StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
+            List<EndpointDescription> endpointsList = [];
+            ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
+                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
-                    endpointsForHost = binding.CreateServiceHost(
+                    List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
                         this,
                         hosts,
                         configuration,
@@ -2745,10 +2754,10 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         InstanceCertificateTypesProvider);
-                    endpoints.AddRange(endpointsForHost);
+                    endpointsList.AddRange(endpointsForHost);
                 }
             }
-
+            endpoints = endpointsList;
             return [.. hosts.Values];
         }
 
@@ -2827,10 +2836,11 @@ namespace Opc.Ua.Server
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
-                m_serverInternal.CreateServerObject(
+                await m_serverInternal.CreateServerObjectAsync(
                     eventManager,
                     resourceManager,
-                    requestManager);
+                    requestManager,
+                    cancellationToken).ConfigureAwait(false);
 
                 // do any additional processing now that the node manager is up and running.
                 OnNodeManagerStarted(m_serverInternal);
@@ -2838,12 +2848,12 @@ namespace Opc.Ua.Server
                 // create the manager responsible for aggregates.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
                 m_serverInternal.SetAggregateManager(
-                    CreateAggregateManager(m_serverInternal, configuration));
+                    await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for modelling rules.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
                 m_serverInternal.SetModellingRulesManager(
-                    CreateModellingRulesManager(m_serverInternal, configuration));
+                    await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
@@ -2898,7 +2908,7 @@ namespace Opc.Ua.Server
                     {
                         ServerUri = serverDescription.ApplicationUri
                     };
-                    m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
+                    m_registrationInfo.ServerNames += serverDescription.ApplicationName;
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
                     m_registrationInfo.ServerType = serverDescription.ApplicationType;
                     m_registrationInfo.GatewayServerUri = null;
@@ -2908,6 +2918,7 @@ namespace Opc.Ua.Server
                     // add all discovery urls.
                     string computerName = Utils.GetHostName();
 
+                    var discoveryUrls = new List<string>();
                     for (int ii = 0; ii < BaseAddresses.Count; ii++)
                     {
                         var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
@@ -2920,8 +2931,9 @@ namespace Opc.Ua.Server
                             uri.Host = computerName;
                         }
 
-                        m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
+                        discoveryUrls.Add(uri.ToString());
                     }
+                    m_registrationInfo.DiscoveryUrls = discoveryUrls;
 
                     // build list of registration endpoints.
                     m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
@@ -2971,7 +2983,7 @@ namespace Opc.Ua.Server
                 m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
                 Utils.SilentDispose(m_serverInternal);
                 m_serverInternal = null;
-                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                 ServerError = error;
                 throw new ServiceResultException(error);
             }
@@ -3172,166 +3184,204 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         /// <returns>The manager.</returns>
-        protected virtual AggregateManager CreateAggregateManager(
+        protected virtual async ValueTask<AggregateManager> CreateAggregateManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             var manager = new AggregateManager(server);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Interpolative,
                 BrowseNames.AggregateFunction_Interpolative,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Average,
                 BrowseNames.AggregateFunction_Average,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_TimeAverage,
                 BrowseNames.AggregateFunction_TimeAverage,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_TimeAverage2,
                 BrowseNames.AggregateFunction_TimeAverage2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Total,
                 BrowseNames.AggregateFunction_Total,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Total2,
                 BrowseNames.AggregateFunction_Total2,
-                Aggregators.CreateStandardCalculator);
-
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Minimum,
                 BrowseNames.AggregateFunction_Minimum,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Maximum,
                 BrowseNames.AggregateFunction_Maximum,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MinimumActualTime,
                 BrowseNames.AggregateFunction_MinimumActualTime,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MaximumActualTime,
                 BrowseNames.AggregateFunction_MaximumActualTime,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Range,
                 BrowseNames.AggregateFunction_Range,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Minimum2,
                 BrowseNames.AggregateFunction_Minimum2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Maximum2,
                 BrowseNames.AggregateFunction_Maximum2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MinimumActualTime2,
                 BrowseNames.AggregateFunction_MinimumActualTime2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_MaximumActualTime2,
                 BrowseNames.AggregateFunction_MaximumActualTime2,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Range2,
                 BrowseNames.AggregateFunction_Range2,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Count,
                 BrowseNames.AggregateFunction_Count,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_AnnotationCount,
                 BrowseNames.AggregateFunction_AnnotationCount,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationInStateZero,
                 BrowseNames.AggregateFunction_DurationInStateZero,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
                 BrowseNames.AggregateFunction_DurationInStateNonZero,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
                 BrowseNames.AggregateFunction_NumberOfTransitions,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Start,
                 BrowseNames.AggregateFunction_Start,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_End,
                 BrowseNames.AggregateFunction_End,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_Delta,
                 BrowseNames.AggregateFunction_Delta,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StartBound,
                 BrowseNames.AggregateFunction_StartBound,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_EndBound,
                 BrowseNames.AggregateFunction_EndBound,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DeltaBounds,
                 BrowseNames.AggregateFunction_DeltaBounds,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationGood,
                 BrowseNames.AggregateFunction_DurationGood,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_DurationBad,
                 BrowseNames.AggregateFunction_DurationBad,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_PercentGood,
                 BrowseNames.AggregateFunction_PercentGood,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_PercentBad,
                 BrowseNames.AggregateFunction_PercentBad,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_WorstQuality,
                 BrowseNames.AggregateFunction_WorstQuality,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_WorstQuality2,
                 BrowseNames.AggregateFunction_WorstQuality2,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
-            manager.RegisterFactory(
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 BrowseNames.AggregateFunction_StandardDeviationPopulation,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_VariancePopulation,
                 BrowseNames.AggregateFunction_VariancePopulation,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 BrowseNames.AggregateFunction_StandardDeviationSample,
-                Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterFactoryAsync(
                 ObjectIds.AggregateFunction_VarianceSample,
                 BrowseNames.AggregateFunction_VarianceSample,
-                Aggregators.CreateStandardCalculator);
+                Aggregators.CreateStandardCalculator,
+                cancellationToken).ConfigureAwait(false);
 
             return manager;
         }
@@ -3341,28 +3391,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation Token</param>
         /// <returns>The manager.</returns>
-        protected virtual ModellingRulesManager CreateModellingRulesManager(
+        protected virtual async ValueTask<ModellingRulesManager> CreateModellingRulesManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             var manager = new ModellingRulesManager(server);
 
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_Mandatory,
-                BrowseNames.ModellingRule_Mandatory);
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_Optional,
-                BrowseNames.ModellingRule_Optional);
-            manager.RegisterModellingRule(
-                ObjectIds.ModellingRule_ExposesItsArray,
-                BrowseNames.ModellingRule_ExposesItsArray);
-            manager.RegisterModellingRule(
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_Mandatory, BrowseNames.ModellingRule_Mandatory, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_Optional, BrowseNames.ModellingRule_Optional, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(ObjectIds.ModellingRule_ExposesItsArray, BrowseNames.ModellingRule_ExposesItsArray, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(
                 ObjectIds.ModellingRule_OptionalPlaceholder,
-                BrowseNames.ModellingRule_OptionalPlaceholder);
-            manager.RegisterModellingRule(
+                BrowseNames.ModellingRule_OptionalPlaceholder,
+                cancellationToken).ConfigureAwait(false);
+            await manager.RegisterModellingRuleAsync(
                 ObjectIds.ModellingRule_MandatoryPlaceholder,
-                BrowseNames.ModellingRule_MandatoryPlaceholder);
+                BrowseNames.ModellingRule_MandatoryPlaceholder,
+                cancellationToken).ConfigureAwait(false);
 
             return manager;
         }

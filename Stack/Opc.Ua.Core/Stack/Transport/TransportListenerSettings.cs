@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -39,7 +40,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
         /// </summary>
-        public EndpointDescriptionCollection Descriptions { get; set; }
+        public List<EndpointDescription> Descriptions { get; set; }
 
         /// <summary>
         /// Gets or sets the configuration for the endpoints.

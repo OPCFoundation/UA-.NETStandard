@@ -77,17 +77,17 @@ namespace Alarms
 
             LimitAlarmState alarm = GetAlarm();
 
-            alarm.HighLimit ??= new PropertyState<double>(alarm);
-            alarm.HighHighLimit ??= new PropertyState<double>(alarm);
-            alarm.LowLimit ??= new PropertyState<double>(alarm);
-            alarm.LowLowLimit ??= new PropertyState<double>(alarm);
+            alarm.HighLimit ??= PropertyState<double>.With<VariantBuilder>(alarm);
+            alarm.HighHighLimit ??= PropertyState<double>.With<VariantBuilder>(alarm);
+            alarm.LowLimit ??= PropertyState<double>.With<VariantBuilder>(alarm);
+            alarm.LowLowLimit ??= PropertyState<double>.With<VariantBuilder>(alarm);
 
             if (Optional)
             {
-                alarm.BaseHighLimit = new PropertyState<double>(alarm);
-                alarm.BaseHighHighLimit = new PropertyState<double>(alarm);
-                alarm.BaseLowLimit = new PropertyState<double>(alarm);
-                alarm.BaseLowLowLimit = new PropertyState<double>(alarm);
+                alarm.BaseHighLimit = PropertyState<double>.With<VariantBuilder>(alarm);
+                alarm.BaseHighHighLimit = PropertyState<double>.With<VariantBuilder>(alarm);
+                alarm.BaseLowLimit = PropertyState<double>.With<VariantBuilder>(alarm);
+                alarm.BaseLowLowLimit = PropertyState<double>.With<VariantBuilder>(alarm);
             }
 
             // Call the base class to set parameters

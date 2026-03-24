@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -81,6 +80,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
+                        TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
                         Utils.SilentDispose(TransportListeners[ii]);
                     }
 
@@ -127,16 +127,9 @@ namespace Opc.Ua
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
-        public virtual EndpointDescriptionCollection GetEndpoints()
+        public virtual ArrayOf<EndpointDescription> GetEndpoints()
         {
-            ReadOnlyList<EndpointDescription> endpoints = Endpoints;
-
-            if (endpoints != null)
-            {
-                return [.. endpoints];
-            }
-
-            return [];
+            return Endpoints;
         }
 
         /// <summary>
@@ -276,11 +269,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -343,11 +336,11 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints;
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -372,8 +365,8 @@ namespace Opc.Ua
         {
             BaseAddresses = [];
 
-            StringCollection sourceBaseAddresses = null;
-            StringCollection sourceAlternateAddresses = null;
+            ArrayOf<string> sourceBaseAddresses = default;
+            ArrayOf<string> sourceAlternateAddresses = default;
 
             if (configuration.ServerConfiguration != null)
             {
@@ -384,11 +377,10 @@ namespace Opc.Ua
             if (configuration.DiscoveryServerConfiguration != null)
             {
                 sourceBaseAddresses = configuration.DiscoveryServerConfiguration.BaseAddresses;
-                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration
-                    .AlternateBaseAddresses;
+                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration.AlternateBaseAddresses;
             }
 
-            if (sourceBaseAddresses == null)
+            if (sourceBaseAddresses.IsNull)
             {
                 return;
             }
@@ -397,16 +389,13 @@ namespace Opc.Ua
             {
                 var address = new BaseAddress { Url = new Uri(baseAddress) };
 
-                if (sourceAlternateAddresses != null)
+                foreach (string alternateAddress in sourceAlternateAddresses)
                 {
-                    foreach (string alternateAddress in sourceAlternateAddresses)
-                    {
-                        var alternateUrl = new Uri(alternateAddress);
+                    var alternateUrl = new Uri(alternateAddress);
 
-                        if (alternateUrl.Scheme == address.Url.Scheme)
-                        {
-                            (address.AlternateUrls ??= []).Add(alternateUrl);
-                        }
+                    if (alternateUrl.Scheme == address.Url.Scheme)
+                    {
+                        (address.AlternateUrls ??= []).Add(alternateUrl);
                     }
                 }
 
@@ -437,10 +426,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the discovery URLs for the server.
         /// </summary>
-        protected StringCollection GetDiscoveryUrls()
+        protected ArrayOf<string> GetDiscoveryUrls()
         {
             // build list of discovery uris.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
             string computerName = Utils.GetHostName();
 
             foreach (BaseAddress baseAddress in BaseAddresses)
@@ -647,11 +636,11 @@ namespace Opc.Ua
                 if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider
-                        .LoadCertificateChainRaw(serverCertificate);
+                        .LoadCertificateChainRaw(serverCertificate).ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    description.ServerCertificate = serverCertificate.RawData.ToByteString();
                 }
             }
         }
@@ -690,7 +679,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the list of endpoints supported by the server.
         /// </summary>
-        protected ReadOnlyList<EndpointDescription> Endpoints { get; private set; }
+        protected ArrayOf<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
         /// The object used to verify client certificates
@@ -747,7 +736,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or set the capabilities for the server.
         /// </summary>
-        protected StringCollection ServerCapabilities { get; set; }
+        protected ArrayOf<string> ServerCapabilities { get; set; }
 
         /// <summary>
         /// Gets the list of transport listeners used by the server instance.
@@ -830,7 +819,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
             ICertificateValidator certificateValidator)
@@ -881,16 +870,16 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <returns>
         /// Returns a collection of UserTokenPolicy objects,
-        /// the return type is <seealso cref="UserTokenPolicyCollection"/> .
+        /// the return type is <seealso cref="ArrayOf{UserTokenPolicy}"/> .
         /// </returns>
-        public virtual UserTokenPolicyCollection GetUserTokenPolicies(
+        public virtual ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
             EndpointDescription description)
         {
-            var policies = new UserTokenPolicyCollection();
+            var policies = new List<UserTokenPolicy>();
 
             if (configuration.ServerConfiguration == null ||
-                configuration.ServerConfiguration.UserTokenPolicies == null)
+                configuration.ServerConfiguration.UserTokenPolicies.IsNull)
             {
                 return policies;
             }
@@ -914,7 +903,20 @@ namespace Opc.Ua
                     }
                 }
 
-                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
+                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(
+                    o => o.TokenType == clone.TokenType &&
+                        string.Equals(
+                            o.SecurityPolicyUri,
+                            clone.SecurityPolicyUri,
+                            StringComparison.Ordinal) &&
+                        string.Equals(
+                            o.IssuedTokenType,
+                            clone.IssuedTokenType,
+                            StringComparison.Ordinal) &&
+                        string.Equals(
+                            o.IssuerEndpointUrl,
+                            clone.IssuerEndpointUrl,
+                            StringComparison.Ordinal));
 
                 // Ensure each policy has a unique ID within the context of the Server
                 if (existingPolicy == null)
@@ -1023,10 +1025,10 @@ namespace Opc.Ua
         /// Filters the list of addresses by profile.
         /// </summary>
         protected IList<BaseAddress> FilterByProfile(
-            StringCollection profileUris,
+            ArrayOf<string> profileUris,
             IList<BaseAddress> baseAddresses)
         {
-            if (profileUris == null || profileUris.Count == 0)
+            if (profileUris.IsEmpty)
             {
                 return baseAddresses;
             }
@@ -1149,7 +1151,7 @@ namespace Opc.Ua
             LocalizedText applicationName)
         {
             // get the discovery urls.
-            var discoveryUrls = new StringCollection();
+            var discoveryUrls = new List<string>();
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
@@ -1184,13 +1186,13 @@ namespace Opc.Ua
         /// <param name="endpoints">The endpoints.</param>
         /// <param name="application">The application to use with the endpoints.</param>
         /// <returns>The translated list of endpoints.</returns>
-        protected EndpointDescriptionCollection TranslateEndpointDescriptions(
+        protected ArrayOf<EndpointDescription> TranslateEndpointDescriptions(
             Uri clientUrl,
             IList<BaseAddress> baseAddresses,
-            IList<EndpointDescription> endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             ApplicationDescription application)
         {
-            var translations = new EndpointDescriptionCollection();
+            var translations = new List<EndpointDescription>();
 
             bool matchPort = false;
             do
@@ -1356,7 +1358,7 @@ namespace Opc.Ua
                 RequestHandle = requestHeader.RequestHandle
             };
 
-            responseHeader.StringTable.AddRange(stringTable.ToArray());
+            responseHeader.StringTable = stringTable.ToArrayOf();
 
             return responseHeader;
         }
@@ -1417,7 +1419,7 @@ namespace Opc.Ua
                 }
 
                 // ensure at least one user token policy exists.
-                if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
+                if (configuration.ServerConfiguration.UserTokenPolicies.IsEmpty)
                 {
                     var userTokenPolicy = new UserTokenPolicy
                     {
@@ -1425,7 +1427,8 @@ namespace Opc.Ua
                     };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
-                    configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+                    configuration.ServerConfiguration.UserTokenPolicies =
+                        configuration.ServerConfiguration.UserTokenPolicies.AddItem(userTokenPolicy);
                 }
             }
 
@@ -1519,10 +1522,10 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out ArrayOf<EndpointDescription> endpoints)
         {
             serverDescription = null;
-            endpoints = null;
+            endpoints = default;
             return [];
         }
 
@@ -1607,14 +1610,20 @@ namespace Opc.Ua
                 m_server = server;
                 m_minThreadCount = minThreadCount;
                 m_maxThreadCount = maxThreadCount;
-                m_maxRequestCount = maxRequestCount;
-                m_queue = new ConcurrentQueue<IEndpointIncomingRequest>();
-                m_queueSignal = new SemaphoreSlim(0);
+
+                var options = new System.Threading.Channels.BoundedChannelOptions(maxRequestCount)
+                {
+                    SingleWriter = false,
+                    SingleReader = false,
+                    FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+                };
+
+                m_queue = System.Threading.Channels.Channel.CreateBounded<IEndpointIncomingRequest>(options);
+
                 m_workers = [];
                 m_cts = new CancellationTokenSource();
                 m_activeThreadCount = 0;
                 m_totalThreadCount = 0;
-                m_queuedRequestsCount = 0;
                 m_stopped = false;
 
                 ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
@@ -1632,9 +1641,10 @@ namespace Opc.Ua
                 );
 
                 // Start worker tasks
+                var token = m_cts.Token;
                 for (int i = 0; i < m_minThreadCount; i++)
                 {
-                    m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
+                    m_workers.Add(Task.Run(() => WorkerLoopAsync(token)));
                 }
             }
 
@@ -1657,19 +1667,30 @@ namespace Opc.Ua
                     m_stopped = true;
                     m_cts.Cancel();
 
-                    if (m_totalThreadCount > 0)
-                    {
-                        m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
-                    }
-                    Utils.SilentDispose(m_queueSignal);
+                    m_queue.Writer.Complete();
 
-                    foreach (IEndpointIncomingRequest request in m_queue.ToList())
+                    // drain any remaining requests from the queue
+                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
                     {
                         request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
-#if NETSTANDARD2_1_OR_GREATER
-                    m_queue.Clear();
-#endif
+
+                    // Wait for all worker threads to complete
+                    Task[] workerTasks;
+                    lock (m_workers)
+                    {
+                        workerTasks = [.. m_workers];
+                    }
+
+                    try
+                    {
+                        Task.WaitAll(workerTasks, TimeSpan.FromSeconds(5));
+                    }
+                    catch (AggregateException)
+                    {
+                        // Ignore exceptions during shutdown
+                    }
+
                     Utils.SilentDispose(m_cts);
                 }
             }
@@ -1687,14 +1708,15 @@ namespace Opc.Ua
                     return;
                 }
 
-                // check if we can accept more requests
-                if (m_queuedRequestsCount >= m_maxRequestCount)
+                // Enqueue requests. Use TryWrite to fail immediately if limit is reached.
+                if (!m_queue.Writer.TryWrite(request))
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
                     // TODO: make a metric
                     m_server.m_logger.LogDebug("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
+
                 // Optionally scale up workers if needed
                 if (m_totalThreadCount < m_maxThreadCount &&
                     m_activeThreadCount >= m_totalThreadCount)
@@ -1704,10 +1726,6 @@ namespace Opc.Ua
                         m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                     }
                 }
-                // Enqueue requests
-                m_queue.Enqueue(request);
-                Interlocked.Increment(ref m_queuedRequestsCount);
-                m_queueSignal.Release();
             }
 
             /// <summary>
@@ -1719,22 +1737,12 @@ namespace Opc.Ua
                 Interlocked.Increment(ref m_totalThreadCount);
                 try
                 {
-                    while (!ct.IsCancellationRequested)
+                    while (await m_queue.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
                     {
-                        // wait for a request
-                        if ((!await m_queueSignal.WaitAsync(15_000, ct).ConfigureAwait(false)) &&
-                            m_totalThreadCount > m_minThreadCount)
-                        {
-                            //end loop if no requests and we have enough threads
-                            return;
-                        }
-
-                        //process request from queue
-                        if (m_queue.TryDequeue(out IEndpointIncomingRequest request))
+                        while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
                         {
                             try
                             {
-                                Interlocked.Decrement(ref m_queuedRequestsCount);
                                 Interlocked.Increment(ref m_activeThreadCount);
                                 await m_server.ProcessRequestAsync(request, ct)
                                     .ConfigureAwait(false);
@@ -1755,6 +1763,10 @@ namespace Opc.Ua
                 {
                     // Graceful shutdown
                 }
+                catch (System.Threading.Channels.ChannelClosedException)
+                {
+                    // Graceful shutdown
+                }
                 finally
                 {
                     Interlocked.Decrement(ref m_totalThreadCount);
@@ -1764,14 +1776,11 @@ namespace Opc.Ua
             private readonly ServerBase m_server;
             private readonly int m_minThreadCount;
             private readonly int m_maxThreadCount;
-            private readonly int m_maxRequestCount;
-            private readonly ConcurrentQueue<IEndpointIncomingRequest> m_queue;
-            private readonly SemaphoreSlim m_queueSignal;
+            private readonly System.Threading.Channels.Channel<IEndpointIncomingRequest> m_queue;
             private readonly List<Task> m_workers;
             private readonly CancellationTokenSource m_cts;
             private int m_activeThreadCount;
             private int m_totalThreadCount;
-            private int m_queuedRequestsCount;
             private bool m_stopped;
         }
 

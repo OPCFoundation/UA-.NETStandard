@@ -200,9 +200,9 @@ namespace TestData
 
                 e.Initialize(context, this, EventSeverity.MediumLow, new LocalizedText(message));
 
-                e.Iterations = new PropertyState<uint>(e) { Value = count };
+                e.Iterations = PropertyState<uint>.With<VariantBuilder>(e, count);
 
-                e.NewValueCount = new PropertyState<uint>(e) { Value = 10 };
+                e.NewValueCount = PropertyState<uint>.With<VariantBuilder>(e, 10);
 
                 ReportEvent(context, e);
             }
@@ -224,7 +224,7 @@ namespace TestData
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             if (node is not BaseVariableState variable)
             {
@@ -246,7 +246,7 @@ namespace TestData
                 value = system.ReadValue(variable);
 
                 statusCode = StatusCodes.Good;
-                timestamp = DateTime.UtcNow;
+                timestamp = DateTimeUtc.Now;
 
                 ServiceResult error = BaseVariableState.ApplyIndexRangeAndDataEncoding(
                     context,

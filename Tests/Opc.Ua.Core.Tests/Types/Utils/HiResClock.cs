@@ -32,7 +32,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -85,19 +84,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Order(100)]
         public void HiResParameters()
         {
-            Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
-            Assert.LessOrEqual(1000, HiResClock.Frequency);
-            Assert.False(HiResClock.Disabled);
-            Assert.LessOrEqual(1.0, TimeSpan.TicksPerMillisecond);
+            Assert.That(HiResClock.TicksPerMillisecond, Is.GreaterThanOrEqualTo(1.0));
+            Assert.That(HiResClock.Frequency, Is.GreaterThanOrEqualTo(1000));
+            Assert.That(HiResClock.Disabled, Is.False);
+            Assert.That(TimeSpan.TicksPerMillisecond, Is.GreaterThanOrEqualTo(1.0));
             HiResClock.Disabled = true;
-            Assert.True(HiResClock.Disabled);
-            Assert.AreEqual(TimeSpan.TicksPerSecond, HiResClock.Frequency);
-            Assert.AreEqual(TimeSpan.TicksPerMillisecond, HiResClock.TicksPerMillisecond);
+            Assert.That(HiResClock.Disabled, Is.True);
+            Assert.That(HiResClock.Frequency, Is.EqualTo(TimeSpan.TicksPerSecond));
+            Assert.That(HiResClock.TicksPerMillisecond, Is.EqualTo(TimeSpan.TicksPerMillisecond));
             HiResClock.Disabled = false;
-            Assert.True(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.True);
             HiResClock.Reset();
             HiResClock.Disabled = false;
-            Assert.False(HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.False);
         }
 
         /// <summary>
@@ -108,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void HiResClockTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
-            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.EqualTo(disabled));
             var stopWatch = new Stopwatch();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
@@ -121,14 +120,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 {
                     tickCount = HiResClock.TickCount64;
                 } while (tickCount == lastTickCount);
-                Assert.LessOrEqual(lastTickCount, tickCount);
+                Assert.That(tickCount, Is.GreaterThanOrEqualTo(lastTickCount));
                 lastTickCount = tickCount;
                 counts++;
             }
             if (counts < 500)
             {
-                NUnit.Framework.Assert
-                    .Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                Assert.Inconclusive(
+                    "Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
@@ -139,13 +138,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     elapsed,
                     Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Inconclusive(ex.Message);
+                Assert.Inconclusive(ex.Message);
             }
         }
 
@@ -157,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void HiResUtcNowTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
-            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Assert.That(HiResClock.Disabled, Is.EqualTo(disabled));
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             long lastTickCount = HiResClock.UtcNow.Ticks;
@@ -170,13 +169,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 {
                     tickCount = HiResClock.UtcNow.Ticks;
                 } while (tickCount == lastTickCount);
-                Assert.LessOrEqual(lastTickCount, tickCount);
+                Assert.That(tickCount, Is.GreaterThanOrEqualTo(lastTickCount));
                 lastTickCount = tickCount;
                 counts++;
             }
             if (!disabled)
             {
-                Assert.LessOrEqual(1000, counts);
+                Assert.That(counts, Is.GreaterThanOrEqualTo(1000));
             }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
@@ -187,13 +186,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     elapsed,
                     Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                NUnit.Framework.Assert.Inconclusive(ex.Message);
+                Assert.Inconclusive(ex.Message);
             }
         }
 

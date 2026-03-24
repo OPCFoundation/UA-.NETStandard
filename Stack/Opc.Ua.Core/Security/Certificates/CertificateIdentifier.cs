@@ -998,7 +998,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                collection.Add(Utils.Clone(this[ii]));
+                collection.Add((CertificateIdentifier)CoreUtils.Clone(this[ii]));
             }
 
             return collection;

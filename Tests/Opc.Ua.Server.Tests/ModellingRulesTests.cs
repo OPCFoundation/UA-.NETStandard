@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
 
-            var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
+            ArrayOf<BrowseDescription> browseDescriptions = [browseRequest];
 
             BrowseResponse browseResponse = await m_server.BrowseAsync(
                 m_secureChannelContext,
@@ -118,8 +118,8 @@ namespace Opc.Ua.Server.Tests
                 0,
                 browseDescriptions, CancellationToken.None).ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            Assert.That(results, Is.Not.Null);
+            ArrayOf<BrowseResult> results = browseResponse.Results;
+            Assert.That(results.IsNull, Is.False);
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].References.Count, Is.GreaterThan(0), "ModellingRules folder should not be empty");
 
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         found = true;
                         // Verify it's of the correct type
-                        var expectedTypeDefinition = ExpandedNodeId.ToNodeId(
+                        NodeId expectedTypeDefinition = ExpandedNodeId.ToNodeId(
                             ObjectTypeIds.ModellingRuleType,
                             m_server.CurrentInstance.NamespaceUris);
                         Assert.That(reference.TypeDefinition, Is.EqualTo(expectedTypeDefinition));
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
 
-            var browseDescriptions = new BrowseDescriptionCollection { browseRequest };
+            ArrayOf<BrowseDescription> browseDescriptions = [browseRequest];
 
             BrowseResponse browseResponse = await m_server.BrowseAsync(
                 m_secureChannelContext,
@@ -181,13 +181,13 @@ namespace Opc.Ua.Server.Tests
                 0,
                 browseDescriptions, CancellationToken.None).ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            Assert.That(results, Is.Not.Null);
+            ArrayOf<BrowseResult> results = browseResponse.Results;
+            Assert.That(results.IsNull, Is.False);
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].References.Count, Is.GreaterThan(0));
 
             // All references should be of type ModellingRuleType
-            var expectedTypeDefinition = ExpandedNodeId.ToNodeId(
+            NodeId expectedTypeDefinition = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.ModellingRuleType,
                 m_server.CurrentInstance.NamespaceUris);
 

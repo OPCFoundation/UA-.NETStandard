@@ -41,7 +41,6 @@ using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -81,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// A web server to host root CA and CRL
         /// </summary>
-        private IWebServer m_webServer;
+        private WebServer m_webServer;
         private string m_webServerUrl;
         private string m_webServerPath;
         private string m_altCertFilename;
@@ -149,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             catch
             {
-                NUnit.Framework.Assert.Ignore($"Web server could not start at: {m_webServerUrl}");
+                Assert.Ignore($"Web server could not start at: {m_webServerUrl}");
             }
         }
 
@@ -159,10 +158,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            Utils.SilentDispose(m_rootCert);
-            Utils.SilentDispose(m_rootAltCert);
-            Utils.SilentDispose(m_certValidator);
-            Utils.SilentDispose(m_webServer);
+            m_rootCert?.Dispose();
+            m_rootAltCert?.Dispose();
+            m_validator?.Dispose();
+            m_webServer?.Dispose();
             Directory.Delete(m_webServerPath, true);
         }
 
@@ -193,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateCertificate("CN=AppCert")
                 .SetIssuer(m_rootCert)
                 .CreateForRSA();
-            Assert.NotNull(appCert);
+            Assert.That(appCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = true;
             await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
@@ -230,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_certValidator.RejectUnknownRevocationStatus = false;
             if (!subjectKeyIdentifier && !serialNumber)
             {
-                ServiceResultException result = NUnit.Framework.Assert
+                ServiceResultException result = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false));
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
@@ -245,7 +244,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// App cert from alternate Root without KeyID.
         /// </summary>
         [Theory]
-        public async Task AlternateRootCertificateWithoutAuthorityKeyIDAsync(
+        public void AlternateRootCertificateWithoutAuthorityKeyID(
             bool rejectUnknownRevocationStatus)
         {
             ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate(
@@ -257,10 +256,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create app cert from alternate root
             using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
-            Assert.NotNull(altAppCert);
+            Assert.That(altAppCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
-            ServiceResultException result = NUnit.Framework.Assert
+            ServiceResultException result = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
 
@@ -272,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// validate that any combination of AKI is not validated.
         /// </summary>
         [Theory]
-        public async Task AlternateRootCertificateWithAuthorityKeyIDAsync(
+        public void AlternateRootCertificateWithAuthorityKeyID(
             bool subjectKeyIdentifier,
             bool issuerName,
             bool serialNumber)
@@ -299,11 +298,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create the certificate from the alternate root
             using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
-            Assert.NotNull(altAppCert);
+            Assert.That(altAppCert, Is.Not.Null);
 
             // should not pass!
             m_certValidator.RejectUnknownRevocationStatus = false;
-            ServiceResultException result = NUnit.Framework.Assert
+            ServiceResultException result = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
             TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
@@ -363,7 +362,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using (var validator = TemporaryCertValidator.Create(telemetry))
             {
                 CertificateValidator certValidator = validator.Update();
-                ServiceResultException result = NUnit.Framework.Assert
+                ServiceResultException result = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
 
@@ -376,7 +375,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                 CertificateValidator certValidator = validator.Update();
-                ServiceResultException result = NUnit.Framework.Assert
+                ServiceResultException result = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
 

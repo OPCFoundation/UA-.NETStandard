@@ -53,10 +53,10 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 instanceCertificate,
             X509Certificate2 parsedClientCertificate,
-            byte[] clientNonce,
-            byte[] serverNonce)
+            ByteString clientNonce,
+            ByteString serverNonce)
         {
-            if (parsedClientCertificate == null || clientNonce == null)
+            if (parsedClientCertificate == null || clientNonce.IsEmpty)
             {
                 return null;
             }
@@ -65,11 +65,11 @@ namespace Opc.Ua.Server
 
             byte[] dataToSign = securityPolicy.GetServerSignatureData(
                 context.ChannelContext.ChannelThumbprint,
-                clientNonce,
+                clientNonce.ToArray(),
                 context.ChannelContext.ServerChannelCertificate,
                 parsedClientCertificate.RawData,
                 context.ChannelContext.ClientChannelCertificate,
-                serverNonce);
+                serverNonce.ToArray());
 
             return SecurityPolicies.CreateSignatureData(
                 context.SecurityPolicyUri,
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            if (parameters != null && parameters.Parameters != null)
+            if (parameters != null)
             {
                 response = new AdditionalParametersType();
 
@@ -104,23 +104,27 @@ namespace Opc.Ua.Server
                         {
                             session.SetUserTokenSecurityPolicy(policyUri);
                             EphemeralKeyType key = session.GetNewEphemeralKey();
-                            response.Parameters.Add(
+                            response.Parameters =
+                            [
                                 new KeyValuePair
                                 {
                                     Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
                                     Value = new ExtensionObject(key)
-                                });
+                                }
+                            ];
 
-                            logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
+                            logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey.Length);
                         }
                         else
                         {
-                            response.Parameters.Add(
+                            response.Parameters =
+                            [
                                 new KeyValuePair
                                 {
                                     Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
                                     Value = StatusCodes.BadSecurityPolicyRejected
-                                });
+                                }
+                            ];
 
                             logger.LogWarning("Rejecting request for new EphemeralKey using {SecurityPolicyUri}.", policyUri);
                         }
@@ -145,14 +149,16 @@ namespace Opc.Ua.Server
             if (key != null)
             {
                 response = new AdditionalParametersType();
-                response.Parameters.Add(
+                response.Parameters =
+                [
                     new KeyValuePair
                     {
                         Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
                         Value = new ExtensionObject(key)
-                    });
+                    }
+                ];
 
-                logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
+                logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey.Length);
             }
 
             return response;

@@ -50,8 +50,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public StdDevAggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                WrappedValue = Variant.From(result),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
@@ -323,7 +323,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                WrappedValue = Variant.From(result),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };

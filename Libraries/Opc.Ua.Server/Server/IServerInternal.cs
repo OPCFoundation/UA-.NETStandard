@@ -289,10 +289,12 @@ namespace Opc.Ua.Server
         /// <param name="eventManager">The event manager.</param>
         /// <param name="resourceManager">The resource manager.</param>
         /// <param name="requestManager">The request manager.</param>
-        void CreateServerObject(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask CreateServerObjectAsync(
             EventManager eventManager,
             ResourceManager resourceManager,
-            RequestManager requestManager);
+            RequestManager requestManager,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Stores the MasterNodeManager and the CoreNodeManager

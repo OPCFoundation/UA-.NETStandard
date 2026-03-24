@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             // Assert (converted from FluentAssertions to NUnit)
             Assert.That(diagnostic.ToString(), Is.Not.Null.And.Not.Empty);
-            Assert.That(diagnostic.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(diagnostic.GetHashCode(), Is.Not.Zero);
             Assert.That(diagnostic.TimeStamp, Is.EqualTo(timeStamp));
             Assert.That(diagnostic.Endpoint, Is.EqualTo(endpoint));
             Assert.That(diagnostic.RemoteIpAddress, Is.EqualTo(remoteIpAddress));

@@ -47,7 +47,7 @@ namespace TestData
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
             => [Namespaces.TestData, Namespaces.TestData + "Instance"];
     }
 
@@ -447,7 +447,7 @@ namespace TestData
         /// </summary>
         protected virtual HistoryDataReader RestoreDataReader(
             ServerSystemContext context,
-            byte[] continuationPoint)
+            ByteString continuationPoint)
         {
             if (context == null ||
                 context.OperationContext == null ||
@@ -511,11 +511,10 @@ namespace TestData
             HistoryReadResult result)
         {
             var serverContext = context as ServerSystemContext;
-
-            var data = new HistoryData();
+            List<DataValue> dataValues = [];
 
             HistoryDataReader reader;
-            if (nodeToRead.ContinuationPoint != null && nodeToRead.ContinuationPoint.Length > 0)
+            if (nodeToRead.ContinuationPoint.Length > 0)
             {
                 // restore the continuation point.
                 reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
@@ -562,7 +561,7 @@ namespace TestData
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
-                    data.DataValues);
+                    dataValues);
             }
 
             // continue reading data until done or max values reached.
@@ -571,7 +570,7 @@ namespace TestData
                 timestampsToReturn,
                 nodeToRead.ParsedIndexRange,
                 nodeToRead.DataEncoding,
-                data.DataValues);
+                dataValues);
 
             // save continuation point.
             if (!complete)
@@ -579,6 +578,11 @@ namespace TestData
                 SaveDataReader(serverContext, reader);
                 result.StatusCode = StatusCodes.GoodMoreData;
             }
+
+            var data = new HistoryData
+            {
+                DataValues = dataValues
+            };
 
             // return the dat.
             result.HistoryData = new ExtensionObject(data);
@@ -593,7 +597,7 @@ namespace TestData
             ServerSystemContext context,
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
@@ -635,7 +639,7 @@ namespace TestData
         /// </summary>
         protected override void HistoryReleaseContinuationPoints(
             ServerSystemContext context,
-            IList<HistoryReadValueId> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             IList<ServiceResult> errors,
             List<NodeHandle> nodesToProcess,
             IDictionary<NodeId, NodeState> cache)

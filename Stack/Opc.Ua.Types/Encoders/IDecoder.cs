@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -54,16 +53,21 @@ namespace Opc.Ua
         void Close();
 
         /// <summary>
-        /// Initializes the tables used to map namespace and server uris during decoding.
+        /// Initializes the tables used to map namespace and server
+        /// uris during decoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
-        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
-        void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
+        /// <param name="namespaceUris">The namespaces URIs referenced
+        /// by the data being decoded.</param>
+        /// <param name="serverUris">The server URIs referenced by the
+        /// data being decoded.</param>
+        void SetMappingTables(
+            NamespaceTable namespaceUris, StringTable serverUris);
 
         /// <summary>
-        /// Decodes a message.
+        /// Decodes a message of the specified type.
         /// </summary>
-        IEncodeable DecodeMessage(Type expectedType);
+        /// <typeparam name="T">The type of the message to read</typeparam>
+        T DecodeMessage<T>() where T : IEncodeable;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -138,7 +142,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a UTC date/time from the stream.
         /// </summary>
-        DateTime ReadDateTime(string fieldName);
+        DateTimeUtc ReadDateTime(string fieldName);
 
         /// <summary>
         /// Reads a GUID from the stream.
@@ -148,7 +152,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a byte string from the stream.
         /// </summary>
-        byte[] ReadByteString(string fieldName);
+        ByteString ReadByteString(string fieldName);
 
         /// <summary>
         /// Reads an XmlElement from the stream.
@@ -203,189 +207,247 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an encodeable object from the stream.
         /// </summary>
+        /// <typeparam name="T">The type of the encodeable object to be read
+        /// </typeparam>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encodeable object to be read</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        IEncodeable ReadEncodeable(
-            string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default);
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/>
+        /// instance that will be read.</param>
+        /// <returns>A type of type <see cref="IEncodeable"/> that was read
+        /// from the stream.</returns>
+        T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable;
 
         /// <summary>
-        ///  Reads an enumerated value from the stream.
+        /// Reads an encodeable object from the stream.
         /// </summary>
-        Enum ReadEnumerated(string fieldName, Type enumType);
+        /// <typeparam name="T">The type of the encodeable object to be read
+        /// </typeparam>
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <returns>A type of type <see cref="IEncodeable"/> that was read
+        /// from the stream.</returns>
+        T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new();
+
+        /// <summary>
+        /// Read the encodeable as an extension object from the stream.
+        /// The encodeable is wrapped in an extension object if the field
+        /// in a structure is abstract or allows subtypes. While the returned
+        /// value is of type T, it is likely a subtype of T.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        T ReadEncodeableAsExtensionObject<T>(string fieldName)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Reads an enumerated value from the stream.
+        /// </summary>
+        /// <typeparam name="T">The type of the enum to be read</typeparam>
+        T ReadEnumerated<T>(string fieldName) where T : struct, Enum;
 
         /// <summary>
         /// Reads a boolean array from the stream.
         /// </summary>
-        BooleanCollection ReadBooleanArray(string fieldName);
+        ArrayOf<bool> ReadBooleanArray(string fieldName);
 
         /// <summary>
         /// Reads a sbyte array from the stream.
         /// </summary>
-        SByteCollection ReadSByteArray(string fieldName);
+        ArrayOf<sbyte> ReadSByteArray(string fieldName);
 
         /// <summary>
         /// Reads a byte array from the stream.
         /// </summary>
-        ByteCollection ReadByteArray(string fieldName);
+        ArrayOf<byte> ReadByteArray(string fieldName);
 
         /// <summary>
         /// Reads a short array from the stream.
         /// </summary>
-        Int16Collection ReadInt16Array(string fieldName);
+        ArrayOf<short> ReadInt16Array(string fieldName);
 
         /// <summary>
         /// Reads a ushort array from the stream.
         /// </summary>
-        UInt16Collection ReadUInt16Array(string fieldName);
+        ArrayOf<ushort> ReadUInt16Array(string fieldName);
 
         /// <summary>
         /// Reads a int array from the stream.
         /// </summary>
-        Int32Collection ReadInt32Array(string fieldName);
+        ArrayOf<int> ReadInt32Array(string fieldName);
 
         /// <summary>
         /// Reads a uint array from the stream.
         /// </summary>
-        UInt32Collection ReadUInt32Array(string fieldName);
+        ArrayOf<uint> ReadUInt32Array(string fieldName);
 
         /// <summary>
         /// Reads a long array from the stream.
         /// </summary>
-        Int64Collection ReadInt64Array(string fieldName);
+        ArrayOf<long> ReadInt64Array(string fieldName);
 
         /// <summary>
         /// Reads a ulong array from the stream.
         /// </summary>
-        UInt64Collection ReadUInt64Array(string fieldName);
+        ArrayOf<ulong> ReadUInt64Array(string fieldName);
 
         /// <summary>
         /// Reads a float array from the stream.
         /// </summary>
-        FloatCollection ReadFloatArray(string fieldName);
+        ArrayOf<float> ReadFloatArray(string fieldName);
 
         /// <summary>
         /// Reads a double array from the stream.
         /// </summary>
-        DoubleCollection ReadDoubleArray(string fieldName);
+        ArrayOf<double> ReadDoubleArray(string fieldName);
 
         /// <summary>
         /// Reads a string array from the stream.
         /// </summary>
-        StringCollection ReadStringArray(string fieldName);
+        ArrayOf<string> ReadStringArray(string fieldName);
 
         /// <summary>
         /// Reads a UTC date/time array from the stream.
         /// </summary>
-        DateTimeCollection ReadDateTimeArray(string fieldName);
+        ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName);
 
         /// <summary>
         /// Reads a GUID array from the stream.
         /// </summary>
-        UuidCollection ReadGuidArray(string fieldName);
+        ArrayOf<Uuid> ReadGuidArray(string fieldName);
 
         /// <summary>
         /// Reads a byte string array from the stream.
         /// </summary>
-        ByteStringCollection ReadByteStringArray(string fieldName);
+        ArrayOf<ByteString> ReadByteStringArray(string fieldName);
 
         /// <summary>
         /// Reads an XmlElement array from the stream.
         /// </summary>
-        XmlElementCollection ReadXmlElementArray(string fieldName);
+        ArrayOf<XmlElement> ReadXmlElementArray(string fieldName);
 
         /// <summary>
         /// Reads an NodeId array from the stream.
         /// </summary>
-        NodeIdCollection ReadNodeIdArray(string fieldName);
+        ArrayOf<NodeId> ReadNodeIdArray(string fieldName);
 
         /// <summary>
         /// Reads an ExpandedNodeId array from the stream.
         /// </summary>
-        ExpandedNodeIdCollection ReadExpandedNodeIdArray(string fieldName);
+        ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName);
 
         /// <summary>
         /// Reads an StatusCode array from the stream.
         /// </summary>
-        StatusCodeCollection ReadStatusCodeArray(string fieldName);
+        ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName);
 
         /// <summary>
         /// Reads an DiagnosticInfo array from the stream.
         /// </summary>
-        DiagnosticInfoCollection ReadDiagnosticInfoArray(string fieldName);
+        ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName);
 
         /// <summary>
         /// Reads an QualifiedName array from the stream.
         /// </summary>
-        QualifiedNameCollection ReadQualifiedNameArray(string fieldName);
+        ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName);
 
         /// <summary>
         /// Reads an LocalizedText array from the stream.
         /// </summary>
-        LocalizedTextCollection ReadLocalizedTextArray(string fieldName);
+        ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName);
 
         /// <summary>
         /// Reads an Variant array from the stream.
         /// </summary>
-        VariantCollection ReadVariantArray(string fieldName);
+        ArrayOf<Variant> ReadVariantArray(string fieldName);
 
         /// <summary>
         /// Reads an DataValue array from the stream.
         /// </summary>
-        DataValueCollection ReadDataValueArray(string fieldName);
+        ArrayOf<DataValue> ReadDataValueArray(string fieldName);
 
         /// <summary>
         /// Reads an extension object array from the stream.
         /// </summary>
-        ExtensionObjectCollection ReadExtensionObjectArray(string fieldName);
+        ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName);
 
         /// <summary>
         /// Reads an encodeable array from the stream.
         /// </summary>
-        /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        Array ReadEncodeableArray(
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
+        ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new();
+
+        /// <summary>
+        /// Reads an encodeable array from the stream.
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
+        ArrayOf<T> ReadEncodeableArray<T>(
             string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default);
+            ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Read the list of encodeables as extension objects from the
+        /// stream. The structure is wrapped in an extension object if
+        /// the field in a structure is abstract or allows subtypes.
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
+        ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Read a matrix of structures (fields inside a structure).
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable objects to be read
+        /// </typeparam>
+        /// <returns>A matrix of types of type <see cref="IEncodeable"/></returns>
+        MatrixOf<T> ReadEncodeableMatrix<T>(
+            string fieldName,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        Array ReadEnumeratedArray(string fieldName, Type enumType);
+        /// <typeparam name="T">The type of the enum to be read</typeparam>
+        ArrayOf<T> ReadEnumeratedArray<T>(string fieldName)
+            where T : struct, Enum;
 
         /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType.
+        /// Reads a value of a <see cref="Variant"/> from the stream with
+        /// the specified TypeInfo.
         /// </summary>
-        /// <param name="fieldName">The array field name.</param>
-        /// <param name="valueRank">The value rank of the array.</param>
-        /// <param name="builtInType">The builtInType of the array elements.</param>
-        /// <param name="systemType">The system type of an encodeable or enum element of the array.</param>
-        /// <param name="encodeableTypeId">The type id of an encodeable or enum element of the array.</param>
-        /// <returns>An array of the specified builtInType, systemType or encodeableTypeId.</returns>
-        Array ReadArray(
-            string fieldName,
-            int valueRank,
-            BuiltInType builtInType,
-            Type systemType = null,
-            ExpandedNodeId encodeableTypeId = default);
+        /// <remarks>
+        /// Replaced the former untyped ReadArray method to read any value
+        /// corresponding to the type information. The value is not read using
+        /// the defined variant encoding, but using the encoding defined by
+        /// the type information provided.
+        /// </remarks>
+        /// <param name="fieldName">The field name.</param>
+        /// <param name="typeInfo">The type info deciding the encoding to use
+        /// for the built in type.</param>
+        /// <returns></returns>
+        Variant ReadVariantValue(string fieldName, TypeInfo typeInfo);
 
         /// <summary>
         /// Decode the switch field for a union.
         /// </summary>
-        /// <param name="switches">The list of field names in the order of the union selector.</param>
-        /// <param name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</param>
+        /// <param name="switches">The list of field names in the order of
+        /// the union selector.</param>
+        /// <param name="fieldName">Returns an alternate fieldName for the
+        /// encoded union property if the encoder requires it, null
+        /// otherwise.</param>
         uint ReadSwitchField(IList<string> switches, out string fieldName);
 
         /// <summary>
         /// Decode the encoding mask for a structure with optional fields.
         /// </summary>
-        /// <param name="masks">The list of field names in the order of the bits in the optional fields mask.</param>
+        /// <param name="masks">The list of field names in the order of the
+        /// bits in the optional fields mask.</param>
         uint ReadEncodingMask(IList<string> masks);
     }
 }

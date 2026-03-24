@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+
 namespace Opc.Ua
 {
     public partial class ProgramStateMachineState
@@ -157,12 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected override uint[,] CauseMappings => m_causeMappings;
-
-        /// <summary>
-        /// A table of transitions for the available causes.
-        /// </summary>
-        private readonly uint[,] m_causeMappings = new uint[,]
+        protected override uint[,] CauseMappings { get; } = new uint[,]
         {
             {
                 Methods.ProgramStateMachineType_Reset,
@@ -223,12 +220,12 @@ namespace Opc.Ua
         protected override void UpdateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
             ServiceResult result)
         {
-            base.UpdateAuditEvent(context, causeMethod, inputArguments.ToArray(), causeId, e, result);
+            base.UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
             // update program specific event fields.
             if (ServiceResult.IsGood(result) && e is ProgramTransitionAuditEventState e2)
@@ -283,8 +280,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnStart(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return DoCause(
                 context,
@@ -324,8 +321,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnSuspend(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return DoCause(
                 context,
@@ -365,8 +362,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnResume(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return DoCause(
                 context,
@@ -406,8 +403,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnHalt(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return DoCause(
                 context,
@@ -447,8 +444,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnReset(
             ISystemContext context,
             MethodState method,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             return DoCause(
                 context,

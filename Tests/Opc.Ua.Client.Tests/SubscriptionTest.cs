@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -130,7 +129,7 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine(
                             "{0}: {1}, {2}, {3}",
                             item.DisplayName,
-                            value.Value,
+                            value.WrappedValue,
                             value.SourceTimestamp,
                             value.StatusCode);
                     }
@@ -151,24 +150,24 @@ namespace Opc.Ua.Client.Tests
                     e.Status);
 
             subscription.AddItem(list[0]);
-            Assert.AreEqual(1, subscription.MonitoredItemCount);
-            Assert.True(subscription.ChangesPending);
-            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(subscription.ChangesPending, Is.True);
+            Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = Session.AddSubscription(subscription);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.False(result);
+            Assert.That(result, Is.False);
             result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
             await subscription.CreateAsync().ConfigureAwait(false);
 
             // add state
@@ -191,7 +190,7 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine(
                             "{0}: {1}, {2}, {3}",
                             item.DisplayName,
-                            value.Value,
+                            value.WrappedValue,
                             value.SourceTimestamp,
                             value.StatusCode);
                     }
@@ -199,10 +198,10 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItems(list2);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-            Assert.False(subscription.PublishingEnabled);
+            Assert.That(subscription.PublishingEnabled, Is.False);
             await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
-            Assert.True(subscription.PublishingEnabled);
-            Assert.False(subscription.PublishingStopped);
+            Assert.That(subscription.PublishingEnabled, Is.True);
+            Assert.That(subscription.PublishingStopped, Is.False);
 
             subscription.Priority = 200;
             await subscription.ModifyAsync().ConfigureAwait(false);
@@ -214,22 +213,22 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            ServiceResultException sre = NUnit.Framework.Assert
+            ServiceResultException sre = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await subscription.RepublishAsync(subscription.SequenceNumber + 100)
                     .ConfigureAwait(false));
-            Assert.AreEqual(
-                StatusCodes.BadMessageNotAvailable,
+            Assert.That(
                 sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadMessageNotAvailable),
                 $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (Subscription s in Session.Subscriptions)
             {
-                Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                Assert.That(s.GetType(), Is.EqualTo(typeof(TestableSubscription)));
                 foreach (MonitoredItem m in s.MonitoredItems)
                 {
-                    Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                    Assert.That(m.GetType(), Is.EqualTo(typeof(TestableMonitoredItem)));
                 }
             }
 
@@ -239,7 +238,7 @@ namespace Opc.Ua.Client.Tests
             subscription.RemoveItem(list2[0]);
 
             result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -248,7 +247,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(m_subscriptionTestXml))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore($"Save file {m_subscriptionTestXml} does not exist yet");
             }
 
@@ -256,7 +255,7 @@ namespace Opc.Ua.Client.Tests
             IEnumerable<Subscription> subscriptions = Session.Load(
                 m_subscriptionTestXml,
                 false);
-            Assert.NotNull(subscriptions);
+            Assert.That(subscriptions, Is.Not.Null);
             Assert.IsNotEmpty(subscriptions);
 
             int valueChanges = 0;
@@ -273,7 +272,7 @@ namespace Opc.Ua.Client.Tests
                             TestContext.Out.WriteLine(
                                 "{0}: {1}, {2}, {3}",
                                 item.DisplayName,
-                                value.Value,
+                                value.WrappedValue,
                                 value.SourceTimestamp,
                                 value.StatusCode);
                         }
@@ -287,7 +286,7 @@ namespace Opc.Ua.Client.Tests
 
             TestContext.Out.WriteLine("{0} value changes.", valueChanges);
 
-            Assert.GreaterOrEqual(valueChanges, 10);
+            Assert.That(valueChanges, Is.GreaterThanOrEqualTo(10));
 
             foreach (Subscription subscription in Session.Subscriptions)
             {
@@ -296,7 +295,7 @@ namespace Opc.Ua.Client.Tests
 
             bool result = await Session.RemoveSubscriptionsAsync(subscriptions)
                 .ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         [Theory]
@@ -311,7 +310,7 @@ namespace Opc.Ua.Client.Tests
         public async Task SequentialPublishingSubscriptionAsync(bool enabled)
         {
             var subscriptionList = new List<Subscription>();
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new List<uint>();
             var sequenceBroken = new AutoResetEvent(false);
             long numOfNotifications = 0L;
             const int testWaitTime = 10000;
@@ -356,7 +355,7 @@ namespace Opc.Ua.Client.Tests
             foreach (Subscription s in subscriptionList)
             {
                 bool boolResult = Session.AddSubscription(s);
-                Assert.True(boolResult);
+                Assert.That(boolResult, Is.True);
                 await s.CreateAsync().ConfigureAwait(false);
                 int publishInterval = (int)s.CurrentPublishingInterval;
                 TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
@@ -424,7 +423,7 @@ namespace Opc.Ua.Client.Tests
             foreach (Subscription s in subscriptionList)
             {
                 bool result = await Session.RemoveSubscriptionAsync(s).ConfigureAwait(false);
-                Assert.True(result);
+                Assert.That(result, Is.True);
             }
 
             TestContext.Out.WriteLine($"Number of notifications: {totalNotifications:N0}");
@@ -436,12 +435,12 @@ namespace Opc.Ua.Client.Tests
             // The issue more unlikely seem to appear on .NET 6 in the given timeframe
             if (!enabled && !failed)
             {
-                NUnit.Framework.Assert
+                Assert
                     .Inconclusive("The test couldn't validate the issue on this platform");
             }
 
             // catch if expected/unexpected Out-of-sequence occurred
-            Assert.AreEqual(enabled, !failed);
+            Assert.That(!failed, Is.EqualTo(enabled));
         }
 
         /// <summary>
@@ -481,9 +480,9 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.RSA_DH_AesGcm,
                 SecurityPolicies.RSA_DH_ChaChaPoly)]
                 string securityPolicy,
-            [Values(true, false)] bool anonymous,
-            [Values(true, false)] bool sequentialPublishing,
-            [Values(true, false)] bool sendInitialValues)
+            [Values] bool anonymous,
+            [Values] bool sequentialPublishing,
+            [Values] bool sendInitialValues)
         {
             return ReconnectWithSavedSessionSecretsAsync(
                 securityPolicy,
@@ -492,7 +491,7 @@ namespace Opc.Ua.Client.Tests
                 sendInitialValues);
         }
 
-        public async Task ReconnectWithSavedSessionSecretsAsync(
+        private async Task ReconnectWithSavedSessionSecretsAsync(
             string securityPolicy,
             bool anonymous,
             bool sequentialPublishing,
@@ -515,7 +514,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
-            Assert.NotNull(endpoint);
+            Assert.That(endpoint, Is.Not.Null);
 
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
@@ -523,14 +522,14 @@ namespace Opc.Ua.Client.Tests
                 endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
             // the active channel
             ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
-            Assert.NotNull(session1);
+            Assert.That(session1, Is.Not.Null);
             NodeId sessionId1 = session1.SessionId;
 
             int session1ConfigChanged = 0;
@@ -538,7 +537,7 @@ namespace Opc.Ua.Client.Tests
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
-            Assert.NotNull(value1);
+            Assert.That(value1, Is.Not.Null);
 
             var originSubscriptions = new SubscriptionCollection(kTestSubscriptions);
             int[] originSubscriptionCounters = new int[kTestSubscriptions];
@@ -593,7 +592,7 @@ namespace Opc.Ua.Client.Tests
             ITransportChannel channel2 = await ClientFixture
                 .CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false)
                 .ConfigureAwait(false);
-            Assert.NotNull(channel2);
+            Assert.That(channel2, Is.Not.Null);
 
             // prepare the inactive session with the new channel
             ISession session2 = ClientFixture.CreateSession(
@@ -634,7 +633,7 @@ namespace Opc.Ua.Client.Tests
                                     "Tra:{0}: {1:20}, {2}, {3}, {4}",
                                     subscription.Id,
                                     item.DisplayName,
-                                    value.Value,
+                                    value.WrappedValue,
                                     value.SourceTimestamp,
                                     value.StatusCode);
                             }
@@ -652,18 +651,18 @@ namespace Opc.Ua.Client.Tests
             bool reactivateResult = await session2
                 .ReactivateSubscriptionsAsync(restoredSubscriptions, sendInitialValues)
                 .ConfigureAwait(false);
-            Assert.IsTrue(reactivateResult);
+            Assert.That(reactivateResult, Is.True);
 
             await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
             try
             {
-                Assert.AreEqual(sessionId1, session2.SessionId);
+                Assert.That(session2.SessionId, Is.EqualTo(sessionId1));
 
                 DataValue value2 = await session2
                     .ReadValueAsync(VariableIds.Server_ServerStatus)
                     .ConfigureAwait(false);
-                Assert.NotNull(value2);
+                Assert.That(value2, Is.Not.Null);
 
                 for (ii = 0; ii < kTestSubscriptions; ii++)
                 {
@@ -673,24 +672,24 @@ namespace Opc.Ua.Client.Tests
                     // the static subscription doesn't resend data until there is a data change
                     if (ii == 0 && !sendInitialValues)
                     {
-                        Assert.AreEqual(0, targetSubscriptionCounters[ii], errorText);
-                        Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii], errorText);
+                        Assert.That(targetSubscriptionCounters[ii], Is.Zero, errorText);
+                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.Zero, errorText);
                     }
                     else if (ii == 0)
                     {
-                        Assert.AreEqual(
-                            monitoredItemCount,
+                        Assert.That(
                             targetSubscriptionCounters[ii],
+                            Is.EqualTo(monitoredItemCount),
                             errorText);
-                        Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.EqualTo(1), errorText);
                     }
                     else
                     {
-                        Assert.LessOrEqual(
-                            monitoredItemCount,
+                        Assert.That(
                             targetSubscriptionCounters[ii],
+                            Is.GreaterThanOrEqualTo(monitoredItemCount),
                             errorText);
-                        Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                        Assert.That(targetSubscriptionFastDataCounters[ii], Is.GreaterThanOrEqualTo(1), errorText);
                     }
                 }
 
@@ -699,10 +698,10 @@ namespace Opc.Ua.Client.Tests
                 // verify that reconnect created subclassed version of subscription and monitored item
                 foreach (Subscription s in session2.Subscriptions)
                 {
-                    Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                    Assert.That(s.GetType(), Is.EqualTo(typeof(TestableSubscription)));
                     foreach (MonitoredItem m in s.MonitoredItems)
                     {
-                        Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                        Assert.That(m.GetType(), Is.EqualTo(typeof(TestableMonitoredItem)));
                     }
                 }
 
@@ -710,12 +709,12 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                    sre = Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
-                    Assert.AreEqual(
-                        StatusCodes.BadSecureChannelIdInvalid,
+                    Assert.That(
                         sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
                         sre.Message);
                 }
                 else
@@ -723,7 +722,7 @@ namespace Opc.Ua.Client.Tests
                     ServerStatusDataType result =
                         await session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                    Assert.NotNull(result);
+                    Assert.That(result, Is.Not.Null);
                 }
             }
             finally
@@ -736,8 +735,8 @@ namespace Opc.Ua.Client.Tests
                 Utils.SilentDispose(session2);
             }
 
-            Assert.AreEqual(0, session1ConfigChanged);
-            Assert.Less(0, session2ConfigChanged);
+            Assert.That(session1ConfigChanged, Is.Zero);
+            Assert.That(session2ConfigChanged, Is.GreaterThanOrEqualTo(0));
         }
 
         [Test]
@@ -780,10 +779,10 @@ namespace Opc.Ua.Client.Tests
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
                 subscription.AddItems(list);
-                NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
+                Assert.ThrowsAsync<ServiceResultException>(
                     () => subscription.CreateAsync());
                 bool result = Session.AddSubscription(subscription);
-                Assert.True(result);
+                Assert.That(result, Is.True);
                 await subscription.CreateAsync().ConfigureAwait(false);
                 int publishInterval = (int)subscription.CurrentPublishingInterval;
 
@@ -799,9 +798,9 @@ namespace Opc.Ua.Client.Tests
             while (stopwatch.ElapsedMilliseconds < testWaitTime)
             {
                 // use the sample server default for max publish request count
-                Assert.GreaterOrEqual(
+                Assert.That(
                     Math.Max(maxServerPublishRequest, subscriptions),
-                    Session.GoodPublishRequestCount,
+                    Is.GreaterThanOrEqualTo(Session.GoodPublishRequestCount),
                     "No. of Good Publish Requests shall be at max count of subscriptions");
                 await Task.Delay(100).ConfigureAwait(false);
             }
@@ -810,7 +809,7 @@ namespace Opc.Ua.Client.Tests
             {
                 bool result = await Session.RemoveSubscriptionAsync(subscription)
                     .ConfigureAwait(false);
-                Assert.True(result);
+                Assert.That(result, Is.True);
             }
         }
 
@@ -887,7 +886,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        public async Task InternalTransferSubscriptionAsync(
+        private async Task InternalTransferSubscriptionAsync(
             TransferType transferType,
             bool sendInitialValues,
             bool sequentialPublishing)
@@ -990,7 +989,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     // graceful close
                     StatusCode close = await originSession.CloseAsync().ConfigureAwait(false);
-                    Assert.True(ServiceResult.IsGood(close));
+                    Assert.That(ServiceResult.IsGood(close), Is.True);
                 }
                 else
                 {
@@ -1050,7 +1049,7 @@ namespace Opc.Ua.Client.Tests
                                         "Tra:{0}: {1:20}, {2}, {3}, {4}",
                                         subscription.Id,
                                         item.DisplayName,
-                                        value.Value,
+                                        value.WrappedValue,
                                         value.SourceTimestamp,
                                         value.StatusCode);
                                 }
@@ -1089,7 +1088,7 @@ namespace Opc.Ua.Client.Tests
                                         "Tra:{0}: {1:20}, {2}, {3}, {4}",
                                         s.Id,
                                         item.DisplayName,
-                                        value.Value,
+                                        value.WrappedValue,
                                         value.SourceTimestamp,
                                         value.StatusCode);
                                 }
@@ -1107,12 +1106,12 @@ namespace Opc.Ua.Client.Tests
             bool result = await targetSession
                 .TransferSubscriptionsAsync(transferSubscriptions, sendInitialValues)
                 .ConfigureAwait(false);
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
 
             // validate results
             for (int ii = 0; ii < transferSubscriptions.Count; ii++)
             {
-                Assert.IsTrue(transferSubscriptions[ii].Created);
+                Assert.That(transferSubscriptions[ii].Created, Is.True);
             }
 
             TestContext.Out
@@ -1126,7 +1125,7 @@ namespace Opc.Ua.Client.Tests
                 foreach (Subscription subscription in originSubscriptions)
                 {
                     // assert if originSubscriptionTransferred is incremented
-                    Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
+                    Assert.That(originSubscriptionTransferred[(int)subscription.Handle], Is.EqualTo(1));
                 }
             }
 
@@ -1165,14 +1164,14 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     // static nodes, expect only one set of changes, another one if send initial values was set
-                    Assert.AreEqual(originExpectedCount, originSubscriptionCounters[jj]);
-                    Assert.AreEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                    Assert.That(originSubscriptionCounters[jj], Is.EqualTo(originExpectedCount));
+                    Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(targetExpectedCount));
                 }
                 else
                 {
                     // dynamic nodes, expect only one set of changes, another one if send initial values was set
-                    Assert.LessOrEqual(originExpectedCount, originSubscriptionCounters[jj]);
-                    Assert.LessOrEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                    Assert.That(originSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(originExpectedCount));
+                    Assert.That(targetSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(targetExpectedCount));
                 }
             }
 
@@ -1215,14 +1214,14 @@ namespace Opc.Ua.Client.Tests
                 if (jj == 0)
                 {
                     // static nodes, expect no activity
-                    Assert.AreEqual(0, testCounter[jj]);
-                    Assert.AreEqual(0, testFastDataCounter[jj]);
+                    Assert.That(testCounter[jj], Is.Zero);
+                    Assert.That(testFastDataCounter[jj], Is.Zero);
                 }
                 else
                 {
                     // dynamic nodes, expect changes in target counters
-                    Assert.Less(0, testCounter[jj]);
-                    Assert.Less(0, testFastDataCounter[jj]);
+                    Assert.That(testCounter[jj], Is.GreaterThanOrEqualTo(0));
+                    Assert.That(testFastDataCounter[jj], Is.GreaterThanOrEqualTo(0));
                 }
             }
 
@@ -1230,12 +1229,12 @@ namespace Opc.Ua.Client.Tests
 
             // close sessions
             StatusCode closeResult = await targetSession.CloseAsync().ConfigureAwait(false);
-            Assert.True(ServiceResult.IsGood(closeResult));
+            Assert.That(ServiceResult.IsGood(closeResult), Is.True);
 
             if (originSessionOpen)
             {
                 closeResult = await originSession.CloseAsync().ConfigureAwait(false);
-                Assert.True(ServiceResult.IsGood(closeResult));
+                Assert.That(ServiceResult.IsGood(closeResult), Is.True);
             }
 
             // cleanup
@@ -1279,7 +1278,7 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine(
                             "{0}: {1}, {2}, {3}",
                             item.DisplayName,
-                            value.Value,
+                            value.WrappedValue,
                             value.SourceTimestamp,
                             value.StatusCode);
                     }
@@ -1310,15 +1309,15 @@ namespace Opc.Ua.Client.Tests
             };
 
             bool result = Session.AddSubscription(subscription);
-            Assert.True(result);
+            Assert.That(result, Is.True);
 
             await subscription.CreateAsync().ConfigureAwait(false);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-            Assert.False(subscription.PublishingEnabled);
+            Assert.That(subscription.PublishingEnabled, Is.False);
             await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
-            Assert.True(subscription.PublishingEnabled);
-            Assert.False(subscription.PublishingStopped);
+            Assert.That(subscription.PublishingEnabled, Is.True);
+            Assert.That(subscription.PublishingStopped, Is.False);
 
             subscription.Priority = 55;
             await subscription.ModifyAsync().ConfigureAwait(false);
@@ -1330,38 +1329,38 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             // expect at least half number of keep alive notifications
-            Assert.Greater(
+            Assert.That(
                 numOfKeepAliveNotifications,
-                delay / subscription.PublishingInterval / 2);
-            Assert.AreEqual(1, numOfDataChangeNotifications);
+                Is.GreaterThan(delay / subscription.PublishingInterval / 2));
+            Assert.That(numOfDataChangeNotifications, Is.EqualTo(1));
 
             TestContext.Out.WriteLine("Call ResendData.");
             bool resendData = await subscription.ResendDataAsync().ConfigureAwait(false);
-            Assert.True(resendData);
+            Assert.That(resendData, Is.True);
 
             await Task.Delay(delay).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
-            Assert.AreEqual(2, numOfDataChangeNotifications);
+            Assert.That(numOfDataChangeNotifications, Is.EqualTo(2));
 
             TestContext.Out.WriteLine("Call ConditionRefresh.");
             bool conditionRefresh =
                 await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            Assert.True(conditionRefresh);
+            Assert.That(conditionRefresh, Is.True);
 
             ServiceResultException sre =
-                NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                Assert.ThrowsAsync<ServiceResultException>(() =>
                     subscription.RepublishAsync(subscription.SequenceNumber + 100));
-            Assert.AreEqual(
-                StatusCodes.BadMessageNotAvailable,
-                sre.StatusCode);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadMessageNotAvailable));
 
             subscription.RemoveItems(list);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
 
             result = await Session.RemoveSubscriptionAsync(
                 subscription).ConfigureAwait(false);
-            Assert.True(result);
+            Assert.That(result, Is.True);
         }
 
         private async Task CreateSubscriptionsAsync(
@@ -1428,7 +1427,7 @@ namespace Opc.Ua.Client.Tests
                                 "Org:{0}: {1:20}, {2}, {3}, {4}",
                                 subscription.Id,
                                 item.DisplayName,
-                                value.Value,
+                                value.WrappedValue,
                                 value.SourceTimestamp,
                                 value.StatusCode);
                         }
@@ -1532,16 +1531,16 @@ namespace Opc.Ua.Client.Tests
             SetTriggeringResponse response = await subscription.SetTriggeringAsync(
                 triggeringItem,
                 linksToAdd,
-                null,
+                default,
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(response, Is.Not.Null);
 
             // Verify the triggering relationships are tracked
-            Assert.That(triggeringItem.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItem.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItem.TriggeredItems.Count, Is.EqualTo(2));
-            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem1.ClientHandle));
-            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem2.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem1.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem2.ClientHandle));
 
             Assert.That(triggeredItem1.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
             Assert.That(triggeredItem2.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
@@ -1553,7 +1552,7 @@ namespace Opc.Ua.Client.Tests
             MonitoredItemState triggeringItemState = state.MonitoredItems
                 .FirstOrDefault(m => m.ClientId == triggeringItem.ClientHandle);
             Assert.That(triggeringItemState, Is.Not.Null);
-            Assert.That(triggeringItemState.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItemState.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItemState.TriggeredItems.Count, Is.EqualTo(2));
 
             // Clean up
@@ -1591,14 +1590,14 @@ namespace Opc.Ua.Client.Tests
             // Simulate concurrent CreateItemsAsync calls
             // Use 3 concurrent tasks to ensure at least 2 will race with each other
             const int concurrentTasks = 3;
-            var tasks = new List<Task<IList<MonitoredItem>>>();
+            var tasks = new List<Task<ArrayOf<MonitoredItem>>>();
             for (int i = 0; i < concurrentTasks; i++)
             {
                 tasks.Add(Task.Run(() =>
                     subscription.CreateItemsAsync(CancellationToken.None)));
             }
 
-            IList<MonitoredItem>[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            ArrayOf<MonitoredItem>[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
             // Verify that all items were created exactly once
             int totalCreated = 0;
@@ -1618,7 +1617,7 @@ namespace Opc.Ua.Client.Tests
             // Verify that each result list contains only the items that were actually created
             // by that specific call (should be empty for concurrent calls after the first)
             int nonEmptyResults = 0;
-            foreach (IList<MonitoredItem> result in results)
+            foreach (ArrayOf<MonitoredItem> result in results)
             {
                 if (result.Count > 0)
                 {

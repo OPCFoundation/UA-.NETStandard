@@ -35,7 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -154,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -163,7 +162,7 @@ namespace Opc.Ua.Client.Tests
                 session = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(session, "Failed to create session");
+                Assert.That(session, Is.Not.Null, "Failed to create session");
 
                 // Create subscription
                 subscription = new Subscription(session.DefaultSubscription)
@@ -231,7 +230,7 @@ namespace Opc.Ua.Client.Tests
                 ISession writerSession = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(writerSession, "Failed to create writer session");
+                Assert.That(writerSession, Is.Not.Null, "Failed to create writer session");
 
                 // Writer task - continuously write values
                 int writeCount = 0;
@@ -241,10 +240,11 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
 
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -255,6 +255,7 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
 
                         try
@@ -419,11 +420,11 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Assertions
-                Assert.IsTrue(allNodesReceivedData, "Not all nodes received expected data");
-                Assert.AreEqual(0, errors.Count, $"Test encountered {errors.Count} errors");
-                Assert.GreaterOrEqual(
+                Assert.That(allNodesReceivedData, Is.True, "Not all nodes received expected data");
+                Assert.That(errors.Count, Is.Zero, $"Test encountered {errors.Count} errors");
+                Assert.That(
                     totalNotifications,
-                    expectedMinNotifications,
+                    Is.GreaterThanOrEqualTo(expectedMinNotifications),
                     "Total notifications received is less than expected minimum");
 
                 TestContext.Out.WriteLine("Connection stability test PASSED");

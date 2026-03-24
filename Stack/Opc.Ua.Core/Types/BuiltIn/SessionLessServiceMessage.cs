@@ -120,7 +120,7 @@ namespace Opc.Ua
                 }
 
                 encoder.WriteUInt32("ServiceId", numericId);
-                encoder.WriteEncodeable("Body", Message, null);
+                encoder.WriteEncodeable("Body", Message, Message.TypeId);
             }
             else
             {
@@ -134,35 +134,26 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            StringCollection uris = decoder.ReadStringArray("NamespaceUris");
+            ArrayOf<string> uris = decoder.ReadStringArray("NamespaceUris");
 
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    NamespaceUris.Append(uri);
-                }
+                NamespaceUris.Append(uri);
             }
 
             ServerUris = new StringTable();
             uris = decoder.ReadStringArray("ServerUris");
 
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    ServerUris.Append(uri);
-                }
+                ServerUris.Append(uri);
             }
 
             LocaleIds = new StringTable();
             uris = decoder.ReadStringArray("LocaleIds");
-            if (uris != null && uris.Count > 0)
+            foreach (string uri in uris)
             {
-                foreach (string uri in uris)
-                {
-                    LocaleIds.Append(uri);
-                }
+                LocaleIds.Append(uri);
             }
 
             decoder.SetMappingTables(NamespaceUris, ServerUris);
@@ -171,14 +162,12 @@ namespace Opc.Ua
 
             if (typeId > 0)
             {
-                Type systemType =
-                    decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0))
-                    ?? throw ServiceResultException.Create(
+                Message =
+                    decoder.ReadEncodeable<IEncodeable>("Body", new ExpandedNodeId(typeId, 0)) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "SessionLessServiceMessage message body has an unknown TypeId. {0}",
                         typeId);
-
-                Message = decoder.ReadEncodeable("Body", systemType);
             }
         }
     }

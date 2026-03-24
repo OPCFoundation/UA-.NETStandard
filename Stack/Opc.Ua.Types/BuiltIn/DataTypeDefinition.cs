@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -63,73 +61,5 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public abstract object Clone();
-    }
-
-    /// <summary>
-    /// Data type definition collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfDataTypeDefinition",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "DataTypeDefinition")]
-    public class DataTypeDefinitionCollection : List<DataTypeDefinition>, ICloneable
-    {
-        /// <inheritdoc/>
-        public DataTypeDefinitionCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public DataTypeDefinitionCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator DataTypeDefinitionCollection(DataTypeDefinition[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator DataTypeDefinition[](DataTypeDefinitionCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (DataTypeDefinitionCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new DataTypeDefinitionCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
     }
 }

@@ -32,9 +32,10 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 
+#pragma warning disable CA2022 // Avoid inexact read with 'Stream.Read'
+
 namespace Opc.Ua.Types.Tests.Utils.FileSystem
 {
-#pragma warning disable CA2022 // Avoid inexact read with 'Stream.Read'
     /// <summary>
     /// Tests for VirtualFileSystem error conditions and edge cases
     /// </summary>
@@ -250,8 +251,8 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             {
                 byte[] buffer = [];
                 int bytesRead = stream.Read(buffer, 0, 0);
-                Assert.That(bytesRead, Is.EqualTo(0));
-                Assert.That(stream.Position, Is.EqualTo(0));
+                Assert.That(bytesRead, Is.Zero);
+                Assert.That(stream.Position, Is.Zero);
             }
 
             // Act & Assert - Writing with zero-length buffer
@@ -259,7 +260,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             {
                 byte[] buffer = [];
                 stream.Write(buffer, 0, 0);
-                Assert.That(stream.Position, Is.EqualTo(0));
+                Assert.That(stream.Position, Is.Zero);
             }
         }
 
@@ -324,7 +325,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
             // Second read - should return 0 (end of file)
             int secondRead = stream.Read(buffer, 0, 15);
-            Assert.That(secondRead, Is.EqualTo(0));
+            Assert.That(secondRead, Is.Zero);
             Assert.That(stream.Position, Is.EqualTo(10));
         }
 

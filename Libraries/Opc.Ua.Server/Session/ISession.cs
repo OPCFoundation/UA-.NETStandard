@@ -29,6 +29,8 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -58,9 +60,15 @@ namespace Opc.Ua.Server
         DateTime ClientLastContactTime { get; }
 
         /// <summary>
+        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// Used for timeout calculations that are immune to system time changes.
+        /// </summary>
+        long LastContactTickCount { get; }
+
+        /// <summary>
         /// The client Nonce associated with the session.
         /// </summary>
-        byte[] ClientNonce { get; }
+        ByteString ClientNonce { get; }
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
@@ -120,13 +128,13 @@ namespace Opc.Ua.Server
             IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
-            StringCollection localeIds,
+            ArrayOf<string> localeIds,
             Nonce serverNonce);
 
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
-        void Close();
+        ValueTask CloseAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Create new ECC ephemeral key
@@ -145,14 +153,14 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The caller is responsible for disposing the continuation point returned.
         /// </remarks>
-        ContinuationPoint RestoreContinuationPoint(byte[] continuationPoint);
+        ContinuationPoint RestoreContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Restores a previously saves history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
         /// <returns>The save continuation point. null if not found.</returns>
-        object RestoreHistoryContinuationPoint(byte[] continuationPoint);
+        object RestoreHistoryContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Saves a continuation point for a session.
@@ -182,7 +190,7 @@ namespace Opc.Ua.Server
         /// Updates the requested locale ids.
         /// </summary>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
-        bool UpdateLocaleIds(StringCollection localeIds);
+        bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
         /// <summary>
         /// Activates the session and binds it to the current secure channel.

@@ -91,10 +91,8 @@ namespace Opc.Ua
                 Description == node.Description &&
                 WriteMask == node.WriteMask &&
                 UserWriteMask == node.UserWriteMask &&
-                EqualityComparer<RolePermissionTypeCollection>.Default.Equals(
-                    RolePermissions, node.RolePermissions) &&
-                EqualityComparer<RolePermissionTypeCollection>.Default.Equals(
-                    UserRolePermissions, node.UserRolePermissions) &&
+                RolePermissions == node.RolePermissions &&
+                UserRolePermissions == node.UserRolePermissions &&
                 AccessRestrictions == node.AccessRestrictions &&
                 AreEventsMonitored == node.AreEventsMonitored &&
                 Initialized == node.Initialized &&
@@ -543,17 +541,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies  a list of permissions for the node assigned to roles.
+        /// Specifies a list of permissions for the node assigned to roles.
         /// </summary>
         /// <value>The Permissions that apply to the node.</value>
-        public RolePermissionTypeCollection RolePermissions
+        public ArrayOf<RolePermissionType> RolePermissions
         {
             get => m_rolePermissions;
             set
             {
                 if (m_rolePermissions != value)
                 {
-                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                    m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
                 m_rolePermissions = value;
@@ -564,14 +562,14 @@ namespace Opc.Ua
         /// Specifies a list of permissions for the node assigned to roles for the current user.
         /// </summary>
         /// <value>The Permissions that apply to the node for the current user.</value>
-        public RolePermissionTypeCollection UserRolePermissions
+        public ArrayOf<RolePermissionType> UserRolePermissions
         {
             get => m_userRolePermissions;
             set
             {
                 if (m_userRolePermissions != value)
                 {
-                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                    m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
                 m_userRolePermissions = value;
@@ -1094,7 +1092,7 @@ namespace Opc.Ua
         {
             if ((attributesToLoad & AttributesToSave.NodeClass) != 0)
             {
-                NodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+                NodeClass = decoder.ReadEnumerated<NodeClass>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1134,16 +1132,12 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                m_writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                m_writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                m_userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                m_userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
         }
 
@@ -1210,7 +1204,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1283,7 +1277,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1563,7 +1557,7 @@ namespace Opc.Ua
 
             if (decoder.Peek("NodeClass"))
             {
-                var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+                NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
                 if (NodeClass != NodeClass.Unspecified && nodeClass != NodeClass)
                 {
@@ -1612,16 +1606,14 @@ namespace Opc.Ua
 
             if (decoder.Peek("WriteMask"))
             {
-                WriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    "WriteMask",
-                    typeof(AttributeWriteMask));
+                WriteMask = decoder.ReadEnumerated<AttributeWriteMask>(
+                    "WriteMask");
             }
 
             if (decoder.Peek("UserWriteMask"))
             {
-                UserWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    "UserWriteMask",
-                    typeof(AttributeWriteMask));
+                UserWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(
+                    "UserWriteMask");
             }
 
             decoder.PopNamespace();
@@ -1823,7 +1815,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             NodeId nodeId = decoder.ReadNodeId("NodeId");
             QualifiedName browseName = decoder.ReadQualifiedName("BrowseName");
 
@@ -1929,7 +1921,7 @@ namespace Opc.Ua
             LocalizedText displayName = default;
             LocalizedText description = default;
             AttributeWriteMask writeMask = AttributeWriteMask.None;
-            const AttributeWriteMask userWriteMask = AttributeWriteMask.None;
+            AttributeWriteMask userWriteMask = AttributeWriteMask.None;
             NodeId referenceTypeId = default;
             NodeId typeDefinitionId = default;
 
@@ -1958,17 +1950,13 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.WriteMask;
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.UserWriteMask;
             }
 
@@ -2106,7 +2094,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
             decoder.PopNamespace();
 
@@ -2205,12 +2193,8 @@ namespace Opc.Ua
                 description = decoder.ReadLocalizedText("Description");
             }
 
-            var writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                "WriteMask",
-                typeof(AttributeWriteMask));
-            var userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                "UserWriteMask",
-                typeof(AttributeWriteMask));
+            AttributeWriteMask writeMask = decoder.ReadEnumerated<AttributeWriteMask>("WriteMask");
+            AttributeWriteMask userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>("UserWriteMask");
             NodeId referenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             NodeId typeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
 
@@ -2382,22 +2366,22 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the RolePermissions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnReadRolePermissions;
 
         /// <summary>
         /// Called when the RolePermissions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnWriteRolePermissions;
 
         /// <summary>
         /// Called when the UserRolePermissions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadUserRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnReadUserRolePermissions;
 
         /// <summary>
         /// Called when the UserRolePermissions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteUserRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnWriteUserRolePermissions;
 
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
@@ -2793,7 +2777,7 @@ namespace Opc.Ua
         public virtual void SetStatusCode(
             ISystemContext context,
             StatusCode statusCode,
-            DateTime timestamp)
+            DateTimeUtc timestamp)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -3447,36 +3431,136 @@ namespace Opc.Ua
         /// A list of values.
         /// If any error occurs for an attribute the value will be null.
         /// </returns>
-        public virtual List<object> ReadAttributes(
+        public virtual ArrayOf<Variant> ReadAttributes(
             ISystemContext context,
             params uint[] attributeIds)
         {
-            var values = new List<object>();
-
-            if (attributeIds != null)
+            if (attributeIds == null)
             {
-                for (int ii = 0; ii < attributeIds.Length; ii++)
+                return [];
+            }
+
+            var values = new List<Variant>(attributeIds.Length);
+            var scratch = new DataValue();
+
+            for (int ii = 0; ii < attributeIds.Length; ii++)
+            {
+                // Reset the reusable DataValue so ReadNonValueAttribute sees Variant.Null
+                // as the initial valueToRead (required for !value.IsNull guard logic).
+                scratch.WrappedValue = Variant.Null;
+
+                ServiceResult result = ReadAttribute(
+                    context,
+                    attributeIds[ii],
+                    default,
+                    default,
+                    scratch);
+
+                values.Add(ServiceResult.IsBad(result) ? default : scratch.WrappedValue);
+            }
+
+            return values.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Reads the values for a set of attributes.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="values">The array to store the values.</param>
+        /// <param name="attributeIds">The attributes to read.</param>
+        /// <exception cref="ArgumentException"></exception>
+        public virtual void ReadAttributes(
+            ISystemContext context,
+            ref Variant[] values,
+            params uint[] attributeIds)
+        {
+            if (attributeIds == null)
+            {
+                return;
+            }
+
+            if (values?.Length != attributeIds.Length)
+            {
+                throw new ArgumentException("Values array must be the same length as the attributeIds array.");
+            }
+
+            DateTimeUtc sourceTimeStamp = DateTimeUtc.MinValue;
+
+            for (int ii = 0; ii < attributeIds.Length; ii++)
+            {
+                values[ii] = Variant.Null;
+                ReadAttribute(
+                    context,
+                    attributeIds[ii],
+                    ref values[ii],
+                    ref sourceTimeStamp);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value of an attribute.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The value.</param>
+        /// <param name="sourceTimestamp">The source timestamp.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="dataEncoding">The data encoding.</param>
+        /// <returns>
+        /// </returns>
+        public virtual ServiceResult ReadAttribute(
+            ISystemContext context,
+            uint attributeId,
+            ref Variant value,
+            ref DateTimeUtc sourceTimestamp,
+            NumericRange indexRange = default,
+            QualifiedName dataEncoding = default)
+        {
+            ServiceResult serviceResult;
+
+            // read value attribute.
+            if (attributeId == Attributes.Value)
+            {
+                try
                 {
-                    var value = new DataValue();
-
-                    ServiceResult result = ReadAttribute(
+                    serviceResult = ReadValueAttribute(
                         context,
-                        attributeIds[ii],
-                        NumericRange.Empty,
-                        default,
-                        value);
-
-                    if (ServiceResult.IsBad(result))
-                    {
-                        values.Add(null);
-                        continue;
-                    }
-
-                    values.Add(value.Value);
+                        indexRange,
+                        dataEncoding,
+                        ref value,
+                        ref sourceTimestamp);
+                }
+                catch (Exception e)
+                {
+                    serviceResult = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read value attribute from node.");
+                }
+            }
+            // read any non-value attribute.
+            else
+            {
+                try
+                {
+                    serviceResult = ReadNonValueAttribute(context, attributeId, ref value);
+                }
+                catch (Exception e)
+                {
+                    serviceResult = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read non value attribute from node.");
                 }
             }
 
-            return values;
+            // update value.
+            if (ServiceResult.IsBad(serviceResult))
+            {
+                value = Variant.Null;
+            }
+
+            return serviceResult;
         }
 
         /// <summary>
@@ -3512,7 +3596,7 @@ namespace Opc.Ua
             // read value attribute.
             if (attributeId == Attributes.Value)
             {
-                DateTime sourceTimestamp = value.SourceTimestamp;
+                DateTimeUtc sourceTimestamp = value.SourceTimestamp;
 
                 try
                 {
@@ -3567,7 +3651,7 @@ namespace Opc.Ua
             }
             else
             {
-                value.WrappedValue = new Variant(valueToRead);
+                value.WrappedValue = valueToRead;
             }
 
             // return result.
@@ -3595,196 +3679,175 @@ namespace Opc.Ua
             {
                 case Attributes.NodeId:
                     NodeId nodeId = m_nodeId;
-
                     NodeAttributeEventHandler<NodeId> onReadNodeId = OnReadNodeId;
-
                     if (onReadNodeId != null)
                     {
                         result = onReadNodeId(context, this, ref nodeId);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = nodeId;
-                    }
-
+                    value = nodeId;
                     return result;
                 case Attributes.NodeClass:
                     NodeClass nodeClass = NodeClass;
-
                     NodeAttributeEventHandler<NodeClass> onReadNodeClass = OnReadNodeClass;
-
                     if (onReadNodeClass != null)
                     {
                         result = onReadNodeClass(context, this, ref nodeClass);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = Variant.From(nodeClass);
-                    }
-
+                    value = Variant.From(nodeClass);
                     return result;
                 case Attributes.BrowseName:
                     QualifiedName browseName = m_browseName;
-
                     NodeAttributeEventHandler<QualifiedName> onReadBrowseName = OnReadBrowseName;
-
                     if (onReadBrowseName != null)
                     {
                         result = onReadBrowseName(context, this, ref browseName);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = browseName;
-                    }
-
+                    value = browseName;
                     return result;
                 case Attributes.DisplayName:
                     LocalizedText displayName = m_displayName;
-
                     NodeAttributeEventHandler<LocalizedText> onReadDisplayName = OnReadDisplayName;
-
                     if (onReadDisplayName != null)
                     {
                         result = onReadDisplayName(context, this, ref displayName);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = displayName;
-                    }
-
+                    value = displayName;
                     if (!value.IsNull || result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.Description:
                     LocalizedText description = m_description;
-
                     NodeAttributeEventHandler<LocalizedText> onReadDescription = OnReadDescription;
-
                     if (onReadDescription != null)
                     {
                         result = onReadDescription(context, this, ref description);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = description;
-                    }
-
+                    value = description;
                     if (!value.IsNull || result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.WriteMask:
                     AttributeWriteMask writeMask = m_writeMask;
-
                     NodeAttributeEventHandler<AttributeWriteMask> onReadWriteMask = OnReadWriteMask;
-
                     if (onReadWriteMask != null)
                     {
                         result = onReadWriteMask(context, this, ref writeMask);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = (uint)writeMask;
-                    }
-
+                    value = (uint)writeMask;
                     return result;
                 case Attributes.UserWriteMask:
                     AttributeWriteMask userWriteMask = m_userWriteMask;
-
                     NodeAttributeEventHandler<AttributeWriteMask> onReadUserWriteMask
                         = OnReadUserWriteMask;
-
                     if (onReadUserWriteMask != null)
                     {
                         result = onReadUserWriteMask(context, this, ref userWriteMask);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = (uint)userWriteMask;
-                    }
-
+                    value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
-                    RolePermissionTypeCollection rolePermissions = m_rolePermissions;
+                    ArrayOf<RolePermissionType> rolePermissions = m_rolePermissions;
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onReadRolePermissions =
                         OnReadRolePermissions;
-
                     if (onReadRolePermissions != null)
                     {
                         result = onReadRolePermissions(context, this, ref rolePermissions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
+                    if (!rolePermissions.IsNull)
                     {
                         value = Variant.FromStructure(rolePermissions);
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.UserRolePermissions:
-                    RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
+                    ArrayOf<RolePermissionType> userRolePermissions = m_userRolePermissions;
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadUserRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onReadUserRolePermissions =
                         OnReadUserRolePermissions;
-
                     if (onReadUserRolePermissions != null)
                     {
                         result = onReadUserRolePermissions(context, this, ref userRolePermissions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
+                    if (!userRolePermissions.IsNull)
                     {
                         value = Variant.FromStructure(userRolePermissions);
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.AccessRestrictions:
                     AccessRestrictionType? accessRestrictions = m_accessRestrictions;
-
                     NodeAttributeEventHandler<AccessRestrictionType?> onReadAccessRestrictions =
                         OnReadAccessRestrictions;
-
                     if (onReadAccessRestrictions != null)
                     {
                         result = onReadAccessRestrictions(context, this, ref accessRestrictions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result) && accessRestrictions != null)
+                    if (accessRestrictions.HasValue)
                     {
-                        value = (ushort)accessRestrictions;
+                        value = (ushort)accessRestrictions.GetValueOrDefault();
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
             }
 
-            return StatusCodes.BadAttributeIdInvalid;
+            return ServiceResult.Create(StatusCodes.BadAttributeIdInvalid, null);
         }
 
         /// <summary>
@@ -3804,10 +3867,10 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref Variant value,
-            ref DateTime sourceTimestamp)
+            ref DateTimeUtc sourceTimestamp)
         {
             value = Variant.Null;
-            sourceTimestamp = DateTime.MinValue;
+            sourceTimestamp = DateTimeUtc.MinValue;
             return StatusCodes.BadAttributeIdInvalid;
         }
 
@@ -3841,7 +3904,7 @@ namespace Opc.Ua
             if (attributeId == Attributes.Value)
             {
                 // writes to server timestamp never supported.
-                if (value.ServerTimestamp != DateTime.MinValue)
+                if (value.ServerTimestamp != DateTimeUtc.MinValue)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadWriteNotSupported,
@@ -3869,8 +3932,8 @@ namespace Opc.Ua
 
             // writes to status code or timestamps never supported.
             if (value.StatusCode != StatusCodes.Good ||
-                value.ServerTimestamp != DateTime.MinValue ||
-                value.SourceTimestamp != DateTime.MinValue)
+                value.ServerTimestamp != DateTimeUtc.MinValue ||
+                value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadWriteNotSupported,
@@ -3878,7 +3941,7 @@ namespace Opc.Ua
             }
 
             // cannot use index range for non-value attributes.
-            if (indexRange != NumericRange.Empty)
+            if (!indexRange.IsNull)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadIndexRangeInvalid,
@@ -4097,29 +4160,28 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.RolePermissions:
-                    if (!value.TryGet(out ExtensionObject[] rolePermissionsArray))
+                    if (!value.TryGet(out ArrayOf<ExtensionObject> rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
 
-                    var rolePermissions = new RolePermissionTypeCollection();
-
-                    foreach (ExtensionObject arrayValue in rolePermissionsArray)
+                    var buffer = new RolePermissionType[rolePermissionsArray.Count];
+                    for (int ii = 0; ii < rolePermissionsArray.Count; ii++)
                     {
-                        if (arrayValue.Body is not RolePermissionType rolePermission)
+                        if (!rolePermissionsArray[ii].TryGetEncodeable(out RolePermissionType rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
-
-                        rolePermissions.Add(rolePermission);
+                        buffer[ii] = rolePermission;
                     }
+                    ArrayOf<RolePermissionType> rolePermissions = buffer.ToArrayOf();
 
                     if ((WriteMask & AttributeWriteMask.RolePermissions) == 0)
                     {
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onWriteRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onWriteRolePermissions =
                         OnWriteRolePermissions;
 
                     if (onWriteRolePermissions != null)
@@ -4130,6 +4192,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         m_rolePermissions = rolePermissions;
+                        m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                     }
 
                     return result;
@@ -4189,7 +4252,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTimeUtc sourceTimestamp)
         {
             return StatusCodes.BadAttributeIdInvalid;
         }
@@ -4298,7 +4361,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public virtual BaseInstanceState FindChild(
             ISystemContext context,
-            IList<QualifiedName> browsePath,
+            ArrayOf<QualifiedName> browsePath,
             int index)
         {
             if (index is < 0 or >= int.MaxValue)
@@ -4382,9 +4445,11 @@ namespace Opc.Ua
         /// Creates a property and adds it to the node.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
+        /// <typeparam name="TBuilder">VariantBuilder, StructureBuilder or ENnumerationBuilder</typeparam>
+        public PropertyState AddProperty<T, TBuilder>(string propertyName, NodeId dataTypeId, int valueRank)
+            where TBuilder : struct, IVariantBuilder<T>
         {
-            PropertyState property = new PropertyState<T>(this)
+            PropertyState property = new PropertyState<T>.Implementation<TBuilder>(this)
             {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
                 ModellingRuleId = default,
@@ -4399,7 +4464,7 @@ namespace Opc.Ua
                 Value = default,
                 DataType = dataTypeId,
                 ValueRank = valueRank,
-                ArrayDimensions = null,
+                ArrayDimensions = default,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
@@ -4581,7 +4646,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             string browseName,
-            T[] value,
+            ArrayOf<T> value,
             bool copy) where T : IEncodeable
         {
             return SetChildValue(context, QualifiedName.From(browseName), value, copy);
@@ -4596,7 +4661,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             QualifiedName browseName,
-            T[] value,
+            ArrayOf<T> value,
             bool copy) where T : IEncodeable
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
@@ -4617,7 +4682,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             string browseName,
-            T value) where T : Enum
+            T value) where T : struct, Enum
         {
             return SetChildValue(context, QualifiedName.From(browseName), value);
         }
@@ -4631,7 +4696,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             QualifiedName browseName,
-            T value) where T : Enum
+            T value) where T : struct, Enum
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
             {
@@ -4651,12 +4716,13 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="dataValue">The data value.</param>
         /// <returns>
-        /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
+        /// An instance of the <see cref="ServiceResult"/> containing the status
+        /// code and diagnostic info for the operation.
         /// ServiceResult.Good if successful. Detailed error information otherwise.
         /// </returns>
         public virtual ServiceResult ReadChildAttribute(
             ISystemContext context,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             int index,
             uint attributeId,
             DataValue dataValue)
@@ -4664,7 +4730,7 @@ namespace Opc.Ua
             // check if reading attributes of current node.
             if (index >= relativePath.Count)
             {
-                return ReadAttribute(context, attributeId, NumericRange.Empty, default, dataValue);
+                return ReadAttribute(context, attributeId, default, default, dataValue);
             }
 
             // find the child at the current level.
@@ -4706,14 +4772,14 @@ namespace Opc.Ua
         /// </returns>
         public ServiceResult WriteChildAttribute(
             ISystemContext context,
-            IList<QualifiedName> componentPath,
+            ArrayOf<QualifiedName> componentPath,
             int index,
             uint attributeId,
             DataValue value)
         {
             if (componentPath.Count >= index)
             {
-                return WriteAttribute(context, attributeId, NumericRange.Empty, value);
+                return WriteAttribute(context, attributeId, default, value);
             }
 
             List<BaseInstanceState> children = null;
@@ -5039,6 +5105,8 @@ namespace Opc.Ua
             if (createOrReplace && replacement != null)
             {
                 AddChild(replacement);
+
+                return replacement;
             }
 
             return null;
@@ -5085,8 +5153,8 @@ namespace Opc.Ua
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
-        private RolePermissionTypeCollection m_rolePermissions;
-        private RolePermissionTypeCollection m_userRolePermissions;
+        private ArrayOf<RolePermissionType> m_rolePermissions;
+        private ArrayOf<RolePermissionType> m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
         private ReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
@@ -5127,7 +5195,13 @@ namespace Opc.Ua
         /// <summary>
         /// The node has been deleted.
         /// </summary>
-        Deleted = 0x10
+        Deleted = 0x10,
+
+        /// <summary>
+        /// The RolePermissions or UserRolePermissions attribute has changed.
+        /// This is a subset of <see cref="NonValue"/> and is set in addition to it.
+        /// </summary>
+        RolePermissions = 0x20
     }
 
     /// <summary>
@@ -5226,7 +5300,7 @@ namespace Opc.Ua
         QualifiedName dataEncoding,
         ref Variant value,
         ref StatusCode statusCode,
-        ref DateTime timestamp);
+        ref DateTimeUtc timestamp);
 
     /// <summary>
     /// Stores a reference from a node in the instance hierarchy.

@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public class ConfigurationNodeManager : DiagnosticsNodeManager, ICallAsyncNodeManager, IConfigurationNodeManager
+    public class ConfigurationNodeManager : DiagnosticsNodeManager, IConfigurationNodeManager
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -156,9 +156,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(
+        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
-            NodeState predefinedNode)
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
         {
             if (predefinedNode is BaseObjectState passiveNode)
             {
@@ -184,7 +185,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState serverNode = Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).AsTask().GetAwaiter().GetResult();
+                                NodeState serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).ConfigureAwait(false);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
@@ -247,7 +248,35 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            return base.AddBehaviourToPredefinedNode(context, predefinedNode);
+            return await base.AddBehaviourToPredefinedNodeAsync(context, predefinedNode, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
+                    is NamespacesState serverNamespacesNode)
+                {
+                    serverNamespacesNode.StateChanged -= ServerNamespacesChanged;
+                }
+
+                foreach (NodeState node in PredefinedNodes.Values)
+                {
+                    if (node is NamespaceMetadataState metadataState)
+                    {
+                        metadataState.StateChanged -= OnNamespaceChildrenChanged;
+                        metadataState.DefaultRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+
+                        metadataState.DefaultUserRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                    }
+                }
+            }
+
+            base.Dispose(disposing);
         }
 
         ///<inheritdoc/>
@@ -261,16 +290,12 @@ namespace Opc.Ua.Server
                 .. configuration.ServerConfiguration.ServerCapabilities
             ];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
             m_serverConfigurationNode.SupportedPrivateKeyFormats.Value =
             [
                 .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
             ];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration
                 .ServerConfiguration
                 .MaxTrustListSize;
@@ -313,6 +338,17 @@ namespace Opc.Ua.Server
                 is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
+
+                IList<BaseInstanceState> children = [];
+                serverNamespacesNode.GetChildren(systemContext, children);
+
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is NamespaceMetadataState metadataState)
+                    {
+                        SubscribeToNamespaceDefaultPermissions(metadataState);
+                    }
+                }
             }
         }
 
@@ -324,17 +360,20 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_namespaceMetadataStates.TryGetValue(
-                namespaceUri,
-                out NamespaceMetadataState value))
+            lock (m_namespaceMetadataStatesLock)
             {
-                return value;
+                if (m_namespaceMetadataStates.TryGetValue(
+                    namespaceUri,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
             }
 
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
                 namespaceUri);
 
-            lock (Lock)
+            lock (m_namespaceMetadataStatesLock)
             {
                 // remember the result for faster access.
                 m_namespaceMetadataStates[namespaceUri] = namespaceMetadataState;
@@ -343,8 +382,32 @@ namespace Opc.Ua.Server
             return namespaceMetadataState;
         }
 
+        ///<inheritdoc/>
+        public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
+        {
+            lock (m_namespaceMetadataStatesLock)
+            {
+                if (m_namespaceMetadataStatesByIndex.TryGetValue(
+                    namespaceIndex,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
+            }
+
+            string namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
+            NamespaceMetadataState namespaceMetadataState = GetNamespaceMetadataState(namespaceUri);
+
+            lock (m_namespaceMetadataStatesLock)
+            {
+                m_namespaceMetadataStatesByIndex[namespaceIndex] = namespaceMetadataState;
+            }
+
+            return namespaceMetadataState;
+        }
+
         /// <inheritdoc/>
-        public NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri)
+        public async ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
                 namespaceUri);
@@ -375,12 +438,19 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState.NamespaceUri.Value = namespaceUri;
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
-                serverNamespacesNode.ClearChangeMasks(Server.DefaultSystemContext, true);
-                AddPredefinedNode(SystemContext, namespaceMetadataState);
+                serverNamespacesNode.ClearChangeMasks(SystemContext, true);
+                await AddPredefinedNodeAsync(SystemContext, namespaceMetadataState, cancellationToken)
+                    .ConfigureAwait(false);
             }
+
+            // Subscribe to the default permission properties so that any future changes
+            // trigger a DefaultPermissionsChanged notification to allow caches to be invalidated.
+            SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
 
             return namespaceMetadataState;
         }
@@ -425,16 +495,16 @@ namespace Opc.Ua.Server
             NodeId objectId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificate,
-            byte[][] issuerCertificates,
+            ByteString certificate,
+            ArrayOf<ByteString> issuerCertificates,
             string privateKeyFormat,
-            byte[] privateKey,
+            ByteString privateKey,
             CancellationToken ct)
         {
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
-            VariantCollection inputArguments =
+            ArrayOf<Variant> inputArguments =
             [
                 certificateGroupId,
                 certificateTypeId,
@@ -454,7 +524,7 @@ namespace Opc.Ua.Server
                 m_logger);
             try
             {
-                if (certificate == null)
+                if (certificate.IsEmpty)
                 {
                     throw new ArgumentNullException(nameof(certificate));
                 }
@@ -512,12 +582,9 @@ namespace Opc.Ua.Server
                 try
                 {
                     // build issuer chain
-                    if (issuerCertificates != null)
+                    foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        foreach (byte[] issuerRawCert in issuerCertificates)
-                        {
-                            newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
-                        }
+                        newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
                     }
                 }
                 catch
@@ -639,7 +706,7 @@ namespace Opc.Ua.Server
                             for (int attempt = 0; ; attempt++)
                             {
                                 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
-                                    privateKey,
+                                    privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
                                     // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
@@ -674,10 +741,10 @@ namespace Opc.Ua.Server
                             for (int attempt = 0; ; attempt++)
                             {
                                 updateCertificate.CertificateWithPrivateKey =
-                                CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                                    newCert,
-                                    privateKey,
-                                    passwordProvider?.GetPassword(existingCertIdentifier));
+                                    CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                                        newCert,
+                                        privateKey.ToArray(),
+                                        passwordProvider?.GetPassword(existingCertIdentifier));
                                 try
                                 {
                                     await UpdateCertificateInternalAsync(
@@ -860,7 +927,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             string subjectName,
             bool regeneratePrivateKey,
-            byte[] nonce,
+            ByteString nonce,
             CancellationToken cancellationToken)
         {
             HasApplicationSecureAdminAccess(context);
@@ -886,7 +953,7 @@ namespace Opc.Ua.Server
             X509Certificate2 certWithPrivateKey;
             if (regeneratePrivateKey)
             {
-                IList<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+                ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
 
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
@@ -916,9 +983,9 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
                 certWithPrivateKey.AsLogSafeString());
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+            ByteString certificateRequest = ByteString.From(CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
-                X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
+                X509Utils.GetDomainsFromCertificate(certWithPrivateKey)));
 
             return new CreateSigningRequestMethodStateResult
             {
@@ -931,7 +998,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             ServerCertificateGroup certificateGroup,
             string subjectName,
-            IList<string> domainNames)
+            ArrayOf<string> domainNames)
         {
             X509Certificate2 certificate;
 
@@ -967,8 +1034,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1054,7 +1121,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            ref byte[][] certificates)
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1071,12 +1138,12 @@ namespace Opc.Ua.Server
                 if (store != null)
                 {
                     X509Certificate2Collection collection = store.EnumerateAsync().Result;
-                    var rawList = new List<byte[]>();
+                    var rawList = new List<ByteString>();
                     foreach (X509Certificate2 cert in collection)
                     {
-                        rawList.Add(cert.RawData);
+                        rawList.Add(cert.RawData.ToByteString());
                     }
-                    certificates = [.. rawList];
+                    certificates = rawList.ToArrayOf();
                 }
             }
             finally
@@ -1092,8 +1159,8 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             NodeId certificateGroupId,
-            ref NodeId[] certificateTypeIds,
-            ref byte[][] certificates)
+            ref ArrayOf<NodeId> certificateTypeIds,
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1105,8 +1172,9 @@ namespace Opc.Ua.Server
                     "Certificate group invalid.");
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = [.. certificateGroup.ApplicationCertificates
-                .Select(s => s.Certificate?.RawData)];
+            certificates = certificateGroup.ApplicationCertificates
+                .Select(s => s.Certificate?.RawData.ToByteString() ?? default)
+                .ToArrayOf();
 
             return ServiceResult.Good;
         }
@@ -1231,9 +1299,24 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    lock (Lock)
+                    lock (m_namespaceMetadataStatesLock)
                     {
                         m_namespaceMetadataStates.Clear();
+                        m_namespaceMetadataStatesByIndex.Clear();
+                    }
+
+                    if (node is NamespacesState serverNamespacesNode)
+                    {
+                        IList<BaseInstanceState> children = [];
+                        serverNamespacesNode.GetChildren(context, children);
+
+                        foreach (BaseInstanceState child in children)
+                        {
+                            if (child is NamespaceMetadataState metadataState)
+                            {
+                                SubscribeToNamespaceDefaultPermissions(metadataState);
+                            }
+                        }
                     }
                 }
                 catch
@@ -1242,6 +1325,64 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultRolePermissions</c>
+        /// and <c>DefaultUserRolePermissions</c> child nodes of a <see cref="NamespaceMetadataState"/>
+        /// to detect changes that require permission cache invalidation.
+        /// </summary>
+        private void SubscribeToNamespaceDefaultPermissions(NamespaceMetadataState namespaceMetadataState)
+        {
+            if (namespaceMetadataState.DefaultRolePermissions != null)
+            {
+                // unsubscribe first to avoid duplicate subscriptions if called multiple times
+                namespaceMetadataState.DefaultRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            if (namespaceMetadataState.DefaultUserRolePermissions != null)
+            {
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            namespaceMetadataState.StateChanged -= OnNamespaceChildrenChanged;
+            namespaceMetadataState.StateChanged += OnNamespaceChildrenChanged;
+        }
+
+        /// <summary>
+        /// Handles children change on NamespaceMetadataState and resubscribes to the default permissions nodes
+        /// to ensure we are notified of changes on those nodes even if they are recreated.
+        /// </summary>
+        private void OnNamespaceChildrenChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Children) != 0 &&
+                node is NamespaceMetadataState namespaceMetadataState)
+            {
+                SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
+            }
+        }
+
+        /// <summary>
+        /// Handles value changes on <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
+        /// and raises the <see cref="DefaultPermissionsChanged"/> event.
+        /// </summary>
+        private void OnNamespaceDefaultPermissionsChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Value) != 0)
+            {
+                DefaultPermissionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <inheritdoc/>
+        public event EventHandler DefaultPermissionsChanged;
 
         private class UpdateCertificateData
         {
@@ -1268,5 +1409,7 @@ namespace Opc.Ua.Server
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
+        private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
+        private readonly Lock m_namespaceMetadataStatesLock = new();
     }
 }

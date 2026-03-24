@@ -83,6 +83,6 @@ namespace Opc.Ua
         /// <summary>
         /// The assemblies that contain encodeable types that could be uses a variable values.
         /// </summary>
-        public StringCollection DatatypeAssemblies { get; }
+        public ArrayOf<string> DatatypeAssemblies { get; }
     }
 }
