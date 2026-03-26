@@ -979,17 +979,16 @@ namespace Opc.Ua.Client.Tests
         public async Task ReconnectSession_ReuseUsertokenPolicyAsync(
             string securityPolicy, string userTokenPolicy)
         {
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
+            await IgnoreIfPolicyNotAdvertisedAsync(userTokenPolicy).ConfigureAwait(false);
+
             UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
-            if (endpoint == null)
-            {
-                Assert.Ignore(
-                    $"No endpoint found for {securityPolicy}");
-            }
+            Assert.That(endpoint, Is.Not.Null);
             endpoint = new ConfiguredEndpoint(
                 null,
                 (EndpointDescription)endpoint.Description.MemberwiseClone(),
@@ -1012,8 +1011,8 @@ namespace Opc.Ua.Client.Tests
             if (identityPolicy.SecurityPolicyUri != userTokenPolicy)
             {
                 NUnit.Framework.Assert.Fail(
-                    $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}" +
-                    $"Please fix Test parameters or Test server configuration");
+                    $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}. " +
+                    "Please fix test parameters or the test server configuration.");
             }
             userIdentity.PolicyId = identityPolicy.PolicyId;
 
