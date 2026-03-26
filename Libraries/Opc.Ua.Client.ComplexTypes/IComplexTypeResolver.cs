@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="dataTypeSystem">The type system. Defaults to OPC Binary schema.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
-            NodeId dataTypeSystem = null,
+            NodeId dataTypeSystem = default,
             CancellationToken ct = default);
 
         /// <summary>

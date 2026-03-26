@@ -44,6 +44,15 @@ namespace Opc.Ua
     public class ServiceResult
     {
         /// <summary>
+        /// Get according ServiceResultException for ServiceResult
+        /// </summary>
+        /// <returns>ServiceResultException</returns>
+        public ServiceResultException GetServiceResultException()
+        {
+            return new ServiceResultException(this);
+        }
+
+        /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
         [Obsolete("Use StatusCode constructor with symbolic id")]
@@ -556,7 +565,7 @@ namespace Opc.Ua
                 defaultCode = sre.StatusCode;
             }
 
-            if (format == null)
+            if (string.IsNullOrEmpty(format))
             {
                 return new ServiceResult(e, defaultCode);
             }
@@ -707,7 +716,7 @@ namespace Opc.Ua
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
-        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
+        [Obsolete("Use Status code type with symbolic id directly.")]
         public static string LookupSymbolicId(uint code)
         {
             return null;

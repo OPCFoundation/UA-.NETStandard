@@ -201,11 +201,8 @@ namespace Opc.Ua.Bindings
                     lock (m_lock)
                     {
                         // Dispose the event
-                        if (m_event != null)
-                        {
-                            m_event.Dispose();
-                            m_event = null;
-                        }
+                        m_event?.Dispose();
+                        m_event = null;
                     }
                 }
             }
@@ -282,9 +279,11 @@ namespace Opc.Ua.Bindings
                     }
                     else
 #endif
-                    if (!await awaitableTask.ConfigureAwait(false))
                     {
-                        badRequestInterrupted = true;
+                        if (!await awaitableTask.ConfigureAwait(false))
+                        {
+                            badRequestInterrupted = true;
+                        }
                     }
                 }
                 catch (TimeoutException)
@@ -427,11 +426,8 @@ namespace Opc.Ua.Bindings
 
                 m_completed = true;
 
-                if (m_timer != null)
-                {
-                    m_timer.Dispose();
-                    m_timer = null;
-                }
+                m_timer?.Dispose();
+                m_timer = null;
 
                 m_event?.Set();
 
@@ -443,7 +439,7 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    Task.Run(() => callback(this));
+                    _ = Task.Run(() => callback(this));
                 }
                 else
                 {

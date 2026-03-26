@@ -191,7 +191,7 @@ namespace Opc.Ua.Server
                 }
 
                 // can assign a simple identifier if secured.
-                authenticationToken = null;
+                authenticationToken = default;
                 if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
                     context.ChannelContext.EndpointDescription
                         .SecurityMode != MessageSecurityMode.None)
@@ -302,8 +302,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
 
-            await m_semaphoreSlim.WaitAsync(cancellationToken)
-                .ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // find session.
@@ -488,8 +487,7 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs> handler
-                        = m_ValidateSessionLessRequest;
+                    EventHandler<ValidateSessionLessRequestEventArgs> handler = m_ValidateSessionLessRequest;
 
                     if (handler != null)
                     {
@@ -518,16 +516,17 @@ namespace Opc.Ua.Server
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, session);
             }
-            catch (Exception e)
+            catch (ServiceResultException sre)
             {
-                if (e is ServiceResultException sre &&
-                    sre.StatusCode == StatusCodes.BadSessionNotActivated &&
-                    session != null)
+                if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
                     CloseSession(session.Id);
                 }
-
-                throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                throw;
+            }
+            catch (Exception e)
+            {
+                throw ServiceResultException.Unexpected(e, e.Message);
             }
         }
 

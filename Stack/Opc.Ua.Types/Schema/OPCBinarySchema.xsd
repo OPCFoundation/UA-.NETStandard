@@ -78,7 +78,7 @@
       <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
     </xs:sequence>
     <xs:attribute name="Name" type="xs:string" use="optional" />
-    <xs:attribute name="Value" type="xs:int" use="optional" />
+    <xs:attribute name="Value" type="xs:unsignedLong" use="optional" />
   </xs:complexType>
 
   <xs:complexType name="EnumeratedType">

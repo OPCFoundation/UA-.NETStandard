@@ -263,6 +263,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 serverStructTypes = [.. serverStructTypes.Where(
                     rd => rd.NodeId.NamespaceIndex == nameSpaceIndex)];
                 // load types
+                bool allTypesLoaded;
                 if (DisableDataTypeDefinition ||
                     !await LoadBaseDataTypesAsync(serverEnumTypes, serverStructTypes, ct)
                         .ConfigureAwait(false))
@@ -271,12 +272,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return false;
                     }
-                    return await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct)
+                    allTypesLoaded = await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct)
                         .ConfigureAwait(false);
+                }
+                else
+                {
+                    allTypesLoaded = true;
                 }
                 // Commit the changes to the factory
                 m_complexTypeResolver.FactoryBuilder.Commit();
-                return true;
+                return allTypesLoaded;
             }
             catch (Exception ex)
             {
@@ -337,6 +342,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     : await m_complexTypeResolver
                         .LoadDataTypesAsync(DataTypeIds.Structure, true, ct: ct)
                         .ConfigureAwait(false);
+                bool allTypesLoaded;
                 if (DisableDataTypeDefinition ||
                     !await LoadBaseDataTypesAsync(serverEnumTypes, serverStructTypes, ct)
                         .ConfigureAwait(false))
@@ -345,12 +351,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return false;
                     }
-                    return await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
+                    allTypesLoaded = await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
                         .ConfigureAwait(false);
+                }
+                else
+                {
+                    allTypesLoaded = true;
                 }
                 // Commit the changes to the factory
                 m_complexTypeResolver.FactoryBuilder.Commit();
-                return true;
+                return allTypesLoaded;
             }
             catch (Exception ex)
             {
@@ -672,7 +682,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                     m_logger.LogTrace(
                                         "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.",
                                         item.Name,
-                                        missingTypeIds?.ToString() ?? string.Empty);
+                                        missingTypeIds == null ?
+                                            string.Empty :
+                                            string.Join(",", [.. missingTypeIds.Select(id => id.ToString())]));
                                 }
                             }
                         }
@@ -747,7 +759,37 @@ namespace Opc.Ua.Client.ComplexTypes
             } while (repeatDataTypeLoad);
 
             // all types loaded
-            return enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0;
+            if (enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0)
+            {
+                return true;
+            }
+
+            // Provide some diagnostics so users understand why types could not be serialized.
+            if (enumTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} enum types could not be loaded from the server.",
+                    enumTypesToDoList.Count);
+                if (enumTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing enum types: {MissingEnumTypes}",
+                        string.Join(", ", enumTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            if (structTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} structure types could not be loaded from the server.",
+                    structTypesToDoList.Count);
+                if (structTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing structure types: {MissingStructureTypes}",
+                        string.Join(", ", structTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -1400,7 +1442,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     .ConfigureAwait(false);
                 if (superType?.IsNullNodeId != false)
                 {
-                    return null;
+                    return default;
                 }
                 if (superType.NamespaceIndex == 0)
                 {
@@ -1412,7 +1454,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     if (superType == DataTypeIds.Enumeration)
                     {
-                        return null;
+                        return default;
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
@@ -1430,7 +1472,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             return superType;
                         }
-                        return null;
+                        return default;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
                     else if (superType.IdType == IdType.Numeric &&
@@ -1446,7 +1488,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
             }
-            return null;
+            return default;
         }
 
         /// <summary>

@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                copy.SessionId = null;
+                copy.SessionId = default;
                 copy.UserIdentity = null;
                 copy.PreferredLocales = null;
             }

@@ -144,7 +144,7 @@ namespace Opc.Ua
         {
             var clone = (ObjectTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
+            clone.IsAbstract = CoreUtils.Clone(IsAbstract);
 
             return clone;
         }

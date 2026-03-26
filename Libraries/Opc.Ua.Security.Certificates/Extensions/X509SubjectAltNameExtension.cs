@@ -285,7 +285,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Encode the Subject Alternative name extension.
         /// </summary>
@@ -327,17 +326,6 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
         }
-#else
-        /// <summary>
-        /// Encode the Subject Alternative name extension.
-        /// </summary>
-        private byte[] Encode()
-        {
-            return BouncyCastle
-                .X509Extensions.BuildSubjectAltNameExtension(m_uris, m_domainNames, m_ipAddresses)
-                .RawData;
-        }
-#endif
 
         /// <summary>
         /// Decode if RawData is yet undecoded.

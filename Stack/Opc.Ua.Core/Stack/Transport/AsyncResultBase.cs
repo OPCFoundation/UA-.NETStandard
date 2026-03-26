@@ -362,9 +362,9 @@ namespace Opc.Ua
         public object AsyncState { get; }
 
         /// <summary>
-        /// Gets a <see cref="System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.
+        /// Gets a <see cref="WaitHandle"/> that is used to wait for an asynchronous operation to complete.
         /// </summary>
-        /// <returns>A <see cref="System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.</returns>
+        /// <returns>A <see cref="WaitHandle"/> that is used to wait for an asynchronous operation to complete.</returns>
         public WaitHandle AsyncWaitHandle
         {
             get

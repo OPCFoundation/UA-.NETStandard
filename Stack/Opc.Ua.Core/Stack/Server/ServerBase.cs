@@ -79,6 +79,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
+                        TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
                         Utils.SilentDispose(TransportListeners[ii]);
                     }
 
@@ -94,6 +95,11 @@ namespace Opc.Ua
                     }
 
                     ServiceHosts.Clear();
+                }
+
+                if (UserTokenPolicys != null)
+                {
+                    UserTokenPolicys.Clear();
                 }
 
                 Utils.SilentDispose(m_requestQueue);
@@ -296,8 +302,7 @@ namespace Opc.Ua
 
             if (hosts == null || hosts.Count == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "The UA server does not have a default host.");
             }
 
@@ -431,8 +436,8 @@ namespace Opc.Ua
                         address.DiscoveryUrl = address.Url;
                         break;
                     default:
-                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                            $"Unsupported scheme for base address: {address.Url}");
+                        throw ServiceResultException.ConfigurationError(
+                            "Unsupported scheme for base address: {0}", address.Url);
                 }
 
                 BaseAddresses.Add(address);
@@ -550,7 +555,7 @@ namespace Opc.Ua
                 ServerError = new ServiceResult(e);
             }
 
-            // close any listeners.
+            // close and dispose any listeners.
             List<ITransportListener> listeners = TransportListeners;
 
             if (listeners != null)
@@ -568,6 +573,8 @@ namespace Opc.Ua
                             "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
                     }
+
+                    Utils.SilentDispose(listeners[ii]);
                 }
 
                 listeners.Clear();
@@ -584,6 +591,12 @@ namespace Opc.Ua
                     }
                     host.Close();
                 }
+            }
+
+            // clear policies
+            if (UserTokenPolicys != null)
+            {
+                UserTokenPolicys.Clear();
             }
 
             m_messageContext = null;
@@ -753,6 +766,11 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// List of all server wide supported token policies
+        /// </summary>
+        protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
+
+        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
         protected virtual Type GetServiceContract()
@@ -818,6 +836,7 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
             EndpointDescriptionCollection endpoints,
@@ -902,10 +921,17 @@ namespace Opc.Ua
                     }
                 }
 
-                // ensure each policy has a unique id within the context of the Server
-                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                var existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
 
-                policies.Add(clone);
+                // Ensure each policy has a unique ID within the context of the Server
+                if (existingPolicy == null)
+                {
+                    clone.PolicyId = Utils.Format("{0}", UserTokenPolicys.Count + 1);
+                    UserTokenPolicys.Add(clone);
+                    existingPolicy = clone;
+                }
+
+                policies.Add(existingPolicy);
             }
 
             return policies;
@@ -1428,14 +1454,12 @@ namespace Opc.Ua
                 X509Certificate2 instanceCertificate =
                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                         securityPolicy.SecurityPolicyUri)
-                    ?? throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
                 if (!instanceCertificate.HasPrivateKey)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Server does not have access to the private key for the instance certificate.");
                 }
 
@@ -1489,10 +1513,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
-        /// <param name="bindingFactory">The object of a class that manages a mapping between a URL scheme and a listener.</param>
-        /// <param name="serverDescription">The object of the class that contains a description for the ApplicationDescription DataType.</param>
-        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/> objects.</param>
+        /// <param name="configuration">The object that stores the configurable
+        /// configuration information for a UA application.</param>
+        /// <param name="bindingFactory">The object of a class that manages a
+        /// mapping between a URL scheme and a listener.</param>
+        /// <param name="serverDescription">The object of the class that contains
+        /// a description for the ApplicationDescription DataType.</param>
+        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/>
+        /// objects.</param>
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
@@ -1767,10 +1795,6 @@ namespace Opc.Ua
         private RequestQueue m_requestQueue;
         private ITelemetryContext m_telemetry;
 
-        /// <summary>
-        /// identifier for the UserTokenPolicy should be unique within the context of a single Server
-        /// </summary>
-        private int m_userTokenPolicyId;
         private bool m_disposed;
     }
 }

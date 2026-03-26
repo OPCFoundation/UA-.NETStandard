@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-
 namespace Opc.Ua.Server
 {
     /// <summary>

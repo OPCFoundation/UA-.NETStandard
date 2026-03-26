@@ -228,7 +228,7 @@ namespace Opc.Ua.Server
                     return Session.Id;
                 }
 
-                return null;
+                return default;
             }
         }
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Formats.Asn1;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -39,20 +38,20 @@ namespace Opc.Ua.Security.Certificates
     /// Represents a PKCS#10 Certificate Signing Request (CSR).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This class provides functionality to parse and verify PKCS#10 CSRs
     /// using .NET Framework APIs, eliminating the need for BouncyCastle.
-    ///
+    /// </para>
+    /// <para>
     /// Based on RFC 2986: PKCS #10: Certification Request Syntax Specification
     /// https://tools.ietf.org/html/rfc2986
+    /// </para>
     /// </remarks>
     public sealed class Pkcs10CertificationRequest
     {
         private readonly byte[] m_certificationRequestInfo;
         private readonly byte[] m_signature;
         private readonly string m_signatureAlgorithm;
-        private readonly byte[] m_subjectPublicKeyInfo;
-        private readonly X500DistinguishedName m_subject;
-        private readonly byte[] m_attributes;
 
         /// <summary>
         /// Initializes a new instance of the Pkcs10CertificationRequest class from DER-encoded data.
@@ -77,7 +76,7 @@ namespace Opc.Ua.Security.Certificates
                 m_certificationRequestInfo = sequenceReader.ReadEncodedValue().ToArray();
 
                 // Parse CertificationRequestInfo to extract components
-                (m_subject, m_subjectPublicKeyInfo, m_attributes) =
+                (Subject, SubjectPublicKeyInfo, Attributes) =
                     ParseCertificationRequestInfo(m_certificationRequestInfo);
 
                 // Read SignatureAlgorithm
@@ -102,17 +101,17 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Gets the subject distinguished name from the CSR.
         /// </summary>
-        public X500DistinguishedName Subject => m_subject;
+        public X500DistinguishedName Subject { get; }
 
         /// <summary>
         /// Gets the subject public key info as DER-encoded bytes.
         /// </summary>
-        public byte[] SubjectPublicKeyInfo => m_subjectPublicKeyInfo;
+        public byte[] SubjectPublicKeyInfo { get; }
 
         /// <summary>
         /// Gets the attributes from the CSR.
         /// </summary>
-        public byte[] Attributes => m_attributes;
+        public byte[] Attributes { get; }
 
         /// <summary>
         /// Verifies the signature of the certificate request.
@@ -126,7 +125,7 @@ namespace Opc.Ua.Security.Certificates
                 HashAlgorithmName hashAlgorithm = Oids.GetHashAlgorithmName(m_signatureAlgorithm);
 
                 // Parse the public key to get the key for verification
-                var publicKeyReader = new AsnReader(m_subjectPublicKeyInfo, AsnEncodingRules.DER);
+                var publicKeyReader = new AsnReader(SubjectPublicKeyInfo, AsnEncodingRules.DER);
                 AsnReader pkSequence = publicKeyReader.ReadSequence();
 
                 // Read algorithm identifier
@@ -266,7 +265,7 @@ namespace Opc.Ua.Security.Certificates
             using var ecdsa = ECDsa.Create();
             try
             {
-                ecdsa.ImportSubjectPublicKeyInfo(m_subjectPublicKeyInfo, out _);
+                ecdsa.ImportSubjectPublicKeyInfo(SubjectPublicKeyInfo, out _);
 
                 // PKCS#10 CSRs store ECDSA signatures in DER format (ASN.1 SEQUENCE)
                 // but .NET's VerifyData expects IEEE P1363 format (r || s)
@@ -292,6 +291,7 @@ namespace Opc.Ua.Security.Certificates
 #endif
         }
 
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Converts ECDSA signature from DER format to IEEE P1363 format.
         /// </summary>
@@ -333,7 +333,7 @@ namespace Opc.Ua.Security.Certificates
             // Pad to the correct size
             byte[] ieee1363Signature = new byte[keySize * 2];
             Array.Copy(r, 0, ieee1363Signature, keySize - r.Length, r.Length);
-            Array.Copy(s, 0, ieee1363Signature, keySize * 2 - s.Length, s.Length);
+            Array.Copy(s, 0, ieee1363Signature, (keySize * 2) - s.Length, s.Length);
 
             return ieee1363Signature;
         }
@@ -353,5 +353,6 @@ namespace Opc.Ua.Security.Certificates
             }
             return data;
         }
+#endif
     }
 }

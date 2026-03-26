@@ -305,6 +305,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uadpDataSetMessage, logger);
         }
 
+        public static readonly StatusCode[] ValidateStatusCodes = [
+            StatusCodes.Good,
+            StatusCodes.UncertainDataSubNormal,
+            StatusCodes.BadAggregateListMismatch,
+            StatusCodes.BadUnknownResponse,
+            StatusCodes.Bad,
+            StatusCodes.BadAggregateConfigurationRejected,
+            StatusCodes.BadAggregateInvalidInputs,
+            StatusCodes.BadAlreadyExists
+        ];
+
         [Test(Description = "Validate Status")]
         public void ValidateStatus(
             [Values(
@@ -320,17 +331,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpDataSetMessageContentMask.SequenceNumber
             )]
                 UadpDataSetMessageContentMask messageContentMask,
-            [Values(
-                StatusCodes.Good,
-                StatusCodes.UncertainDataSubNormal,
-                StatusCodes.BadAggregateListMismatch,
-                StatusCodes.BadUnknownResponse,
-                StatusCodes.Bad,
-                StatusCodes.BadAggregateConfigurationRejected,
-                StatusCodes.BadAggregateInvalidInputs,
-                StatusCodes.BadAlreadyExists
-            )]
-                uint statusCode)
+                [ValueSource(nameof(ValidateStatusCodes))] StatusCode statusCode)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange

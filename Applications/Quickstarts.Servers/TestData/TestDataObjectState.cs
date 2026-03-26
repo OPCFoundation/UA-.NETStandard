@@ -73,7 +73,8 @@ namespace TestData
             // allow writes if the simulation is not active.
             if (!SimulationActive.Value)
             {
-                variable.AccessLevel = variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
                 var children = new List<BaseInstanceState>();
                 variable.GetChildren(context, children);
@@ -81,8 +82,8 @@ namespace TestData
                 {
                     if (child is BaseVariableState variableChild)
                     {
-                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels
-                            .CurrentReadOrWrite;
+                        variableChild.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                        variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     }
                 }
             }

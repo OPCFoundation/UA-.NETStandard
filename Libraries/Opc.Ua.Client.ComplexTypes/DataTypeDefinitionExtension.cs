@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var structureDefinition = new StructureDefinition
             {
-                BaseDataType = null,
+                BaseDataType = default,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = [],
                 StructureType = StructureType.Structure

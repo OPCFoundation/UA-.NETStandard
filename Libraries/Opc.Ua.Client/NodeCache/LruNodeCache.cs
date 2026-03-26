@@ -509,7 +509,8 @@ namespace Opc.Ua.Client
                 {
                     ReferenceDescriptionCollection references =
                         await context.ctx.FetchReferencesAsync(null, nodeId, context.ct)
-                            .ConfigureAwait(false);
+                            .ConfigureAwait(false) ??
+                        [];
                     foreach (ReferenceDescription? reference in references)
                     {
                         // transform absolute identifiers.

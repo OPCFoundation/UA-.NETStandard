@@ -37,7 +37,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     /// <summary>
     /// Tests for the CallMethodRequest class.
     /// </summary>
-    [TestFixture, Category("CallMethodRequest")]
+    [TestFixture]
+    [Category("CallMethodRequest")]
     [SetCulture("en-us")]
     [Parallelizable]
     public class CallMethodRequestTests
@@ -67,29 +68,25 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 ObjectId = new NodeId(1000),
                 MethodId = new NodeId(2000),
-                InputArguments = new VariantCollection() // Empty collection
+                InputArguments = [] // Empty collection
             };
 
             // Encode
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
             {
-                using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
-                {
-                    originalRequest.Encode(encoder);
-                }
-
-                // Decode
-                stream.Position = 0;
-                using (var decoder = new BinaryDecoder(stream, context))
-                {
-                    var decodedRequest = new CallMethodRequest();
-                    decodedRequest.Decode(decoder);
-
-                    // InputArguments should not be null
-                    Assert.IsNotNull(decodedRequest.InputArguments);
-                    Assert.AreEqual(0, decodedRequest.InputArguments.Count);
-                }
+                originalRequest.Encode(encoder);
             }
+
+            // Decode
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context);
+            var decodedRequest = new CallMethodRequest();
+            decodedRequest.Decode(decoder);
+
+            // InputArguments should not be null
+            Assert.IsNotNull(decodedRequest.InputArguments);
+            Assert.AreEqual(0, decodedRequest.InputArguments.Count);
         }
 
         /// <summary>
@@ -104,30 +101,26 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 ObjectId = new NodeId(1000),
                 MethodId = new NodeId(2000),
-                InputArguments = new VariantCollection { new Variant(42), new Variant("test") }
+                InputArguments = [new Variant(42), new Variant("test")]
             };
 
             // Encode
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
             {
-                using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
-                {
-                    originalRequest.Encode(encoder);
-                }
-
-                // Decode
-                stream.Position = 0;
-                using (var decoder = new BinaryDecoder(stream, context))
-                {
-                    var decodedRequest = new CallMethodRequest();
-                    decodedRequest.Decode(decoder);
-
-                    Assert.IsNotNull(decodedRequest.InputArguments);
-                    Assert.AreEqual(2, decodedRequest.InputArguments.Count);
-                    Assert.AreEqual(42, decodedRequest.InputArguments[0].Value);
-                    Assert.AreEqual("test", decodedRequest.InputArguments[1].Value);
-                }
+                originalRequest.Encode(encoder);
             }
+
+            // Decode
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context);
+            var decodedRequest = new CallMethodRequest();
+            decodedRequest.Decode(decoder);
+
+            Assert.IsNotNull(decodedRequest.InputArguments);
+            Assert.AreEqual(2, decodedRequest.InputArguments.Count);
+            Assert.AreEqual(42, decodedRequest.InputArguments[0].Value);
+            Assert.AreEqual("test", decodedRequest.InputArguments[1].Value);
         }
     }
 }

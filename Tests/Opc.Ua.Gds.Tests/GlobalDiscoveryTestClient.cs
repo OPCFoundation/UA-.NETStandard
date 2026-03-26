@@ -239,7 +239,7 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 OwnApplicationTestData.Certificate = certificate;
                 OwnApplicationTestData.PrivateKey = privateKey;
-                OwnApplicationTestData.CertificateRequestId = null;
+                OwnApplicationTestData.CertificateRequestId = default;
             }
             catch (ArgumentException e)
             {

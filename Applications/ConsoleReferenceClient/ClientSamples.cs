@@ -74,7 +74,8 @@ namespace Quickstarts
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientSamples>();
-            m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
+            m_validate = validateResponse;
+
             m_quitEvent = quitEvent;
             m_verbose = verbose;
             m_desiredEventFields = [];
@@ -146,7 +147,7 @@ namespace Quickstarts
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the results
-                m_validateResponse(resultsValues, nodesToRead);
+                ValidateResponse(resultsValues, nodesToRead);
 
                 // Display the results.
                 foreach (DataValue result in resultsValues)
@@ -187,7 +188,7 @@ namespace Quickstarts
                 // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
                 var intWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_Int32"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Int32"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = 100 }
                 };
@@ -196,7 +197,7 @@ namespace Quickstarts
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
                 var floatWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_Float"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Float"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = (float)100.5 }
                 };
@@ -205,7 +206,7 @@ namespace Quickstarts
                 // String Node - Objects\CTT\Scalar\Scalar_Static\String
                 var stringWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_String"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_String"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = "String Test" }
                 };
@@ -224,7 +225,7 @@ namespace Quickstarts
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the response
-                m_validateResponse(results, nodesToWrite);
+                ValidateResponse(results, nodesToWrite);
 
                 // Display the results.
                 Console.WriteLine("Write Results :");
@@ -302,8 +303,8 @@ namespace Quickstarts
                 // Define the UA Method to call
                 // Parent node - Objects\CTT\Methods
                 // Method node - Objects\CTT\Methods\Add
-                var objectId = new NodeId("ns=2;s=Methods");
-                var methodId = new NodeId("ns=2;s=Methods_Add");
+                var objectId = NodeId.Parse("ns=2;s=Methods");
+                var methodId = NodeId.Parse("ns=2;s=Methods_Add");
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
@@ -351,8 +352,8 @@ namespace Quickstarts
                 // Define the UA Method to call
                 // Parent node - Objects\CTT\Alarms
                 // Method node - Objects\CTT\Alarms\Start
-                var objectId = new NodeId("ns=7;s=Alarms");
-                var methodId = new NodeId("ns=7;s=Alarms.Start");
+                var objectId = NodeId.Parse("ns=7;s=Alarms");
+                var methodId = NodeId.Parse("ns=7;s=Alarms.Start");
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
@@ -457,7 +458,7 @@ namespace Quickstarts
                 var intMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_Int32"),
                     AttributeId = Attributes.Value,
                     DisplayName = "Int32 Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -471,7 +472,7 @@ namespace Quickstarts
                 var floatMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // Float Node - Objects\CTT\Scalar\Simulation\Float
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_Float"),
                     AttributeId = Attributes.Value,
                     DisplayName = "Float Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -484,7 +485,7 @@ namespace Quickstarts
                 var stringMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // String Node - Objects\CTT\Scalar\Simulation\String
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_String"),
                     AttributeId = Attributes.Value,
                     DisplayName = "String Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -496,7 +497,7 @@ namespace Quickstarts
 
                 var eventMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
-                    StartNodeId = new NodeId(ObjectIds.Server),
+                    StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
                     DisplayName = "Event Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -529,7 +530,7 @@ namespace Quickstarts
                 };
                 var desiredEventType = new LiteralOperand
                 {
-                    Value = new Variant(new NodeId(ObjectTypeIds.ExclusiveLevelAlarmType))
+                    Value = new Variant(ObjectTypeIds.ExclusiveLevelAlarmType)
                 };
 
                 whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
@@ -715,7 +716,7 @@ namespace Quickstarts
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
-            NodeId startingNode = null,
+            NodeId startingNode = default,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -891,7 +892,7 @@ namespace Quickstarts
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
-            NodeId startingNode = null,
+            NodeId startingNode = default,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -990,8 +991,8 @@ namespace Quickstarts
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge)
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
                             maxNodesPerBrowse =
@@ -1119,7 +1120,7 @@ namespace Quickstarts
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
-            await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+            await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
@@ -1775,7 +1776,21 @@ namespace Quickstarts
             return continuationPoints;
         }
 
-        private readonly Action<IList, IList> m_validateResponse;
+        private void ValidateResponse<TRequest, TResponse>(
+            IReadOnlyList<TRequest> requests,
+            IReadOnlyList<TResponse> responses)
+        {
+            if (m_validate != null)
+            {
+                m_validate(requests?.ToList(), responses?.ToList());
+            }
+            else
+            {
+                ClientBase.ValidateResponse(responses, requests);
+            }
+        }
+
+        private readonly Action<IList, IList> m_validate;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly ManualResetEvent m_quitEvent;

@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert - logs should be recorded
-            Assert.That(m_loggerProvider.LogEntries, Has.Count.GreaterThan(0));
+            Assert.That(m_loggerProvider!.LogEntries, Has.Count.GreaterThan(0));
             Assert.That(m_loggerProvider.LogEntries.Any(e =>
                 e.Contains("Read", StringComparison.Ordinal) &&
                 e.Contains("started", StringComparison.Ordinal)), Is.True);
@@ -298,7 +298,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // Assert - both metrics and logs should be recorded
             Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
-            Assert.That(m_loggerProvider.LogEntries.Count, Is.GreaterThan(0));
+            Assert.That(m_loggerProvider!.LogEntries.Count, Is.GreaterThan(0));
         }
 
         [Test]
@@ -586,7 +586,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 m_listener = new ActivityListener
                 {
                     ShouldListenTo = _ => true,
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => CurrentActivity = activity,
                     ActivityStopped = activity =>
                     {

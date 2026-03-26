@@ -612,16 +612,15 @@ namespace Opc.Ua.Bindings
                             errorSecurityChecksFailed);
                         return false;
                     }
-                    else if (innerException.StatusCode
-                        is StatusCodes.BadCertificateTimeInvalid
-                            or StatusCodes.BadCertificateIssuerTimeInvalid
-                            or StatusCodes.BadCertificateHostNameInvalid
-                            or StatusCodes.BadCertificateUriInvalid
-                            or StatusCodes.BadCertificateUseNotAllowed
-                            or StatusCodes.BadCertificateIssuerUseNotAllowed
-                            or StatusCodes.BadCertificateRevocationUnknown
-                            or StatusCodes.BadCertificateIssuerRevocationUnknown
-                            or StatusCodes.BadCertificateIssuerRevoked)
+                    if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
                     {
                         ForceChannelFault(innerException, innerException.StatusCode, e.Message);
                         return false;

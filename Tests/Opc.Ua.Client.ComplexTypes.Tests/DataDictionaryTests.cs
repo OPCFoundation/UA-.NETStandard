@@ -180,14 +180,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
                 var nodesToRead = new ReadValueIdCollection { readValueId };
 
-                ServiceResultException x = NUnit.Framework.Assert
-                    .ThrowsAsync<ServiceResultException>(() =>
-                        theSession.ReadAsync(
-                            null,
-                            0,
-                            TimestampsToReturn.Neither,
-                            nodesToRead,
-                            default));
+                ServiceResultException x = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await theSession.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Neither,
+                        nodesToRead,
+                        default).ConfigureAwait(false));
 
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
@@ -244,6 +243,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// retrieve the node id of the test data dictionary without relying on
         /// hard coded identifiers
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
         {
             var browseDescription = new BrowseDescription

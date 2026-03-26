@@ -102,9 +102,8 @@ namespace MemoryBuffer
                 ushort namespaceIndex = Server.NamespaceUris
                     .GetIndexOrAppend(Namespaces.MemoryBuffer);
 
-                var root = (BaseInstanceState)FindPredefinedNode(
-                    new NodeId(Objects.MemoryBuffers, namespaceIndex),
-                    typeof(BaseInstanceState));
+                BaseInstanceState root = FindPredefinedNode<BaseInstanceState>(
+                    new NodeId(Objects.MemoryBuffers, namespaceIndex));
 
                 // create the nodes from configuration.
                 namespaceIndex = Server.NamespaceUris

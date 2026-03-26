@@ -139,7 +139,7 @@
       <xs:element ref="Documentation"  minOccurs="0" maxOccurs="1" />
     </xs:sequence>
     <xs:attribute name="Name" type="xs:string" use="required" />
-    <xs:attribute name="Value" type="xs:int" use="optional" />
+    <xs:attribute name="Value" type="xs:decimal" use="optional" />
     <xs:attribute name="BitMask" type="xs:string" use="optional" />
     <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
   </xs:complexType>

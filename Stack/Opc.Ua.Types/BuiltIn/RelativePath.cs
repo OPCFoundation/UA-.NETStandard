@@ -226,7 +226,7 @@ namespace Opc.Ua
             {
                 var parsedElement = new RelativePathElement
                 {
-                    ReferenceTypeId = null,
+                    ReferenceTypeId = default,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
                     TargetName = element.TargetName
@@ -289,7 +289,7 @@ namespace Opc.Ua
             {
                 var parsedElement = new RelativePathElement
                 {
-                    ReferenceTypeId = null,
+                    ReferenceTypeId = default,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
                     TargetName = element.TargetName

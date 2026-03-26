@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (message.Length > 1)
                     {
                         // call on a new thread
-                        Task.Run(() => ProcessReceivedMessageDiscovery(message, source));
+                        _ = Task.Run(() => ProcessReceivedMessageDiscovery(message, source));
                     }
                 }
             }
@@ -204,22 +204,27 @@ namespace Opc.Ua.PubSub.Transport
         private async Task SendResponseDataSetMetaDataAsync()
         {
             await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
+            ushort[] metadataWriterIdsToSend;
+            UdpPubSubConnection connection = m_udpConnection;
             lock (Lock)
             {
-                if (m_metadataWriterIdsToSend.Count > 0)
+                if (connection == null)
                 {
-                    foreach (
-                        UaNetworkMessage message in m_udpConnection
-                            .CreateDataSetMetaDataNetworkMessages(
-                                [.. m_metadataWriterIdsToSend]))
-                    {
-                        m_logger.LogInformation(
-                            "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{DataSetWriterId}",
-                            message.DataSetWriterId);
+                    return;
+                }
+                metadataWriterIdsToSend = [.. m_metadataWriterIdsToSend];
+                m_metadataWriterIdsToSend.Clear();
+            }
+            if (metadataWriterIdsToSend.Length > 0)
+            {
+                foreach (UaNetworkMessage message in m_udpConnection
+                    .CreateDataSetMetaDataNetworkMessages(metadataWriterIdsToSend))
+                {
+                    m_logger.LogInformation(
+                        "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{DataSetWriterId}",
+                        message.DataSetWriterId);
 
-                        m_udpConnection.PublishNetworkMessageAsync(message);
-                    }
-                    m_metadataWriterIdsToSend.Clear();
+                    await m_udpConnection.PublishNetworkMessageAsync(message).ConfigureAwait(false);
                 }
             }
         }
@@ -230,29 +235,36 @@ namespace Opc.Ua.PubSub.Transport
         private async Task SendResponseDataSetWriterConfigurationAsync()
         {
             await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
+            UdpPubSubConnection connection = m_udpConnection;
+            ushort[] dataSetWriterIdsToSend;
             lock (Lock)
             {
-                IList<ushort> dataSetWriterIdsToSend = [];
+                if (connection == null)
+                {
+                    return;
+                }
                 if (GetDataSetWriterIds != null)
                 {
-                    dataSetWriterIdsToSend = GetDataSetWriterIds.Invoke(
-                        m_udpConnection.Application);
+                    dataSetWriterIdsToSend = [.. GetDataSetWriterIds.Invoke(connection.Application)];
                 }
-
-                if (dataSetWriterIdsToSend.Count > 0)
+                else
                 {
-                    IList<UaNetworkMessage> responsesMessages = m_udpConnection
-                        .CreateDataSetWriterCofigurationMessage(
-                            [.. dataSetWriterIdsToSend]);
+                    dataSetWriterIdsToSend = [];
+                }
+            }
 
-                    foreach (UaNetworkMessage responsesMessage in responsesMessages)
-                    {
-                        m_logger.LogInformation(
-                            "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{DataSetWriterId}",
-                            responsesMessage.DataSetWriterId);
+            if (dataSetWriterIdsToSend.Length > 0)
+            {
+                IList<UaNetworkMessage> responsesMessages = connection
+                    .CreateDataSetWriterCofigurationMessage(dataSetWriterIdsToSend);
 
-                        m_udpConnection.PublishNetworkMessageAsync(responsesMessage);
-                    }
+                foreach (UaNetworkMessage responsesMessage in responsesMessages)
+                {
+                    m_logger.LogInformation(
+                        "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{DataSetWriterId}",
+                        responsesMessage.DataSetWriterId);
+
+                    await connection.PublishNetworkMessageAsync(responsesMessage).ConfigureAwait(false);
                 }
             }
         }
@@ -264,24 +276,29 @@ namespace Opc.Ua.PubSub.Transport
         {
             await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
 
+            UdpPubSubConnection connection = m_udpConnection;
+            if (connection == null)
+            {
+                return;
+            }
+            IList<EndpointDescription> publisherEndpointsToSend = [];
             lock (Lock)
             {
-                IList<EndpointDescription> publisherEndpointsToSend = [];
                 if (GetPublisherEndpoints != null)
                 {
                     publisherEndpointsToSend = GetPublisherEndpoints.Invoke();
                 }
-
-                UaNetworkMessage message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
-                    [.. publisherEndpointsToSend],
-                    publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
-                    m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
-
-                m_logger.LogInformation(
-                    "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
-
-                m_udpConnection.PublishNetworkMessageAsync(message);
             }
+
+            UaNetworkMessage message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
+                [.. publisherEndpointsToSend],
+                publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
+                m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
+
+            m_logger.LogInformation(
+                "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
+
+            await m_udpConnection.PublishNetworkMessageAsync(message).ConfigureAwait(false);
         }
 
         /// <summary>

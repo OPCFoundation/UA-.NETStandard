@@ -33,7 +33,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -75,7 +74,7 @@ namespace Opc.Ua.Bindings
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
 
-            if (endpoint == null)
+            if (endpoint?.EndpointUrl == null)
             {
                 throw new ArgumentException("Endpoint not specified.", nameof(endpoint));
             }
@@ -102,7 +101,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
-            m_startHandshake = new TimerCallback(OnScheduledHandshake);
+            m_startHandshake = new TimerCallback(OnScheduledHandshakeAsync);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
             m_implementationString = Utils.Format(
@@ -851,19 +850,15 @@ namespace Opc.Ua.Bindings
         {
             if (ServiceResult.IsBad(error))
             {
-                StatusCode statusCode = error.StatusCode;
-                switch ((uint)statusCode)
+                if (error.StatusCode == StatusCodes.BadRequestInterrupted ||
+                    error.StatusCode == StatusCodes.BadSecureChannelClosed)
                 {
-                    case StatusCodes.BadRequestInterrupted:
-                    case StatusCodes.BadSecureChannelClosed:
-                        break;
-                    default:
-                        m_logger.LogWarning(
-                            "ChannelId {ChannelId}: Could not gracefully close the channel. Reason={ServiceResult}",
-                            ChannelId,
-                            error);
-                        break;
+                    return;
                 }
+                m_logger.LogWarning(
+                    "ChannelId {ChannelId}: Could not gracefully close the channel. Reason={ServiceResult}",
+                    ChannelId,
+                    error);
             }
         }
 
@@ -941,7 +936,7 @@ namespace Opc.Ua.Bindings
         /// Called when it is time to do a handshake.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async void OnScheduledHandshake(object? state)
+        private async void OnScheduledHandshakeAsync(object? state)
         {
             if (m_via == null)
             {
@@ -994,11 +989,8 @@ namespace Opc.Ua.Bindings
                     m_logger.LogInformation("ChannelId {ChannelId}: Attempting Reconnect Now.", ChannelId);
 
                     // cancel any previous attempt.
-                    if (m_handshakeOperation != null)
-                    {
-                        m_handshakeOperation.Fault(StatusCodes.BadTimeout);
-                        m_handshakeOperation = null;
-                    }
+                    m_handshakeOperation?.Fault(StatusCodes.BadTimeout);
+                    m_handshakeOperation = null;
 
                     // close the socket and reconnect.
                     State = TcpChannelState.Closed;
@@ -1130,9 +1122,8 @@ namespace Opc.Ua.Bindings
                         "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
-                    if (error.Code is
-                            StatusCodes.BadTcpSecureChannelUnknown or
-                            StatusCodes.BadSecurityChecksFailed)
+                    if (error.StatusCode == StatusCodes.BadTcpSecureChannelUnknown ||
+                        error.StatusCode == StatusCodes.BadSecurityChecksFailed)
                     {
                         m_logger.LogError("ChannelId {ChannelId}: Cannot Recover Channel", ChannelId);
                         Shutdown(error);
@@ -1245,11 +1236,8 @@ namespace Opc.Ua.Bindings
                 SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
                 // halt any scheduled tasks.
-                if (m_handshakeTimer != null)
-                {
-                    m_handshakeTimer.Dispose();
-                    m_handshakeTimer = null;
-                }
+                m_handshakeTimer?.Dispose();
+                m_handshakeTimer = null;
 
                 // halt any existing handshake.
                 if (m_handshakeOperation?.IsCompleted == false)

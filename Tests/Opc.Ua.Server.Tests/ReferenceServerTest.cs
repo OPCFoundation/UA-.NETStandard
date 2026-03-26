@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -619,6 +620,70 @@ namespace Opc.Ua.Server.Tests
 
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
             await CommonTestWorkers.SubscriptionTestAsync(serverTestServices, m_requestHeader).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Create multiple sessions, each with a subscription.
+        /// Close all sessions without deleting subscriptions (abandoning them).
+        /// Concurrently delete the abandoned subscriptions from the main session.
+        /// Verifies that the concurrent dictionary backing abandoned subscriptions
+        /// handles parallel access correctly (fix for issue #3612).
+        /// </summary>
+        [Test]
+        public async Task DeleteAbandonedSubscriptionsConcurrentlyAsync()
+        {
+            const int sessionCount = 5;
+            var subscriptionIds = new List<uint>();
+
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet =
+            [
+                .. CommonTestWorkers.NodeIdTestSetStatic
+                        .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+            ];
+
+            // Create multiple sessions, each with a subscription, then close
+            // the session without deleting subscriptions so they become abandoned.
+            for (int i = 0; i < sessionCount; i++)
+            {
+                (RequestHeader header, SecureChannelContext context) =
+                    await m_server.CreateAndActivateSessionAsync($"AbandonSession_{i}")
+                        .ConfigureAwait(false);
+
+                var services = new ServerTestServices(m_server, context, m_telemetry);
+                header.Timestamp = DateTime.UtcNow;
+                UInt32Collection ids = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                    services, header, testSet, kQueueSize, -1).ConfigureAwait(false);
+                subscriptionIds.AddRange(ids.ToList());
+
+                // Close session without deleting subscriptions - makes them abandoned
+                header.Timestamp = DateTime.UtcNow;
+                await m_server.CloseSessionAsync(context, header, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            // Concurrently delete all abandoned subscriptions from the main session.
+            var mainServices = new ServerTestServices(m_server, m_secureChannelContext, m_telemetry);
+            var deleteTasks = new List<Task<DeleteSubscriptionsResponse>>();
+            foreach (uint id in subscriptionIds)
+            {
+                UInt32Collection singleId = [id];
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                deleteTasks.Add(
+                    mainServices.DeleteSubscriptionsAsync(m_requestHeader, singleId)
+                        .AsTask());
+            }
+
+            DeleteSubscriptionsResponse[] responses = await Task.WhenAll(deleteTasks)
+                .ConfigureAwait(false);
+
+            // All deletions should succeed.
+            foreach (DeleteSubscriptionsResponse response in responses)
+            {
+                Assert.AreEqual(StatusCodes.Good, response.ResponseHeader.ServiceResult);
+                Assert.AreEqual(1, response.Results.Count);
+                Assert.AreEqual(StatusCodes.Good, (uint)response.Results[0]);
+            }
         }
 
         /// <summary>

@@ -159,8 +159,8 @@ namespace Opc.Ua
         {
             var clone = (MethodNode)base.MemberwiseClone();
 
-            clone.Executable = (bool)CoreUtils.Clone(Executable);
-            clone.UserExecutable = (bool)CoreUtils.Clone(UserExecutable);
+            clone.Executable = CoreUtils.Clone(Executable);
+            clone.UserExecutable = CoreUtils.Clone(UserExecutable);
 
             return clone;
         }

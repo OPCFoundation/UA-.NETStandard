@@ -162,22 +162,17 @@ namespace Opc.Ua.Fuzzing
             }
             catch (ServiceResultException sre)
             {
-                switch (sre.StatusCode)
+                if (!throwAll &&
+                    (sre.StatusCode == StatusCodes.BadDecodingError ||
+                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
                 {
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                    case StatusCodes.BadDecodingError:
-                        if (!throwAll)
-                        {
-                            return null;
-                        }
-                        goto default;
-                    default:
-                        Console.WriteLine(
-                            "Unexpected ServiceResultException: {0} {1}",
-                            (StatusCode)sre.StatusCode,
-                            sre.Message);
-                        throw;
+                    return null;
                 }
+                Console.WriteLine(
+                    "Unexpected ServiceResultException: {0} {1}",
+                    sre.StatusCode,
+                    sre.Message);
+                throw;
             }
         }
     }

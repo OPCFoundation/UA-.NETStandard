@@ -45,6 +45,14 @@ namespace System
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
+        /// Return hash code assuming ordinal
+        /// </summary>
+        public static int GetHashCode(this string target, StringComparison comparisonType)
+        {
+            return target.GetHashCode();
+        }
+
+        /// <summary>
         /// Replace line endings
         /// </summary>
         public static string ReplaceLineEndings(this string target)
@@ -53,7 +61,7 @@ namespace System
         }
 
         /// <summary>
-        /// Contains a character in a string using a specified comparison type.
+        /// Contains a character in a string using a specified comparison type assuming ordinal.
         /// </summary>
         public static bool Contains(this string target, char value, StringComparison comparisonType)
         {
@@ -61,7 +69,7 @@ namespace System
         }
 
         /// <summary>
-        /// Contains a character in a string using a specified comparison type.
+        /// Contains a character in a string using a specified comparison typeassuming ordinal.
         /// </summary>
         public static bool Contains(
             this string target,
@@ -69,6 +77,17 @@ namespace System
             StringComparison comparisonType)
         {
             return target.Contains(value);
+        }
+
+        /// <summary>
+        /// Compare to a string using a specified comparison type.
+        /// </summary>
+        public static int CompareTo(
+            this string target,
+            string value,
+            StringComparison comparisonType)
+        {
+            return string.Compare(target, value, comparisonType);
         }
 
         /// <summary>

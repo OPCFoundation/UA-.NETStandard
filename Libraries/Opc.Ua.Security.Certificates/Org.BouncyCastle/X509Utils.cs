@@ -27,18 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+#if NETFRAMEWORK
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-#if NET472_OR_GREATER
 using System.Text.RegularExpressions;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X9;
-#endif
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -161,7 +159,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 new BigInteger(1, rsaParams.InverseQ));
         }
 
-#if NET472_OR_GREATER
         /// <summary>
         /// Get ECDsa private key parameters from a X509Certificate2.
         /// The private key must be exportable.
@@ -311,7 +308,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 GetX9ECParameters(ecParams)
                 ?? throw new ArgumentException(
                     "Curve OID is not recognized ",
-                    ecParams.Curve.Oid.ToString());
+                    ecParams.Curve.Oid.FriendlyName);
 
             Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
@@ -326,7 +323,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             return new ECPublicKeyParameters(q, domainParameters);
         }
-#endif
 
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.
@@ -425,4 +421,4 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
     }
 }
-#endif
+#endif // NETFRAMEWORK

@@ -86,7 +86,9 @@ namespace Opc.Ua.PubSub.Transport
             KeyValuePairs.Add(new KeyValuePair
             {
                 Key = qClientCertificatePassword,
-                Value = ClientCertificatePassword?.ToString() ?? string.Empty
+                Value = ClientCertificatePassword == null ?
+                    string.Empty :
+                    new string(ClientCertificatePassword)
             });
         }
 

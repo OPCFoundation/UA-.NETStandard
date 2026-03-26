@@ -289,8 +289,8 @@ namespace Opc.Ua.Security.Certificates
             }
             if (curve.Oid.FriendlyName
                     .Equals(ECCurve.NamedCurves.nistP521.Oid.FriendlyName, StringComparison.Ordinal) ||
-                (curve.Oid.FriendlyName
-                    .Equals(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName, StringComparison.Ordinal)))
+                curve.Oid.FriendlyName
+                    .Equals(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName, StringComparison.Ordinal))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }

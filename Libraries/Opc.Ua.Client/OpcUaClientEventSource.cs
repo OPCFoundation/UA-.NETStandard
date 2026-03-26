@@ -93,11 +93,11 @@ namespace Opc.Ua.Client
             NotificationId,
             Message = "Notification: ClientHandle={0}, Value={1}",
             Level = EventLevel.Verbose)]
-        public void Notification(int clientHandle, Variant value)
+        public void Notification(int clientHandle, string value)
         {
             if (IsEnabled())
             {
-                WriteEvent(NotificationId, clientHandle, value.ToString());
+                WriteEvent(NotificationId, clientHandle, value);
             }
         }
 

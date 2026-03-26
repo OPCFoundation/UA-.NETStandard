@@ -154,8 +154,8 @@ namespace Opc.Ua.Gds.Client
 
             data.InnerResult = client.BeginFindServers(
                 null,
-                (actualEndpointUrl) ?? endpointUrl,
-                [.. (preferredLocales) ?? PreferredLocales],
+                actualEndpointUrl ?? endpointUrl,
+                [.. preferredLocales ?? PreferredLocales],
                 serverUris != null ? [.. serverUris] : null,
                 OnFindServersComplete,
                 data);

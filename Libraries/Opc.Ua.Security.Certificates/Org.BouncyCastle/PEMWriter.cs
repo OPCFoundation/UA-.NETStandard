@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+#if NETFRAMEWORK
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static partial class PEMWriter
     {
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+#if NETFRAMEWORK
 
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.

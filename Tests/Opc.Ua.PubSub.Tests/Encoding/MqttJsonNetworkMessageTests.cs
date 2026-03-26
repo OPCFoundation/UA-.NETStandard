@@ -72,7 +72,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             NonMetadata = MessageType | DataSetMetaData,
 
             MetaData_Name,
-            MetaData_Description,
             MetaData_Fields,
             MetaData_DataSetClassId,
             MetaData_ConfigurationVersion
@@ -1909,12 +1908,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             MetaDataFailOptions.MetaData_Name,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Name reason.");
                         break;
-                    case MetaDataFailOptions.MetaData_Description:
-                        Assert.AreEqual(
-                            failOptions,
-                            MetaDataFailOptions.MetaData_Description,
-                            "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Description reason.");
-                        break;
                     case MetaDataFailOptions.MetaData_DataSetClassId:
                         Assert.AreEqual(
                             failOptions,
@@ -2337,8 +2330,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
 
-                    var encodedExpandedNodeId = dataValueEncoded.Value as ExpandedNodeId;
-                    var decodedExpandedNodeId = dataValueDecoded.Value as ExpandedNodeId;
+                    ExpandedNodeId encodedExpandedNodeId =
+                        dataValueEncoded.Value is ExpandedNodeId ee ? ee : default;
+                    ExpandedNodeId decodedExpandedNodeId =
+                        dataValueDecoded.Value is ExpandedNodeId de ? de : default;
                     if (encodedExpandedNodeId != null &&
                         !encodedExpandedNodeId.IsAbsolute &&
                         decodedExpandedNodeId != null &&
@@ -2553,10 +2548,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "DataSetMetaData.Name was not decoded correctly, Encoded: {0} Decoded: {1}",
                 jsonNetworkMessage.DataSetMetaData.Name,
                 dataSetMetaData.Name);
-            if (jsonDataSetMetaData.Description == null)
-            {
-                return MetaDataFailOptions.MetaData_Description;
-            }
+
             Assert.AreEqual(
                 jsonNetworkMessage.DataSetMetaData.Description,
                 dataSetMetaData.Description,
@@ -2945,7 +2937,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         namespaceIndex,
                                                         string.Empty,
                                                         expandedNodeId.ServerIndex);
-                                                    decodedFieldValue = new ExpandedNodeId(
+                                                    decodedFieldValue = ExpandedNodeId.Parse(
                                                         stringBuilder.ToString());
                                                 }
                                                 // by convention array decoders always return the Array type
@@ -3093,7 +3085,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             namespaceIndex,
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
-                                                        dataValue.Value = new ExpandedNodeId(
+                                                        dataValue.Value = ExpandedNodeId.Parse(
                                                             stringBuilder.ToString());
                                                     }
                                                     Assert.IsTrue(

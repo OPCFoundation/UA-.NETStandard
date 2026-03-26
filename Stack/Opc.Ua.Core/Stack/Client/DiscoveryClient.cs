@@ -498,7 +498,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new transport channel that supports the ISessionChannel service contract.
+        /// Creates a new transport channel
         /// </summary>
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
@@ -567,7 +567,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new transport channel that supports the IDiscoveryChannel service contract.
+        /// Creates a new transport channel.
         /// </summary>
         internal static ValueTask<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,

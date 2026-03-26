@@ -618,10 +618,8 @@ namespace Opc.Ua.Server
             lock (DiagnosticsLock)
             {
                 // get the server object.
-                ServerObjectState serverObject = ServerObject = (ServerObjectState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        ObjectIds.Server,
-                        typeof(ServerObjectState));
+                ServerObjectState serverObject = ServerObject =
+                    DiagnosticsNodeManager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
 
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
@@ -709,17 +707,15 @@ namespace Opc.Ua.Server
                 // setup PublishSubscribe Status State value
                 const PubSubState pubSubState = PubSubState.Disabled;
 
-                var default_PubSubState = (BaseVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.PublishSubscribe_Status_State,
-                        typeof(BaseVariableState));
+                BaseVariableState default_PubSubState =
+                    DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                        VariableIds.PublishSubscribe_Status_State);
                 default_PubSubState.Value = pubSubState;
 
                 // setup value for SupportedTransportProfiles
-                var default_SupportedTransportProfiles = (BaseVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.PublishSubscribe_SupportedTransportProfiles,
-                        typeof(BaseVariableState));
+                BaseVariableState default_SupportedTransportProfiles =
+                    DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                        VariableIds.PublishSubscribe_SupportedTransportProfiles);
                 default_SupportedTransportProfiles.Value = "uadp";
 
                 // setup callbacks for dynamic values.
@@ -756,10 +752,9 @@ namespace Opc.Ua.Server
                     BuildNumber = m_serverDescription.BuildNumber,
                     BuildDate = m_serverDescription.BuildDate
                 };
-                var buildInfoVariableState = (BuildInfoVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.Server_ServerStatus_BuildInfo,
-                        typeof(BuildInfoVariableState));
+                BuildInfoVariableState buildInfoVariableState =
+                    DiagnosticsNodeManager.FindPredefinedNode<BuildInfoVariableState>(
+                        VariableIds.Server_ServerStatus_BuildInfo);
                 var buildInfoVariable = new BuildInfoVariableValue(
                     buildInfoVariableState,
                     buildInfo,

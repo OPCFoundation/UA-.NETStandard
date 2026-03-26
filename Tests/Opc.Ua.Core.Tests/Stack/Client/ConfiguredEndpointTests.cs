@@ -72,15 +72,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             // Try to match with a security policy that doesn't exist (Aes256_Sha256_RsaPss)
-            var ex = Assert.Throws<TargetInvocationException>(() =>
-            {
-                InvokeMatchEndpoints(
+            TargetInvocationException ex = Assert.Throws<TargetInvocationException>(
+                () => InvokeMatchEndpoints(
                     serverEndpoints,
                     new Uri("opc.tcp://localhost:4840"),
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.Aes256_Sha256_RsaPss
-                );
-            });
+                ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
@@ -109,15 +107,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             // Try to match with SignAndEncrypt mode that doesn't exist
-            var ex = Assert.Throws<TargetInvocationException>(() =>
-            {
-                InvokeMatchEndpoints(
+            TargetInvocationException ex = Assert.Throws<TargetInvocationException>(() => InvokeMatchEndpoints(
                     serverEndpoints,
                     new Uri("opc.tcp://localhost:4840"),
                     MessageSecurityMode.SignAndEncrypt,
                     null // no specific policy requested, only mode
-                );
-            });
+                ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
@@ -146,15 +141,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             // Try to match with both policy and mode that don't exist
-            var ex = Assert.Throws<TargetInvocationException>(() =>
-            {
-                InvokeMatchEndpoints(
+            TargetInvocationException ex = Assert.Throws<TargetInvocationException>(() => InvokeMatchEndpoints(
                     serverEndpoints,
                     new Uri("opc.tcp://localhost:4840"),
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.Basic256Sha256
-                );
-            });
+                ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
             var serviceException = (ServiceResultException)ex.InnerException;
@@ -170,8 +162,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void MatchEndpoints_ReturnsEndpoints_WhenNoSecurityParametersSpecified()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
             // Create server endpoints
             var serverEndpoints = new EndpointDescriptionCollection
             {
@@ -190,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             // Match without specifying security parameters
-            var matches = InvokeMatchEndpoints(
+            EndpointDescriptionCollection matches = InvokeMatchEndpoints(
                 serverEndpoints,
                 new Uri("opc.tcp://localhost:4840"),
                 MessageSecurityMode.Invalid,
@@ -208,8 +198,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void MatchEndpoints_ReturnsMatchingEndpoint_WhenSecurityParametersMatch()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
             // Create server endpoints
             var serverEndpoints = new EndpointDescriptionCollection
             {
@@ -228,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             // Match with existing security parameters
-            var matches = InvokeMatchEndpoints(
+            EndpointDescriptionCollection matches = InvokeMatchEndpoints(
                 serverEndpoints,
                 new Uri("opc.tcp://localhost:4840"),
                 MessageSecurityMode.SignAndEncrypt,
@@ -245,18 +233,18 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// <summary>
         /// Helper method to invoke the private MatchEndpoints method via reflection.
         /// </summary>
-        private EndpointDescriptionCollection InvokeMatchEndpoints(
+        private static EndpointDescriptionCollection InvokeMatchEndpoints(
             EndpointDescriptionCollection collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            var configuredEndpointType = typeof(ConfiguredEndpoint);
-            var matchEndpointsMethod = configuredEndpointType.GetMethod(
+            Type configuredEndpointType = typeof(ConfiguredEndpoint);
+            MethodInfo matchEndpointsMethod = configuredEndpointType.GetMethod(
                 "MatchEndpoints",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 null,
-                new[] { typeof(EndpointDescriptionCollection), typeof(Uri), typeof(MessageSecurityMode), typeof(string) },
+                [typeof(EndpointDescriptionCollection), typeof(Uri), typeof(MessageSecurityMode), typeof(string)],
                 null
             );
 
@@ -264,7 +252,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             return (EndpointDescriptionCollection)matchEndpointsMethod.Invoke(
                 null,
-                new object[] { collection, endpointUrl, securityMode, securityPolicyUri }
+                [collection, endpointUrl, securityMode, securityPolicyUri]
             );
         }
     }

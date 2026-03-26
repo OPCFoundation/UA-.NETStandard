@@ -65,7 +65,7 @@ namespace Opc.Ua.Tests
         /// <summary>
         /// Create telemetry context
         /// </summary>
-        private NUnitTelemetryContext(string context, ILoggerProvider provider)
+        private NUnitTelemetryContext(ILoggerProvider provider)
             : base(Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder => builder.AddProvider(provider)))
         {
@@ -75,30 +75,38 @@ namespace Opc.Ua.Tests
         /// Use the test context output
         /// </summary>
         /// <returns></returns>
-        public static ITelemetryContext Create(bool isServer = false)
+        public static ITelemetryContext Create(
+            bool isServer = false,
+            LogLevel logLevel = LogLevel.Debug)
         {
             string context = !isServer ? "TEST" : "SERVER";
-            return new NUnitTelemetryContext(context,
-                new NUnitLoggerProvider(context));
+            return new NUnitTelemetryContext(
+                new NUnitLoggerProvider(context, logLevel));
         }
 
         /// <summary>
         /// Use the benchmark log output
         /// </summary>
         /// <returns></returns>
-        public static ITelemetryContext CreateForBenchmarks()
+        public static ITelemetryContext CreateForBenchmarks(
+            LogLevel logLevel = LogLevel.Information)
         {
-            return new NUnitTelemetryContext("BENCHMARKS",
-                new BenchmarkDotNetProvider());
+            return new NUnitTelemetryContext(
+                new BenchmarkDotNetProvider(logLevel));
         }
 
         [ProviderAlias("BenchmarkDotNet")]
         internal sealed class BenchmarkDotNetProvider : ILoggerProvider
         {
+            public BenchmarkDotNetProvider(LogLevel logLevel)
+            {
+                m_logLevel = logLevel;
+            }
+
             /// <inheritdoc/>
             public ILogger CreateLogger(string categoryName)
             {
-                return m_loggers.GetOrAdd(categoryName, name => new Logger());
+                return m_loggers.GetOrAdd(categoryName, name => new Logger(m_logLevel));
             }
 
             /// <inheritdoc/>
@@ -108,15 +116,17 @@ namespace Opc.Ua.Tests
 
             private sealed class Logger : ILogger, IDisposable
             {
-                private readonly BenchmarkDotNet.Loggers.ILogger m_logger;
-
-                public Logger(BenchmarkDotNet.Loggers.ILogger logger = null)
+                public Logger(
+                    LogLevel logLevel,
+                    BenchmarkDotNet.Loggers.ILogger logger = null)
                 {
-                    m_logger = logger ?? BenchmarkDotNet.Loggers.ConsoleLogger.Default;
+                    MinimumLogLevel = logLevel;
+                    m_logger = logger ??
+                        BenchmarkDotNet.Loggers.ConsoleLogger.Default;
                 }
 
                 /// <inheritdoc/>
-                public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
+                public LogLevel MinimumLogLevel { get; set; } = LogLevel.Information;
 
                 /// <inheritdoc/>
                 public IDisposable BeginScope<TState>(TState state)
@@ -178,10 +188,14 @@ namespace Opc.Ua.Tests
                         // intentionally ignored
                     }
                 }
+
+                private readonly BenchmarkDotNet.Loggers.ILogger m_logger;
             }
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
+
+            private readonly LogLevel m_logLevel;
         }
 
         [ProviderAlias("NUnit")]
@@ -191,8 +205,9 @@ namespace Opc.Ua.Tests
             /// Create provider for context
             /// </summary>
             /// <param name="context"></param>
-            public NUnitLoggerProvider(string context)
+            public NUnitLoggerProvider(string context, LogLevel logLevel)
             {
+                m_logLevel = logLevel;
                 m_context = context;
             }
 
@@ -200,7 +215,7 @@ namespace Opc.Ua.Tests
             public ILogger CreateLogger(string categoryName)
             {
                 return m_loggers.GetOrAdd(categoryName,
-                    name => new Logger(m_context, categoryName));
+                    name => new Logger(m_context, categoryName, m_logLevel));
             }
 
             /// <inheritdoc/>
@@ -210,14 +225,15 @@ namespace Opc.Ua.Tests
 
             private sealed class Logger : ILogger, IDisposable
             {
-                public Logger(string context, string categoryName)
+                public Logger(string context, string categoryName, LogLevel logLevel)
                 {
+                    MinimumLogLevel = logLevel;
                     m_context = context;
                     m_categoryName = categoryName;
                 }
 
                 /// <inheritdoc/>
-                public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
+                public LogLevel MinimumLogLevel { get; set; }
 
                 /// <inheritdoc/>
                 public IDisposable BeginScope<TState>(TState state)
@@ -328,8 +344,9 @@ namespace Opc.Ua.Tests
             }
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
-                  new(StringComparer.OrdinalIgnoreCase);
+                new(StringComparer.OrdinalIgnoreCase);
 
+            private readonly LogLevel m_logLevel;
             private readonly string m_context;
         }
     }

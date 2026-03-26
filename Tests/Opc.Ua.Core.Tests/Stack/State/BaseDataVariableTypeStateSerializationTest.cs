@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.ValueRank = ValueRanks.OneDimension;
 
             // Set a byte array value
-            byte[] testValue = new byte[] { 1, 2, 3, 4, 5 };
+            byte[] testValue = [1, 2, 3, 4, 5];
             variableState.Value = testValue;
 
             // Get the WrappedValue and verify it's a Byte array, not ByteString
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.ValueRank = ValueRanks.Scalar;
 
             // Set a byte array value (which represents a ByteString)
-            byte[] testValue = new byte[] { 1, 2, 3, 4, 5 };
+            byte[] testValue = [1, 2, 3, 4, 5];
             variableState.Value = testValue;
 
             // Get the WrappedValue and verify it's a ByteString

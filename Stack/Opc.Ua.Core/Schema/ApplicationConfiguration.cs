@@ -730,8 +730,10 @@ namespace Opc.Ua
             }
         }
 
-        // This private property exists solely to control serialization of the legacy single
-        // certificate element. It is emitted only when the configuration was marked deprecated.
+        /// <summary>
+        /// This private property exists solely to control serialization of the legacy single
+        /// certificate element. It is emitted only when the configuration was marked deprecated.
+        /// </summary>
         [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
@@ -812,8 +814,10 @@ namespace Opc.Ua
             }
         }
 
-        // This private property exists solely to control the serialization of the modern certificates collection.
-        // Emit only when the configuration is not marked deprecated.
+        /// <summary>
+        /// This private property exists solely to control the serialization of the modern certificates collection.
+        /// Emit only when the configuration is not marked deprecated.
+        /// </summary>
         [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         private CertificateIdentifierCollection ApplicationCertificatesDataContract
         {

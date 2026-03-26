@@ -88,7 +88,7 @@ namespace Alarms
                     alarm.ShelvingState = new ShelvedStateMachineState(alarm);
                     alarm.ShelvingState.Create(
                         SystemContext,
-                        null,
+                        default,
                         BrowseNames.ShelvingState,
                         BrowseNames.ShelvingState,
                         false);

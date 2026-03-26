@@ -812,9 +812,7 @@ namespace Alarms
                             false,
                             methodToCall.MethodId))
                         {
-                            method = (MethodState)FindPredefinedNode(
-                                methodToCall.MethodId,
-                                typeof(MethodState));
+                            method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
                         }
 
                         if (method == null)

@@ -159,8 +159,8 @@ namespace Opc.Ua
         {
             var clone = (ViewNode)base.MemberwiseClone();
 
-            clone.ContainsNoLoops = (bool)CoreUtils.Clone(ContainsNoLoops);
-            clone.EventNotifier = (byte)CoreUtils.Clone(EventNotifier);
+            clone.ContainsNoLoops = CoreUtils.Clone(ContainsNoLoops);
+            clone.EventNotifier = CoreUtils.Clone(EventNotifier);
 
             return clone;
         }

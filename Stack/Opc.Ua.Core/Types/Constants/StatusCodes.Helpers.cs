@@ -30,6 +30,8 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -194,5 +196,16 @@ namespace Opc.Ua
                 return new ReadOnlyDictionary<uint, byte[]>(keyValuePairs);
 #endif
             });
+
+        // This will be removed in next version
+#pragma warning disable CA2255 // The ModuleInitializer attribute should not be used in libraries
+        [ModuleInitializer]
+        internal static void InitializeStatusCodes()
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            StatusCode.LookupSymbolicIdHook = LookupSymbolicId;
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
+#pragma warning restore CA2255 // The ModuleInitializer attribute should not be used in libraries
     }
 }

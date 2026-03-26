@@ -277,9 +277,9 @@ namespace Opc.Ua.Gds.Tests
         private void Initialize()
         {
             ApplicationRecord = new ApplicationRecordDataType();
-            CertificateGroupId = null;
-            CertificateTypeId = null;
-            CertificateRequestId = null;
+            CertificateGroupId = default;
+            CertificateTypeId = default;
+            CertificateRequestId = default;
             DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";

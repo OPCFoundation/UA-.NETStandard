@@ -1449,7 +1449,7 @@ namespace Opc.Ua
         public IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -2198,7 +2198,7 @@ namespace Opc.Ua
         public Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -2267,7 +2267,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (valueRank == ValueRanks.OneDimension)
             {

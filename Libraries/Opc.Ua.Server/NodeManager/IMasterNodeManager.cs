@@ -300,7 +300,6 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-
         ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,

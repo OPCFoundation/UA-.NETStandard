@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    Task.Run(() => DoSample(itemsToSample));
+                    _ = Task.Run(() => DoSample(itemsToSample));
                 }
 
                 // remove items.

@@ -325,11 +325,7 @@ namespace Opc.Ua
             {
                 return BuiltInType.DateTime;
             }
-            if (systemType == typeof(Guid))
-            {
-                return BuiltInType.Guid;
-            }
-            if (systemType == typeof(Uuid))
+            if (systemType == typeof(Guid) || systemType == typeof(Uuid))
             {
                 return BuiltInType.Guid;
             }
@@ -1389,7 +1385,7 @@ namespace Opc.Ua
             switch (sourceType)
             {
                 case BuiltInType.NodeId:
-                    return (NodeId)value;
+                    return value is NodeId n ? n : default;
                 case BuiltInType.ExpandedNodeId:
                     return (NodeId)(ExpandedNodeId)value;
                 case BuiltInType.String:
@@ -1940,8 +1936,7 @@ namespace Opc.Ua
 
             object firstOperand = GetValue(operands[0]);
             string lhs;
-            var firstOperandLocalizedText = firstOperand as LocalizedText;
-            if (firstOperandLocalizedText != null)
+            if (firstOperand is LocalizedText firstOperandLocalizedText)
             {
                 lhs = firstOperandLocalizedText.Text;
             }
@@ -1952,8 +1947,7 @@ namespace Opc.Ua
 
             object secondOperand = GetValue(operands[1]);
             string rhs;
-            var secondOperandLocalizedText = secondOperand as LocalizedText;
-            if (secondOperandLocalizedText != null)
+            if (secondOperand is LocalizedText secondOperandLocalizedText)
             {
                 rhs = secondOperandLocalizedText.Text;
             }
@@ -2019,13 +2013,10 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            var typeDefinitionId = GetValue(operands[0]) as NodeId;
-
-            if (typeDefinitionId == null || m_target == null)
+            if (GetValue(operands[0]) is not NodeId typeDefinitionId || m_target == null)
             {
                 return false;
             }
-
             // check the type.
             try
             {
@@ -2052,9 +2043,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            var viewId = GetValue(operands[0]) as NodeId;
-
-            if (viewId == null || m_target == null)
+            if (GetValue(operands[0]) is not NodeId viewId || m_target == null)
             {
                 return false;
             }
@@ -2075,7 +2064,7 @@ namespace Opc.Ua
         /// </summary>
         private bool RelatedTo(ContentFilterElement element)
         {
-            return RelatedTo(element, null);
+            return RelatedTo(element, default);
         }
 
         /// <summary>
@@ -2158,7 +2147,7 @@ namespace Opc.Ua
                     var nestedType = ExtensionObject.ToEncodeable(
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
-                    targetTypeId = GetValue(nestedType) as NodeId;
+                    targetTypeId = GetValue(nestedType) is NodeId n ? n : default;
 
                     if (targetTypeId == null)
                     {
@@ -2197,7 +2186,7 @@ namespace Opc.Ua
             }
 
             // get the type of the m_target.
-            targetTypeId = GetValue(operands[1]) as NodeId;
+            targetTypeId = GetValue(operands[1]) is NodeId n2 ? n2 : default;
 
             if (targetTypeId == null)
             {

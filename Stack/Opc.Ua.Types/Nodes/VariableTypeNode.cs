@@ -77,7 +77,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             Value = Variant.Null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             IsAbstract = true;
@@ -222,11 +222,11 @@ namespace Opc.Ua
         {
             var clone = (VariableTypeNode)base.MemberwiseClone();
 
-            clone.Value = (Variant)CoreUtils.Clone(Value);
+            clone.Value = CoreUtils.Clone(Value);
             clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
-            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
+            clone.IsAbstract = CoreUtils.Clone(IsAbstract);
 
             return clone;
         }

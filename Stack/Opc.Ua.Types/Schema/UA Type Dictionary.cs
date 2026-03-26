@@ -77,7 +77,7 @@ namespace Opc.Ua.Schema {
         
         private string nameField;
         
-        private int valueField;
+        private decimal valueField;
         
         private bool valueFieldSpecified;
         
@@ -112,7 +112,7 @@ namespace Opc.Ua.Schema {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public int Value {
+        public decimal Value {
             get {
                 return this.valueField;
             }

@@ -89,7 +89,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void VerifyX509AuthorityKeyIdentifierExtension()
         {
-            var authorityName = new X500DistinguishedName("CN=Test,O=OPC Foundation,DC=localhost");
+            var authorityName = new X500DistinguishedName("CN=Test, O=OPC Foundation, DC=localhost");
             byte[] serialNumber = [9, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             byte[] subjectKeyIdentifier = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             var aki = new X509AuthorityKeyIdentifierExtension(
@@ -110,7 +110,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
+            Assert.AreEqual(authorityName.Name, akidecoded.Issuer.Name);
             Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
             Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
@@ -121,7 +121,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
-            Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
+            Assert.AreEqual(authorityName.Name, akidecoded.Issuer.Name);
             Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
             Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());

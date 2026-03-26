@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Enum definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class EnumDefinition : DataTypeDefinition
+    public class EnumDefinition : DataTypeDefinition
     {
         /// <inheritdoc/>
         public EnumDefinition()
@@ -75,6 +75,11 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// If TRUE the values are bit positions rather than values.
+        /// </summary>
+        public bool IsOptionSet { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumDefinition;

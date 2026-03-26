@@ -31,9 +31,7 @@ using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -145,14 +143,9 @@ namespace Opc.Ua.Security.Certificates
             Exception ex = null;
 
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
-            if (!noEphemeralKeySet)
+            if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
-                }
-#endif
+                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
             }
             // By default keys are not persisted
             defaultStorageSet |= X509KeyStorageFlags.Exportable;

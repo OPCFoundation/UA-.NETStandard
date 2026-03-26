@@ -55,8 +55,7 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Enter()
         {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
             Monitor.Enter(this);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -71,8 +70,7 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter()
         {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -82,8 +80,7 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter(TimeSpan timeout)
         {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this, timeout);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -93,8 +90,7 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter(int millisecondsTimeout)
         {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
             return Monitor.TryEnter(this, millisecondsTimeout);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -132,8 +128,7 @@ namespace System.Threading
             bool lockTaken = false;
             try
             {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
                 Monitor.Enter(this, ref lockTaken);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -154,8 +149,7 @@ namespace System.Threading
 #else
         public Scope EnterScope()
         {
-#pragma warning disable CS9216
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CS9216, CA2002 // Do not lock on objects with weak identity
             Monitor.Enter(this);
 #pragma warning restore CA2002 // Do not lock on objects with weak identity
 #pragma warning restore CS9216
@@ -167,7 +161,7 @@ namespace System.Threading
         /// A disposable structure that is returned by <see cref="EnterScope()"/>,
         /// which when disposed, exits the lock.
         /// </summary>
-        public ref struct Scope(Lock @lock)
+        public readonly ref struct Scope(Lock @lock)
         {
             /// <summary>
             /// Exits the lock.
@@ -181,7 +175,7 @@ namespace System.Threading
             /// The calling thread does not hold the lock.
             /// </exception>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public readonly void Dispose()
+            public void Dispose()
             {
                 @lock.Exit();
             }

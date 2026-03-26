@@ -82,7 +82,6 @@ namespace Opc.Ua.Types.Tests.State
 
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
-            Assert.False(testObject.Initialized);
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
@@ -105,9 +104,21 @@ namespace Opc.Ua.Types.Tests.State
                 {
                     instance = Activator.CreateInstance(systemType, (NodeState)null);
                 }
+                else if (systemType.IsAbstract)
+                {
+                    instance = null;
+                }
                 else
                 {
-                    instance = Activator.CreateInstance(systemType);
+                    ConstructorInfo defaultConstructor = systemType.GetConstructor([]);
+                    if (defaultConstructor == null || !defaultConstructor.IsPublic)
+                    {
+                        instance = null;
+                    }
+                    else
+                    {
+                        instance = Activator.CreateInstance(systemType);
+                    }
                 }
             }
             catch

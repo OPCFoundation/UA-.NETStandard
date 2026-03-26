@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             var dataStore = new UaPubSubDataStore();
-            var nodeId = new NodeId("ns=1;i=1");
+            var nodeId = NodeId.Parse("ns=1;i=1");
 
             //Act
             dataStore.WritePublishedDataItem(
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             //Assert
             NUnit.Framework.Assert
-                .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(null));
+                .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(default));
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with invalid Attribute")]
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                 dataStore.WritePublishedDataItem(
-                    new NodeId("ns=0;i=2253"),
+                    NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));
         }
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             var dataStore = new UaPubSubDataStore();
-            var nodeId = new NodeId("ns=1;i=1");
+            var nodeId = NodeId.Parse("ns=1;i=1");
 
             //Act
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             //Assert
             NUnit.Framework.Assert
-                .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(null));
+                .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(default));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                 dataStore.ReadPublishedDataItem(
-                    new NodeId("ns=0;i=2253"),
+                    NodeId.Parse("ns=0;i=2253"),
                     Attributes.AccessLevelEx + 1));
         }
     }

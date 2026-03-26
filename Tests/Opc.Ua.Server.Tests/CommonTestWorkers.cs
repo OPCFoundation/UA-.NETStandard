@@ -210,11 +210,11 @@ namespace Opc.Ua.Server.Tests
         /// <param name="services">The service interface.</param>
         /// <param name="operationLimits">The operation limits.</param>
         public static async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceWorkerAsync(
-                    IServerTestServices services,
-                    RequestHeader requestHeader,
-                    OperationLimits operationLimits = null,
-                    BrowseDescription browseDescription = null,
-                    bool outputResult = false)
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            OperationLimits operationLimits = null,
+            BrowseDescription browseDescription = null,
+            bool outputResult = false)
         {
             operationLimits ??= new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -245,11 +245,11 @@ namespace Opc.Ua.Server.Tests
             // Test if server responds with BadNothingToDo
             {
                 ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        _ = await services.BrowseAsync(
-                            requestHeader,
-                            null,
-                            0,
-                            browseDescriptionCollection.Take(0).ToArray()).ConfigureAwait(false));
+                    _ = await services.BrowseAsync(
+                        requestHeader,
+                        null,
+                        0,
+                        browseDescriptionCollection.Take(0).ToArray()).ConfigureAwait(false));
                 Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
             }
 
@@ -532,7 +532,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         ClientHandle = ++handleCounter,
                         SamplingInterval = -1,
-                        Filter = null,
+                        Filter = default,
                         DiscardOldest = true,
                         QueueSize = queueSize
                     }
@@ -885,7 +885,7 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
-            Assert.AreEqual("{0x002D0000 | }", statusMessage);
+            Assert.AreEqual("{GoodSubscriptionTransferred [0x002D0000] | }", statusMessage);
 
             // static node, do not acknowledge
             if (publishResponse.AvailableSequenceNumbers != null)
@@ -945,15 +945,19 @@ namespace Opc.Ua.Server.Tests
         {
             var itemsToCreate = new MonitoredItemCreateRequestCollection {
                 // add item
-                new MonitoredItemCreateRequest {
-                    ItemToMonitor = new ReadValueId {
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
                         AttributeId = Attributes.Value,
-                        NodeId = nodeId },
+                        NodeId = nodeId
+                    },
                     MonitoringMode = MonitoringMode.Reporting,
-                    RequestedParameters = new MonitoringParameters {
+                    RequestedParameters = new MonitoringParameters
+                    {
                         ClientHandle = clientHandle,
                         SamplingInterval = samplingInterval,
-                        Filter = null,
+                        Filter = default,
                         DiscardOldest = true,
                         QueueSize = queueSize
                     }

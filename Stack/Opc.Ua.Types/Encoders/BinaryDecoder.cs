@@ -608,7 +608,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
         {
-            return ReadDiagnosticInfo(fieldName, 0);
+            return ReadDiagnosticInfo(0);
         }
 
         /// <inheritdoc/>
@@ -728,7 +728,7 @@ namespace Opc.Ua
         public IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -1277,7 +1277,7 @@ namespace Opc.Ua
         public Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             int length = ReadArrayLength();
 
@@ -1322,7 +1322,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1488,7 +1488,7 @@ namespace Opc.Ua
         /// Limits the InnerDiagnosticInfo nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
+        private DiagnosticInfo ReadDiagnosticInfo(int depth)
         {
             if (depth >= DiagnosticInfo.MaxInnerDepth)
             {
@@ -1545,7 +1545,7 @@ namespace Opc.Ua
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
                 {
-                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ??
+                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(depth + 1) ??
                         new DiagnosticInfo();
                 }
 
@@ -2008,7 +2008,9 @@ namespace Opc.Ua
                 return extension;
             }
 
-            if (encoding is not ((byte)ExtensionObjectEncoding.Binary) and not ((byte)ExtensionObjectEncoding.Xml))
+            if (encoding is
+                not ((byte)ExtensionObjectEncoding.Binary) and
+                not ((byte)ExtensionObjectEncoding.Xml))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2109,10 +2111,9 @@ namespace Opc.Ua
                     errorMessage = "End of stream";
                     exception = eofStream;
                 }
-                catch (ServiceResultException sre)
-                    when (sre.StatusCode is
-                    StatusCodes.BadEncodingLimitsExceeded or
-                    StatusCodes.BadDecodingError)
+                catch (ServiceResultException sre) when (
+                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                    sre.StatusCode == StatusCodes.BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;

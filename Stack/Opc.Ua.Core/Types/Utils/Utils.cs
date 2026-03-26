@@ -412,12 +412,8 @@ namespace Opc.Ua
             }
 
             // file does not exist.
-            var message = new StringBuilder();
-            message.AppendLine("File does not exist: {0}")
-                .AppendLine("Current directory is: {1}");
-            throw ServiceResultException.Create(
-                StatusCodes.BadConfigurationError,
-                message.ToString(),
+            throw ServiceResultException.ConfigurationError(
+                "File does not exist: {0}. Current directory is: {1}",
                 filePath,
                 Directory.GetCurrentDirectory());
         }
@@ -533,13 +529,11 @@ namespace Opc.Ua
             // file does not exist.
             if (throwOnError)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Directory does not exist: {0}\r\nCurrent directory is: {1}",
+                throw ServiceResultException.ConfigurationError(
+                    "Directory does not exist: {0}\nCurrent directory is: {1}",
                     originalPath,
                     Directory.GetCurrentDirectory());
             }
-
             return null;
         }
 

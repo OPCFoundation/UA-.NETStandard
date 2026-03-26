@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems != null ? new UInt32Collection(state.TriggeredItems) : null;
+            TriggeredItems = state.TriggeredItems != null ? [.. state.TriggeredItems] : null;
             CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
         }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client
                 ServerId = Status.Id,
                 ClientId = ClientHandle,
                 TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems != null ? new UInt32Collection(TriggeredItems) : null,
+                TriggeredItems = TriggeredItems != null ? [.. TriggeredItems] : null,
                 CacheQueueSize = CacheQueueSize
             };
         }
@@ -1184,7 +1184,7 @@ namespace Opc.Ua.Client
             {
                 CoreClientUtils.EventLog.Notification(
                     (int)notification.ClientHandle,
-                    LastValue.WrappedValue);
+                    LastValue.WrappedValue.ToString());
             }
 
             if (m_logger.IsEnabled(LogLevel.Debug))

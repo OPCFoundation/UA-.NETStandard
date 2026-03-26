@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -119,6 +120,7 @@ namespace Quickstarts.ReferenceServer
                 {
                     logger = telemetry.CreateLogger("Main");
                 }
+                var sw = Stopwatch.StartNew();
 
                 // create the UA server
                 var server = new UAServer<ReferenceServer>(telemetry)
@@ -218,7 +220,7 @@ namespace Quickstarts.ReferenceServer
                         .ConfigureAwait(false);
                 }
 
-                Console.WriteLine("Server started. Press Ctrl-C to exit...");
+                Console.WriteLine($"Server started ({sw.ElapsedMilliseconds} ms). Press Ctrl-C to exit...");
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();

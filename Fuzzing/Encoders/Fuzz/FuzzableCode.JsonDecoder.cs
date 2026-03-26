@@ -124,18 +124,13 @@ namespace Opc.Ua.Fuzzing
             }
             catch (ServiceResultException sre)
             {
-                switch (sre.StatusCode)
+                if (!throwAll &&
+                    (sre.StatusCode == StatusCodes.BadDecodingError ||
+                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
                 {
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                    case StatusCodes.BadDecodingError:
-                        if (!throwAll)
-                        {
-                            return null;
-                        }
-                        goto default;
-                    default:
-                        throw;
+                    return null;
                 }
+                throw;
             }
         }
     }

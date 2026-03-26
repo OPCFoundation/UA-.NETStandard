@@ -30,7 +30,6 @@
 using System;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using Opc.Ua;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
@@ -38,19 +37,20 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     /// <summary>
+    /// <para>
     /// Tests for JsonDataSetMessage encoding behavior.
     /// Validates correct handling of zero values vs StatusCode.Good per OPC UA Part 6 specification.
-    /// 
+    /// </para>
+    /// <para>
     /// Note: JsonDataSetMessage currently only supports Reversible and NonReversible encoding modes.
     /// Compact and Verbose encoding modes are not yet supported for PubSub messages because
     /// the encoder throws when trying to modify ForceNamespaceUri property with these modes.
+    /// </para>
     /// </summary>
     [TestFixture]
     [Parallelizable]
     public class JsonDataSetMessageTests
     {
-        #region Regression Tests - UInt32 Zero Value Preservation (DataValue Mode)
-
         /// <summary>
         /// Regression test: UInt32 value of 0 must not be confused with StatusCode.Good
         /// and must be preserved in DataValue mode with Reversible encoding.
@@ -58,11 +58,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeUInt32ZeroPreservesValueInDataValueModeReversible()
         {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.Reversible);
-            var fieldObj = GetPayloadField(json, "TestField");
+            string json = EncodeMessage(message, JsonEncodingType.Reversible);
+            JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
             Assert.That(fieldObj["Value"]?.Value<uint>(), Is.EqualTo(0u),
@@ -76,20 +76,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeUInt32ZeroPreservesValueInDataValueModeNonReversible()
         {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.NonReversible);
-            var fieldObj = GetPayloadField(json, "TestField");
+            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            JObject fieldObj = GetPayloadField(json, "TestField");
 
             Assert.That(fieldObj, Is.Not.Null, "Field should be encoded.");
             Assert.That(fieldObj["Value"]?.Value<uint>(), Is.EqualTo(0u),
                 "UInt32 zero value must be preserved in NonReversible encoding.");
         }
-
-        #endregion
-
-        #region Regression Tests - UInt32 Zero Value Preservation (RawData Mode)
 
         /// <summary>
         /// Regression test: UInt32 value of 0 must be preserved in RawData mode.
@@ -98,14 +94,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeUInt32ZeroPreservesValueInRawDataModeReversible()
         {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
+            Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
 
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
-            var json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, JsonEncodingType.Reversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             Assert.That(payload["TestField"]?.Value<uint>(), Is.EqualTo(0u),
                 "UInt32 zero value must be preserved in RawData mode with Reversible encoding.");
@@ -117,22 +113,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeUInt32ZeroPreservesValueInRawDataModeNonReversible()
         {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
+            Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
 
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
-            var json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             Assert.That(payload["TestField"]?.Value<uint>(), Is.EqualTo(0u),
                 "UInt32 zero value must be preserved in RawData mode with NonReversible encoding.");
         }
-
-        #endregion
-
-        #region Regression Tests - UInt32 Zero Value Preservation (Variant Mode)
 
         /// <summary>
         /// In Variant mode (FieldContentMask.None), values are encoded with type information.
@@ -142,14 +134,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeUInt32ZeroPreservesValueInVariantModeReversible()
         {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
+            Field field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
 
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None); // Variant mode
 
-            var json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, JsonEncodingType.Reversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             // In Variant mode with Reversible encoding, format is { "Type": 7, "Body": 0 }
             var variantObj = payload["TestField"] as JObject;
@@ -158,10 +150,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "UInt32 zero value must be preserved in Variant Body.");
         }
 
-        #endregion
-
-        #region StatusCode.Good Encoding Tests
-
         /// <summary>
         /// Verify that a real StatusCode.Good value results in null/omitted Value
         /// in DataValue mode per spec: "The Code is omitted if the numeric code is 0 (Good)."
@@ -169,12 +157,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeGoodResultsInNullValueInDataValueModeReversible()
         {
-            var field = CreateStatusCodeField("StatusField", StatusCodes.Good);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, JsonEncodingType.Reversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             var fieldObj = payload["StatusField"] as JObject;
             Assert.That(fieldObj, Is.Not.Null, "Field should be present.");
@@ -191,12 +179,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeGoodResultsInNullValueInDataValueModeNonReversible()
         {
-            var field = CreateStatusCodeField("StatusField", StatusCodes.Good);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             var fieldObj = payload["StatusField"] as JObject;
             Assert.That(fieldObj, Is.Not.Null, "Field should be present.");
@@ -212,18 +200,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeBadPreservesValueReversible()
         {
-            var field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.Reversible);
+            string json = EncodeMessage(message, JsonEncodingType.Reversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             var fieldObj = payload["StatusField"] as JObject;
             Assert.That(fieldObj, Is.Not.Null, "Field should be present.");
 
             // A bad StatusCode should be encoded
-            var valueToken = fieldObj["Value"];
+            JToken valueToken = fieldObj["Value"];
             Assert.That(valueToken, Is.Not.Null, "Bad StatusCode value should be present in Reversible encoding.");
         }
 
@@ -233,25 +221,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeBadPreservesValueNonReversible()
         {
-            var field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
-            var message = CreateDataValueMessage(field);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
+            PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
-            var json = EncodeMessage(message, JsonEncodingType.NonReversible);
+            string json = EncodeMessage(message, JsonEncodingType.NonReversible);
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
 
             var fieldObj = payload["StatusField"] as JObject;
             Assert.That(fieldObj, Is.Not.Null, "Field should be present.");
 
             // A bad StatusCode should be encoded
-            var valueToken = fieldObj["Value"];
+            JToken valueToken = fieldObj["Value"];
             Assert.That(valueToken, Is.Not.Null, "Bad StatusCode value should be present in NonReversible encoding.");
         }
-
-        #endregion
-
-
-        #region Helper Methods
 
         private static Field CreateField(string name, BuiltInType builtInType, object value)
         {
@@ -307,10 +290,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static JObject GetPayloadField(string json, string fieldName)
         {
             var root = JObject.Parse(json);
-            var payload = (root["Payload"] as JObject) ?? root;
+            JObject payload = (root["Payload"] as JObject) ?? root;
             return payload?[fieldName] as JObject;
         }
-
-        #endregion
     }
 }
