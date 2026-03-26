@@ -295,18 +295,13 @@ namespace Opc.Ua.Client.Tests
                 .MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.TransportQuotas.SecurityTokenLifetime = SecurityTokenLifetime;
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
-                new UserTokenPolicy(UserTokenType.UserName);
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
-                new UserTokenPolicy(UserTokenType.Certificate);
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
-                new UserTokenPolicy(UserTokenType.IssuedToken)
-                {
-                    IssuedTokenType = Profiles.JwtUserToken
-                };
-
-            foreach (string securityPolicyUri in GetSupportedEccPolicyUris())
+            void AddExplicitUserTokenPolicies(string securityPolicyUri)
             {
+                if (SecurityPolicies.GetInfo(securityPolicyUri) == null)
+                {
+                    return;
+                }
+
                 ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                     new UserTokenPolicy(UserTokenType.UserName)
                     {
@@ -326,6 +321,25 @@ namespace Opc.Ua.Client.Tests
                         PolicyId = Profiles.JwtUserToken,
                         SecurityPolicyUri = securityPolicyUri
                     };
+            }
+
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                };
+
+            // Reconnect tests need an explicit legacy RSA token policy in addition to the
+            // generic channel-bound policies to cover alternate-token activation.
+            AddExplicitUserTokenPolicies(SecurityPolicies.Basic128Rsa15);
+
+            foreach (string securityPolicyUri in GetSupportedEccPolicyUris())
+            {
+                AddExplicitUserTokenPolicies(securityPolicyUri);
             }
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
