@@ -259,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             // ensure different sized arrays contain different data set
             SetRandomSeed(arrayLength);
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayLength,
                 useBoundaryValues,
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0, false, true);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0, false, true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -368,7 +368,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToCompactJson(
             BuiltInType builtInType)
         {
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -390,7 +390,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int arrayLength)
         {
             SetRandomSeed(arrayLength);
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayLength,
                 useBoundaryValues);
@@ -412,7 +412,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToVerboseJson(
             BuiltInType builtInType)
         {
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -574,14 +574,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-#pragma warning disable CS0618 // Type or member is obsolete
-            Array randomData = DataGenerator.GetRandomArray(
-                builtInType,
-                false,
-                arrayDimension,
-                true);
-            var variant = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.OneDimension));
-#pragma warning restore CS0618 // Type or member is obsolete
+            Variant variant = DataGenerator.GetRandomArray(builtInType, arrayDimension, false, true);
+
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -607,7 +601,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayDimension);
 
@@ -681,7 +675,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false, true);
+            Variant variant = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions, false, true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -710,7 +704,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false);
+            Variant variant = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions, false);
             string json = EncodeDataValue(
                 encoderType,
                 BuiltInType.Variant,
@@ -739,7 +733,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant randomData = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions);
+            Variant randomData = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             Type type = TypeInfo.GetSystemType(builtInType, -1);

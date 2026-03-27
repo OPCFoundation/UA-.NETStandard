@@ -40,13 +40,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantHelperTests
     {
-        private enum TestEnum
-        {
-            Zero = 0,
-            One = 1,
-            Two = 2
-        }
-
         [Test]
         public void TryCastToIntFromNullVariantReturnsDefault()
         {
@@ -191,10 +184,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(dt));
         }
-
-        // Note: TryCastTo<Guid> uses AsT<Uuid> which relies on Unsafe.As
-        // and has a Debug.Assert that fires in debug builds (Uuid vs Guid).
-        // This path is covered by release-mode CI runs.
 
         [Test]
         public void TryCastToUuidReturnsUuid()
@@ -1733,6 +1722,34 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void RoundtripBoolThroughVariantHelper()
+        {
+            const bool original = true;
+            VariantHelper.TryCastFrom(original, out Variant variant);
+            variant.TryCastTo(out bool result);
+            Assert.That(result, Is.EqualTo(original));
+        }
+
+        [Test]
+        public void RoundtripIntArrayThroughVariantHelper()
+        {
+            int[] original = new[] { 1, 2, 3 };
+            VariantHelper.TryCastFrom(original, out Variant variant);
+            variant.TryCastTo(out int[] result);
+            Assert.That(result, Is.EqualTo(original));
+        }
+
+        [Test]
+        public void RoundtripStringThroughVariantHelper()
+        {
+            const string original = "test value";
+            VariantHelper.TryCastFrom(original, out Variant variant);
+            variant.TryCastTo(out string result);
+            Assert.That(result, Is.EqualTo(original));
+        }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        [Test]
         public void TryCastFromMatrixBooleanReturnsVariant()
         {
             bool[] values = [true, false, true, false];
@@ -1843,10 +1860,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
         }
 
-        // Note: Matrix DateTime test omitted - the old Matrix class stores DateTime[]
-        // but TryCastFrom(Matrix) casts to DateTimeUtc[], causing InvalidCastException.
-        // This code path requires Matrix objects created through internal encoding paths.
-
         [Test]
         public void TryCastFromMatrixGuidReturnsVariant()
         {
@@ -1938,11 +1951,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
         }
 
-        // Note: BuiltInType.Number, Integer, UInteger are abstract types that
-        // share the same code path as Variant in TryCastFrom(Matrix).
-        // They cannot be tested with the Matrix constructor in debug mode due to
-        // SanityCheckArrayElements assertions.
-
         [Test]
         public void TryCastFromMatrixNullTypeReturnsNullVariant()
         {
@@ -1956,10 +1964,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant.IsNull, Is.False);
         }
 
-        // Note: The default branch (line 1009) and BuiltInType.Null branch (line 930)
-        // cannot be tested via the public Matrix constructor in debug builds because
-        // the constructor's SanityCheckArrayElements fires Debug.Assert for mismatched types.
-
         [Test]
         public void TryCastFromMatrixViaGenericPathReturnsVariant()
         {
@@ -1969,32 +1973,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(variant.IsNull, Is.False);
         }
-
-        [Test]
-        public void RoundtripBoolThroughVariantHelper()
+#pragma warning restore CS0618 // Type or member is obsolete
+        private enum TestEnum
         {
-            const bool original = true;
-            VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo(out bool result);
-            Assert.That(result, Is.EqualTo(original));
-        }
-
-        [Test]
-        public void RoundtripIntArrayThroughVariantHelper()
-        {
-            int[] original = new[] { 1, 2, 3 };
-            VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo(out int[] result);
-            Assert.That(result, Is.EqualTo(original));
-        }
-
-        [Test]
-        public void RoundtripStringThroughVariantHelper()
-        {
-            const string original = "test value";
-            VariantHelper.TryCastFrom(original, out Variant variant);
-            variant.TryCastTo(out string result);
-            Assert.That(result, Is.EqualTo(original));
+            Zero = 0,
+            One = 1,
+            Two = 2
         }
     }
 }

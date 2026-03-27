@@ -279,13 +279,13 @@ namespace TestData
                         return Variant.FromStructure(GetRandomArray(GetRandomMultipleVectors));
                     case Variables.ArrayValueObjectType_BooleanValue:
                     case Variables.UserArrayValueObjectType_BooleanValue:
-                        return m_generator.GetRandomArray<bool>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomBooleanArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_SByteValue:
                     case Variables.UserArrayValueObjectType_SByteValue:
-                        return m_generator.GetRandomArray<sbyte>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomSByteArray(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_SByteValue:
                     {
-                        sbyte[] values = m_generator.GetRandomArray<sbyte>(false, 100, false);
+                        sbyte[] values = m_generator.GetRandomSByteArray(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -296,10 +296,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_ByteValue:
                     case Variables.UserArrayValueObjectType_ByteValue:
-                        return m_generator.GetRandomArray<byte>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomByteArray(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_ByteValue:
                     {
-                        byte[] values = m_generator.GetRandomArray<byte>(false, 100, false);
+                        byte[] values = m_generator.GetRandomByteArray(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -310,10 +310,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_Int16Value:
                     case Variables.UserArrayValueObjectType_Int16Value:
-                        return m_generator.GetRandomArray<short>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomInt16Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_Int16Value:
                     {
-                        short[] values = m_generator.GetRandomArray<short>(false, 100, false);
+                        short[] values = m_generator.GetRandomInt16Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -324,10 +324,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_UInt16Value:
                     case Variables.UserArrayValueObjectType_UInt16Value:
-                        return m_generator.GetRandomArray<ushort>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomUInt16Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_UInt16Value:
                     {
-                        ushort[] values = m_generator.GetRandomArray<ushort>(false, 100, false);
+                        ushort[] values = m_generator.GetRandomUInt16Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -338,11 +338,11 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_Int32Value:
                     case Variables.UserArrayValueObjectType_Int32Value:
-                        return m_generator.GetRandomArray<int>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomInt32Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_Int32Value:
                     case Variables.AnalogArrayValueObjectType_IntegerValue:
                     {
-                        int[] values = m_generator.GetRandomArray<int>(false, 100, false);
+                        int[] values = m_generator.GetRandomInt32Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -353,11 +353,11 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_UInt32Value:
                     case Variables.UserArrayValueObjectType_UInt32Value:
-                        return m_generator.GetRandomArray<uint>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomUInt32Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_UInt32Value:
                     case Variables.AnalogArrayValueObjectType_UIntegerValue:
                     {
-                        uint[] values = m_generator.GetRandomArray<uint>(false, 100, false);
+                        uint[] values = m_generator.GetRandomUInt32Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -368,10 +368,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_Int64Value:
                     case Variables.UserArrayValueObjectType_Int64Value:
-                        return m_generator.GetRandomArray<long>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomInt64Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_Int64Value:
                     {
-                        long[] values = m_generator.GetRandomArray<long>(false, 100, false);
+                        long[] values = m_generator.GetRandomInt64Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -382,10 +382,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_UInt64Value:
                     case Variables.UserArrayValueObjectType_UInt64Value:
-                        return m_generator.GetRandomArray<ulong>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomUInt64Array(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_UInt64Value:
                     {
-                        ulong[] values = m_generator.GetRandomArray<ulong>(false, 100, false);
+                        ulong[] values = m_generator.GetRandomUInt64Array(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -396,10 +396,10 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_FloatValue:
                     case Variables.UserArrayValueObjectType_FloatValue:
-                        return m_generator.GetRandomArray<float>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomFloatArray(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_FloatValue:
                     {
-                        float[] values = m_generator.GetRandomArray<float>(false, 100, false);
+                        float[] values = m_generator.GetRandomFloatArray(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -410,11 +410,11 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_DoubleValue:
                     case Variables.UserArrayValueObjectType_DoubleValue:
-                        return m_generator.GetRandomArray<double>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomDoubleArray(false, 100, false).ToArrayOf();
                     case Variables.AnalogArrayValueObjectType_DoubleValue:
                     case Variables.AnalogArrayValueObjectType_NumberValue:
                     {
-                        double[] values = m_generator.GetRandomArray<double>(false, 100, false);
+                        double[] values = m_generator.GetRandomDoubleArray(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
@@ -425,40 +425,40 @@ namespace TestData
                     }
                     case Variables.ArrayValueObjectType_StringValue:
                     case Variables.UserArrayValueObjectType_StringValue:
-                        return m_generator.GetRandomArray<string>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomStringArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_DateTimeValue:
                     case Variables.UserArrayValueObjectType_DateTimeValue:
-                        return m_generator.GetRandomArray<DateTimeUtc>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomDateTimeArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_GuidValue:
                     case Variables.UserArrayValueObjectType_GuidValue:
-                        return m_generator.GetRandomArray<Uuid>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomGuidArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_ByteStringValue:
                     case Variables.UserArrayValueObjectType_ByteStringValue:
-                        return m_generator.GetRandomArray<ByteString>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomByteStringArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_XmlElementValue:
                     case Variables.UserArrayValueObjectType_XmlElementValue:
-                        return m_generator.GetRandomArray<XmlElement>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomXmlElementArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_NodeIdValue:
                     case Variables.UserArrayValueObjectType_NodeIdValue:
-                        return m_generator.GetRandomArray<NodeId>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomNodeIdArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_ExpandedNodeIdValue:
                     case Variables.UserArrayValueObjectType_ExpandedNodeIdValue:
-                        return m_generator.GetRandomArray<ExpandedNodeId>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomExpandedNodeIdArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_QualifiedNameValue:
                     case Variables.UserArrayValueObjectType_QualifiedNameValue:
-                        return m_generator.GetRandomArray<QualifiedName>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomQualifiedNameArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_LocalizedTextValue:
                     case Variables.UserArrayValueObjectType_LocalizedTextValue:
-                        return m_generator.GetRandomArray<LocalizedText>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomLocalizedTextArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_StatusCodeValue:
                     case Variables.UserArrayValueObjectType_StatusCodeValue:
-                        return m_generator.GetRandomArray<StatusCode>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomStatusCodeArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_VariantValue:
                     case Variables.UserArrayValueObjectType_VariantValue:
                         return m_generator.GetRandomVariantArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_StructureValue:
                     {
-                        ExtensionObject[] values = m_generator.GetRandomArray<ExtensionObject>(
+                        ExtensionObject[] values = m_generator.GetRandomExtensionObjectArray(
                             false,
                             10,
                             false);
@@ -471,7 +471,7 @@ namespace TestData
                         return values.ToArrayOf();
                     }
                     case Variables.ArrayValueObjectType_EnumerationValue:
-                        return m_generator.GetRandomArray<int>(false, 100, false).ToArrayOf();
+                        return m_generator.GetRandomInt32Array(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_NumberValue:
                         return m_generator.GetRandomNumberArray(false, 100, false).ToArrayOf();
                     case Variables.ArrayValueObjectType_IntegerValue:
@@ -592,9 +592,9 @@ namespace TestData
         {
             return new Vector
             {
-                X = (double)m_generator.GetRandom(BuiltInType.Double),
-                Y = (double)m_generator.GetRandom(BuiltInType.Double),
-                Z = (double)m_generator.GetRandom(BuiltInType.Double)
+                X = m_generator.GetRandomDouble(),
+                Y = m_generator.GetRandomDouble(),
+                Z = m_generator.GetRandomDouble()
             };
         }
 
@@ -603,9 +603,9 @@ namespace TestData
             return new VectorUnion
             {
                 SwitchField = (VectorUnionFields)(m_generator.GetRandomUInt16() % 4),
-                X = (double)m_generator.GetRandom(BuiltInType.Double),
-                Y = (double)m_generator.GetRandom(BuiltInType.Double),
-                Z = (double)m_generator.GetRandom(BuiltInType.Double)
+                X = m_generator.GetRandomDouble(),
+                Y = m_generator.GetRandomDouble(),
+                Z = m_generator.GetRandomDouble()
             };
         }
 
@@ -630,9 +630,9 @@ namespace TestData
             return new VectorWithOptionalFields
             {
                 EncodingMask = (uint)encodingMask,
-                X = (double)m_generator.GetRandom(BuiltInType.Double),
-                Y = (double)m_generator.GetRandom(BuiltInType.Double),
-                Z = (double)m_generator.GetRandom(BuiltInType.Double)
+                X = m_generator.GetRandomDouble(),
+                Y = m_generator.GetRandomDouble(),
+                Z = m_generator.GetRandomDouble()
             };
         }
 
@@ -700,41 +700,31 @@ namespace TestData
 
         public ArrayValueDataType GetRandomArrayValueDataType()
         {
-            var value = new ArrayValueDataType
+            return new ArrayValueDataType
             {
-                BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false),
-                SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false),
-                ByteValue = m_generator.GetRandomArray<byte>(false, 10, false),
-                Int16Value = m_generator.GetRandomArray<short>(false, 10, false),
-                UInt16Value = m_generator.GetRandomArray<ushort>(false, 10, false),
-                Int32Value = m_generator.GetRandomArray<int>(false, 10, false),
-                UInt32Value = m_generator.GetRandomArray<uint>(false, 10, false),
-                Int64Value = m_generator.GetRandomArray<long>(false, 10, false),
-                UInt64Value = m_generator.GetRandomArray<ulong>(false, 10, false),
-                FloatValue = m_generator.GetRandomArray<float>(false, 10, false),
-                DoubleValue = m_generator.GetRandomArray<double>(false, 10, false),
-                StringValue = m_generator.GetRandomArray<string>(false, 10, false),
-                DateTimeValue = m_generator.GetRandomArray<DateTimeUtc>(false, 10, false),
-                GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false),
-                ByteStringValue = m_generator.GetRandomArray<ByteString>(false, 10, false),
-                XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),
-                NodeIdValue = m_generator.GetRandomArray<NodeId>(false, 10, false),
-                ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false),
-                QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false),
-                LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false),
-                StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false)
+                BooleanValue = m_generator.GetRandomBooleanArray(false, 10, false),
+                SByteValue = m_generator.GetRandomSByteArray(false, 10, false),
+                ByteValue = m_generator.GetRandomByteArray(false, 10, false),
+                Int16Value = m_generator.GetRandomInt16Array(false, 10, false),
+                UInt16Value = m_generator.GetRandomUInt16Array(false, 10, false),
+                Int32Value = m_generator.GetRandomInt32Array(false, 10, false),
+                UInt32Value = m_generator.GetRandomUInt32Array(false, 10, false),
+                Int64Value = m_generator.GetRandomInt64Array(false, 10, false),
+                UInt64Value = m_generator.GetRandomUInt64Array(false, 10, false),
+                FloatValue = m_generator.GetRandomFloatArray(false, 10, false),
+                DoubleValue = m_generator.GetRandomDoubleArray(false, 10, false),
+                StringValue = m_generator.GetRandomStringArray(false, 10, false),
+                DateTimeValue = m_generator.GetRandomDateTimeArray(false, 10, false),
+                GuidValue = m_generator.GetRandomGuidArray(false, 10, false),
+                ByteStringValue = m_generator.GetRandomByteStringArray(false, 10, false),
+                XmlElementValue = m_generator.GetRandomXmlElementArray(false, 10, false),
+                NodeIdValue = m_generator.GetRandomNodeIdArray(false, 10, false),
+                ExpandedNodeIdValue = m_generator.GetRandomExpandedNodeIdArray(false, 10, false),
+                QualifiedNameValue = m_generator.GetRandomQualifiedNameArray(false, 10, false),
+                LocalizedTextValue = m_generator.GetRandomLocalizedTextArray(false, 10, false),
+                StatusCodeValue = m_generator.GetRandomStatusCodeArray(false, 10, false),
+                VariantValue = m_generator.GetRandomVariantArray(false, 10, false)
             };
-
-            object[] values = m_generator.GetRandomArray<object>(false, 10, false);
-            var variantValue = new List<Variant>();
-            for (int ii = 0; values != null && ii < values.Length; ii++)
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                variantValue.Add(new Variant(values[ii]));
-#pragma warning restore CS0618 // Type or member is obsolete
-            }
-            value.VariantValue = variantValue;
-            return value;
         }
 
         public void StartMonitoringValue(

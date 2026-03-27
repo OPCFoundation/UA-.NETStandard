@@ -46,6 +46,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the matrix with a multidimensional array.
         /// </summary>
+        [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array value, BuiltInType builtInType)
         {
             Elements = value ?? throw new ArgumentNullException(nameof(value));
@@ -63,6 +64,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the matrix with a one dimensional array and a list of dimensions.
         /// </summary>
+        [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
             Elements = elements ?? throw new ArgumentNullException(nameof(elements));
@@ -252,7 +254,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Matrix(CoreUtils.Clone(Elements), TypeInfo.BuiltInType, CoreUtils.Clone(Dimensions));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -450,8 +454,7 @@ namespace Opc.Ua
         /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
         /// </remarks>
         [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA element types.")]
+            Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         private static Array FlattenArray(Array array)
         {
             var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);

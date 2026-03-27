@@ -713,7 +713,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     int[] indices = new int[valueRank];
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        object rndValue = DataGenerator.GetRandom(builtInType);
+                        object rndValue = GetRandom(builtInType);
                         array.SetValue(rndValue, indices);
                         Iterate(dimensions, indices);
                     }
@@ -869,7 +869,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
             if (builtInType != BuiltInType.Null)
             {
-                return DataGenerator.GetRandom(builtInType);
+                return GetRandom(builtInType);
             }
             if (valueType == DataTypeIds.BuildInfo)
             {
@@ -886,6 +886,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             Assert.Fail($"Unexpected ValueType {valueType}");
             return null;
+        }
+
+        private object GetRandom(BuiltInType expectedType)
+        {
+            switch (expectedType)
+            {
+                case BuiltInType.DiagnosticInfo:
+                    return DataGenerator.GetRandomDiagnosticInfo();
+                case BuiltInType.Null:
+                    return null;
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return DataGenerator.GetRandomScalar(expectedType);
+                default:
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+            }
         }
 
         private static void Iterate(int[] dimensions, int[] indices)

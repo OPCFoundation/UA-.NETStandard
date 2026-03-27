@@ -1158,15 +1158,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the type info if the value is an instance of the data type with the specified value rank.
+        /// Returns the type info if the value is an instance of the data
+        /// type with the specified value rank.
         /// </summary>
         /// <param name="value">The value instance to check.</param>
-        /// <param name="expectedDataTypeId">The expected data type identifier for a node.</param>
+        /// <param name="expectedDataTypeId">The expected data type
+        /// identifier for a node.</param>
         /// <param name="expectedValueRank">The expected value rank.</param>
         /// <param name="namespaceUris">The namespace URI's.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>
-        /// An data type info if the Variant is an instance of the data type with the specified value rank
+        /// A type info if the Variant is an instance of the data type
+        /// with the specified value rank
         /// </returns>
         /// <exception cref="ServiceResultException"></exception>
         public static TypeInfo IsInstanceOfDataType(
@@ -1187,7 +1190,7 @@ namespace Opc.Ua
                 // nulls allowed for all array types.
                 if (expectedValueRank != ValueRanks.Scalar)
                 {
-                    return CreateArray(expectedType);
+                    return new TypeInfo(expectedType, expectedValueRank);
                 }
 
                 // check if the type supports nulls.
@@ -1222,7 +1225,6 @@ namespace Opc.Ua
                 {
                     return typeInfo;
                 }
-
                 return default;
             }
 
@@ -1364,7 +1366,7 @@ namespace Opc.Ua
             }
 
             // handle scalar.
-            if (typeInfo.ValueRank < 0)
+            if (typeInfo.IsScalar)
             {
                 // check extension objects vs. expected type.
                 if (typeInfo.BuiltInType == BuiltInType.ExtensionObject)
@@ -1393,80 +1395,30 @@ namespace Opc.Ua
                 return default;
             }
 
-            // check every element in the array or matrix.
-            object boxed = value.AsBoxedObject();
-            var array = boxed as Array;
-            if (array == null && boxed is Matrix matrix)
+            // Check each element in an array or matrix against the expected type.
+            // Expand the variant into its elements. This handles multi-dimensional
+            // arrays and matrices without needing to know the dimensions. However,
+            // some edge cases are not handled (e.g. variant with array of variants
+            // with variant arrays). The assumption is that this is not common and
+            // therefore we can fail this situation here.
+            foreach (Variant element in value.Expand())
             {
-                array = matrix.Elements;
+                TypeInfo elementInfo = IsInstanceOfDataType(
+                    element,
+                    expectedDataTypeId,
+                    ValueRanks.Scalar, // Expands (mostly) to scalar elements --> see TODO in Variant.
+                    namespaceUris,
+                    typeTree);
+
+                // give up at the first invalid element.
+                if (elementInfo.IsUnknown)
+                {
+                    return default;
+                }
             }
 
-            if (array != null)
-            {
-                BuiltInType expectedElementType = GetBuiltInType(expectedDataTypeId, typeTree);
-                BuiltInType actualElementType = GetBuiltInType(
-                    array.GetType().GetElementType().Name);
-                // system type of array matches the expected type - nothing more to do.
-                if (actualElementType != BuiltInType.ExtensionObject &&
-                    actualElementType == expectedElementType)
-                {
-                    return typeInfo;
-                }
-
-                // check for variant arrays.
-                if (expectedElementType == BuiltInType.Variant)
-                {
-                    return typeInfo;
-                }
-
-                // have to do it the hard way and check each element.
-                int[] dimensions = new int[array.Rank];
-
-                for (int ii = 0; ii < dimensions.Length; ii++)
-                {
-                    dimensions[ii] = array.GetLength(ii);
-                }
-
-                int[] indexes = new int[dimensions.Length];
-
-                for (int ii = 0; ii < array.Length; ii++)
-                {
-                    int divisor = array.Length;
-
-                    for (int jj = 0; jj < indexes.Length; jj++)
-                    {
-                        divisor /= dimensions[jj];
-                        indexes[jj] = ii / divisor % dimensions[jj];
-                    }
-
-                    object element = array.GetValue(indexes);
-
-                    if (actualElementType == BuiltInType.Variant)
-                    {
-                        element = ((Variant)element).AsBoxedObject(); // TODO: optimize boxing
-                    }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                    TypeInfo elementInfo = IsInstanceOfDataType(
-                        new Variant(element),
-                        expectedDataTypeId,
-                        ValueRanks.Scalar,
-                        namespaceUris,
-                        typeTree);
-#pragma warning restore CS0618 // Type or member is obsolete
-
-                    // give up at the first invalid element.
-                    if (elementInfo.IsUnknown)
-                    {
-                        return default;
-                    }
-                }
-
-                // all elements valid.
-                return typeInfo;
-            }
-
-            return default;
+            // all elements valid.
+            return typeInfo;
         }
 
         /// <summary>

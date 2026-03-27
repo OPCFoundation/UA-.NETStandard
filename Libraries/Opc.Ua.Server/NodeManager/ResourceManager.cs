@@ -304,10 +304,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates the text provided.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Uses System.Text.Json with known LocalizedText dictionary types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Uses System.Text.Json with known LocalizedText dictionary types.")]
         protected virtual LocalizedText Translate(
             ArrayOf<string> preferredLocales,
             LocalizedText defaultText,
