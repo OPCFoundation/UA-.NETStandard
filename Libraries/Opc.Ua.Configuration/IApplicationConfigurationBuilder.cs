@@ -640,9 +640,9 @@ namespace Opc.Ua.Configuration
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value);

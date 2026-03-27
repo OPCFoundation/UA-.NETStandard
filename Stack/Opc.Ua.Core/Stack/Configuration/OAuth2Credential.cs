@@ -65,10 +65,8 @@ namespace Opc.Ua
     )]
     public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -96,10 +94,8 @@ namespace Opc.Ua
             return list;
         }
 
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static OAuth2Credential FindByServerUri(
             ApplicationConfiguration configuration,
             string serverApplicationUri)
@@ -151,10 +147,8 @@ namespace Opc.Ua
             return null;
         }
 
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static OAuth2Credential FindByAuthorityUrl(
             ApplicationConfiguration configuration,
             string authorityUrl)

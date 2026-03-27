@@ -1380,10 +1380,8 @@ namespace Opc.Ua
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -1453,10 +1451,8 @@ namespace Opc.Ua
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,

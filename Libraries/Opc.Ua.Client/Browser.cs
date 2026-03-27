@@ -718,9 +718,9 @@ namespace Opc.Ua.Client
         /// Creates the browser from a persisted stream
         /// </summary>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public static Browser? Load(Stream stream, ITelemetryContext telemetry)
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
@@ -736,9 +736,9 @@ namespace Opc.Ua.Client
         /// Saves the state to the stream
         /// </summary>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public void Save(Stream stream)
         {
             // secure settings

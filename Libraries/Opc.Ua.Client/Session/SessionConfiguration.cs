@@ -180,9 +180,9 @@ namespace Opc.Ua.Client
         /// Creates the session configuration from a stream.
         /// </summary>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);

@@ -68,8 +68,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
-        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static NodeSet Read(Stream istrm)
         {
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
@@ -81,8 +81,8 @@ namespace Opc.Ua
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
-        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Write(Stream istrm)
         {
             var writer = XmlWriter.Create(istrm, CoreUtils.DefaultXmlWriterSettings());

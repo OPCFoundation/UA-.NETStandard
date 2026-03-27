@@ -68,10 +68,8 @@ namespace Opc.Ua.Security
         /// <returns>The security configuration.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public SecuredApplication ReadConfiguration(string filePath)
         {
             if (filePath == null)

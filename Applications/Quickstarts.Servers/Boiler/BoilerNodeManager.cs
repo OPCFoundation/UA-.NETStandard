@@ -60,8 +60,6 @@ namespace Boiler
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Scans assembly types for known OPC UA types at startup.")]
         public BoilerNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -72,10 +70,6 @@ namespace Boiler
 
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-
-            AddEncodeableNodeManagerTypes(
-                typeof(BoilerNodeManager).Assembly,
-                typeof(BoilerNodeManager).Namespace);
 
             m_lastUsedId = 0;
             m_boilers = [];

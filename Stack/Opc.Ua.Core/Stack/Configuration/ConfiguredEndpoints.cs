@@ -72,10 +72,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
@@ -87,10 +85,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
@@ -116,10 +112,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static ConfiguredEndpointCollection Load(
             string filePath,
             ITelemetryContext telemetry)
@@ -210,10 +204,8 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static ConfiguredEndpointCollection Load(
             Stream istrm,
             ITelemetryContext telemetry)
@@ -249,10 +241,8 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints the file that it was loaded from.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Save()
         {
             Save(m_filepath);
@@ -261,10 +251,8 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints to a file.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Save(string filePath)
         {
             using (Stream stream = File.Open(filePath, FileMode.Create))
@@ -277,10 +265,8 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints to a stream.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Save(Stream ostrm)
         {
             DataContractSerializer serializer =
@@ -1300,10 +1286,8 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Null otherwise.</returns>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
@@ -1316,10 +1300,8 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
         /// <param name="telemetry">The telemetry context.</param>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);
