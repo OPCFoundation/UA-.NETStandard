@@ -70,7 +70,6 @@ namespace Opc.Ua.Server.Tests
             return (requestHeader, secureChannelContext, session);
         }
 
-        #region HasExpired Tests
 
         [Test]
         public async Task HasExpiredReturnsFalseForFreshlyActivatedSessionAsync()
@@ -81,9 +80,7 @@ namespace Opc.Ua.Server.Tests
                 "A session that was just activated should not be expired.");
         }
 
-        #endregion
 
-        #region IsSecureChannelValid Tests
 
         [Test]
         public async Task IsSecureChannelValidReturnsTrueForCurrentChannelIdAsync()
@@ -112,9 +109,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.IsSecureChannelValid(string.Empty), Is.False);
         }
 
-        #endregion
 
-        #region Activated Tests
 
         [Test]
         public async Task ActivatedIsTrueAfterCreateAndActivateSessionAsync()
@@ -125,9 +120,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.Activated, Is.True);
         }
 
-        #endregion
 
-        #region UpdateLocaleIds Tests
 
         [Test]
         public async Task UpdateLocaleIdsReturnsTrueWhenLocalesChangeAsync()
@@ -179,9 +172,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(changed, Is.True);
         }
 
-        #endregion
 
-        #region Browse Continuation Point Tests
 
         [Test]
         public async Task SaveAndRestoreContinuationPointPreservesThePointAsync()
@@ -258,9 +249,7 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        #endregion
 
-        #region History Continuation Point Tests
 
         [Test]
         public async Task SaveAndRestoreHistoryContinuationPointPreservesValueAsync()
@@ -333,9 +322,7 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        #endregion
 
-        #region LastContactTickCount and ClientLastContactTime Tests
 
         [Test]
         public async Task LastContactTickCountIsPopulatedAfterActivationAsync()
@@ -360,9 +347,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.ClientLastContactTime, Is.LessThan(after));
         }
 
-        #endregion
 
-        #region ValidateRequest Tests
 
         [Test]
         public async Task ValidateRequestThrowsBadSecureChannelIdInvalidForWrongChannelAsync()
@@ -449,9 +434,7 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(before + 1));
         }
 
-        #endregion
 
-        #region SessionDiagnostics Tests
 
         [Test]
         public async Task SessionDiagnosticsSessionNameMatchesProvidedNameAsync()
@@ -471,6 +454,5 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.SessionDiagnostics.ActualSessionTimeout, Is.GreaterThan(0.0));
         }
 
-        #endregion
     }
 }

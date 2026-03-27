@@ -122,7 +122,6 @@ namespace Opc.Ua.Server.Tests
             sentMessages.AddRange(messages);
         }
 
-        #region Constructor Tests
 
         [Test]
         public void ConstructorThrowsArgumentNullExceptionForNullServer()
@@ -205,9 +204,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(0));
         }
 
-        #endregion
 
-        #region GetMonitoredItems Tests
 
         [Test]
         public void GetMonitoredItemsReturnsEmptyForNewSubscription()
@@ -220,9 +217,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(clientHandles, Is.Empty);
         }
 
-        #endregion
 
-        #region QueueOverflowHandler Tests
 
         [Test]
         public void QueueOverflowHandlerIncrementsOverflowCount()
@@ -248,9 +243,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.MonitoringQueueOverflowCount, Is.EqualTo(3u));
         }
 
-        #endregion
 
-        #region SessionClosed Tests
 
         [Test]
         public void SessionClosedClearsSessionReference()
@@ -284,9 +277,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.SessionId, Is.EqualTo(default(NodeId)));
         }
 
-        #endregion
 
-        #region PublishTimeout Tests
 
         [Test]
         public void PublishTimeoutReturnsBadTimeoutMessage()
@@ -331,9 +322,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Null);
         }
 
-        #endregion
 
-        #region SubscriptionTransferred Tests
 
         [Test]
         public void SubscriptionTransferredReturnsTransferStatusMessage()
@@ -361,9 +350,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message.SequenceNumber, Is.GreaterThan(0u));
         }
 
-        #endregion
 
-        #region SetSubscriptionDurable Tests
 
         [Test]
         public void SetSubscriptionDurableReturnsBadNotSupportedWhenNotSupported()
@@ -403,9 +390,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(newLifetimeCount));
         }
 
-        #endregion
 
-        #region Modify Tests
 
         [Test]
         public void ModifyUpdatesPublishingIntervalInDiagnostics()
@@ -487,9 +472,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.ModifyCount, Is.EqualTo(2u));
         }
 
-        #endregion
 
-        #region SetPublishingMode Tests
 
         [Test]
         public void SetPublishingModeDisableIncrementsDisableCount()
@@ -531,9 +514,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.DisableCount, Is.EqualTo(0u));
         }
 
-        #endregion
 
-        #region Acknowledge Tests
 
         [Test]
         public void AcknowledgeReturnsBadSequenceNumberInvalidForSequenceNumberZero()
@@ -590,9 +571,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
-        #endregion
 
-        #region Republish Tests
 
         [Test]
         public void RepublishThrowsBadMessageNotAvailableWhenNoMessages()
@@ -654,9 +633,7 @@ namespace Opc.Ua.Server.Tests
                     .EqualTo(StatusCodes.BadMessageNotAvailable));
         }
 
-        #endregion
 
-        #region AvailableSequenceNumbersForRetransmission Tests
 
         [Test]
         public void AvailableSequenceNumbersForRetransmissionReturnsEmptyForNewSubscription()
@@ -686,9 +663,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ToArray(), Does.Contain(3u));
         }
 
-        #endregion
 
-        #region Publish Tests
 
         [Test]
         public void PublishReturnsKeepaliveMessageWhenNoItems()
@@ -743,9 +718,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
-        #endregion
 
-        #region SetTriggering Tests
 
         [Test]
         public void SetTriggeringThrowsBadMonitoredItemIdInvalidWhenTriggeringItemNotFound()
@@ -786,9 +759,7 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        #endregion
 
-        #region Republish Context null Tests
 
         [Test]
         public void RepublishThrowsArgumentNullExceptionForNullContext()
@@ -800,6 +771,5 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-        #endregion
     }
 }
