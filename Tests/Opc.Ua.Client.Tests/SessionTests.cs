@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -1573,8 +1574,8 @@ namespace Opc.Ua.Client.Tests
             byte[] clientNonce = [1, 3, 5, 7, 9];
             byte[] serverNonce = [2, 4, 6, 8];
 
-            SetPrivateByteArrayField(source, "m_clientNonce", clientNonce);
-            SetPrivateByteArrayField(source, "m_serverNonce", serverNonce);
+            SetClientNonce(source, clientNonce);
+            SetServerNonce(source, serverNonce);
 
             SessionConfiguration configuration = source.SaveSessionConfiguration();
 
@@ -1586,31 +1587,41 @@ namespace Opc.Ua.Client.Tests
             bool success = target.ApplySessionConfiguration(configuration);
 
             Assert.That(success, Is.True);
-            Assert.That(GetPrivateByteArrayField(target, "m_clientNonce"), Is.EquivalentTo(clientNonce));
-            Assert.That(GetPrivateByteArrayField(target, "m_serverNonce"), Is.EquivalentTo(serverNonce));
+            Assert.That(GetClientNonce(target), Is.EquivalentTo(clientNonce));
+            Assert.That(GetServerNonce(target), Is.EquivalentTo(serverNonce));
         }
 
-        private static byte[] GetPrivateByteArrayField(Session session, string fieldName)
-        {
-            return (byte[])typeof(Session)
-                .GetField(
-                    fieldName,
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance)?
-                .GetValue(session);
-        }
+        private const BindingFlags PrivateInstance =
+            BindingFlags.NonPublic | BindingFlags.Instance;
 
-        private static void SetPrivateByteArrayField(
-            Session session,
-            string fieldName,
-            byte[] value)
+        private static void SetClientNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField(
-                    fieldName,
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance)?
-                .SetValue(session, value);
+                .GetField("m_clientNonce", PrivateInstance)!
+                .SetValue(session, value.ToArray());
+        }
+
+        private static void SetServerNonce(Session session, byte[] value)
+        {
+            typeof(Session)
+                .GetField("m_serverNonce", PrivateInstance)!
+                .SetValue(session, ByteString.From(value));
+        }
+
+        private static byte[] GetClientNonce(Session session)
+        {
+            return (typeof(Session)
+                .GetField("m_clientNonce", PrivateInstance)!
+                .GetValue(session) is byte[] bytes)
+                ? bytes.ToArray()
+                : [];
+        }
+
+        private static byte[] GetServerNonce(Session session)
+        {
+            return ((ByteString)typeof(Session)
+                .GetField("m_serverNonce", PrivateInstance)!
+                .GetValue(session)!).ToArray();
         }
     }
 }
