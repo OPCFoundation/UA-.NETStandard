@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub
         public object Id { get; }
 
         /// <summary>
-        /// Get/set the Interval between Runs
+        /// Get/set the Interval between Runs in milliseconds
         /// </summary>
         public double Interval
         {
