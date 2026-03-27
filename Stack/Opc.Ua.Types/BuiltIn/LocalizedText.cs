@@ -262,8 +262,6 @@ namespace Opc.Ua
         /// <summary>
         /// Convert this to multi-language format
         /// </summary>
-        [RequiresUnreferencedCode("Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode("Uses System.Text.Json reflection-based serialization.")]
         public LocalizedText AsMultiLanguage()
         {
             return
@@ -661,8 +659,6 @@ namespace Opc.Ua
         /// <returns>A LocalizedText containing translations as specified by the
         /// rules.</returns>
         [Pure]
-        [RequiresUnreferencedCode("Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode("Uses System.Text.Json reflection-based serialization.")]
         public LocalizedText FilterByPreferredLocales(
             LocalizedText localizedText,
             ArrayOf<string> preferredLocales)
@@ -746,9 +742,11 @@ namespace Opc.Ua
         /// Encodes the translations to a JSON string according to the format specified
         /// in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
         [Pure]
-        [RequiresUnreferencedCode("Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode("Uses System.Text.Json reflection-based serialization.")]
         public LocalizedText AsMultiLanguage(bool force = false)
         {
             var t = new List<string[]>();
@@ -783,8 +781,10 @@ namespace Opc.Ua
         /// Encodes the translations to a JSON string according to the format specified
         /// in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
-        [RequiresUnreferencedCode("Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode("Uses System.Text.Json reflection-based serialization.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
         public static LocalizedText EncodeAsMulLocale(LocalizedText localizedText)
         {
             if (localizedText.IsMultiLanguage)

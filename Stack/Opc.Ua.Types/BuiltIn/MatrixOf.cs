@@ -490,7 +490,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         Matrix IConvertableToMatrix.ToMatrix(BuiltInType builtInType)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Matrix(CreateArrayInstance(), builtInType, Dimensions);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>

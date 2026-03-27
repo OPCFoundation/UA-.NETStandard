@@ -233,7 +233,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlParser(xml, messageContext);
 
             // Act & Assert
-            Assert.DoesNotThrow(() => decoder.Dispose());
+            Assert.DoesNotThrow(decoder.Dispose);
         }
 
         [Test]
@@ -1917,7 +1917,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new XmlParser("<Root/>", ctx);
 
-            Assert.DoesNotThrow(() => decoder.Close());
+            Assert.DoesNotThrow(decoder.Close);
         }
 
         [Test]
@@ -1926,8 +1926,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new XmlParser("<Root/>", ctx);
 
-            Assert.DoesNotThrow(() => decoder.Close());
-            Assert.DoesNotThrow(() => decoder.Close());
+            Assert.DoesNotThrow(decoder.Close);
+            Assert.DoesNotThrow(decoder.Close);
         }
 
         [Test]

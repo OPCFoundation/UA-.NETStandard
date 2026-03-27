@@ -111,7 +111,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState node = CreateObjectNode();
             node.Dispose();
-            Assert.DoesNotThrow(() => node.Dispose());
+            Assert.DoesNotThrow(node.Dispose);
         }
 
         [Test]

@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void VariantScalarFromBuiltInType(BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandom(builtInType);
+            object randomData = GetRandom(builtInType);
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant1 = new Variant(randomData);
             Assert.That(variant1.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
@@ -137,7 +137,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void VariantArrayFromBuiltInType(BuiltInType builtInType, bool useBoundaryValues)
         {
             SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandomArray(
+            object randomData = GetRandomArray(
                 builtInType,
                 useBoundaryValues,
                 100,
@@ -148,6 +148,105 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
 #pragma warning restore CS0618 // Type or member is obsolete
+        }
+
+        /// <summary>
+        /// Returns a random value of the specified built-in type.
+        /// Used only by tests
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private object GetRandom(BuiltInType expectedType)
+        {
+            switch (expectedType)
+            {
+                case BuiltInType.DiagnosticInfo:
+                    return DataGenerator.GetRandomDiagnosticInfo();
+                case BuiltInType.Null:
+                    return null;
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return DataGenerator.GetRandomScalar(expectedType);
+                default:
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+            }
+        }
+
+        /// <summary>
+        /// Returns a random value of the specified built-in type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Array GetRandomArray(
+            BuiltInType expectedType,
+            bool useBoundaryValues,
+            int length,
+            bool fixedLength)
+        {
+            switch (expectedType)
+            {
+                case BuiltInType.Boolean:
+                    return DataGenerator.GetRandomBooleanArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.SByte:
+                    return DataGenerator.GetRandomSByteArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Byte:
+                    return DataGenerator.GetRandomByteArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Int16:
+                    return DataGenerator.GetRandomInt16Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.UInt16:
+                    return DataGenerator.GetRandomUInt16Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Int32:
+                    return DataGenerator.GetRandomInt32Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.UInt32:
+                    return DataGenerator.GetRandomUInt32Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Int64:
+                    return DataGenerator.GetRandomInt64Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.UInt64:
+                    return DataGenerator.GetRandomUInt64Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Float:
+                    return DataGenerator.GetRandomFloatArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Double:
+                    return DataGenerator.GetRandomDoubleArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.String:
+                    return DataGenerator.GetRandomStringArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.DateTime:
+                    return DataGenerator.GetRandomDateTimeArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Guid:
+                    return DataGenerator.GetRandomGuidArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.ByteString:
+                    return DataGenerator.GetRandomByteStringArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.XmlElement:
+                    return DataGenerator.GetRandomXmlElementArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.NodeId:
+                    return DataGenerator.GetRandomNodeIdArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.ExpandedNodeId:
+                    return DataGenerator.GetRandomExpandedNodeIdArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.QualifiedName:
+                    return DataGenerator.GetRandomQualifiedNameArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.LocalizedText:
+                    return DataGenerator.GetRandomLocalizedTextArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.StatusCode:
+                    return DataGenerator.GetRandomStatusCodeArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Variant:
+                    return DataGenerator.GetRandomVariantArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.ExtensionObject:
+                    return DataGenerator.GetRandomExtensionObjectArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Number:
+                    return DataGenerator.GetRandomNumberArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Integer:
+                    return DataGenerator.GetRandomIntegerArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.UInteger:
+                    return DataGenerator.GetRandomUIntegerArray(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Enumeration:
+                    return DataGenerator.GetRandomInt32Array(useBoundaryValues, length, fixedLength);
+                case BuiltInType.Null:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {expectedType}");
+            }
         }
     }
 }

@@ -1409,13 +1409,10 @@ namespace Opc.Ua
 
             if (namespaceIndex > 0)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
                 value = new ExpandedNodeId(
-                    nodeId.Identifier,
-                    (ushort)namespaceIndex,
+                    nodeId.WithNamespaceIndex((ushort)namespaceIndex),
                     null,
                     (uint)serverIndex);
-#pragma warning restore CS0618 // Type or member is obsolete
             }
             else
             {

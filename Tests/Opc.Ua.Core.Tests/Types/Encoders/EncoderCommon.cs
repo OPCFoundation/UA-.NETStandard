@@ -209,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType} Encoding:{encoding}";
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
-            DataValue expected = CreateDataValue(builtInType, data);
+            DataValue expected = CreateDataValue(data);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
@@ -242,7 +242,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
-            DataValue expected = CreateDataValue(builtInType, data);
+            DataValue expected = CreateDataValue(data);
             Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
 
             string formatted = null;
@@ -623,10 +623,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Wrap Variant in a DataValue.
         /// </summary>
-        protected DataValue CreateDataValue(BuiltInType builtInType, Variant variant)
+        protected DataValue CreateDataValue(Variant variant)
         {
-            var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            var sourceTimeStamp = (DateTimeUtc)DataGenerator.GetRandom(BuiltInType.DateTime);
+            StatusCode statusCode = DataGenerator.GetRandomStatusCode();
+            DateTimeUtc sourceTimeStamp = DataGenerator.GetRandomDateTime();
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
