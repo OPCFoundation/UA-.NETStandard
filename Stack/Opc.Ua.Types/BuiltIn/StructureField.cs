@@ -85,6 +85,11 @@ namespace Opc.Ua
         [DataMember(Name = "IsOptional", IsRequired = false, Order = 7)]
         public bool IsOptional { get; set; }
 
+        /// <summary>
+        /// (Internal) built in type of the data type
+        /// </summary>
+        public BuiltInType BuiltInType { get; set; }
+
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.StructureField;
 

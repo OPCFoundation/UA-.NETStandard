@@ -32,6 +32,7 @@
     <PackageVersion Include="System.CommandLine" Version="2.0.5" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.6.37110.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="TUnit" Version="1.19.74" />
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
