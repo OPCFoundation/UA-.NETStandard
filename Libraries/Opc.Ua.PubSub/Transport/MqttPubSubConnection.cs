@@ -430,7 +430,10 @@ namespace Opc.Ua.PubSub.Transport
             MqttClient publisherClient = null;
             MqttClient subscriberClient = null;
 
+            TimeSpan keepAlive = CalculateMqttKeepAlive();
+
             m_publisherMqttClientOptions ??= GetMqttClientOptions();
+            m_publisherMqttClientOptions.KeepAlivePeriod = keepAlive;
 
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
@@ -483,6 +486,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 m_subscriberMqttClientOptions ??= GetMqttClientOptions();
+                m_subscriberMqttClientOptions.KeepAlivePeriod = keepAlive;
 
                 subscriberClient = (MqttClient)
                     await MqttClientCreator
@@ -730,14 +734,20 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
+        private TimeSpan CalculateMqttKeepAlive()
+        {
+            // writer group KeepAliveTime is given in milliseconds
+            return TimeSpan.FromMilliseconds(GetWriterGroupsMaxKeepAlive()) +
+                TimeSpan.FromSeconds(m_maxKeepAliveIncrement);
+        }
+
         /// <summary>
         /// Get appropriate IMqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         private MqttClientOptions GetMqttClientOptions()
         {
             MqttClientOptions mqttOptions = null;
-            var mqttKeepAlive = TimeSpan.FromSeconds(
-                GetWriterGroupsMaxKeepAlive() + m_maxKeepAliveIncrement);
+            TimeSpan mqttKeepAlive = CalculateMqttKeepAlive();
 
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
@@ -802,15 +812,8 @@ namespace Opc.Ua.PubSub.Transport
                 var x509Certificate2s = new List<X509Certificate2>();
                 if (mqttTlsOptions?.Certificates != null)
                 {
-                    foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates
-                        .X509Certificates)
-                    {
-                        if (x509cert is X509Certificate2 x509Certificate2)
-                        {
-                            x509Certificate2s.Add(
-                                CertificateFactory.Create(x509Certificate2.RawData));
-                        }
-                    }
+                    x509Certificate2s.AddRange(mqttTlsOptions?.Certificates
+                        .X509Certificates);
                 }
 
                 MqttClientOptionsBuilder mqttClientOptionsBuilder

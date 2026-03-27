@@ -44,7 +44,7 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture(Description = "Tests for Mqtt connections")]
-    public class MqttPubSubConnectionTests
+    public partial class MqttPubSubConnectionTests
     {
         private const ushort kNamespaceIndexAllTypes = 3;
 
@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private const int kEstimatedPublishingTime = 60000;
 
         internal const string DefaultBrokerProcessName = "mosquitto";
-        internal const string MqttUrlFormat = "{0}://{1}:1883";
+        internal const string MqttUrlFormat = $"{Utils.UriSchemeMqtt}://{{0}}:1883";
 
         private static readonly Variant[] s_validPublisherIds =
         [
@@ -90,14 +90,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [ValueSource(nameof(s_validPublisherIds))] Variant publisherId)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            RestartMosquitto();
+            using Process _ = RestartMosquitto();
 
             //Arrange
             const ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(
                 MqttUrlFormat,
-                Utils.UriSchemeMqtt,
                 "localhost");
 
             var mqttConfiguration = new MqttClientProtocolConfiguration(
@@ -252,13 +251,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            RestartMosquitto();
+            using Process _ = RestartMosquitto();
 
             //Arrange
             const ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(
-                MqttUrlFormat,
                 Utils.UriSchemeMqtt,
                 "localhost");
 
@@ -445,14 +443,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values(0, 10000)] double metaDataUpdateTime)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            RestartMosquitto();
+            using Process _ = RestartMosquitto();
 
             //Arrange
             const ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(
                 MqttUrlFormat,
-                Utils.UriSchemeMqtt,
                 "localhost");
 
             var mqttConfiguration = new MqttClientProtocolConfiguration(
@@ -636,14 +633,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             [Values(2, 3, 4)] int keyFrameCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            RestartMosquitto();
+            using Process _ = RestartMosquitto();
 
             //Arrange
             const ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(
                 MqttUrlFormat,
-                Utils.UriSchemeMqtt,
                 "localhost");
 
             var mqttConfiguration = new MqttClientProtocolConfiguration(
@@ -895,7 +891,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// <summary>
         /// Start/stop local mosquitto
         /// </summary>
-        private static void RestartMosquitto(string arguments = "")
+        private static Process RestartMosquitto(string arguments = "")
         {
             try
             {
@@ -903,32 +899,52 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (processes.Length > 0)
                 {
                     Process mosquittoProcess = processes[0];
-                    mosquittoProcess.Kill();
+                    try
+                    {
+                        mosquittoProcess.Kill();
+#if NET472 || NET48
+                        mosquittoProcess.WaitForExit(10);
+#else
+                        mosquittoProcess.WaitForExit(TimeSpan.FromSeconds(10));
+#endif
+                    }
+                    finally
+                    {
+                        mosquittoProcess?.Dispose();
+                    }
                 }
 
-                using var process = new Process();
+                var process = new Process();
                 string programFilesPath = Environment.Is64BitOperatingSystem
                     ? Environment.GetEnvironmentVariable("ProgramW6432")
                     : Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
-                process.StartInfo = new ProcessStartInfo(
-                    Path.Combine(
-                        programFilesPath,
-                        Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")))
+                process.StartInfo = new ProcessStartInfo
                 {
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    //startInfo.CreateNoWindow = true;
-                    //startInfo.RedirectStandardOutput = true;
-                    //startInfo.UseShellExecute = true;
-                    //startInfo.Verb = "runas";
+                    FileName = Path.Combine(
+                        programFilesPath,
+                        Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")),
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
                     Arguments = arguments
                 };
+
                 process.Start();
+                process.ErrorDataReceived += ErrorHandler;
+                process.BeginErrorReadLine();
+                return process;
             }
             catch (Exception)
             {
                 Assert.Fail("The mosquitto could not be restarted!");
             }
+            return null;
+        }
+
+        private static void ErrorHandler(object sender, DataReceivedEventArgs e)
+        {
+            Debug.WriteLine($"MOSQUITTO {e.Data}");
         }
     }
 }
