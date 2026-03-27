@@ -407,5 +407,107 @@ namespace Opc.Ua.Server.Tests
             return DurableMonitoredItemQueueFactory
                 .DecodeEventQueue(decoder);
         }
+
+        #region BatchPersistor Round-Trip Tests
+
+        [Test]
+        public void RoundTripDataChangeBatchViaPersistor()
+        {
+            using IDisposable scope =
+                AmbientMessageContext.SetScopedContext(m_context);
+
+            var values = new List<(DataValue, ServiceResult)>
+            {
+                (new DataValue(new Variant(42), StatusCodes.Good), null),
+                (new DataValue(new Variant("test"), StatusCodes.Good),
+                    new ServiceResult(StatusCodes.BadTimeout))
+            };
+            var batch = new DataChangeBatch(values, 10, 99);
+
+            var persistor = new BatchPersistor(
+                NUnitTelemetryContext.Create());
+
+            // Persist
+            persistor.PersistSynchronously(batch);
+            Assert.That(batch.IsPersisted, Is.True);
+            Assert.That(batch.Values, Is.Null);
+
+            // Restore
+            persistor.RestoreSynchronously(batch);
+            Assert.That(batch.IsPersisted, Is.False);
+            Assert.That(batch.Values, Is.Not.Null);
+            Assert.That(batch.Values, Has.Count.EqualTo(2));
+            Assert.That(
+                (int)batch.Values[0].Item1.WrappedValue,
+                Is.EqualTo(42));
+            Assert.That(batch.Values[1].Item2, Is.Not.Null);
+            Assert.That(
+                batch.Values[1].Item2.StatusCode,
+                Is.EqualTo(StatusCodes.BadTimeout));
+
+            // Clean up
+            persistor.DeleteBatches([]);
+        }
+
+        [Test]
+        public void RoundTripEventBatchViaPersistor()
+        {
+            using IDisposable scope =
+                AmbientMessageContext.SetScopedContext(m_context);
+
+            var events = new List<EventFieldList>
+            {
+                new EventFieldList { ClientHandle = 1 },
+                new EventFieldList { ClientHandle = 2 }
+            };
+            var batch = new EventBatch(events, 5, 77);
+
+            var persistor = new BatchPersistor(
+                NUnitTelemetryContext.Create());
+
+            // Persist
+            persistor.PersistSynchronously(batch);
+            Assert.That(batch.IsPersisted, Is.True);
+
+            // Restore
+            persistor.RestoreSynchronously(batch);
+            Assert.That(batch.IsPersisted, Is.False);
+            Assert.That(batch.Events, Is.Not.Null);
+            Assert.That(batch.Events, Has.Count.EqualTo(2));
+
+            // Clean up
+            persistor.DeleteBatches([]);
+        }
+
+        [Test]
+        public void PersistorDeleteBatchRemovesFile()
+        {
+            using IDisposable scope =
+                AmbientMessageContext.SetScopedContext(m_context);
+
+            var values = new List<(DataValue, ServiceResult)>
+            {
+                (new DataValue(new Variant(1), StatusCodes.Good), null)
+            };
+            var batch = new DataChangeBatch(values, 5, 50);
+
+            var persistor = new BatchPersistor(
+                NUnitTelemetryContext.Create());
+
+            persistor.PersistSynchronously(batch);
+            Assert.That(batch.IsPersisted, Is.True);
+
+            // Delete all batches
+            persistor.DeleteBatches([]);
+
+            // Restore should not crash (file gone)
+            batch.Restore(values);
+            batch.SetPersisted();
+            persistor.RestoreSynchronously(batch);
+            // RestoreInProgress is reset even when file is missing
+            Assert.That(batch.RestoreInProgress, Is.False);
+        }
+
+        #endregion
     }
 }
