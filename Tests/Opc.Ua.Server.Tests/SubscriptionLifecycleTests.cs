@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<ServerSystemContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<System.Threading.CancellationToken>()))
-                .Returns(System.Threading.Tasks.ValueTask.CompletedTask);
+                .Returns(default(System.Threading.Tasks.ValueTask));
         }
 
         private Subscription CreateSubscription(
