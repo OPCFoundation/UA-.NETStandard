@@ -95,6 +95,7 @@ namespace Opc.Ua.Configuration
         public string ConfigSectionName { get; set; }
 
         /// <inheritdoc/>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
         public Type ConfigurationType { get; set; }
 
         /// <inheritdoc/>
@@ -490,15 +491,11 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
@@ -550,7 +547,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)

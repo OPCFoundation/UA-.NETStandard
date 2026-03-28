@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
+using System.Xml;
 
 // suppress warnings until OAuth 2.0 is supported
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -65,10 +65,114 @@ namespace Opc.Ua
     )]
     public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        private static readonly XmlQualifiedName s_elementName =
+            new XmlQualifiedName("ListOfOAuth2Credential", Namespaces.OpcUaConfig);
+
+        /// <summary>
+        /// Decodes an <see cref="OAuth2CredentialCollection"/> from an <see cref="IDecoder"/>.
+        /// </summary>
+        public static OAuth2CredentialCollection Decode(IDecoder decoder)
+        {
+            var xmlParser = (XmlParser)decoder;
+            var result = new OAuth2CredentialCollection();
+
+            xmlParser.PushNamespace(Namespaces.OpcUaConfig);
+            xmlParser.ReadStartElement();
+
+            while (xmlParser.Peek("OAuth2Credential"))
+            {
+                xmlParser.ReadStartElement();
+
+                var cred = new OAuth2Credential
+                {
+                    AuthorityUrl = xmlParser.ReadString("AuthorityUrl"),
+                    GrantType = xmlParser.ReadString("GrantType"),
+                    ClientId = xmlParser.ReadString("ClientId"),
+                    ClientSecret = xmlParser.ReadString("ClientSecret"),
+                    RedirectUrl = xmlParser.ReadString("RedirectUrl"),
+                    TokenEndpoint = xmlParser.ReadString("TokenEndpoint"),
+                    AuthorizationEndpoint = xmlParser.ReadString("AuthorizationEndpoint"),
+                };
+
+                if (xmlParser.Peek("Servers"))
+                {
+                    xmlParser.ReadStartElement();
+                    var servers = new OAuth2ServerSettingsCollection();
+
+                    while (xmlParser.Peek("OAuth2ServerSettings"))
+                    {
+                        xmlParser.ReadStartElement();
+
+                        var settings = new OAuth2ServerSettings
+                        {
+                            ApplicationUri = xmlParser.ReadString("ApplicationUri"),
+                            ResourceId = xmlParser.ReadString("ResourceId"),
+                            Scopes = xmlParser.ReadStringArray("Scopes"),
+                        };
+
+                        xmlParser.Skip(new XmlQualifiedName("OAuth2ServerSettings", Namespaces.OpcUaConfig));
+                        servers.Add(settings);
+                    }
+
+                    xmlParser.Skip(new XmlQualifiedName("Servers", Namespaces.OpcUaConfig));
+                    cred.Servers = servers;
+                }
+
+                xmlParser.Skip(new XmlQualifiedName("OAuth2Credential", Namespaces.OpcUaConfig));
+                result.Add(cred);
+            }
+
+            xmlParser.Skip(new XmlQualifiedName("ListOfOAuth2Credential", Namespaces.OpcUaConfig));
+            xmlParser.PopNamespace();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Encodes an <see cref="OAuth2CredentialCollection"/> to an <see cref="IEncoder"/>.
+        /// </summary>
+        public static void Encode(IEncoder encoder, OAuth2CredentialCollection collection)
+        {
+            var xmlEncoder = (XmlEncoder)encoder;
+
+            if (collection == null)
+            {
+                return;
+            }
+
+            foreach (OAuth2Credential cred in collection)
+            {
+                xmlEncoder.Push("OAuth2Credential", Namespaces.OpcUaConfig);
+                xmlEncoder.WriteString("AuthorityUrl", cred.AuthorityUrl);
+                xmlEncoder.WriteString("GrantType", cred.GrantType);
+                xmlEncoder.WriteString("ClientId", cred.ClientId);
+                xmlEncoder.WriteString("ClientSecret", cred.ClientSecret);
+                xmlEncoder.WriteString("RedirectUrl", cred.RedirectUrl);
+                xmlEncoder.WriteString("TokenEndpoint", cred.TokenEndpoint);
+                xmlEncoder.WriteString("AuthorizationEndpoint", cred.AuthorizationEndpoint);
+
+                if (cred.Servers != null && cred.Servers.Count > 0)
+                {
+                    xmlEncoder.Push("Servers", Namespaces.OpcUaConfig);
+
+                    foreach (OAuth2ServerSettings server in cred.Servers)
+                    {
+                        xmlEncoder.Push("OAuth2ServerSettings", Namespaces.OpcUaConfig);
+                        xmlEncoder.WriteString("ApplicationUri", server.ApplicationUri);
+                        xmlEncoder.WriteString("ResourceId", server.ResourceId);
+
+                        xmlEncoder.WriteStringArray("Scopes", server.Scopes);
+
+                        xmlEncoder.Pop();
+                    }
+
+                    xmlEncoder.Pop();
+                }
+
+                xmlEncoder.Pop();
+            }
+        }
+
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -87,7 +191,9 @@ namespace Opc.Ua
 
                 if (list == null)
                 {
-                    list = configuration.ParseExtension<OAuth2CredentialCollection>() ?? [];
+                    list = configuration.ParseExtension<OAuth2CredentialCollection>(
+                        s_elementName,
+                        OAuth2CredentialCollection.Decode) ?? [];
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }
@@ -96,10 +202,6 @@ namespace Opc.Ua
             return list;
         }
 
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static OAuth2Credential FindByServerUri(
             ApplicationConfiguration configuration,
             string serverApplicationUri)
@@ -151,10 +253,6 @@ namespace Opc.Ua
             return null;
         }
 
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static OAuth2Credential FindByAuthorityUrl(
             ApplicationConfiguration configuration,
             string authorityUrl)

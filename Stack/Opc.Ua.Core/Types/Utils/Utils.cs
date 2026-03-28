@@ -1532,6 +1532,129 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        /// <param name="extensions">The list of extensions to search.</param>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
+        /// <returns>The deserialized extension, or the default value if not found.</returns>
+        public static T ParseExtension<T>(
+            ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            ITelemetryContext telemetry,
+            Func<IDecoder, T> decoderFunc)
+        {
+            if (decoderFunc is null)
+            {
+                throw new ArgumentNullException(nameof(decoderFunc));
+            }
+
+            if (elementName is null)
+            {
+                throw new ArgumentNullException(nameof(elementName));
+            }
+
+            if (extensions.IsEmpty)
+            {
+                return default;
+            }
+
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+
+            for (int ii = 0; ii < extensions.Count; ii++)
+            {
+                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+
+                if (element.LocalName != elementName.Name ||
+                    element.NamespaceURI != elementName.Namespace)
+                {
+                    continue;
+                }
+
+                using var parser = new XmlParser(element, AmbientMessageContext.CurrentContext);
+                return decoderFunc(parser);
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the supplied encoder function to serialize its replacement.
+        /// </summary>
+        /// <typeparam name="T">The type of the extension.</typeparam>
+        /// <param name="extensions">The list of extensions to update.</param>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="value">The value.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        /// <remarks>
+        /// Adds a new extension if it does not already exist.
+        /// Deletes the extension if the value is null.
+        /// </remarks>
+        public static void UpdateExtension<T>(
+            ref ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            T value,
+            ITelemetryContext telemetry,
+            Action<IEncoder, T> encoderFunc)
+        {
+            if (elementName is null)
+            {
+                throw new ArgumentNullException(nameof(elementName));
+            }
+
+            if (encoderFunc is null)
+            {
+                throw new ArgumentNullException(nameof(encoderFunc));
+            }
+
+            var document = new XmlDocument();
+
+            if (value != null)
+            {
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                encoder.Push(elementName.Name, elementName.Namespace);
+                encoderFunc(encoder, value);
+                encoder.Pop();
+                string xml = encoder.CloseAndReturnText();
+                document.LoadInnerXml(xml);
+            }
+
+            var xmlElements = extensions.ToList();
+            if (xmlElements.Count > 0)
+            {
+                for (int ii = 0; ii < xmlElements.Count; ii++)
+                {
+                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    if (element != null &&
+                        element.LocalName == elementName.Name &&
+                        element.NamespaceURI == elementName.Namespace)
+                    {
+                        if (value == null)
+                        {
+                            xmlElements.RemoveAt(ii);
+                            extensions = xmlElements.ToArrayOf();
+                            return;
+                        }
+
+                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
+                        extensions = xmlElements.ToArrayOf();
+                        return;
+                    }
+                }
+            }
+
+            if (value != null)
+            {
+                xmlElements.Add(XmlElement.From(document.DocumentElement));
+                extensions = xmlElements.ToArrayOf();
+            }
+        }
+
         private static readonly DateTime s_baseDateTime = new(
             2000,
             1,

@@ -53,10 +53,6 @@ namespace Opc.Ua
         /// <param name="section">The section as XML node.</param>
         /// <returns>The created section handler object.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="section"/> is <c>null</c>.</exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public object Create(object parent, object configContext, XmlNode section)
         {
             if (section == null)
@@ -70,12 +66,11 @@ namespace Opc.Ua
             {
                 element = element.NextSibling;
             }
-
-            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfigurationLocation>();
-            using var reader = XmlReader.Create(
-                new StringReader(element.OuterXml),
-                Utils.DefaultXmlReaderSettings());
-            return serializer.ReadObject(reader) as ConfigurationLocation;
+
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+            var parser = new XmlParser(typeof(ConfigurationLocation), element.OuterXml, ServiceMessageContext.GlobalContext);
+#pragma warning restore CS0618
+            return new ConfigurationLocation { FilePath = parser.ReadString("FilePath") };
         }
     }
 
@@ -223,10 +218,6 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType)
@@ -244,10 +235,6 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
@@ -273,14 +260,10 @@ namespace Opc.Ua
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
         {
             return LoadAsync(sectionName, applicationType, systemType, LoggerUtils.Null.Logger, null);
         }
@@ -297,14 +280,10 @@ namespace Opc.Ua
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ILogger logger,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
@@ -333,28 +312,25 @@ namespace Opc.Ua
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static ApplicationConfiguration LoadWithNoValidation(
             FileInfo file,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ITelemetryContext telemetry)
         {
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
-                    systemType);
-
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                var configuration = serializer.ReadObject(reader) as ApplicationConfiguration;
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+                var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+#pragma warning restore CS0618
+                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
+                ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
+                    ? new ApplicationConfiguration()
+                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                AppConfigEncoding.DecodeContents(parser, configuration);
                 configuration.Initialize(telemetry);
-
-                configuration?.SourceFilePath = file.FullName;
-
+                configuration.SourceFilePath = file.FullName;
                 return configuration;
             }
             catch (Exception e)
@@ -375,14 +351,10 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
         {
             return LoadAsync(file, applicationType, systemType, null);
         }
@@ -396,14 +368,10 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct"></param>
         /// <returns>Application configuration</returns>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
@@ -420,14 +388,10 @@ namespace Opc.Ua
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -452,14 +416,10 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -503,14 +463,10 @@ namespace Opc.Ua
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -535,14 +491,10 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -554,10 +506,14 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
-                    systemType);
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                configuration = (ApplicationConfiguration)serializer.ReadObject(reader);
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+                var ctx = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+#pragma warning restore CS0618
+                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
+                configuration = systemType == typeof(ApplicationConfiguration)
+                    ? new ApplicationConfiguration()
+                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                AppConfigEncoding.DecodeContents(parser, configuration);
                 configuration.Initialize(telemetry);
             }
             catch (Exception e)
@@ -616,20 +572,19 @@ namespace Opc.Ua
         /// Saves the configuration file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public void SaveToFile(string filePath)
         {
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(GetType());
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+            var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+#pragma warning restore CS0618
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            serializer.WriteObject(writer, this);
+            var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
+            AppConfigEncoding.EncodeContents(encoder, this);
+            encoder.Close();
         }
 
         /// <summary>
@@ -750,10 +705,6 @@ namespace Opc.Ua
         /// <param name="createAlways">if set to <c>true</c> ConfiguredEndpointCollection is always returned,
         ///	even if loading from disk fails</param>
         /// <returns>Collection of configured endpoints from the disk.</returns>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways)
         {
             return LoadCachedEndpoints(createAlways, false);
@@ -769,10 +720,6 @@ namespace Opc.Ua
         /// Collection of configured endpoints from the disk.
         /// </returns>
         /// <exception cref="InvalidOperationException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public ConfiguredEndpointCollection LoadCachedEndpoints(
             bool createAlways,
             bool overrideConfiguration)
@@ -905,6 +852,30 @@ namespace Opc.Ua
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        public T ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
+        {
+            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry, decoderFunc);
+        }
+
+        /// <summary>
+        /// Updates the extension using the supplied encoder function.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="value">The value.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        public void UpdateExtension<T>(XmlQualifiedName elementName, T value, Action<IEncoder, T> encoderFunc)
+        {
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry, encoderFunc);
         }
     }
 

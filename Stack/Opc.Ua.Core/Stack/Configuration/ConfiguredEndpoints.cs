@@ -72,10 +72,6 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
@@ -87,10 +83,6 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
@@ -116,10 +108,6 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static ConfiguredEndpointCollection Load(
             string filePath,
             ITelemetryContext telemetry)
@@ -210,10 +198,6 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a stream.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public static ConfiguredEndpointCollection Load(
             Stream istrm,
             ITelemetryContext telemetry)
@@ -221,17 +205,17 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
-                using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
-                var endpoints = serializer.ReadObject(reader) as ConfiguredEndpointCollection;
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+                var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+#pragma warning restore CS0618
+                var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
+                var endpoints = new ConfiguredEndpointCollection();
+                AppConfigEncoding.DecodeConfiguredEndpointCollection(parser, endpoints);
 
-                if (endpoints != null)
+                foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
-                    foreach (ConfiguredEndpoint endpoint in endpoints)
-                    {
-                        endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
-                                endpoint.Description.TransportProfileUri);
-                    }
+                    endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
+                            endpoint.Description.TransportProfileUri);
                 }
 
                 return endpoints;
@@ -249,10 +233,6 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints the file that it was loaded from.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public void Save()
         {
             Save(m_filepath);
@@ -261,10 +241,6 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints to a file.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public void Save(string filePath)
         {
             using (Stream stream = File.Open(filePath, FileMode.Create))
@@ -277,16 +253,15 @@ namespace Opc.Ua
         /// <summary>
         /// Saves a collection of endpoints to a stream.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
         public void Save(Stream ostrm)
         {
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
+#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
+            var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+#pragma warning restore CS0618
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, this);
+            var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
+            AppConfigEncoding.EncodeConfiguredEndpointCollection(encoder, this);
+            encoder.Close();
         }
 
         /// <inheritdoc/>

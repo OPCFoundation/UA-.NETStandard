@@ -30,15 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
@@ -947,29 +944,25 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public SessionConfiguration SaveSessionConfiguration(Stream? stream = null)
         {
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                DataContractSerializer serializer =
-                    CoreUtils.CreateDataContractSerializer<SessionConfiguration>(MessageContext);
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-                using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-                serializer.WriteObject(writer, sessionConfiguration);
+                IServiceMessageContext context = MessageContext!;
+                using var encoder = new BinaryEncoder(
+                    stream, context, true);
+                encoder.WriteStringArray(
+                    null, context.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(
+                    null, context.ServerUris.ToArrayOf());
+                SessionStateEncoder.EncodeSessionConfiguration(
+                    encoder, sessionConfiguration);
             }
             return sessionConfiguration;
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public virtual void Save(
             Stream stream,
             IEnumerable<Subscription> subscriptions,
@@ -984,44 +977,48 @@ namespace Opc.Ua.Client
                 subscriptionStateCollection.Add(state);
             }
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, subscriptionStateCollection);
+            IServiceMessageContext context = MessageContext!;
+            using var encoder = new BinaryEncoder(
+                stream, context, true);
+            encoder.WriteStringArray(
+                null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(
+                null, context.ServerUris.ToArrayOf());
+            encoder.WriteInt32(null, subscriptionStateCollection.Count);
+            foreach (SubscriptionState state in subscriptionStateCollection)
+            {
+                SessionStateEncoder.EncodeSubscriptionState(encoder, state);
+            }
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public virtual IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
             IEnumerable<Type>? knownTypes = null)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            // secure settings
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            settings.CloseInput = true;
-            using var reader = XmlReader.Create(stream, settings);
-            var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
-            if (stateCollection == null)
+            IServiceMessageContext context = MessageContext!;
+            using var decoder = new BinaryDecoder(
+                stream, context, true);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            decoder.SetMappingTables(
+                new NamespaceTable(nsUris.Memory.ToArray()),
+                new StringTable(serverUris.Memory.ToArray()));
+
+            int count = decoder.ReadInt32(null);
+            if (count <= 0)
             {
                 return [];
             }
-            var subscriptions = new SubscriptionCollection(stateCollection.Count);
-            foreach (SubscriptionState state in stateCollection)
+
+            var subscriptions = new SubscriptionCollection(count);
+            for (int i = 0; i < count; i++)
             {
+                SubscriptionState state =
+                    SessionStateEncoder.DecodeSubscriptionState(decoder);
                 // Restore subscription from state
                 Subscription subscription = CreateSubscription(state);
                 subscription.Restore(state);

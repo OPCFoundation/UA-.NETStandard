@@ -2608,10 +2608,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Configuration.GetType() returns a concrete type whose constructor is preserved at the call site.")]
         protected virtual async void OnConfigurationChangedAsync(
             object sender,
             ConfigurationWatcherEventArgs args)

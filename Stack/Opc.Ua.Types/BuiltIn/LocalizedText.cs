@@ -385,8 +385,6 @@ namespace Opc.Ua
         /// or 'qst' as the first entry.</param>
         /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
         [Pure]
-        [RequiresUnreferencedCode("Uses System.Text.Json reflection-based serialization.")]
-        [RequiresDynamicCode("Uses System.Text.Json reflection-based serialization.")]
         public LocalizedText FilterByPreferredLocales(ArrayOf<string> preferredLocales)
         {
             return m_translation == null

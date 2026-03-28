@@ -29,12 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
@@ -717,36 +714,31 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates the browser from a persisted stream
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
         public static Browser? Load(Stream stream, ITelemetryContext telemetry)
         {
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<BrowserOptions>();
-            // secure settings
-            using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            var options = (BrowserOptions?)serializer.ReadObject(reader);
+            var context = new ServiceMessageContext(telemetry);
+            using var decoder = new BinaryDecoder(stream, context, true);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
+            context.ServerUris = new StringTable(serverUris.Memory.ToArray());
+            var options = BrowserStateEncoder.DecodeBrowserOptions(decoder);
             return new Browser(telemetry, options);
         }
 
         /// <summary>
         /// Saves the state to the stream
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
         public void Save(Stream stream)
         {
-            // secure settings
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<BrowserOptions>();
-            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, State);
+            var context = AmbientMessageContext.CurrentContext
+                ?? new ServiceMessageContext(m_telemetry);
+            using var encoder = new BinaryEncoder(stream, context, true);
+            encoder.WriteStringArray(
+                null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(
+                null, context.ServerUris.ToArrayOf());
+            BrowserStateEncoder.EncodeBrowserOptions(encoder, State);
         }
 
         /// <summary>

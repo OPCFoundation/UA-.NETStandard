@@ -243,10 +243,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         protected virtual async void OnConfigurationChangedAsync(
             object? sender,
             ConfigurationWatcherEventArgs args)
@@ -273,6 +269,8 @@ namespace Opc.Ua.Client
         /// Called when the configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        [UnconditionalSuppressMessage("Trimming", "IL2074",
+            Justification = "The configuration type was loaded with PublicParameterlessConstructor, so GetType() is safe to store.")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
             // save types for config watcher
@@ -845,6 +843,7 @@ namespace Opc.Ua.Client
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
         private Type? m_configType;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
