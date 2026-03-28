@@ -75,8 +75,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
         /// </summary>
-        [RequiresUnreferencedCode("Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which requires unreferenced code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void SaveAsNodeSet(ISystemContext context, Stream ostrm)
         {
             var nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);

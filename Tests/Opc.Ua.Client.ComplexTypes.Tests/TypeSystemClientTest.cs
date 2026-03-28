@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
@@ -172,11 +173,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool success = await typeSystem.LoadAsync(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.That(success, Is.True);
 
-            Type[] types = typeSystem.GetDefinedTypes();
-            TestContext.Out.WriteLine("Types loaded: {0} ", types.Length);
-            foreach (Type type in types)
+            var types = typeSystem.GetDefinedTypes();
+            TestContext.Out.WriteLine("Types loaded: {0} ", types.Count);
+            foreach (XmlQualifiedName type in types)
             {
-                TestContext.Out.WriteLine("Type: {0} ", type.FullName);
+                TestContext.Out.WriteLine("Type: {0} ", type);
             }
 
             foreach (ExpandedNodeId dataTypeId in typeSystem.GetDefinedDataTypeIds())

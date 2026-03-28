@@ -43,9 +43,9 @@ namespace Opc.Ua.Security
         /// <param name="filePath">The file path.</param>
         /// <returns>The security configuration.</returns>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         SecuredApplication ReadConfiguration(string filePath);
 
         /// <summary>

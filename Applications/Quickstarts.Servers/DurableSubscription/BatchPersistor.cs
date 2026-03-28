@@ -30,14 +30,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using Opc.Ua;
 
 namespace Quickstarts.Servers
@@ -45,17 +43,12 @@ namespace Quickstarts.Servers
     /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
-        private static readonly JsonSerializerOptions s_settings = new()
-        {
-            // TypeInfoResolver = DefaultJsonTypeInfoResolver.Instance,
-        };
-
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions",
             "Batches");
 
-        private const string kBaseFilename = "_batch.txt";
+        private const string kBaseFilename = "_batch.bin";
 
         public BatchPersistor(ITelemetryContext telemetry)
         {
@@ -105,66 +98,64 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "System.Text.Json is used with known batch types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "System.Text.Json is used with known batch types.")]
         public void RestoreSynchronously(BatchBase batch)
         {
             string filePath = Path.Combine(
                 s_storage_path,
                 $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
-            object result = null;
             try
             {
                 if (File.Exists(filePath))
                 {
-                    string json = File.ReadAllText(filePath);
                     using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                    result = JsonSerializer.Deserialize(json, batch.GetType(), s_settings);
+                    IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+
+                    using FileStream stream = File.OpenRead(filePath);
+                    using var decoder = new BinaryDecoder(stream, context, true);
+
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+                    decoder.SetMappingTables(
+                        new NamespaceTable(nsUris.Memory.ToArray()),
+                        new StringTable(srvUris.Memory.ToArray()));
+
+                    lock (batch)
+                    {
+                        if (batch is DataChangeBatch dataChangeBatch)
+                        {
+                            DataChangeBatch restored =
+                                DurableMonitoredItemQueueFactory.DecodeDataChangeBatch(decoder);
+                            dataChangeBatch.Restore(restored?.Values);
+                        }
+                        else if (batch is EventBatch eventBatch)
+                        {
+                            EventBatch restored =
+                                DurableMonitoredItemQueueFactory.DecodeEventBatch(decoder);
+                            eventBatch.Restore(restored?.Events);
+                        }
+                        m_batchesToRestore.TryRemove(batch.Id, out _);
+                    }
 
                     File.Delete(filePath);
+                    return;
                 }
             }
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "Failed to restore batch");
-
-                batch.RestoreInProgress = false;
-                m_batchesToRestore.TryRemove(batch.Id, out _);
-
-                return;
             }
-            lock (batch)
-            {
-                if (batch is DataChangeBatch dataChangeBatch)
-                {
-                    var newBatch = result as DataChangeBatch;
-                    dataChangeBatch.Restore(newBatch.Values);
-                }
-                else if (batch is EventBatch eventBatch)
-                {
-                    var newBatch = result as EventBatch;
-                    eventBatch.Restore(newBatch.Events);
-                }
-                m_batchesToRestore.TryRemove(batch.Id, out _);
-            }
+
+            batch.RestoreInProgress = false;
+            m_batchesToRestore.TryRemove(batch.Id, out _);
         }
 
         /// <inheritdoc/>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "System.Text.Json is used with known batch types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "System.Text.Json is used with known batch types.")]
         public void PersistSynchronously(BatchBase batch)
         {
             using var cancellationTokenSource = new CancellationTokenSource();
             batch.CancelBatchPersist = cancellationTokenSource;
             try
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                string result = JsonSerializer.Serialize(batch, s_settings);
-
                 if (!Directory.Exists(s_storage_path))
                 {
                     Directory.CreateDirectory(s_storage_path);
@@ -174,7 +165,26 @@ namespace Quickstarts.Servers
                     s_storage_path,
                     $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
 
-                File.WriteAllText(filePath, result);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+
+                using (FileStream stream = File.Create(filePath))
+                using (var encoder = new BinaryEncoder(stream, context, true))
+                {
+                    encoder.WriteStringArray(null, context.NamespaceUris.ToArrayOf());
+                    encoder.WriteStringArray(null, context.ServerUris.ToArrayOf());
+
+                    if (batch is DataChangeBatch dataChangeBatch)
+                    {
+                        DurableMonitoredItemQueueFactory.EncodeDataChangeBatch(
+                            encoder, dataChangeBatch);
+                    }
+                    else if (batch is EventBatch eventBatch)
+                    {
+                        DurableMonitoredItemQueueFactory.EncodeEventBatch(
+                            encoder, eventBatch);
+                    }
+                }
 
                 if (cancellationTokenSource.IsCancellationRequested)
                 {
@@ -269,4 +279,5 @@ namespace Quickstarts.Servers
         private readonly ITelemetryContext m_telemetry;
     }
 }
+
 

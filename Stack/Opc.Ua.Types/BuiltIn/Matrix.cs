@@ -113,8 +113,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA element types.")]
+            Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         public Array ToArray()
         {
             try

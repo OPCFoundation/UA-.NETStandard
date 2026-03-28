@@ -37,6 +37,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -1116,13 +1117,13 @@ namespace Quickstarts
 
             m_logger.LogInformation(
                 "Loaded {Count} types took {Duration}ms.",
-                complexTypeSystem.GetDefinedTypes().Length,
+                complexTypeSystem.GetDefinedTypes().Count,
                 stopWatch.ElapsedMilliseconds);
 
             if (m_verbose)
             {
                 m_logger.LogInformation("Custom types defined for this session:");
-                foreach (Type type in complexTypeSystem.GetDefinedTypes())
+                foreach (XmlQualifiedName type in complexTypeSystem.GetDefinedTypes())
                 {
                     m_logger.LogInformation("{Namespace}.{TypeName}", type.Namespace, type.Name);
                 }

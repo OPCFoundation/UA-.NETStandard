@@ -547,8 +547,7 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>A multi dimensional array object</returns>
         [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA element types.")]
+            Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         public Array? CreateArrayInstance()
         {
             if (IsNull)

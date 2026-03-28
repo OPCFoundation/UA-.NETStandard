@@ -1102,9 +1102,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value)

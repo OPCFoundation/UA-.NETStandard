@@ -2282,8 +2282,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification =
-                "Array.CreateInstance is used with known OPC UA built-in types.")]
+            Justification = "Array.CreateInstance is used with known OPC UA built-in types.")]
         public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
             if (dimensions == null || dimensions.Length == 0)

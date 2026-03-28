@@ -703,10 +703,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use UpdateExtension with telemetry context.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -721,9 +719,9 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use ParseExtension with telemetry context.")]
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName)

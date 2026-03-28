@@ -66,7 +66,8 @@ namespace Opc.Ua
             {
                 element = element.NextSibling;
             }
-
+
+
 #pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
             var parser = new XmlParser(typeof(ConfigurationLocation), element.OuterXml, ServiceMessageContext.GlobalContext);
 #pragma warning restore CS0618
@@ -816,9 +817,9 @@ namespace Opc.Ua
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>()
         {
             return ParseExtension<T>(null);
@@ -831,9 +832,9 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <returns>The extension if found. Null otherwise.</returns>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
@@ -846,9 +847,9 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
         [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which requires unreferenced code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
-            "Uses DataContractSerializer which requires dynamic code.")]
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);

@@ -1078,6 +1078,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer<T>(
             IServiceMessageContext messageContext = null,
             IEnumerable<Type> knownTypes = null,
@@ -1090,6 +1092,8 @@ namespace Opc.Ua
         /// Create a data contract serializer for the specified type with OPC UA surrogates.
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer(
             Type systemType,
             IServiceMessageContext messageContext = null,

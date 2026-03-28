@@ -27,64 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Client.ComplexTypes.Structures
 {
     /// <summary>
-    /// Factory function for the default complex type builder
-    /// using classes created with Reflection.Emit.
+    /// Interface to access properties of a complex type.
     /// </summary>
-    public class ComplexTypeBuilderFactory : IComplexTypeFactory
+    public interface IStructure
     {
-        private readonly AssemblyModule m_moduleFactory;
+        /// <summary>
+        /// Get count of properties.
+        /// </summary>
+        int GetPropertyCount();
 
         /// <summary>
-        /// Factory creates types in the assembly module.
+        /// Get ordered list of property names.
         /// </summary>
-        public ComplexTypeBuilderFactory(string assemblyName = null)
-        {
-            m_moduleFactory = new AssemblyModule(assemblyName);
-        }
+        IReadOnlyList<string> GetPropertyNames();
 
         /// <summary>
-        /// Create a new type builder which uses Reflection.Emit.
+        /// Access property values by index.
         /// </summary>
-        public IComplexTypeBuilder Create(
-            string targetNamespace,
-            int targetNamespaceIndex,
-            string moduleName = null)
-        {
-            return new ComplexTypeBuilder(
-                m_moduleFactory,
-                targetNamespace,
-                targetNamespaceIndex,
-                moduleName);
-        }
+        Variant this[int index] { get; set; }
 
         /// <summary>
-        /// Return array of all types created in this factory.
+        /// Access property values by name.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Types are dynamically built via Reflection.Emit and are preserved.")]
-        public IReadOnlyList<IComplexType> GetTypes()
-        {
-            return m_moduleFactory.GetTypes()
-                .Select(t => new ComplexType(t))
-                .ToList();
-        }
-
-        /// <summary>
-        /// Wrapper of types generated
-        /// </summary>
-        private sealed record ComplexType(Type Type) : IComplexType
-        {
-            /// <inheritdoc/>
-            public XmlQualifiedName Name => TypeInfo.GetXmlName(Type);
-        }
+        Variant this[string name] { get; set; }
     }
 }

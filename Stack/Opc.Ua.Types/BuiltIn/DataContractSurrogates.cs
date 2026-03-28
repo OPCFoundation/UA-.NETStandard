@@ -44,6 +44,8 @@ namespace Opc.Ua
     /// Surrogates for data contract serializer. Used to swap types that
     /// are not directly supported by the serializer for types that are.
     /// </summary>
+    [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+    [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
     public class DataContractSurrogates : ISerializationSurrogateProvider
     {
         /// <summary>

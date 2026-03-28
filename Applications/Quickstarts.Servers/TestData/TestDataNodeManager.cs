@@ -61,9 +61,9 @@ namespace TestData
         /// Initializes the node manager.
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Uses reflection with known OPC UA types at startup.")]
+            Justification = "Configuration uses DataContractSerializer but is optional.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Uses reflection with known OPC UA types at startup.")]
+            Justification = "Configuration uses DataContractSerializer but is optional.")]
         public TestDataNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -73,11 +73,7 @@ namespace TestData
             // update the namespaces.
             NamespaceUris = namespaceUris;
 
-            Server.Factory.AddEncodeableTypes(
-                typeof(TestDataNodeManager)
-                    .Assembly.GetExportedTypes()
-                    .Where(t => t.FullName
-                        .StartsWith(typeof(TestDataNodeManager).Namespace, StringComparison.Ordinal)));
+            Server.Factory.Builder.AddTestData().Commit();
 
             // get the configuration for the node manager.
             m_configuration =

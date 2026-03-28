@@ -323,7 +323,11 @@ namespace Opc.Ua.Bindings
             };
             try
             {
+#if NET5_0_OR_GREATER
+                await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+#else
                 await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+#endif
 
                 ct.ThrowIfCancellationRequested();
                 lock (m_socketLock)
