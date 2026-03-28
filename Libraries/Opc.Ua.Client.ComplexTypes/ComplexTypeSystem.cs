@@ -378,9 +378,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the types defined in this type system.
         /// </summary>
-        public Type[] GetDefinedTypes()
+        public IReadOnlyList<XmlQualifiedName> GetDefinedTypes()
         {
-            return m_complexTypeBuilderFactory.GetTypes();
+            return m_complexTypeBuilderFactory.GetTypes().Select(c => c.Name).ToList();
         }
 
         /// <summary>

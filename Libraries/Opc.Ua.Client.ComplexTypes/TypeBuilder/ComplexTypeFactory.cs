@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -51,7 +54,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create a new type builder which uses Reflection.Emit.
         /// </summary>
-        public override IComplexTypeBuilder Create(
+        public IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
             string moduleName = null)
@@ -68,9 +71,20 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
             Justification = "Types are dynamically built via Reflection.Emit and are preserved.")]
-        public override Type[] GetTypes()
+        public IReadOnlyList<IComplexType> GetTypes()
         {
-            return m_moduleFactory.GetTypes();
+            return m_moduleFactory.GetTypes()
+                .Select(t => new ComplexType(t))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Wrapper of types generated
+        /// </summary>
+        private sealed record ComplexType(Type Type) : IComplexType
+        {
+            /// <inheritdoc/>
+            public XmlQualifiedName Name => TypeInfo.GetXmlName(Type);
         }
     }
 }

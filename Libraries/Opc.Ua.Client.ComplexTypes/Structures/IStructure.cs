@@ -34,7 +34,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
     /// <summary>
     /// Interface to access properties of a complex type.
     /// </summary>
-    public interface IStructureFields
+    public interface IStructure
     {
         /// <summary>
         /// Get count of properties.
@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         /// <summary>
         /// Get ordered list of property names.
         /// </summary>
-        IList<string> GetPropertyNames();
+        IReadOnlyList<string> GetPropertyNames();
 
         /// <summary>
         /// Access property values by index.

@@ -28,18 +28,31 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
+    /// Complex types
+    /// </summary>
+    public interface IComplexType
+    {
+        /// <summary>
+        /// Name of the type
+        /// </summary>
+        XmlQualifiedName Name { get; }
+    }
+
+    /// <summary>
     /// Factory class for the complex type builder.
     /// </summary>
-    public abstract class IComplexTypeFactory
+    public interface IComplexTypeFactory
     {
         /// <summary>
         /// Create a new type builder instance for this factory.
         /// </summary>
-        public abstract IComplexTypeBuilder Create(
+        IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
             string moduleName = null);
@@ -47,7 +60,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Types defined in the factory.
         /// </summary>
-        public abstract Type[] GetTypes();
+        IReadOnlyList<IComplexType> GetTypes();
     }
 
     /// <summary>
@@ -70,7 +83,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition);
+        Type AddEnumType(
+            QualifiedName typeName,
+            EnumDefinition enumDefinition);
 
         /// <summary>
         /// Create a complex type from a StructureDefinition.

@@ -54,8 +54,7 @@ namespace Opc.Ua.Client.AotTests
                 builder.SetMinimumLevel(LogLevel.Warning));
 
             // Start server
-            ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t));
+            ServerFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t));
             ServerFixture.AutoAccept = true;
             ServerFixture.SecurityNone = true;
             ServerFixture.AllNodeManagers = true;

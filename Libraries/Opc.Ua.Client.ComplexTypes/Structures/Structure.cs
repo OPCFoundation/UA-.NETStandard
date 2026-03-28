@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
     public class Structure :
         IEncodeable,
         IFormattable,
-        IStructureFields,
+        IStructure,
         IStructureTypeInfo,
         IEncodeableType
     {
@@ -197,7 +197,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         }
 
         /// <inheritdoc/>
-        public virtual IList<string> GetPropertyNames()
+        public virtual IReadOnlyList<string> GetPropertyNames()
         {
             return [.. m_propertyList.Select(p => p.Name)];
         }
