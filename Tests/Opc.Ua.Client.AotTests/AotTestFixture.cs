@@ -128,6 +128,32 @@ namespace Opc.Ua.Client.AotTests
                 ct: CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Creates a new independent <see cref="ISession"/> connected to the
+        /// same server. Callers are responsible for closing and disposing.
+        /// </summary>
+        public async Task<ISession> CreateSessionAsync(
+            string sessionName = "AotTestNewSession")
+        {
+            var endpointDescription = await CoreClientUtils.SelectEndpointAsync(
+                m_clientConfiguration, ServerUrl, useSecurity: false,
+                Telemetry, CancellationToken.None).ConfigureAwait(false);
+            var configuredEndpoint = new ConfiguredEndpoint(
+                null, endpointDescription,
+                EndpointConfiguration.Create(m_clientConfiguration));
+
+            var sessionFactory = new DefaultSessionFactory(Telemetry);
+            return await sessionFactory.CreateAsync(
+                m_clientConfiguration,
+                configuredEndpoint,
+                updateBeforeConnect: false,
+                sessionName: sessionName,
+                sessionTimeout: 60000,
+                identity: new UserIdentity(new AnonymousIdentityToken()),
+                preferredLocales: default,
+                ct: CancellationToken.None).ConfigureAwait(false);
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (Session != null)
