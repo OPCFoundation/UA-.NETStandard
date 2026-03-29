@@ -325,7 +325,7 @@ namespace Opc.Ua.Client
                     : ExtensionObject.Null);
         }
 
-        private static IUserIdentity? DecodeUserIdentity(
+        private static UserIdentity? DecodeUserIdentity(
             BinaryDecoder decoder)
         {
             ExtensionObject eo = decoder.ReadExtensionObject(null);

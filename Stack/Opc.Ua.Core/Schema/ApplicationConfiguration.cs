@@ -1166,6 +1166,15 @@ namespace Opc.Ua
 
         /// <summary>
         /// Remove unsupported security policies and expand wild cards.
+        /// Called by DCS via [OnDeserialized] and by the XmlParser-based decoder.
+        /// </summary>
+        internal void ValidateSecurityPolicies()
+        {
+            ValidateSecurityPolicyCollection(default);
+        }
+
+        /// <summary>
+        /// Remove unsupported security policies and expand wild cards.
         /// </summary>
         [OnDeserialized]
         private void ValidateSecurityPolicyCollection(StreamingContext context)

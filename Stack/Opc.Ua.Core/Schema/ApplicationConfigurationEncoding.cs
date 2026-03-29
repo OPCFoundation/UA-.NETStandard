@@ -1121,6 +1121,9 @@ namespace Opc.Ua
             config.MaxDurableEventQueueSize = decoder.ReadInt32("MaxDurableEventQueueSize");
             config.MaxDurableSubscriptionLifetimeInHours =
                 decoder.ReadInt32("MaxDurableSubscriptionLifetimeInHours");
+
+            // Mirror the [OnDeserialized] callback: expand wildcard policies and remove unsupported ones.
+            config.ValidateSecurityPolicies();
         }
 
         #endregion
@@ -1320,6 +1323,9 @@ namespace Opc.Ua
                 decoder.PopNamespace();
                 decoder.Skip(new XmlQualifiedName("ServerRegistrations", Namespaces.OpcUaConfig));
             }
+
+            // Mirror the [OnDeserialized] callback: expand wildcard policies and remove unsupported ones.
+            config.ValidateSecurityPolicies();
         }
 
         #endregion
