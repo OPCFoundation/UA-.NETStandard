@@ -295,7 +295,7 @@ ObjectIds.Server,
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(new UserIdentity());
 
-            var opContext = new OperationContext(reqHeader, null, RequestType.Read, sessionMock.Object);
+            var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
             ArrayOf<Variant> inputs = [new Variant(1234u)];
@@ -341,7 +341,7 @@ ObjectIds.Server,
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(new UserIdentity());
 
-            var opContext = new OperationContext(reqHeader, null, RequestType.Read, sessionMock.Object);
+            var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
             ArrayOf<Variant> inputs = [new Variant(1234u)];
@@ -643,7 +643,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionMock.Setup(s => s.Id).Returns(new NodeId(9999, 1)); // Different from sessionId to test admin overrides
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(roleIdentity);
 
-            var opContextAdmin = new OperationContext(reqHeader, channelContext, RequestType.Read, sessionMock.Object);
+            var opContextAdmin = new OperationContext(reqHeader, channelContext, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var adminContext = new ServerSystemContext(m_serverMock.Object, opContextAdmin);
 
             ArrayOf<RolePermissionType> permissionsAdmin = default;
@@ -668,7 +668,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionOwnerMock.Setup(s => s.EffectiveIdentity).Returns(normalRoleIdentity);
 
             var opContextOwner = new OperationContext(
-                reqHeader, channelContext, RequestType.Read, sessionOwnerMock.Object);
+                reqHeader, channelContext, RequestType.Read, RequestLifetime.None, sessionOwnerMock.Object);
             var ownerContext = new ServerSystemContext(m_serverMock.Object, opContextOwner);
 
             ArrayOf<RolePermissionType> permissionsOwner = default;
@@ -689,7 +689,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionOtherMock.Setup(s => s.EffectiveIdentity).Returns(normalRoleIdentity);
 
             var opContextOther = new OperationContext(
-                reqHeader, channelContext, RequestType.Read, sessionOtherMock.Object);
+                reqHeader, channelContext, RequestType.Read, RequestLifetime.None, sessionOtherMock.Object);
             var otherContext = new ServerSystemContext(m_serverMock.Object, opContextOther);
 
             ArrayOf<RolePermissionType> permissionsOther = default;
@@ -789,6 +789,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 new RequestHeader(),
                 secureChannelContext,
                 RequestType.Read,
+                RequestLifetime.None,
                 sessionMock.Object);
             var adminContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
@@ -836,6 +837,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 new RequestHeader(),
                 secureChannelContext,
                 RequestType.Read,
+                RequestLifetime.None,
                 normalSessionMock.Object);
             var normalContext = new ServerSystemContext(m_serverMock.Object, normalOpContext);
 
@@ -906,7 +908,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(mockRoleIdentity);
 
-            var opContext = new OperationContext(new RequestHeader(), secureChannelContext, RequestType.Read, sessionMock.Object);
+            var opContext = new OperationContext(new RequestHeader(), secureChannelContext, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
             static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value)

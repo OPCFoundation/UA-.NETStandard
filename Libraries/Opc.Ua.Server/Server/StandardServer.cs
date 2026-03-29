@@ -91,13 +91,13 @@ namespace Opc.Ua.Server
             string endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> serverUris,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             List<ApplicationDescription> servers = [];
 
             ValidateRequest(requestHeader);
 
-            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
             try
             {
                 // parse the url provided by the client.
@@ -181,13 +181,13 @@ namespace Opc.Ua.Server
             string endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> profileUris,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             ArrayOf<EndpointDescription> endpoints = default;
 
             ValidateRequest(requestHeader);
 
-            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
             try
             {
                 // filter by profile.
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
             ByteString clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             NodeId sessionId;
             NodeId authenticationToken;
@@ -312,7 +312,11 @@ namespace Opc.Ua.Server
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CreateSession, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.CreateSession,
+                requestLifetime).ConfigureAwait(false);
             ISession session = null;
             try
             {
@@ -375,7 +379,7 @@ namespace Opc.Ua.Server
                                         clientDescription.ApplicationUri);
                                 }
 
-                                await CertificateValidator.ValidateAsync(clientCertificateChain, ct).ConfigureAwait(false);
+                                await CertificateValidator.ValidateAsync(clientCertificateChain, requestLifetime.CancellationToken).ConfigureAwait(false);
                             }
                         }
                     }
@@ -420,7 +424,7 @@ namespace Opc.Ua.Server
                         clientIssuerCertificates,
                         requestedSessionTimeout,
                         maxResponseMessageSize,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 session = result.Session;
@@ -464,7 +468,7 @@ namespace Opc.Ua.Server
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
 
-                await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
                 try
                 {
                     // return the application instance certificate for the server.
@@ -553,7 +557,7 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, ct).ConfigureAwait(false);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
                 }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -667,7 +671,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             ByteString serverNonce;
 
@@ -675,7 +679,7 @@ namespace Opc.Ua.Server
                 secureChannelContext,
                 requestHeader,
                 RequestType.ActivateSession,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -687,7 +691,7 @@ namespace Opc.Ua.Server
                         userIdentityToken,
                         userTokenSignature,
                         localeIds,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 if (identityChanged)
@@ -832,15 +836,19 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool deleteSubscriptions,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.CloseSession, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.CloseSession,
+                requestLifetime).ConfigureAwait(false);
             try
             {
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
-                await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, ct)
+                await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 // report the audit event for close session
@@ -878,9 +886,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint requestHandle,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Cancel, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Cancel,
+                requestLifetime).ConfigureAwait(false);
             CancelResponse response;
             try
             {
@@ -920,13 +932,13 @@ namespace Opc.Ua.Server
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             ArrayOf<BrowseDescription> nodesToBrowse,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Browse,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -938,7 +950,7 @@ namespace Opc.Ua.Server
                         view,
                         requestedMaxReferencesPerNode,
                         nodesToBrowse,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 return new BrowseResponse
@@ -974,9 +986,13 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.BrowseNext, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.BrowseNext,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -987,7 +1003,7 @@ namespace Opc.Ua.Server
                         context,
                         releaseContinuationPoints,
                         continuationPoints,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 return new BrowseNextResponse
@@ -1022,9 +1038,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<NodeId> nodesToRegister,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.RegisterNodes, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.RegisterNodes,
+                requestLifetime).ConfigureAwait(false);
             RegisterNodesResponse response;
             try
             {
@@ -1065,9 +1085,14 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<NodeId> nodesToUnregister,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.UnregisterNodes, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.UnregisterNodes,
+                requestLifetime).ConfigureAwait(false);
+
             UnregisterNodesResponse response;
             try
             {
@@ -1108,13 +1133,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<BrowsePath> browsePaths,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1133,7 +1158,7 @@ namespace Opc.Ua.Server
                     await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                         context,
                         browsePaths,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 return new TranslateBrowsePathsToNodeIdsResponse
@@ -1170,9 +1195,13 @@ namespace Opc.Ua.Server
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<ReadValueId> nodesToRead,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Read, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Read,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1184,7 +1213,7 @@ namespace Opc.Ua.Server
                         maxAge,
                         timestampsToReturn,
                         nodesToRead,
-                        ct).ConfigureAwait(false);
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 return new ReadResponse
                 {
@@ -1223,9 +1252,13 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             ArrayOf<HistoryReadValueId> nodesToRead,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryRead, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.HistoryRead,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1249,7 +1282,7 @@ namespace Opc.Ua.Server
                         timestampsToReturn,
                         releaseContinuationPoints,
                         nodesToRead,
-                        ct)
+                        requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 return new HistoryReadResponse
@@ -1286,9 +1319,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<WriteValue> nodesToWrite,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Write, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Write,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1296,7 +1333,7 @@ namespace Opc.Ua.Server
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await m_serverInternal.NodeManager
-                        .WriteAsync(context, nodesToWrite, ct)
+                        .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
                 return new WriteResponse
@@ -1331,9 +1368,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<ExtensionObject> historyUpdateDetails,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.HistoryUpdate, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.HistoryUpdate,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1343,7 +1384,10 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(historyUpdateDetails);
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.HistoryUpdateAsync(context, historyUpdateDetails, ct).ConfigureAwait(false);
+                    await m_serverInternal.NodeManager.HistoryUpdateAsync(
+                        context,
+                        historyUpdateDetails,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 return new HistoryUpdateResponse
                 {
@@ -1382,13 +1426,13 @@ namespace Opc.Ua.Server
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1400,7 +1444,7 @@ namespace Opc.Ua.Server
                     maxNotificationsPerPublish,
                     publishingEnabled,
                     priority,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1432,13 +1476,13 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1448,7 +1492,7 @@ namespace Opc.Ua.Server
                     context,
                     subscriptionIds,
                     sendInitialValues,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1479,13 +1523,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1494,7 +1538,7 @@ namespace Opc.Ua.Server
                 DeleteSubscriptionsResponse response = await ServerInternal.SubscriptionManager.DeleteSubscriptionsAsync(
                     context,
                     subscriptionIds,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1525,9 +1569,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Publish, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Publish,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1550,7 +1598,7 @@ namespace Opc.Ua.Server
                 PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1594,9 +1642,13 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Republish, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Republish,
+                requestLifetime).ConfigureAwait(false);
             RepublishResponse response;
             try
             {
@@ -1642,13 +1694,13 @@ namespace Opc.Ua.Server
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             ModifySubscriptionResponse response;
             try
@@ -1700,13 +1752,13 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             SetPublishingModeResponse response;
             try
@@ -1756,9 +1808,13 @@ namespace Opc.Ua.Server
             uint triggeringItemId,
             ArrayOf<uint> linksToAdd,
             ArrayOf<uint> linksToRemove,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.SetTriggering, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.SetTriggering,
+                requestLifetime).ConfigureAwait(false);
             SetTriggeringResponse response;
             try
             {
@@ -1822,13 +1878,13 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1839,7 +1895,7 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     timestampsToReturn,
                     itemsToCreate,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1872,13 +1928,13 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1889,7 +1945,7 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     timestampsToReturn,
                     itemsToModify,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1921,13 +1977,13 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             ArrayOf<uint> monitoredItemIds,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1937,7 +1993,7 @@ namespace Opc.Ua.Server
                     context,
                     subscriptionId,
                     monitoredItemIds,
-                    ct).ConfigureAwait(false);
+                    requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -1970,13 +2026,13 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode,
-                ct).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
@@ -1988,7 +2044,7 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    ct)
+                    requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
                 return new SetMonitoringModeResponse
@@ -2023,16 +2079,20 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ArrayOf<CallMethodRequest> methodsToCall,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(secureChannelContext, requestHeader, RequestType.Call, ct).ConfigureAwait(false);
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.Call,
+                requestLifetime).ConfigureAwait(false);
 
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.CallAsync(context, methodsToCall, ct)
+                    await m_serverInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
                 return new CallResponse
@@ -2420,13 +2480,13 @@ namespace Opc.Ua.Server
         /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="requestLifetime">The request lifetime.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             RequestType requestType,
-            CancellationToken cancellationToken = default)
+            RequestLifetime requestLifetime)
         {
             base.ValidateRequest(requestHeader);
 
@@ -2436,7 +2496,7 @@ namespace Opc.Ua.Server
             }
 
             OperationContext context = await ServerInternal.SessionManager
-                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, cancellationToken).ConfigureAwait(false);
+                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
 
             if (ServerUtils.EventLog.IsEnabled())
             {

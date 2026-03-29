@@ -70,19 +70,6 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message encoding.</value>
         public RequestEncoding MessageEncoding { get; }
-
-        /// <summary>
-        /// The active secure channel for the thread.
-        /// </summary>
-        /// <value>The current secure channel context.</value>
-        [Obsolete("Pass SecureChannelContext explicitly instead.")]
-        public static SecureChannelContext Current
-        {
-            get => s_dataslot.Value;
-            set => s_dataslot.Value = value;
-        }
-
-        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new();
     }
 
     /// <summary>

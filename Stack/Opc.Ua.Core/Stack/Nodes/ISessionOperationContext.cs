@@ -30,7 +30,7 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// An interface to an object that describes a node local to the server.
+    /// An interface to an object that describes an operation in the server tied to a request.
     /// </summary>
     public interface ISessionOperationContext : IOperationContext
     {
@@ -45,5 +45,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The user identity.</value>
         IUserIdentity UserIdentity { get; }
+
+        /// <summary>
+        /// The lifetime of the request
+        /// </summary>
+        RequestLifetime RequestLifetime { get; }
     }
 }
