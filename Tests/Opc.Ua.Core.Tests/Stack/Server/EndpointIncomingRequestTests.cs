@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             server.OnScheduleIncomingRequest = (r) =>
             {
                 var response = new ReadResponse();
-                endpoint.OperationCompletedLocal(r, response, new ServiceResult(StatusCodes.Good));
+                TestEndpointBase.OperationCompletedLocal(r, response, new ServiceResult(StatusCodes.Good));
             };
 
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
-            await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
 
             IServiceResponse response = await responseTask.ConfigureAwait(false);
             Assert.That(response, Is.SameAs(expectedResponse));
@@ -227,7 +227,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
-            await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
@@ -253,7 +253,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
-            await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
@@ -275,7 +275,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
-            await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
@@ -295,7 +295,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
-            endpoint.OperationCompletedLocal(incoming, new ReadResponse(), new ServiceResult(StatusCodes.BadUserAccessDenied));
+            TestEndpointBase.OperationCompletedLocal(incoming, new ReadResponse(), new ServiceResult(StatusCodes.BadUserAccessDenied));
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
@@ -316,7 +316,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             var expectedResponse = new ReadResponse();
-            endpoint.OperationCompletedLocal(incoming, expectedResponse, new ServiceResult(StatusCodes.Good));
+            TestEndpointBase.OperationCompletedLocal(incoming, expectedResponse, new ServiceResult(StatusCodes.Good));
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.SameAs(expectedResponse));
