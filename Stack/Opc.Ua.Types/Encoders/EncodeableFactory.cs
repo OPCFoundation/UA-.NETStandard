@@ -37,30 +37,29 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Registry of encodeable object factories that can be retrieved
-    /// using the type id or encoding ids in encoders and decoders.
-    /// Can be used to register custom types or types from a model
-    /// compiler inside an assembly.
-    /// </summary>
-    /// <remarks>
     /// <para>
-    /// This registry is used to store and retrieve underlying OPC UA
-    /// system types.
+    /// Registry of encodeable type activators that can be retrieved
+    /// using the type id or encoding ids in encoders and decoders.
+    /// Used to register source generated and custom (hand crafted)
+    /// types.
     /// <br/></para>
     /// <para>
     /// You can manually add types using the <see cref="Builder"/>
     /// property exposed mutator. You can also import all types from
-    /// a specified assembly. Once the types exist within the registry,
-    /// these types can then be easily queried.
+    /// a specified assembly when you are not required to be trimmable
+    /// or NativeAOT compliant.
     /// <br/></para>
-    /// </remarks>
+    /// <para>
+    /// Once the types exist within the registry they can be consumed
+    /// by encoders and decoders.
+    /// <br/></para>
+    /// </summary>
     public sealed class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
@@ -174,34 +173,10 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public IEncodeableFactoryBuilder AddEncodeableType(
                 [DynamicallyAccessedMembers(
-                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
+                    DynamicallyAccessedMemberTypes.PublicConstructors)]
+                Type systemType)
             {
                 AddEncodeableType(systemType, null);
-                return this;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(
-                ExpandedNodeId encodingId,
-                [DynamicallyAccessedMembers(
-                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
-            {
-                if (!encodingId.IsNull)
-                {
-                    IType? type = ReflectionBasedType.From(systemType, encodingId);
-                    switch (type)
-                    {
-                        case IEncodeableType encodeableType:
-                            m_encodeableTypes[encodingId] = encodeableType;
-                            break;
-                        case IEnumeratedType enumeratedType:
-                            m_enumeratedTypes[encodingId] = enumeratedType;
-                            break;
-                        case null:
-                            return this;
-                    }
-                    m_xmlNameToType[type.XmlName] = type;
-                }
                 return this;
             }
 
@@ -281,6 +256,31 @@ namespace Opc.Ua
                 m_enumeratedTypes[encodingId] = type ??
                     throw new ArgumentNullException(nameof(type));
                 m_xmlNameToType[type.XmlName] = type;
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                ExpandedNodeId encodingId,
+                [DynamicallyAccessedMembers(
+                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
+            {
+                if (!encodingId.IsNull)
+                {
+                    IType? type = ReflectionBasedType.From(systemType, encodingId);
+                    switch (type)
+                    {
+                        case IEncodeableType encodeableType:
+                            m_encodeableTypes[encodingId] = encodeableType;
+                            break;
+                        case IEnumeratedType enumeratedType:
+                            m_enumeratedTypes[encodingId] = enumeratedType;
+                            break;
+                        case null:
+                            return this;
+                    }
+                    m_xmlNameToType[type.XmlName] = type;
+                }
                 return this;
             }
 

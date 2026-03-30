@@ -82,6 +82,20 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Enumerated type activator
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public abstract class EnumeratedType<T> : IEnumeratedType
+        where T : struct, Enum
+    {
+        /// <inheritdoc/>
+        public Type Type => typeof(T);
+
+        /// <inheritdoc/>
+        public abstract XmlQualifiedName XmlName { get; }
+    }
+
+    /// <summary>
     /// Lookup encodeable types by type or encoding id.
     /// </summary>
     public interface IEncodeableTypeLookup

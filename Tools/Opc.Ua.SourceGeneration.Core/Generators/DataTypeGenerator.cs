@@ -121,11 +121,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorClass;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorClass;
+            }
             return null;
         }
 
@@ -141,11 +141,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorRegistration;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorRegistration;
+            }
             return null;
         }
 
@@ -171,11 +171,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            if (datatype.BasicDataType == BasicDataType.UserDefined && datatype.IsStructure)
+            if (datatype.BasicDataType == BasicDataType.UserDefined &&
+                datatype.IsStructure)
             {
                 return DataTypeTemplates.StructureDefinition;
             }
-            if (datatype.BasicDataType == BasicDataType.Enumeration && datatype.IsEnumeration)
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
             {
                 return DataTypeTemplates.EnumDefinition;
             }

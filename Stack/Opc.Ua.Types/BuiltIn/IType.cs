@@ -28,33 +28,37 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
-using System.Runtime.Serialization;
-using Opc.Ua.Types;
-using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Type
+    /// The type interface represents a type in the OPC UA
+    /// type system. It is used to represent built-in types,
+    /// enumerations, and structures (encodeable types) in
+    /// a common way
     /// </summary>
     [Experimental("UA_NETStandard_1")]
     public interface IType
     {
         /// <summary>
-        /// System type (either enum or reference type)
-        /// Used when using reflection emit to emit other
-        /// encodeable types.
+        /// The underlying .net type of the type in the
+        /// OPC UA type system.
         /// </summary>
+        /// <remarks>
+        /// This type is not guaranteed to be useable for
+        /// construction or reflection as it might have
+        /// been trimmed or reflection is not supported
+        /// on the platform (e.g. NativeAoT).
+        /// </remarks>
         Type Type { get; }
 
         /// <summary>
-        /// Get the xml qualified name for the type.
+        /// Get the xml qualified name for the OPC UA
+        /// type. This value is used during registration
+        /// and to perform lookups in the type registry
+        /// by Xml parsers.
         /// </summary>
         XmlQualifiedName XmlName { get; }
     }
@@ -66,29 +70,30 @@ namespace Opc.Ua
     public interface IBuiltInType : IType
     {
         /// <summary>
-        /// Build in type identifier
+        /// The base built-in type identifier of this
+        /// primitive data type.
         /// </summary>
         BuiltInType BuiltInType { get; }
     }
 
     /// <summary>
-    /// Enumeration type
+    /// Enumeration type (Built-in type Enumeration)
     /// </summary>
     [Experimental("UA_NETStandard_1")]
-    public interface IEnumeratedType : IType
-    {
-    }
+    public interface IEnumeratedType : IType;
 
     /// <summary>
-    /// Represents a real encodeable object factory managed
-    /// by the encodeable factory registry.
+    /// Structure type (Built-in type UserDefinedType)
+    /// Represents a encodeable structure (complex data
+    /// type) that implements <see cref="IEncodeable"/>.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
     public interface IEncodeableType : IType
     {
         /// <summary>
-        /// Create instance of structure type during
-        /// decoding. Will change in future iterations.
+        /// Create instance of the encodeable type during
+        /// decoding and to create a default value when a
+        /// null value needs to be encoded by BinaryEncoder.
         /// </summary>
         /// <returns></returns>
         IEncodeable CreateInstance();

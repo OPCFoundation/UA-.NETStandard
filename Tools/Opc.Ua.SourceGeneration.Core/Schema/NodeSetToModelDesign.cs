@@ -27,17 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Types;
-using Opc.Ua.Export;
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
-using System;
-using System.Linq;
-using System.IO;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Export;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Model
 {
@@ -2057,6 +2058,39 @@ namespace Opc.Ua.Schema.Model
             }
 
             return AccessLevel.None;
+        }
+
+        /// <summary>
+        /// Access level extended type (subset) to support above conversion to
+        /// model level AccessLevel enumeration values.
+        /// </summary>
+        [Flags]
+        private enum AccessLevelExType : uint
+        {
+            /// <summary>
+            /// No extensions
+            /// </summary>
+            None = 0,
+
+            /// <summary>
+            /// Current read
+            /// </summary>
+            CurrentRead = 1,
+
+            /// <summary>
+            /// Current write
+            /// </summary>
+            CurrentWrite = 2,
+
+            /// <summary>
+            /// History read
+            /// </summary>
+            HistoryRead = 4,
+
+            /// <summary>
+            /// History write
+            /// </summary>
+            HistoryWrite = 8,
         }
 
         private static ValueRank ImportValueRank(int input)
