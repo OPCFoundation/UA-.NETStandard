@@ -40,6 +40,7 @@ using Opc.Ua.Server.UserDatabase;
 using TUnit.Core.Interfaces;
 
 using Opc.Ua.Client;
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

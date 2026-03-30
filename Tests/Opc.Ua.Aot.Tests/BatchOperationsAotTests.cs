@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Opc.Ua.Client;
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

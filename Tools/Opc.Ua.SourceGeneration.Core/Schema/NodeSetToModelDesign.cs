@@ -2090,7 +2090,7 @@ namespace Opc.Ua.Schema.Model
             /// <summary>
             /// History write
             /// </summary>
-            HistoryWrite = 8,
+            HistoryWrite = 8
         }
 
         private static ValueRank ImportValueRank(int input)
