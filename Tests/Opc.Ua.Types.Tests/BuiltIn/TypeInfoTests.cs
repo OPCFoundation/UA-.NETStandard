@@ -524,11 +524,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeWithNullExpandedNodeIdReturnsNull()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(ExpandedNodeId.Null, mockFactory.Object);
+            IType result = TypeInfo.GetSystemType(ExpandedNodeId.Null, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 
-        [TestCase(1u, typeof(bool))]       // Boolean
+        [TestCase(1u, typeof(bool))]        // Boolean
         [TestCase(2u, typeof(sbyte))]       // SByte
         [TestCase(3u, typeof(byte))]        // Byte
         [TestCase(4u, typeof(short))]       // Int16
@@ -544,112 +544,126 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             var expandedNodeId = new ExpandedNodeId(id);
-            Type result = TypeInfo.GetSystemType(expandedNodeId, mockFactory.Object);
-            Assert.That(result, Is.EqualTo(expected));
+            IType result = TypeInfo.GetSystemType(expandedNodeId, mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(expected));
         }
 
         [Test]
         public void GetSystemTypeForDateTimeExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(13u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(DateTimeUtc)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(13u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(DateTimeUtc)));
         }
 
         [Test]
         public void GetSystemTypeForGuidExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(14u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(Uuid)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(14u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(Uuid)));
         }
 
         [Test]
         public void GetSystemTypeForByteStringExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(15u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(ByteString)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(15u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(ByteString)));
         }
 
         [Test]
         public void GetSystemTypeForXmlElementExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(16u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(XmlElement)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(16u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(XmlElement)));
         }
 
         [Test]
         public void GetSystemTypeForNodeIdExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(17u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(NodeId)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(17u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(NodeId)));
         }
 
         [Test]
         public void GetSystemTypeForExpandedNodeIdType()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(18u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(ExpandedNodeId)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(18u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(ExpandedNodeId)));
         }
 
         [Test]
         public void GetSystemTypeForStatusCodeExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(19u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(StatusCode)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(19u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(StatusCode)));
         }
 
         [Test]
         public void GetSystemTypeForDiagnosticInfoExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(25u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(DiagnosticInfo)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(25u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(DiagnosticInfo)));
         }
 
         [Test]
         public void GetSystemTypeForQualifiedNameExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(20u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(QualifiedName)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(20u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(QualifiedName)));
         }
 
         [Test]
         public void GetSystemTypeForLocalizedTextExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(21u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(LocalizedText)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(21u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(LocalizedText)));
         }
 
         [Test]
         public void GetSystemTypeForDataValueExpandedNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(23u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(DataValue)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(23u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(DataValue)));
         }
 
         [Test]
         public void GetSystemTypeForBaseDataTypeReturnsVariant()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(24u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(Variant)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(24u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(Variant)));
         }
 
         [Test]
         public void GetSystemTypeForStructureReturnsExtensionObject()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(22u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(ExtensionObject)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(22u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(ExtensionObject)));
         }
 
         [Test]
@@ -657,13 +671,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(26u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(26u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(Variant)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(27u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(27u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(Variant)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(28u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(28u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(Variant)));
         }
 
@@ -671,16 +685,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForEnumerationReturnsInt()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(29u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(int)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(29u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(int)));
         }
 
         [Test]
         public void GetSystemTypeForUtcTimeSubtypeReturnsDateTimeUtc()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(294u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(DateTimeUtc)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(294u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(DateTimeUtc)));
         }
 
         [Test]
@@ -688,28 +704,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(311u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(311u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(16307u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(16307u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(521u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(521u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(30u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(30u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(2000u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(2000u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(2001u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(2001u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(2002u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(2002u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(2003u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(2003u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(ByteString)));
         }
 
@@ -717,16 +733,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForSessionAuthTokenReturnsNodeId()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(388u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(NodeId)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(388u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(NodeId)));
         }
 
         [Test]
         public void GetSystemTypeForDurationReturnsDouble()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(290u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(double)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(290u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(double)));
         }
 
         [Test]
@@ -735,16 +753,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // IntegerId, Index, VersionTime, Counter
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(288u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(288u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(uint)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(17588u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(17588u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(uint)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(20998u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(20998u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(uint)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(289u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(289u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(uint)));
         }
 
@@ -752,8 +770,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GetSystemTypeForBitFieldMaskReturnsULong()
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
-            Type result = TypeInfo.GetSystemType(new ExpandedNodeId(11737u), mockFactory.Object);
-            Assert.That(result, Is.EqualTo(typeof(ulong)));
+            IType result = TypeInfo.GetSystemType(new ExpandedNodeId(11737u), mockFactory.Object);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Type, Is.EqualTo(typeof(ulong)));
         }
 
         [Test]
@@ -761,28 +780,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var mockFactory = new Mock<IEncodeableTypeLookup>();
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(12881u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(12881u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(12878u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(12878u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(12879u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(12879u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(295u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(295u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(12877u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(12877u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(291u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(291u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(12880u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(12880u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
             Assert.That(
-                TypeInfo.GetSystemType(new ExpandedNodeId(23751u), mockFactory.Object),
+                TypeInfo.GetSystemType(new ExpandedNodeId(23751u), mockFactory.Object).Type,
                 Is.EqualTo(typeof(string)));
         }
 
@@ -797,7 +816,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Returns(false);
 
             var nonNs0 = new ExpandedNodeId(1u, 2);
-            Type result = TypeInfo.GetSystemType(nonNs0, mockFactory.Object);
+            IType result = TypeInfo.GetSystemType(nonNs0, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 
@@ -812,7 +831,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .Returns(false);
 
             var unknownId = new ExpandedNodeId(99999u);
-            Type result = TypeInfo.GetSystemType(unknownId, mockFactory.Object);
+            IType result = TypeInfo.GetSystemType(unknownId, mockFactory.Object);
             Assert.That(result, Is.Null);
         }
 

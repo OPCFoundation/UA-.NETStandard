@@ -37,6 +37,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading;
 using System.Xml;
 
@@ -75,6 +76,8 @@ namespace Opc.Ua
         {
 #pragma warning disable IDE0301 // Simplify collection initialization
             m_encodeableTypes = FrozenDictionary<ExpandedNodeId, IEncodeableType>.Empty;
+            m_enumeratedTypes = FrozenDictionary<ExpandedNodeId, IEnumeratedType>.Empty;
+            m_xmlNameToType = FrozenDictionary<XmlQualifiedName, IType>.Empty;
 #pragma warning restore IDE0301 // Simplify collection initialization
         }
 
@@ -84,14 +87,8 @@ namespace Opc.Ua
         private EncodeableFactory(EncodeableFactory factory)
         {
             m_encodeableTypes = factory.m_encodeableTypes;
-        }
-
-        /// <summary>
-        /// Create single instance of the encodeable factory.
-        /// </summary>
-        private EncodeableFactory(FrozenDictionary<ExpandedNodeId, IEncodeableType> encodeableTypes)
-        {
-            m_encodeableTypes = encodeableTypes;
+            m_enumeratedTypes = factory.m_enumeratedTypes;
+            m_xmlNameToType = factory.m_xmlNameToType;
         }
 
         /// <summary>
@@ -107,7 +104,8 @@ namespace Opc.Ua
         public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
-        public IEnumerable<ExpandedNodeId> KnownTypeIds => m_encodeableTypes.Keys;
+        public IEnumerable<ExpandedNodeId> KnownTypeIds
+            => m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
 
         /// <inheritdoc/>
         public bool TryGetEncodeableType(
@@ -123,11 +121,29 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool TryGetEncodeableType<T>(
-            [NotNullWhen(true)] out IEncodeableType? encodeableType)
+        public bool TryGetEnumeratedType(
+            ExpandedNodeId typeId,
+            [NotNullWhen(true)] out IEnumeratedType? enumeratedType)
         {
-            encodeableType = m_encodeableTypes.Values.FirstOrDefault(t => t.Type == typeof(T));
-            return encodeableType != null;
+            if (typeId.IsNull)
+            {
+                enumeratedType = null;
+                return false;
+            }
+            return m_enumeratedTypes.TryGetValue(typeId, out enumeratedType);
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetType(
+            XmlQualifiedName xmlName,
+            [NotNullWhen(true)] out IType? type)
+        {
+            if (xmlName == null)
+            {
+                type = null;
+                return false;
+            }
+            return m_xmlNameToType.TryGetValue(xmlName, out type);
         }
 
         /// <inheritdoc/>
@@ -139,7 +155,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            return new EncodeableFactory(m_encodeableTypes);
+            return new EncodeableFactory(this);
         }
 
         /// <summary>
@@ -172,23 +188,69 @@ namespace Opc.Ua
             {
                 if (!encodingId.IsNull)
                 {
-                    IEncodeableType? type = ReflectionBasedType.From(systemType, encodingId);
-                    if (type != null)
+                    IType? type = ReflectionBasedType.From(systemType, encodingId);
+                    switch (type)
                     {
-                        m_encodeableTypes[encodingId] = type;
+                        case IEncodeableType encodeableType:
+                            m_encodeableTypes[encodingId] = encodeableType;
+                            break;
+                        case IEnumeratedType enumeratedType:
+                            m_enumeratedTypes[encodingId] = enumeratedType;
+                            break;
+                        case null:
+                            return this;
                     }
+                    m_xmlNameToType[type.XmlName] = type;
                 }
                 return this;
             }
 
             /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(IEncodeableType type)
+            public IEncodeableFactoryBuilder AddEncodeableType(
+                IEncodeableType type)
             {
                 if (type == null)
                 {
                     throw new ArgumentNullException(nameof(type));
                 }
                 AddEncodeableType(type, null);
+                m_xmlNameToType[type.XmlName] = type;
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEnumeratedType(
+                IEnumeratedType type)
+            {
+                if (type == null)
+                {
+                    throw new ArgumentNullException(nameof(type));
+                }
+                if (TryGetTypeIdsFromType(
+                    type.Type,
+                    out ExpandedNodeId typeId,
+                    out ExpandedNodeId binaryEncodingId,
+                    out ExpandedNodeId xmlEncodingId,
+                    out ExpandedNodeId jsonEncodingId))
+                {
+                    if (!typeId.IsNull)
+                    {
+                        m_enumeratedTypes[typeId] = type;
+                    }
+                    if (!binaryEncodingId.IsNull)
+                    {
+                        m_enumeratedTypes[binaryEncodingId] = type;
+                    }
+                    if (!xmlEncodingId.IsNull)
+                    {
+                        m_enumeratedTypes[xmlEncodingId] = type;
+                    }
+                    if (!jsonEncodingId.IsNull)
+                    {
+                        m_enumeratedTypes[jsonEncodingId] = type;
+                    }
+                }
+                m_xmlNameToType[type.XmlName] = type;
                 return this;
             }
 
@@ -203,6 +265,22 @@ namespace Opc.Ua
                 }
                 m_encodeableTypes[encodingId] = type ??
                     throw new ArgumentNullException(nameof(type));
+                m_xmlNameToType[type.XmlName] = type;
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public IEncodeableFactoryBuilder AddEnumeratedType(
+                ExpandedNodeId encodingId,
+                IEnumeratedType type)
+            {
+                if (encodingId.IsNull)
+                {
+                    throw new ArgumentNullException(nameof(encodingId));
+                }
+                m_enumeratedTypes[encodingId] = type ??
+                    throw new ArgumentNullException(nameof(type));
+                m_xmlNameToType[type.XmlName] = type;
                 return this;
             }
 
@@ -286,15 +364,31 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public bool TryGetEncodeableType<T>(
-                [NotNullWhen(true)] out IEncodeableType? encodeableType)
+            public bool TryGetEnumeratedType(
+                ExpandedNodeId typeId,
+                [NotNullWhen(true)] out IEnumeratedType? enumeratedType)
             {
-                encodeableType = m_encodeableTypes.Values.FirstOrDefault(t => t.Type == typeof(T));
-                if (encodeableType == null)
+                if (typeId.IsNull)
                 {
-                    return m_factory.TryGetEncodeableType<T>(out encodeableType);
+                    enumeratedType = null;
+                    return false;
                 }
-                return true;
+                return m_enumeratedTypes.TryGetValue(typeId, out enumeratedType) ||
+                    m_factory.TryGetEnumeratedType(typeId, out enumeratedType);
+            }
+
+            /// <inheritdoc/>
+            public bool TryGetType(
+                XmlQualifiedName xmlName,
+                [NotNullWhen(true)] out IType? type)
+            {
+                if (xmlName == null)
+                {
+                    type = null;
+                    return false;
+                }
+                return m_xmlNameToType.TryGetValue(xmlName, out type) ||
+                    m_factory.TryGetType(xmlName, out type);
             }
 
             /// <summary>
@@ -306,27 +400,36 @@ namespace Opc.Ua
             /// <returns></returns>
             public void Commit()
             {
-                if (m_encodeableTypes.Count == 0)
+                CompareExchange(ref m_factory.m_encodeableTypes, m_encodeableTypes);
+                CompareExchange(ref m_factory.m_enumeratedTypes, m_enumeratedTypes);
+                CompareExchange(ref m_factory.m_xmlNameToType, m_xmlNameToType);
+            }
+
+            internal static void CompareExchange<TKey, TValue>(
+                ref FrozenDictionary<TKey, TValue> target,
+                Dictionary<TKey, TValue> dictionary)
+                where TKey : notnull
+            {
+                if (dictionary.Count == 0)
                 {
                     return;
                 }
-                FrozenDictionary<ExpandedNodeId, IEncodeableType> current;
-                FrozenDictionary<ExpandedNodeId, IEncodeableType> replacement;
+                FrozenDictionary<TKey, TValue> current;
+                FrozenDictionary<TKey, TValue> replacement;
                 do
                 {
-                    current = m_factory.m_encodeableTypes;
+                    current = target;
                     if (current.Count == 0)
                     {
                         // If empty just replace with a frozen copy
-                        replacement = m_encodeableTypes.ToFrozenDictionary();
+                        replacement = dictionary.ToFrozenDictionary();
                     }
                     else
                     {
                         // Merge changes over the current state
                         var encodeableTypes = current
                             .ToDictionary(k => k.Key, v => v.Value);
-                        foreach (KeyValuePair<ExpandedNodeId, IEncodeableType> item in
-                            m_encodeableTypes)
+                        foreach (KeyValuePair<TKey, TValue> item in dictionary)
                         {
                             encodeableTypes[item.Key] = item.Value;
                         }
@@ -334,9 +437,11 @@ namespace Opc.Ua
                         replacement = encodeableTypes.ToFrozenDictionary();
                     }
                 }
-                while (Interlocked.CompareExchange(ref m_factory.m_encodeableTypes, replacement,
+                while (Interlocked.CompareExchange(
+                    ref target,
+                    replacement,
                     current) != current);
-                m_encodeableTypes.Clear();
+                dictionary.Clear();
             }
 
             /// <summary>
@@ -347,15 +452,20 @@ namespace Opc.Ua
             /// referenced by object name.</param>
             private void AddEncodeableType(
                 [DynamicallyAccessedMembers(
-                    DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
+                    DynamicallyAccessedMemberTypes.PublicConstructors)]
+                Type systemType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
-                IEncodeableType? encodeableType = ReflectionBasedType.From(systemType);
-                if (encodeableType == null)
+                IType? type = ReflectionBasedType.From(systemType);
+                switch (type)
                 {
-                    return;
+                    case IEncodeableType encodeableType:
+                        AddEncodeableType(encodeableType, unboundTypeIds);
+                        break;
+                    case IEnumeratedType enumeratedType:
+                        AddEnumeratedType(enumeratedType);
+                        break;
                 }
-                AddEncodeableType(encodeableType, unboundTypeIds);
             }
 
             /// <summary>
@@ -369,47 +479,52 @@ namespace Opc.Ua
                 IEncodeableType encodeableType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
-                if (encodeableType.Type.IsEnum)
+                if (TryGetTypeIdsFromType(
+                    encodeableType.Type,
+                    out ExpandedNodeId typeId,
+                    out ExpandedNodeId binaryEncodingId,
+                    out ExpandedNodeId xmlEncodingId,
+                    out ExpandedNodeId jsonEncodingId) &&
+                    !typeId.IsNull &&
+                    !binaryEncodingId.IsNull &&
+                    !xmlEncodingId.IsNull)
                 {
-                    // Cannot yet reflect on enums - todo: Add attributes to generated
-                    // enums To get type id of the data type
+                    m_encodeableTypes[Fix(typeId)] = encodeableType;
+                    m_encodeableTypes[Fix(binaryEncodingId)] = encodeableType;
+                    m_encodeableTypes[Fix(xmlEncodingId)] = encodeableType;
+                    if (!jsonEncodingId.IsNull ||
+                        (unboundTypeIds != null &&
+                            unboundTypeIds.TryGetValue(
+                                encodeableType.Type.Name,
+                                out jsonEncodingId) &&
+                            !jsonEncodingId.IsNull))
+                    {
+                        m_encodeableTypes[Fix(jsonEncodingId)] = encodeableType;
+                    }
                     return;
+                    // Else fallback to creating the type
                 }
 
                 IEncodeable encodeable = encodeableType.CreateInstance() ??
                     throw new InvalidOperationException(
                         $"Encodeable type {encodeableType} cannot create instance");
                 ExpandedNodeId nodeId = encodeable.TypeId;
-
                 if (!nodeId.IsNull)
                 {
-                    // check for default namespace.
-                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                    m_encodeableTypes[Fix(nodeId)] = encodeableType;
+                    if (encodeableType is
+                        ReflectionBasedType.ReflectionBasedEncodeableType
+                            reflectionBasedType)
                     {
-                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
-                    }
-
-                    m_encodeableTypes[nodeId] = encodeableType;
-
-                    if (encodeableType is ReflectionBasedType reflectionBasedType)
-                    {
-                        reflectionBasedType.TypeId = nodeId;
+                        reflectionBasedType.TypeId = Fix(nodeId);
                     }
                 }
 
                 nodeId = encodeable.BinaryEncodingId;
-
                 if (!nodeId.IsNull)
                 {
-                    // check for default namespace.
-                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
-                    {
-                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
-                    }
-
-                    m_encodeableTypes[nodeId] = encodeableType;
+                    m_encodeableTypes[Fix(nodeId)] = encodeableType;
                 }
-
                 try
                 {
                     nodeId = encodeable.XmlEncodingId;
@@ -418,16 +533,9 @@ namespace Opc.Ua
                 {
                     nodeId = ExpandedNodeId.Null;
                 }
-
                 if (!nodeId.IsNull)
                 {
-                    // check for default namespace.
-                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
-                    {
-                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
-                    }
-
-                    m_encodeableTypes[nodeId] = encodeableType;
+                    m_encodeableTypes[Fix(nodeId)] = encodeableType;
                 }
 
                 if (encodeable is IJsonEncodeable jsonEncodeable)
@@ -440,131 +548,68 @@ namespace Opc.Ua
                     {
                         nodeId = ExpandedNodeId.Null;
                     }
-
                     if (!nodeId.IsNull)
                     {
-                        // check for default namespace.
-                        if (nodeId.NamespaceUri == Namespaces.OpcUa)
-                        {
-                            nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
-                        }
-
-                        m_encodeableTypes[nodeId] = encodeableType;
+                        m_encodeableTypes[Fix(nodeId)] = encodeableType;
                     }
                 }
                 else if (unboundTypeIds != null &&
-                    unboundTypeIds.TryGetValue(encodeableType.Type.Name,
-                        out ExpandedNodeId jsonEncodingId) &&
+                    unboundTypeIds.TryGetValue(
+                        encodeableType.Type.Name,
+                        out jsonEncodingId) &&
                     !jsonEncodingId.IsNull)
                 {
                     m_encodeableTypes[jsonEncodingId] = encodeableType;
                 }
+
+                static ExpandedNodeId Fix(ExpandedNodeId nodeId)
+                {
+                    // check for default namespace.
+                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                    {
+                        return new ExpandedNodeId(nodeId.InnerNodeId);
+                    }
+                    return nodeId;
+                }
+            }
+
+            /// <summary>
+            /// Try get the type ids from the attribute of the type
+            /// </summary>
+            private bool TryGetTypeIdsFromType(
+                Type type,
+                out ExpandedNodeId typeId,
+                out ExpandedNodeId binaryEncodingId,
+                out ExpandedNodeId xmlEncodingId,
+                out ExpandedNodeId jsonEncodingId)
+            {
+                DataTypeAttribute? attribute =
+                    type.GetCustomAttribute<DataTypeAttribute>(false);
+                if (!ExpandedNodeId.TryParse(
+                        attribute?.DataTypeId,
+                        out typeId) ||
+                    !ExpandedNodeId.TryParse(
+                        attribute?.BinaryEncodingId,
+                        out binaryEncodingId) ||
+                    !ExpandedNodeId.TryParse(
+                        attribute?.XmlEncodingId,
+                        out xmlEncodingId) ||
+                    !ExpandedNodeId.TryParse(
+                        attribute?.JsonEncodingId,
+                        out jsonEncodingId))
+                {
+                    binaryEncodingId = default;
+                    xmlEncodingId = default;
+                    jsonEncodingId = default;
+                    return false;
+                }
+                return true;
             }
 
             private readonly EncodeableFactory m_factory;
+            private readonly Dictionary<XmlQualifiedName, IType> m_xmlNameToType = [];
             private readonly Dictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes = [];
-        }
-
-        /// <summary>
-        /// Default reflection based implementation of an encodeable types.
-        /// </summary>
-        internal sealed class ReflectionBasedType : IEncodeableType
-        {
-            private ReflectionBasedType(
-                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
-            {
-                Type = type;
-            }
-
-            /// <inheritdoc/>
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-            public Type Type { get; }
-
-            /// <inheritdoc/>
-            public XmlQualifiedName XmlName => field ??= GetXmlName();
-
-            /// <summary>
-            /// Type id the encodeable type is registered for
-            /// </summary>
-            internal ExpandedNodeId TypeId { get; set; }
-
-            /// <summary>
-            /// Create type wrapper from system type.
-            /// </summary>
-            public static ReflectionBasedType? From(
-                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
-                ExpandedNodeId typeId = default)
-            {
-                if (systemType == null)
-                {
-                    return null;
-                }
-                System.Reflection.TypeInfo typeInfo = systemType.GetTypeInfo();
-                if (typeInfo.IsAbstract ||
-                    // Either enum or encodable with default constructor
-                    (!typeInfo.IsEnum &&
-                        (!typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeInfo) ||
-                            typeInfo.GetConstructor([]) == null)))
-                {
-                    return null;
-                }
-                return new ReflectionBasedType(systemType)
-                {
-                    TypeId = typeId
-                };
-            }
-
-            /// <inheritdoc/>
-            public override string ToString()
-            {
-                return Type.FullName ?? Type.Name;
-            }
-
-            /// <inheritdoc/>
-            public IEncodeable CreateInstance()
-            {
-                if (Activator.CreateInstance(Type) is not IEncodeable encodeable)
-                {
-                    throw new InvalidOperationException(
-                        $"Cannot create instance of type {Type.FullName ?? Type.Name}");
-                }
-                if (encodeable is IDynamicComplexTypeInstance dynamicInstance)
-                {
-                    dynamicInstance.TypeId = TypeId;
-                }
-                return encodeable;
-            }
-
-            /// <inheritdoc/>
-            public override bool Equals(object? obj)
-            {
-                return Type.Equals((obj as IEncodeableType)?.Type);
-            }
-
-            /// <inheritdoc/>
-            public override int GetHashCode()
-            {
-                return Type.GetHashCode();
-            }
-
-            /// <summary>
-            /// Get lazy as it is only needed for XML encoding and we want to
-            /// avoid the overhead of reflection on registration if not needed
-            /// </summary>
-            /// <returns></returns>
-            private XmlQualifiedName GetXmlName()
-            {
-                foreach (DataContractAttribute contract in
-                    Type.GetTypeInfo().GetCustomAttributes<DataContractAttribute>(true))
-                {
-                    if (string.IsNullOrEmpty(contract.Name))
-                    {
-                        return new XmlQualifiedName(Type.Name, contract.Namespace);
-                    }
-                    return new XmlQualifiedName(contract.Name, contract.Namespace);
-                }
-                return new XmlQualifiedName(Type.FullName);
-            }
+            private readonly Dictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes = [];
         }
 
         /// <summary>
@@ -620,5 +665,164 @@ namespace Opc.Ua
         /// </para>
         /// </summary>
         private FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes;
+        private FrozenDictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes;
+        private FrozenDictionary<XmlQualifiedName, IType> m_xmlNameToType;
+    }
+
+    /// <summary>
+    /// Default reflection based implementation of an encodeable types.
+    /// </summary>
+    public abstract class ReflectionBasedType : IType
+    {
+        /// <summary>
+        /// Create reflection based type
+        /// </summary>
+        /// <param name="type"></param>
+        protected ReflectionBasedType(
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type type)
+        {
+            m_type = type;
+        }
+
+        /// <inheritdoc/>
+        public Type Type => m_type;
+
+        /// <inheritdoc/>
+        public XmlQualifiedName XmlName => field ??= GetXmlName();
+
+        /// <summary>
+        /// Create type wrapper from system type.
+        /// </summary>
+        public static IType? From(
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
+            ExpandedNodeId typeId = default)
+        {
+            if (systemType == null)
+            {
+                return null;
+            }
+            System.Reflection.TypeInfo typeInfo = systemType.GetTypeInfo();
+            if (typeInfo.IsEnum)
+            {
+                return new ReflectionBasedEnumeratedType(systemType);
+            }
+            else if (
+                !typeInfo.IsAbstract &&
+                typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeInfo) &&
+                typeInfo.GetConstructor([]) != null)
+            {
+                return new ReflectionBasedEncodeableType(systemType)
+                {
+                    TypeId = typeId
+                };
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return m_type.FullName ?? m_type.Name;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return m_type.Equals((obj as IEncodeableType)?.Type);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return m_type.GetHashCode();
+        }
+
+        /// <summary>
+        /// Get lazy as it is only needed for XML encoding and we want to
+        /// avoid the overhead of reflection on registration if not needed
+        /// </summary>
+        /// <returns></returns>
+        private XmlQualifiedName GetXmlName()
+        {
+            foreach (DataContractAttribute contract in
+                m_type.GetTypeInfo().GetCustomAttributes<DataContractAttribute>(true))
+            {
+                if (string.IsNullOrEmpty(contract.Name))
+                {
+                    return new XmlQualifiedName(m_type.Name, contract.Namespace);
+                }
+                return new XmlQualifiedName(contract.Name, contract.Namespace);
+            }
+            return new XmlQualifiedName(m_type.FullName);
+        }
+
+        /// <summary>
+        /// Default reflection based implementation of an enumerated types.
+        /// </summary>
+        internal sealed class ReflectionBasedEnumeratedType :
+            ReflectionBasedType,
+            IEnumeratedType
+        {
+            /// <summary>
+            /// Create enumerated type
+            /// </summary>
+            internal ReflectionBasedEnumeratedType(
+                [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type type)
+                : base(type)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Default reflection based implementation of an encodeable types.
+        /// </summary>
+        internal sealed class ReflectionBasedEncodeableType :
+            ReflectionBasedType,
+            IEncodeableType
+        {
+            /// <summary>
+            /// Create encodeable type
+            /// </summary>
+            internal ReflectionBasedEncodeableType(
+                [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type type)
+                : base(type)
+            {
+            }
+
+            /// <summary>
+            /// Type id the encodeable type is registered for
+            /// </summary>
+            internal ExpandedNodeId TypeId { get; set; }
+
+            /// <inheritdoc/>
+            public IEncodeable CreateInstance()
+            {
+                if (Activator.CreateInstance(m_type) is not IEncodeable encodeable)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot create instance of type {m_type.FullName ?? m_type.Name}");
+                }
+                if (encodeable is IDynamicComplexTypeInstance dynamicInstance)
+                {
+                    dynamicInstance.TypeId = TypeId;
+                }
+                return encodeable;
+            }
+        }
+
+        /// <summary>
+        /// Type that can be insnatiated via public constructor
+        /// </summary>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        protected readonly Type m_type;
     }
 }

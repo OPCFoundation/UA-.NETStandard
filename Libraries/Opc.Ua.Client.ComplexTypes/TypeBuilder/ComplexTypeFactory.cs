@@ -71,20 +71,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
             Justification = "Types are dynamically built via Reflection.Emit and are preserved.")]
-        public IReadOnlyList<IComplexType> GetTypes()
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "Types are dynamically built via Reflection.Emit and are preserved.")]
+        public IReadOnlyList<IType> GetTypes()
         {
             return m_moduleFactory.GetTypes()
-                .Select(t => new ComplexType(t))
+                .Select(t => new GeneratedType(t))
                 .ToList();
         }
 
         /// <summary>
         /// Wrapper of types generated
         /// </summary>
-        private sealed record ComplexType(Type Type) : IComplexType
+        private sealed record class GeneratedType(Type Type) : IType
         {
             /// <inheritdoc/>
-            public XmlQualifiedName Name => TypeInfo.GetXmlName(Type);
+            public XmlQualifiedName XmlName => TypeInfo.GetXmlName(Type);
         }
     }
 }

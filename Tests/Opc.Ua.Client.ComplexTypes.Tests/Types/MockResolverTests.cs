@@ -274,11 +274,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(carType, Is.Not.Null);
+            Assert.That(carType.Type, Is.Not.Null);
+            var carTypeActivator = carType as IEncodeableType;
+            Assert.That(carTypeActivator, Is.Not.Null);
 
-            var car = (BaseComplexType)Activator.CreateInstance(carType);
+            var car = (BaseComplexType)carTypeActivator.CreateInstance();
 
             TestContext.Out.WriteLine(car.ToString());
 
@@ -302,7 +305,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    carType))
+                    carType.Type))
                 {
                     encoder.WriteEncodeable("Car", car);
                 }
@@ -471,11 +474,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);
+            Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -543,7 +547,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    arraysTypes))
+                    arraysTypes.Type))
                 {
                     encoder.WriteEncodeable("Arrays", arrays);
                 }
@@ -662,17 +666,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);
+            Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
             Assert.That(testType, Is.Not.Null);
 
             TestContext.Out.WriteLine(testType.ToString());
 
             Variant value;
-            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
+            IType valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -697,7 +702,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType)));
+                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType.Type)));
                 }
             }
             else
@@ -721,7 +726,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    var array = Array.CreateInstance(valueType, dimensions);
+                    var array = Array.CreateInstance(valueType.Type, dimensions);
                     int[] indices = new int[valueRank];
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -729,7 +734,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         Iterate(dimensions, indices);
                     }
                     // Create a matrix of valueType from array and initialize the variant using Variant.FromStructure
-                    value = CreateVariantForStructureMatrix(valueType, array);
+                    value = CreateVariantForStructureMatrix(valueType.Type, array);
                 }
             }
             testType[field.Name] = value;
@@ -749,7 +754,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    arraysTypes))
+                    arraysTypes.Type))
                 {
                     encoder.WriteEncodeable("TestType", testType);
                 }

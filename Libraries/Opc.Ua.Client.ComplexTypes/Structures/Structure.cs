@@ -71,7 +71,6 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         }
 
         /// <inheritdoc/>
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         public Type Type => typeof(Structure);
 
         /// <inheritdoc/>
