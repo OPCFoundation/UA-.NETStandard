@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public TestServer()
                 : base(NUnitTelemetryContext.Create(true))
             {
-                FieldInfo field = typeof(ServerBase).GetField("m_messageContext", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                FieldInfo field = typeof(ServerBase).GetField("m_messageContext", BindingFlags.NonPublic | BindingFlags.Instance);
                 field.SetValue(this, new ServiceMessageContext(NUnitTelemetryContext.Create(true)));
             }
 
@@ -87,17 +87,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 SupportedServices[typeId] = new ServiceDefinition(requestType, (req, ctx, lifetime) => invokeService(req, ctx, lifetime));
             }
 
-            public ValueTask<IServiceResponse> ProcessAsyncLocal(object incomingRequest)
+            public static ValueTask<IServiceResponse> ProcessAsyncLocal(object incomingRequest)
             {
                 return ((EndpointIncomingRequest)incomingRequest).ProcessAsync();
             }
 
-            public ValueTask CallAsyncLocal(object incomingRequest)
+            public static ValueTask CallAsyncLocal(object incomingRequest)
             {
                 return ((EndpointIncomingRequest)incomingRequest).CallAsync();
             }
 
-            public void OperationCompletedLocal(object incomingRequest, IServiceResponse response, ServiceResult error)
+            public static void OperationCompletedLocal(object incomingRequest, IServiceResponse response, ServiceResult error)
             {
                 var req = (EndpointIncomingRequest)incomingRequest;
                 req.OperationCompleted(response, error);
@@ -108,17 +108,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var r1 = new EndpointIncomingRequest(this, null, req1);
                 var r2 = new EndpointIncomingRequest(this, null, req2);
                 var r3 = new EndpointIncomingRequest(this, null, req3);
-                var rr1 = r1;
+                EndpointIncomingRequest rr1 = r1;
 
-                Assert.That(r1.Equals(rr1), Is.True);
-                Assert.That(r1.Equals(r2), Is.False);
-                Assert.That(r1.Equals(r3), Is.True);
+                Assert.That(r1, Is.EqualTo(rr1));
+                Assert.That(r1, Is.Not.EqualTo(r2));
+                Assert.That(r1, Is.EqualTo(r3));
 
-                Assert.That(r1.Equals((object)rr1), Is.True);
-                Assert.That(r1.Equals(new object()), Is.False);
+                Assert.That(r1, Is.EqualTo((object)rr1));
+                Assert.That(r1, Is.Not.EqualTo(new object()));
 
-                Assert.That(r1 == rr1, Is.True);
-                Assert.That(r1 != r2, Is.True);
+                Assert.That(r1, Is.EqualTo(rr1));
+                Assert.That(r1, Is.Not.EqualTo(r2));
 
                 Assert.That(r1.GetHashCode(), Is.EqualTo(r3.GetHashCode()));
             }
@@ -151,14 +151,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
-        public async Task ProcessAsync_SchedulesRequest_AndReturnsResult()
+        public async Task ProcessAsync_SchedulesRequest_AndReturnsResultAsync()
         {
             using var server = new TestServer();
             var endpoint = new TestEndpointBase(server);
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
 
             server.OnScheduleIncomingRequest = (r) =>
             {
@@ -166,35 +166,32 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 endpoint.OperationCompletedLocal(r, response, new ServiceResult(StatusCodes.Good));
             };
 
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
-            var response = await responseTask.ConfigureAwait(false);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
 
         [Test]
-        public async Task ProcessAsync_CatchesScheduleException_ReturnsFault()
+        public async Task ProcessAsync_CatchesScheduleException_ReturnsFaultAsync()
         {
             using var server = new TestServer();
-            server.OnScheduleIncomingRequest = (r) =>
-            {
-                throw new InvalidOperationException("Simulated exception");
-            };
+            server.OnScheduleIncomingRequest = (r) => throw new InvalidOperationException("Simulated exception");
 
             var endpoint = new TestEndpointBase(server);
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
-            var response = await responseTask.ConfigureAwait(false);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
         [Test]
-        public async Task CallAsync_FindsServiceAndInvokesIt()
+        public async Task CallAsync_FindsServiceAndInvokesItAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -204,22 +201,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
             var expectedResponse = new ReadResponse();
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) =>
-            {
-                return new ValueTask<IServiceResponse>(expectedResponse);
-            });
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => new ValueTask<IServiceResponse>(expectedResponse));
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
 
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
             Assert.That(response, Is.SameAs(expectedResponse));
         }
 
         [Test]
-        public async Task CallAsync_WhenServiceThrowsOperationCanceledException_GoodStatusCode_ReturnsTimeoutFault()
+        public async Task CallAsync_WhenServiceThrowsOperationCanceledException_GoodStatusCode_ReturnsTimeoutFaultAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -228,23 +222,20 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) =>
-            {
-                throw new OperationCanceledException();
-            });
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => throw new OperationCanceledException());
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
-        public async Task CallAsync_WhenServiceThrowsOperationCanceledException_BadStatusCode_ReturnsTimeoutFault()
+        public async Task CallAsync_WhenServiceThrowsOperationCanceledException_BadStatusCode_ReturnsTimeoutFaultAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -259,18 +250,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 throw new OperationCanceledException();
             });
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
 
         [Test]
-        public async Task CallAsync_WhenServiceThrowsOtherException_ReturnsFault()
+        public async Task CallAsync_WhenServiceThrowsOtherException_ReturnsFaultAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -279,23 +270,20 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) =>
-            {
-                throw new InvalidOperationException("Error");
-            });
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => throw new InvalidOperationException("Error"));
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             await endpoint.CallAsyncLocal(incoming).ConfigureAwait(false);
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
         [Test]
-        public async Task OperationCompleted_WithBadServiceResult_ReturnsFault()
+        public async Task OperationCompleted_WithBadServiceResult_ReturnsFaultAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -304,18 +292,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             endpoint.OperationCompletedLocal(incoming, new ReadResponse(), new ServiceResult(StatusCodes.BadUserAccessDenied));
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
-        public async Task OperationCompleted_WithGoodServiceResult_ReturnsResponse()
+        public async Task OperationCompleted_WithGoodServiceResult_ReturnsResponseAsync()
         {
             using var server = new TestServer();
             server.OnScheduleIncomingRequest = (r) => { };
@@ -324,12 +312,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            var incoming = endpoint.CreateIncomingRequest(req, ctx);
-            var responseTask = endpoint.ProcessAsyncLocal(incoming);
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
 
             var expectedResponse = new ReadResponse();
             endpoint.OperationCompletedLocal(incoming, expectedResponse, new ServiceResult(StatusCodes.Good));
-            var response = await responseTask.ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.SameAs(expectedResponse));
         }
