@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Wraps a multi-dimensional array for use within a Variant.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
         /// <summary>

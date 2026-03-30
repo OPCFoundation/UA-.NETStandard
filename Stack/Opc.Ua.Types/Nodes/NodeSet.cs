@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     [KnownType(typeof(ObjectNode))]
     [KnownType(typeof(ObjectTypeNode))]
     [KnownType(typeof(VariableNode))]

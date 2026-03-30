@@ -555,7 +555,7 @@ namespace Opc.Ua
                 static ExpandedNodeId Fix(ExpandedNodeId nodeId)
                 {
                     // check for default namespace.
-                    if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                    if (nodeId.NamespaceUri == Types.Namespaces.OpcUa)
                     {
                         return new ExpandedNodeId(nodeId.InnerNodeId);
                     }

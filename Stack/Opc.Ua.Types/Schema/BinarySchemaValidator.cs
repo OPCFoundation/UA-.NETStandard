@@ -162,10 +162,10 @@ namespace Opc.Ua.Schema.Binary
                     Import(directive.Location, directive.Namespace);
                 }
             }
-            else if (Dictionary.TargetNamespace != Namespaces.OpcUa)
+            else if (Dictionary.TargetNamespace != Opc.Ua.Types.Namespaces.OpcUa)
             {
                 // Import built-in types if no imports are specified and not built in.
-                Import(null, Namespaces.OpcUa);
+                Import(null, Opc.Ua.Types.Namespaces.OpcUa);
             }
 
             // import types from imported dictionaries.
@@ -597,14 +597,14 @@ namespace Opc.Ua.Schema.Binary
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
-                        dictionary[Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                        dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     }
                     using (Stream stream = resourceAssembly.GetManifestResourceStream(
                       "Opc.Ua.Schema.StandardTypes.bsd"))
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
-                        dictionary[Namespaces.OpcBinarySchema] = ms.ToArray();
+                        dictionary[Opc.Ua.Types.Namespaces.OpcBinarySchema] = ms.ToArray();
                     }
                     field = dictionary;
                 }

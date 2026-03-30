@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Method node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class MethodNode : InstanceNode, IMethod
     {
         /// <summary>

@@ -603,7 +603,7 @@ namespace Opc.Ua.Schema.Types
                         .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml");
                     using var ms = new MemoryStream();
                     stream.CopyTo(ms);
-                    dictionary[Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                    dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     field = dictionary;
                 }
                 return field;

@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for all variable nodes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public abstract class BaseVariableState : BaseInstanceState
     {
         /// <summary>
