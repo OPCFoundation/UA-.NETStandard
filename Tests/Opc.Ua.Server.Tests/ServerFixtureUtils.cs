@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests
                 default,
                 sessionTimeout,
                 maxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
             ValidateResponse(createSessionResponse.ResponseHeader);
 
             // Activate session
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
                 [],
                 identityToken != null ? new ExtensionObject(identityToken) : default,
                 null,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
             ValidateResponse(activateSessionResponse.ResponseHeader);
 
             return (requestHeader, secureChannelContext);
@@ -138,7 +138,11 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct)
         {
             // close session
-            CloseSessionResponse response = await server.CloseSessionAsync(secureChannelContext, requestHeader, true, ct).ConfigureAwait(false);
+            CloseSessionResponse response = await server.CloseSessionAsync(
+                secureChannelContext,
+                requestHeader,
+                true,
+                new RequestLifetime(ct)).ConfigureAwait(false);
             ValidateResponse(response.ResponseHeader);
         }
 

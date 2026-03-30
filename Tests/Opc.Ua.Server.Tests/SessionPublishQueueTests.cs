@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 99, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 

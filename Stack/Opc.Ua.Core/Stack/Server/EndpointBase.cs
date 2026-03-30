@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for UA endpoints.
     /// </summary>
-    public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
+    public abstract partial class EndpointBase : IEndpointBase, ITransportListenerCallback
     {
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
@@ -207,41 +207,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Dispatches an incoming binary encoded request.
-        /// </summary>
-        /// <param name="incoming">Incoming request.</param>
-        /// <param name="secureChannelContext">The secure channel context.</param>
-        /// <exception cref="ServiceResultException"></exception>
-        [Obsolete("Use ProcessRequestAsync instead.")]
-        public virtual IServiceResponse ProcessRequest(
-            IServiceRequest incoming,
-            SecureChannelContext secureChannelContext)
-        {
-            try
-            {
-                SetRequestContext(RequestEncoding.Binary);
-
-                // find service.
-                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition service))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadServiceUnsupported,
-                        Utils.Format(
-                            "'{0}' is an unrecognized service identifier.",
-                            incoming.TypeId));
-                }
-
-                // invoke service.
-                return service.Invoke(incoming, secureChannelContext, m_logger);
-            }
-            catch (Exception e)
-            {
-                // create fault.
-                return CreateFault(incoming, e);
-            }
-        }
-
-        /// <summary>
         /// Asynchronously dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
@@ -263,9 +228,9 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils
                         .Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
                 }
-
+                using var requestLifetime = new RequestLifetime(cancellationToken);
                 // invoke service.
-                return await service.InvokeAsync(incoming, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                return await service.InvokeAsync(incoming, secureChannelContext, requestLifetime).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -541,295 +506,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Stores the definition of a service supported by the server.
-        /// </summary>
-        protected class ServiceDefinition
-        {
-            /// <summary>
-            /// Initializes the object with its request type and implementation.
-            /// </summary>
-            /// <param name="requestType">Type of the request.</param>
-            /// <param name="invokeService">The async invoke method.</param>
-            public ServiceDefinition(Type requestType, InvokeService invokeService)
-            {
-                RequestType = requestType;
-                m_invokeServiceAsync = invokeService;
-            }
-
-            /// <summary>
-            /// Initializes the object with its request type and implementation.
-            /// </summary>
-            /// <param name="requestType">Type of the request.</param>
-            /// <param name="invokeMethod">The invoke method.</param>
-            [Obsolete("Use constructor taking an InvokeService delegate.")]
-            public ServiceDefinition(
-                Type requestType,
-                InvokeServiceEventHandler invokeMethod)
-            {
-                RequestType = requestType;
-                m_invokeServiceAsync = (request, ctx, ct)
-                    => new ValueTask<IServiceResponse>(invokeMethod(request, ctx));
-            }
-
-            /// <summary>
-            /// Initializes the object with its request type and implementation.
-            /// </summary>
-            /// <param name="requestType">Type of the request.</param>
-            /// <param name="asyncInvokeMethod">The async invoke method.</param>
-            [Obsolete("Use constructor taking an InvokeService delegate.")]
-            public ServiceDefinition(
-                Type requestType,
-                InvokeServiceAsyncEventHandler asyncInvokeMethod)
-            {
-                RequestType = requestType;
-                m_invokeServiceAsync = async (request, ctx, ct)
-                    => await asyncInvokeMethod(request, ctx, ct).ConfigureAwait(false);
-            }
-
-            /// <summary>
-            /// Initializes the object with its request type and implementation.
-            /// </summary>
-            /// <param name="requestType">Type of the request.</param>
-            /// <param name="invokeMethod">The invoke method.</param>
-            /// <param name="asyncInvokeMethod">The async invoke method.</param>
-            [Obsolete("Use constructor taking an InvokeService delegate.")]
-            public ServiceDefinition(
-                Type requestType,
-                InvokeServiceEventHandler invokeMethod,
-                InvokeServiceAsyncEventHandler asyncInvokeMethod)
-            {
-                RequestType = requestType;
-                if (invokeMethod != null)
-                {
-                    m_invokeServiceAsync = (request, ctx, ct)
-                        => new ValueTask<IServiceResponse>(invokeMethod(request, ctx));
-                }
-                else
-                {
-                    m_invokeServiceAsync = async (request, ctx, ct)
-                        => await asyncInvokeMethod(request, ctx, ct).ConfigureAwait(false);
-                }
-            }
-
-            /// <summary>
-            /// The system type of the request object.
-            /// </summary>
-            /// <value>The type of the request.</value>
-            public Type RequestType { get; }
-
-            /// <summary>
-            /// The system type of the request object.
-            /// </summary>
-            /// <value>The type of the response.</value>
-            public Type ResponseType => RequestType;
-
-            /// <summary>
-            /// Processes the request.
-            /// </summary>
-            /// <param name="request">The request.</param>
-            /// <param name="secureChannelContext">The secure channel context.</param>
-            /// <param name="logger">A contextual logger to log to</param>
-            [Obsolete("Use InvokeAsync.")]
-            public IServiceResponse Invoke(
-                IServiceRequest request,
-                SecureChannelContext secureChannelContext,
-                ILogger logger)
-            {
-                logger.LogWarning(
-                    "Async Service invoked sychronously. Prefer using InvokeAsync for best performance.");
-                return InvokeAsync(request, secureChannelContext).AsTask().GetAwaiter().GetResult();
-            }
-
-            /// <summary>
-            /// Processes the request asynchronously.
-            /// </summary>
-            /// <param name="request">The request.</param>
-            /// <param name="secureChannelContext">The secure channel context.</param>
-            /// <param name="cancellationToken">The cancellation token.</param>
-            /// <returns></returns>
-            public ValueTask<IServiceResponse> InvokeAsync(
-                IServiceRequest request,
-                SecureChannelContext secureChannelContext,
-                CancellationToken cancellationToken = default)
-            {
-                return m_invokeServiceAsync(request, secureChannelContext, cancellationToken);
-            }
-
-            private readonly InvokeService m_invokeServiceAsync;
-        }
-
-        /// <summary>
         /// A delegate used to asynchronously dispatch incoming service requests.
         /// </summary>
         protected delegate ValueTask<IServiceResponse> InvokeService(
             IServiceRequest request,
             SecureChannelContext secureChannelContext,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// A delegate used to dispatch incoming service requests.
-        /// </summary>
-        [Obsolete("Use InvokeService delegate.")]
-        protected delegate IServiceResponse InvokeServiceEventHandler(
-            IServiceRequest request,
-            SecureChannelContext secureChannelContext);
-
-        /// <summary>
-        /// A delegate used to asynchronously dispatch incoming service requests.
-        /// </summary>
-        [Obsolete("Use InvokeService delegate.")]
-        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
-            IServiceRequest request,
-            SecureChannelContext secureChannelContext,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// An object that handles an incoming request for an endpoint.
-        /// </summary>
-        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest, IEquatable<EndpointIncomingRequest>
-        {
-            /// <summary>
-            /// Initialize the Object with a Request
-            /// </summary>
-            public EndpointIncomingRequest(
-                EndpointBase endpoint,
-                SecureChannelContext context,
-                IServiceRequest request,
-                CancellationToken cancellationToken = default)
-            {
-                m_endpoint = endpoint;
-                SecureChannelContext = context;
-                Request = request;
-                m_vts = ServiceResponsePooledValueTaskSource.Create();
-                m_cancellationToken = cancellationToken;
-            }
-
-            /// <inheritdoc/>
-            public SecureChannelContext SecureChannelContext { get; }
-
-            /// <inheritdoc/>
-            public IServiceRequest Request { get; }
-
-            /// <summary>
-            /// Process an incoming request
-            /// </summary>
-            /// <returns></returns>
-            public ValueTask<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
-            {
-                try
-                {
-                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, cancellationToken);
-                }
-                catch (Exception e)
-                {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
-                }
-
-                return m_vts.Task;
-            }
-
-            /// <inheritdoc/>
-            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
-            {
-                using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
-                    new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
-
-                CancellationToken[] tokens = timeoutHintCts != null ?
-                    [m_cancellationToken, cancellationToken, timeoutHintCts.Token] :
-                    [m_cancellationToken, cancellationToken];
-
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(tokens);
-
-                try
-                {
-                    Activity activity = null;
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
-                    if (activitySource.HasListeners())
-                    {
-                        // extract trace information from the request header if available
-                        if (Request.RequestHeader != null &&
-                            Request.RequestHeader.AdditionalHeader
-                                .TryGetEncodeable(out AdditionalParametersType parameters) &&
-                            TryExtractActivityContextFromParameters(
-                                parameters,
-                                out ActivityContext activityContext))
-                        {
-                            activity = activitySource.StartActivity(
-                                Request.GetType().Name,
-                                ActivityKind.Server,
-                                activityContext);
-                        }
-                    }
-
-                    using (activity)
-                    {
-                        ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
-                        IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
-                        m_vts.SetResult(response);
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (e is OperationCanceledException)
-                    {
-                        e = new ServiceResultException(StatusCodes.BadTimeout);
-                    }
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
-                }
-            }
-
-            /// <inheritdoc/>
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
-            {
-                if (ServiceResult.IsBad(error))
-                {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
-                }
-                else
-                {
-                    m_vts.SetResult(response);
-                }
-            }
-
-            /// <inheritdoc/>
-            public override bool Equals(object obj)
-            {
-                if (obj is EndpointIncomingRequest other)
-                {
-                    return Request.RequestHeader.Equals(other.Request.RequestHeader);
-                }
-                return false;
-            }
-
-            /// <inheritdoc/>
-            public override int GetHashCode()
-            {
-                return Request.RequestHeader.GetHashCode();
-            }
-
-            /// <inheritdoc/>
-            public static bool operator ==(EndpointIncomingRequest left, EndpointIncomingRequest right)
-            {
-                return left.Equals(right);
-            }
-
-            /// <inheritdoc/>
-            public static bool operator !=(EndpointIncomingRequest left, EndpointIncomingRequest right)
-            {
-                return !(left == right);
-            }
-
-            /// <inheritdoc/>
-            public bool Equals(EndpointIncomingRequest other)
-            {
-                return Request.RequestHeader.Equals(other.Request.RequestHeader);
-            }
-
-            private readonly EndpointBase m_endpoint;
-            private readonly ServiceResponsePooledValueTaskSource m_vts;
-            private readonly CancellationToken m_cancellationToken;
-        }
+            RequestLifetime requestLifetime);
 
         /// <summary>
         /// Logger for this and the inherited classes

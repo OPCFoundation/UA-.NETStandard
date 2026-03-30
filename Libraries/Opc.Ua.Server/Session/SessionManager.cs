@@ -502,7 +502,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             SecureChannelContext secureChannelContext,
             RequestType requestType,
-            CancellationToken cancellationToken = default)
+            RequestLifetime requestLifetime)
         {
             if (requestHeader == null)
             {
@@ -516,7 +516,7 @@ namespace Opc.Ua.Server
                 // check for create session request.
                 if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
-                    return new OperationContext(requestHeader, secureChannelContext, requestType);
+                    return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime);
                 }
 
                 // find session.
@@ -536,7 +536,7 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(args.Error);
                         }
 
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, args.Identity);
+                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
                     }
 
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
@@ -549,13 +549,13 @@ namespace Opc.Ua.Server
                 session.ValidateDiagnosticInfo(requestHeader);
 
                 // return context.
-                return new OperationContext(requestHeader, secureChannelContext, requestType, session);
+                return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
             }
             catch (ServiceResultException sre)
             {
                 if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    await CloseSessionAsync(session.Id, cancellationToken).ConfigureAwait(false);
+                    await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
                 }
                 throw;
             }
