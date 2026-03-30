@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Tests
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             ArrayOf<BrowseDescription> nodesToBrowse,
-            CancellationToken ct)
+            RequestLifetime requestLifetime)
         {
             return base.BrowseAsync(
                 secureChannelContext,
@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Tests
                 view,
                 TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
-                ct);
+                requestLifetime);
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)

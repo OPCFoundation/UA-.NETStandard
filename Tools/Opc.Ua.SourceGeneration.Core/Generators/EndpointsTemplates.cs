@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
             public async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.IServiceResponse> {{Tokens.Name}}Async(
                 global::Opc.Ua.IServiceRequest incoming,
                 global::Opc.Ua.SecureChannelContext secureChannelContext,
-                global::System.Threading.CancellationToken cancellationToken = default)
+                global::Opc.Ua.RequestLifetime requestLifetime)
             {
                 {{Tokens.Name}}Response? response = null;
 
