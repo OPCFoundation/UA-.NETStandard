@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {

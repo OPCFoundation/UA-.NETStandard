@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
                     protected delegate ValueTask<IServiceResponse> InvokeService(
                         IServiceRequest request,
                         SecureChannelContext secureChannelContext,
-                        CancellationToken cancellationToken = default);
+                        RequestLifetime requestLifetime);
                 }
                 public class ServerBase : IServerBase
                 {
