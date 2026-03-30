@@ -459,10 +459,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (requestHeader.AdditionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
-                {
-                    parameters = CreateSessionProcessAdditionalParameters(session, parameters);
-                }
+                AdditionalParametersType parameters = CreateSessionProcessAdditionalParameters(
+                    session,
+                    requestHeader.AdditionalHeader);
 
                 await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
                 try
@@ -486,18 +485,12 @@ namespace Opc.Ua.Server
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
 
                     // sign the nonce provided by the client.
-                    serverSignature = null;
-
-                    //  sign the client nonce (if provided).
-                    if (parsedClientCertificate != null && !clientNonce.IsEmpty)
-                    {
-                        var dataToSign = ByteString.Combine(
-                            parsedClientCertificate.RawData.ToByteString(), clientNonce);
-                        serverSignature = SecurityPolicies.Sign(
-                            instanceCertificate,
-                            context.SecurityPolicyUri,
-                            dataToSign.ToArray());
-                    }
+                    serverSignature = CreateSessionServerSignature(
+                        context,
+                        instanceCertificate,
+                        parsedClientCertificate,
+                        clientNonce,
+                        serverNonce);
                 }
                 finally
                 {
@@ -577,7 +570,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
+        /// Creates the server signature returned during CreateSession.
+        /// </summary>
+        /// <param name="context">The request context.</param>
+        /// <param name="instanceCertificate">The instance certificate used to sign data.</param>
+        /// <param name="parsedClientCertificate">The client certificate supplied in the request.</param>
+        /// <param name="clientNonce">The client nonce supplied in the request.</param>
+        /// <param name="serverNonce">The server nonce generated for the response.</param>
+        /// <returns>The server signature or <c>null</c> when signing is not required.</returns>
+        protected virtual SignatureData CreateSessionServerSignature(
+            OperationContext context,
+            X509Certificate2 instanceCertificate,
+            X509Certificate2 parsedClientCertificate,
+            ByteString clientNonce,
+            ByteString serverNonce)
+        {
+            return SessionSecurityPolicyHelper.CreateServerSignature(
+                context,
+                instanceCertificate,
+                parsedClientCertificate,
+                clientNonce,
+                serverNonce);
+        }
+
+        /// <summary>
+        /// Process additional header values during session creation for ephemeral-key user token policies.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        /// <param name="additionalHeader">The additional request header.</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(
+            ISession session,
+            ExtensionObject additionalHeader)
+        {
+            AdditionalParametersType parameters = SessionSecurityPolicyHelper
+                .DecodeAdditionalParameters(additionalHeader);
+
+            return CreateSessionProcessAdditionalParameters(session, parameters);
+        }
+
+        /// <summary>
+        /// Process additional parameters during session creation and set the session's user token security policy.
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -586,50 +619,30 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            var parameterList = new List<KeyValuePair>();
-            if (parameters != null)
-            {
-                foreach (KeyValuePair ii in parameters.Parameters)
-                {
-                    if (ii.Key != "ECDHPolicyUri")
-                    {
-                        // Keep original parameters
-                        parameterList.Add(ii);
-                        continue;
-                    }
-
-                    string policyUri = ii.Value.GetString();
-
-                    if (EccUtils.IsEccPolicy(policyUri))
-                    {
-                        session.SetEccUserTokenSecurityPolicy(policyUri);
-                        EphemeralKeyType key = session.GetNewEccKey();
-                        parameterList.Add(
-                            new KeyValuePair
-                            {
-                                Key = QualifiedName.From("ECDHKey"),
-                                Value = new ExtensionObject(key)
-                            });
-                    }
-                    else
-                    {
-                        parameterList.Add(
-                            new KeyValuePair
-                            {
-                                Key = QualifiedName.From("ECDHKey"),
-                                Value = StatusCodes.BadSecurityPolicyRejected
-                            });
-                    }
-                }
-            }
-            return new AdditionalParametersType
-            {
-                Parameters = parameterList
-            };
+            return SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                session,
+                parameters,
+                m_logger);
         }
 
         /// <summary>
-        /// Process additional parameters during ECC session activation
+        /// Process additional header values during session activation for ephemeral-key user token policies.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        /// <param name="additionalHeader">The additional request header.</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(
+            ISession session,
+            ExtensionObject additionalHeader)
+        {
+            AdditionalParametersType parameters = SessionSecurityPolicyHelper
+                .DecodeAdditionalParameters(additionalHeader);
+
+            return ActivateSessionProcessAdditionalParameters(session, parameters);
+        }
+
+        /// <summary>
+        /// Process additional parameters during session activation for ephemeral-key user token policies.
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -638,24 +651,10 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            AdditionalParametersType response = null;
-
-            EphemeralKeyType key = session.GetNewEccKey();
-
-            if (key != null)
-            {
-                response = new AdditionalParametersType();
-                response.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From("ECDHKey"),
-                        Value = new ExtensionObject(key)
-                    }
-                ];
-            }
-
-            return response;
+            return SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                session,
+                parameters,
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -697,10 +696,10 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
-                var parameters =
-                    ExtensionObject.ToEncodeable(
-                        requestHeader.AdditionalHeader) as AdditionalParametersType;
-                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+
+                AdditionalParametersType parameters = ActivateSessionProcessAdditionalParameters(
+                    session,
+                    requestHeader.AdditionalHeader);
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
 
@@ -2135,108 +2134,107 @@ namespace Opc.Ua.Server
             if (m_registrationEndpoints != null)
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
-                {
-                    RegistrationClient client = null;
-                    int i = 0;
-
-                    while (i++ < 2)
                     {
-                        try
+                        RegistrationClient client = null;
+                        int i = 0;
+
+                        while (i++ < 2)
                         {
-                            // update from the server.
-                            bool updateRequired = true;
-
-                            lock (m_registrationLock)
+                            try
                             {
-                                updateRequired = endpoint.UpdateBeforeConnect;
-                            }
-
-                            if (updateRequired)
-                            {
-                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                            }
-
-                            lock (m_registrationLock)
-                            {
-                                endpoint.UpdateBeforeConnect = false;
-                            }
-
-                            var requestHeader = new RequestHeader
-                            {
-                                Timestamp = DateTime.UtcNow
-                            };
-
-                            // create the client.
-                            X509Certificate2 instanceCertificate =
-                                InstanceCertificateTypesProvider.GetInstanceCertificate(
-                                    endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None);
-                            client = await RegistrationClient.CreateAsync(
-                                configuration,
-                                endpoint.Description,
-                                endpoint.Configuration,
-                                instanceCertificate,
-                                ct: ct).ConfigureAwait(false);
-
-                            client.OperationTimeout = 10000;
-
-                            // register the server.
-                            if (m_useRegisterServer2)
-                            {
-                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
+                                // update from the server.
+                                bool updateRequired = true;
+                                lock (m_registrationLock)
                                 {
-                                    ServerCapabilities = configuration.ServerConfiguration
-                                        .ServerCapabilities,
-                                    MdnsServerName = Utils.GetHostName()
-                                };
-                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
-                                await client.RegisterServer2Async(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    discoveryConfiguration,
-                                    ct).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await client.RegisterServerAsync(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
-                            return true;
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.LogWarning(
-                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
-                                m_useRegisterServer2 ? "2" : string.Empty,
-                                endpoint.EndpointUrl,
-                                e.Message);
-                            m_useRegisterServer2 = !m_useRegisterServer2;
-                        }
-                        finally
-                        {
-                            if (client != null)
-                            {
-                                try
-                                {
-                                    await client.CloseAsync(ct).ConfigureAwait(false);
-                                    client = null;
+                                    updateRequired = endpoint.UpdateBeforeConnect;
                                 }
-                                catch (Exception e)
+
+                                if (updateRequired)
                                 {
-                                    m_logger.LogWarning(
-                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                        e.Message);
+                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
+                                }
+
+                                lock (m_registrationLock)
+                                {
+                                    endpoint.UpdateBeforeConnect = false;
+                                }
+
+                                var requestHeader = new RequestHeader
+                                {
+                                    Timestamp = DateTime.UtcNow
+                                };
+
+                                // create the client.
+                                X509Certificate2 instanceCertificate =
+                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                        endpoint.Description?.SecurityPolicyUri ??
+                                        SecurityPolicies.None);
+                                client = await RegistrationClient.CreateAsync(
+                                    configuration,
+                                    endpoint.Description,
+                                    endpoint.Configuration,
+                                    instanceCertificate,
+                                    ct: ct).ConfigureAwait(false);
+
+                                client.OperationTimeout = 10000;
+
+                                // register the server.
+                                if (m_useRegisterServer2)
+                                {
+                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
+                                    {
+                                        ServerCapabilities = configuration.ServerConfiguration
+                                            .ServerCapabilities,
+                                        MdnsServerName = Utils.GetHostName()
+                                    };
+                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
+                                    await client.RegisterServer2Async(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        discoveryConfiguration,
+                                        ct).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    await client.RegisterServerAsync(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        ct)
+                                        .ConfigureAwait(false);
+                                }
+
+                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                                return true;
+                            }
+                            catch (Exception e)
+                            {
+                                m_logger.LogWarning(
+                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                                    m_useRegisterServer2 ? "2" : string.Empty,
+                                    endpoint.EndpointUrl,
+                                    e.Message);
+                                m_useRegisterServer2 = !m_useRegisterServer2;
+                            }
+                            finally
+                            {
+                                if (client != null)
+                                {
+                                    try
+                                    {
+                                        await client.CloseAsync(ct).ConfigureAwait(false);
+                                        client = null;
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        m_logger.LogWarning(
+                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
+                                            e.Message);
+                                    }
                                 }
                             }
                         }
                     }
-                }
                 // retry to start with RegisterServer2 if both failed
                 m_useRegisterServer2 = true;
             }

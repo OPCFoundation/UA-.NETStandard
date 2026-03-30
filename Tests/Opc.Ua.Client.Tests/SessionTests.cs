@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -1562,6 +1563,65 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(loadedSubscriptions, Has.Count.EqualTo(2), "Only the specified subscriptions should be saved");
             Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
+        }
+
+        [Test]
+        public void SaveAndApplySessionConfigurationShouldPersistClientNonce()
+        {
+            var source = SessionMock.Create();
+            source.SetConnected();
+
+            byte[] clientNonce = [1, 3, 5, 7, 9];
+            byte[] serverNonce = [2, 4, 6, 8];
+
+            SetClientNonce(source, clientNonce);
+            SetServerNonce(source, serverNonce);
+
+            SessionConfiguration configuration = source.SaveSessionConfiguration();
+
+            Assert.That(configuration.ClientNonce, Is.EquivalentTo(clientNonce));
+            Assert.That(configuration.ServerNonce, Is.EquivalentTo(serverNonce));
+
+            var target = SessionMock.Create();
+
+            bool success = target.ApplySessionConfiguration(configuration);
+
+            Assert.That(success, Is.True);
+            Assert.That(GetClientNonce(target), Is.EquivalentTo(clientNonce));
+            Assert.That(GetServerNonce(target), Is.EquivalentTo(serverNonce));
+        }
+
+        private const BindingFlags PrivateInstance =
+            BindingFlags.NonPublic | BindingFlags.Instance;
+
+        private static void SetClientNonce(Session session, byte[] value)
+        {
+            typeof(Session)
+                .GetField("m_clientNonce", PrivateInstance)!
+                .SetValue(session, value.ToArray());
+        }
+
+        private static void SetServerNonce(Session session, byte[] value)
+        {
+            typeof(Session)
+                .GetField("m_serverNonce", PrivateInstance)!
+                .SetValue(session, ByteString.From(value));
+        }
+
+        private static byte[] GetClientNonce(Session session)
+        {
+            return (typeof(Session)
+                .GetField("m_clientNonce", PrivateInstance)!
+                .GetValue(session) is byte[] bytes)
+                ? bytes.ToArray()
+                : [];
+        }
+
+        private static byte[] GetServerNonce(Session session)
+        {
+            return ((ByteString)typeof(Session)
+                .GetField("m_serverNonce", PrivateInstance)!
+                .GetValue(session)!).ToArray();
         }
     }
 }
