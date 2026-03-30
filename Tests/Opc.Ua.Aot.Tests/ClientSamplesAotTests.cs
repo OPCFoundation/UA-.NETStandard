@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests that exercise <see cref="AotClientSamples"/>
@@ -39,7 +40,7 @@ namespace Opc.Ua.Client.AotTests
     public class ClientSamplesAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task ReadNodes()
+        public async Task ReadNodesAsync()
         {
             await AotClientSamples
                 .ReadNodesAsync(fixture.Session!)
@@ -47,7 +48,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task WriteNodes()
+        public async Task WriteNodesAsync()
         {
             await AotClientSamples
                 .WriteNodesAsync(fixture.Session!)
@@ -55,7 +56,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task Browse()
+        public async Task BrowseAsync()
         {
             await AotClientSamples
                 .BrowseAsync(fixture.Session!)
@@ -63,7 +64,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task CallMethod()
+        public async Task CallMethodAsync()
         {
             await AotClientSamples
                 .CallMethodAsync(fixture.Session!)
@@ -71,7 +72,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task SubscribeToDataChanges()
+        public async Task SubscribeToDataChangesAsync()
         {
             await AotClientSamples
                 .SubscribeToDataChangesAsync(fixture.Session!)
@@ -79,7 +80,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task BrowseFullAddressSpace()
+        public async Task BrowseFullAddressSpaceAsync()
         {
             ArrayOf<ReferenceDescription> refs = await AotClientSamples
                 .BrowseFullAddressSpaceAsync(
@@ -89,7 +90,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FetchAllNodesNodeCache()
+        public async Task FetchAllNodesNodeCacheAsync()
         {
             IList<INode> nodes = await AotClientSamples
                 .FetchAllNodesNodeCacheAsync(
@@ -99,7 +100,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FormatValueAsJson()
+        public async Task FormatValueAsJsonAsync()
         {
             var dataValue = new DataValue(new Variant(42));
             string json = AotClientSamples.FormatValueAsJson(

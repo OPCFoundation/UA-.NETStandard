@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for batch and service-level operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class BatchOperationsAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task BrowseBatch()
+        public async Task BrowseBatchAsync()
         {
             var browseTemplate = new BrowseDescription
             {
@@ -95,7 +96,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task TranslateBrowsePaths()
+        public async Task TranslateBrowsePathsAsync()
         {
             var browsePaths = new List<BrowsePath>
             {
@@ -134,7 +135,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadBatch()
+        public async Task ReadBatchAsync()
         {
             ArrayOf<ReadValueId> nodesToRead =
             [

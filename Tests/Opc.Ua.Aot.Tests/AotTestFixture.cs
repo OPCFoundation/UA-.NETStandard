@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Client;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using TUnit.Core.Interfaces;
 
-namespace Opc.Ua.Client.AotTests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// Shared fixture that starts a ReferenceServer in-process and

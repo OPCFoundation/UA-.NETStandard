@@ -30,7 +30,8 @@
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for GDS client operations.
@@ -39,7 +40,7 @@ namespace Opc.Ua.Client.AotTests
     public class GdsClientAotTests(GdsTestFixture fixture)
     {
         [Test]
-        public async Task ConnectToGds()
+        public async Task ConnectToGdsAsync()
         {
             GlobalDiscoveryServerClient client = fixture.GdsClient;
             await Assert.That(client.Session).IsNotNull();
@@ -47,7 +48,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task RegisterApplication()
+        public async Task RegisterApplicationAsync()
         {
             ApplicationRecordDataType appRecord = CreateTestAppRecord(
                 "urn:localhost:OPCFoundation:AotTest:Register");
@@ -65,7 +66,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FindApplication()
+        public async Task FindApplicationAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:Find";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -88,7 +89,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task GetApplication()
+        public async Task GetApplicationAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:Get";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -111,7 +112,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task UpdateApplication()
+        public async Task UpdateApplicationAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:Update";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -141,7 +142,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task QueryServers()
+        public async Task QueryServersAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:QuerySrv";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -164,7 +165,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task QueryApplications()
+        public async Task QueryApplicationsAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:QueryApp";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -192,7 +193,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task GetCertificateGroups()
+        public async Task GetCertificateGroupsAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:CertGroups";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
@@ -215,7 +216,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task UnregisterApplication()
+        public async Task UnregisterApplicationAsync()
         {
             string appUri = "urn:localhost:OPCFoundation:AotTest:Unreg";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);

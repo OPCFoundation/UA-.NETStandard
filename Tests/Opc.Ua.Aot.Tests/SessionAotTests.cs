@@ -26,8 +26,9 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.AotTests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for session management operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class SessionAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task ReconnectSession()
+        public async Task ReconnectSessionAsync()
         {
             ISession session = await fixture.CreateSessionAsync("Reconnect")
                 .ConfigureAwait(false);
@@ -72,7 +73,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task MultipleSessionsOnServer()
+        public async Task MultipleSessionsOnServerAsync()
         {
             var sessions = new List<ISession>();
 
@@ -101,7 +102,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ChangePreferredLocales()
+        public async Task ChangePreferredLocalesAsync()
         {
             ISession session = await fixture
                 .CreateSessionAsync("ChangeLocales")

@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for binary and JSON encoding round-trips.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class EncodingAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task BinaryEncodeDecodeDataValue()
+        public async Task BinaryEncodeDecodeDataValueAsync()
         {
             var original = new DataValue(Variant.From(42))
             {
@@ -60,7 +61,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task BinaryEncodeDecodeNodeId()
+        public async Task BinaryEncodeDecodeNodeIdAsync()
         {
             NodeId[] nodeIds =
             [
@@ -92,7 +93,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task BinaryEncodeDecodeExtensionObject()
+        public async Task BinaryEncodeDecodeExtensionObjectAsync()
         {
             var readValueId = new ReadValueId
             {
@@ -117,7 +118,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task JsonEncodeDecodeDataValue()
+        public async Task JsonEncodeDecodeDataValueAsync()
         {
             var original = new DataValue(Variant.From(42))
             {
@@ -144,7 +145,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task BinaryEncodeDecodeVariant()
+        public async Task BinaryEncodeDecodeVariantAsync()
         {
             Variant[] variants =
             [

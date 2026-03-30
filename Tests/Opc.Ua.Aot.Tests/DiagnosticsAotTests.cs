@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for server diagnostics read operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class DiagnosticsAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task ReadServerStatus()
+        public async Task ReadServerStatusAsync()
         {
             DataValue stateValue = await fixture.Session.ReadValueAsync(
                 VariableIds.Server_ServerStatus_State,
@@ -54,7 +55,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadServerDiagnostics()
+        public async Task ReadServerDiagnosticsAsync()
         {
             try
             {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadNamespaceArray()
+        public async Task ReadNamespaceArrayAsync()
         {
             DataValue nsArray = await fixture.Session.ReadValueAsync(
                 VariableIds.Server_NamespaceArray,
@@ -95,7 +96,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadServerArray()
+        public async Task ReadServerArrayAsync()
         {
             DataValue serverArray = await fixture.Session.ReadValueAsync(
                 VariableIds.Server_ServerArray,

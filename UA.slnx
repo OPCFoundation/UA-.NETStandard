@@ -121,7 +121,7 @@
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Client.AotTests/Opc.Ua.Client.AotTests.csproj" />
+    <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />

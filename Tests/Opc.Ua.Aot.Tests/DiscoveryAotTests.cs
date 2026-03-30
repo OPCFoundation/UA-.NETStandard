@@ -26,8 +26,9 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.AotTests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for discovery and session lifecycle operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class DiscoveryAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task GetEndpoints()
+        public async Task GetEndpointsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
@@ -54,7 +55,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FindServers()
+        public async Task FindServersAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
@@ -72,7 +73,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ConnectAndCloseSession()
+        public async Task ConnectAndCloseSessionAsync()
         {
             ISession session = await fixture.CreateSessionAsync("ConnectAndClose")
                 .ConfigureAwait(false);
@@ -88,7 +89,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadOnDiscoveryChannel()
+        public async Task ReadOnDiscoveryChannelAsync()
         {
             ISession session = await fixture.CreateSessionAsync("DiscoveryRead")
                 .ConfigureAwait(false);

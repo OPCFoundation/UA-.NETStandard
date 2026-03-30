@@ -27,20 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
-    /// AOT integration tests for monitored item operations.
+    /// AOT integration tests for event monitoring operations.
     /// </summary>
     [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
-    public class MonitoredItemAotTests(AotTestFixture fixture)
+    public class EventsAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task CreateMonitoredItemWithFilter()
+        public async Task SubscribeToServerEventsAsync()
         {
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("EventId"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("EventType"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("Message"));
+
             var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
-                DisplayName = "AotFilterItem",
+                DisplayName = "AotServerEvents",
                 PublishingEnabled = true,
                 PublishingInterval = 1000,
                 KeepAliveCount = 5
@@ -50,24 +59,15 @@ namespace Opc.Ua.Client.AotTests
             await subscription.CreateAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
-            var filter = new DataChangeFilter
+            var eventItem = new MonitoredItem(subscription.DefaultItem)
             {
-                Trigger = DataChangeTrigger.StatusValue,
-                DeadbandType = (uint)DeadbandType.Absolute,
-                DeadbandValue = 1.0
+                StartNodeId = ObjectIds.Server,
+                AttributeId = Attributes.EventNotifier,
+                DisplayName = "ServerEvents",
+                Filter = eventFilter
             };
 
-            var item = new MonitoredItem(subscription.DefaultItem)
-            {
-                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                AttributeId = Attributes.Value,
-                DisplayName = "FilteredTime",
-                Filter = filter,
-                SamplingInterval = 500,
-                QueueSize = 10
-            };
-
-            subscription.AddItem(item);
+            subscription.AddItem(eventItem);
             await subscription.ApplyChangesAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
@@ -80,14 +80,27 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ModifyMonitoredItem()
+        public async Task CreateEventFilterAsync()
         {
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("EventId"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("EventType"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("SourceName"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("Message"));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType, QualifiedName.From("Severity"));
+
+            await Assert.That(eventFilter.SelectClauses.Count).IsEqualTo(5);
+
             var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
-                DisplayName = "AotModifyItem",
+                DisplayName = "AotEventFilter",
                 PublishingEnabled = true,
-                PublishingInterval = 1000,
-                KeepAliveCount = 5
+                PublishingInterval = 1000
             };
 
             fixture.Session.AddSubscription(subscription);
@@ -96,10 +109,10 @@ namespace Opc.Ua.Client.AotTests
 
             var item = new MonitoredItem(subscription.DefaultItem)
             {
-                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                AttributeId = Attributes.Value,
-                DisplayName = "ModifiableTime",
-                SamplingInterval = 1000
+                StartNodeId = ObjectIds.Server,
+                AttributeId = Attributes.EventNotifier,
+                DisplayName = "FilteredServerEvents",
+                Filter = eventFilter
             };
 
             subscription.AddItem(item);
@@ -108,56 +121,6 @@ namespace Opc.Ua.Client.AotTests
 
             await Assert.That((int)subscription.MonitoredItemCount)
                 .IsEqualTo(1);
-
-            // Modify the sampling interval
-            item.SamplingInterval = 500;
-            await subscription.ApplyChangesAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-
-            await Assert.That(item.SamplingInterval).IsEqualTo(500);
-
-            await fixture.Session.RemoveSubscriptionAsync(subscription)
-                .ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task SetMonitoringMode()
-        {
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
-            {
-                DisplayName = "AotMonitoringMode",
-                PublishingEnabled = true,
-                PublishingInterval = 1000,
-                KeepAliveCount = 5
-            };
-
-            fixture.Session.AddSubscription(subscription);
-            await subscription.CreateAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-
-            var item = new MonitoredItem(subscription.DefaultItem)
-            {
-                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                AttributeId = Attributes.Value,
-                DisplayName = "MonitoringModeTime"
-            };
-
-            subscription.AddItem(item);
-            await subscription.ApplyChangesAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-
-            // Set to Disabled
-            ArrayOf<MonitoredItem> items = [item];
-            await subscription.SetMonitoringModeAsync(
-                MonitoringMode.Disabled, items,
-                CancellationToken.None).ConfigureAwait(false);
-
-            // Set back to Reporting
-            await subscription.SetMonitoringModeAsync(
-                MonitoringMode.Reporting, items,
-                CancellationToken.None).ConfigureAwait(false);
-
-            await Assert.That(subscription.Created).IsTrue();
 
             await fixture.Session.RemoveSubscriptionAsync(subscription)
                 .ConfigureAwait(false);

@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for DataType operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class DataTypeAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task ReadDataTypeDefinition()
+        public async Task ReadDataTypeDefinitionAsync()
         {
             Node node = await fixture.Session.NodeCache
                 .FetchNodeAsync(
@@ -52,7 +53,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadEnumStrings()
+        public async Task ReadEnumStringsAsync()
         {
             var browser = new Browser(fixture.Session)
             {
@@ -85,7 +86,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ReadBuildInfo()
+        public async Task ReadBuildInfoAsync()
         {
             DataValue buildInfo = await fixture.Session.ReadValueAsync(
                 VariableIds.Server_ServerStatus_BuildInfo,

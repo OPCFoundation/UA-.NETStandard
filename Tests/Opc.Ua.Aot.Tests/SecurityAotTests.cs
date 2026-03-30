@@ -26,8 +26,9 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.AotTests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for connections with no security.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class SecurityAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task ConnectNoSecurity()
+        public async Task ConnectNoSecurityAsync()
         {
             // Create a session that explicitly uses SecurityPolicy None
             ISession session = await fixture.CreateSessionAsync("NoSecurity")
@@ -63,7 +64,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task AnonymousIdentity()
+        public async Task AnonymousIdentityAsync()
         {
             ISession session = await fixture.CreateSessionAsync("AnonIdentity")
                 .ConfigureAwait(false);

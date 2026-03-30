@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for NodeCache operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class NodeCacheAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task FetchNode()
+        public async Task FetchNodeAsync()
         {
             Node node = await fixture.Session!.NodeCache
                 .FetchNodeAsync(ObjectIds.Server, CancellationToken.None)
@@ -48,7 +49,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FetchNodes()
+        public async Task FetchNodesAsync()
         {
             ArrayOf<ExpandedNodeId> nodeIds =
             [
@@ -71,7 +72,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FindReferences()
+        public async Task FindReferencesAsync()
         {
             // Ensure reference types are loaded in the NodeCache
             NamespaceTable namespaceUris = fixture.Session!.NamespaceUris;
@@ -94,7 +95,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task FetchTypeTree()
+        public async Task FetchTypeTreeAsync()
         {
             ExpandedNodeId baseDataTypeId = NodeId.ToExpandedNodeId(
                 DataTypeIds.BaseDataType,

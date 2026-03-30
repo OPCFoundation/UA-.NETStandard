@@ -39,7 +39,8 @@ using Opc.Ua.Server.Tests;
 using Opc.Ua.Server.UserDatabase;
 using TUnit.Core.Interfaces;
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// Shared fixture that starts a GDS server in-process and provides

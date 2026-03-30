@@ -26,8 +26,9 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.AotTests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for subscription lifecycle operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class SubscriptionAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task CreateAndDeleteSubscription()
+        public async Task CreateAndDeleteSubscriptionAsync()
         {
             var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {
@@ -82,7 +83,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task ModifySubscription()
+        public async Task ModifySubscriptionAsync()
         {
             var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {
@@ -113,7 +114,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task TransferSubscription()
+        public async Task TransferSubscriptionAsync()
         {
             // Create source session with a subscription
             ISession sourceSession = await fixture.CreateSessionAsync("TransferSource")
@@ -179,7 +180,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task KeepAlive()
+        public async Task KeepAliveAsync()
         {
             var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {

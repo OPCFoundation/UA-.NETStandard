@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Opc.Ua.Client.AotTests</RootNamespace>
+    <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
     <PublishAot>true</PublishAot>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>

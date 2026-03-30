@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.AotTests
+using Opc.Ua.Client;
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for history read operations.
@@ -36,7 +37,7 @@ namespace Opc.Ua.Client.AotTests
     public class HistoryAotTests(AotTestFixture fixture)
     {
         [Test]
-        public async Task HistoryReadRaw()
+        public async Task HistoryReadRawAsync()
         {
             var details = new ReadRawModifiedDetails
             {
@@ -79,7 +80,7 @@ namespace Opc.Ua.Client.AotTests
         }
 
         [Test]
-        public async Task HistoryReadProcessed()
+        public async Task HistoryReadProcessedAsync()
         {
             var details = new ReadProcessedDetails
             {

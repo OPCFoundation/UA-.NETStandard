@@ -29,8 +29,9 @@
 
 using System.Text;
 using Opc.Ua;
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.AotTests;
+namespace Opc.Ua.Aot.Tests;
 
 /// <summary>
 /// Simplified OPC UA client samples for AOT integration testing.
