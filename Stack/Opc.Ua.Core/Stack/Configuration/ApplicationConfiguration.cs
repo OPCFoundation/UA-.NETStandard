@@ -862,6 +862,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (required).</param>
         /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
         /// <returns>The extension if found. Default otherwise.</returns>
+        [Experimental("UA_NETStandard_1")]
         public T ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry, decoderFunc);
@@ -874,6 +875,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (required).</param>
         /// <param name="value">The value.</param>
         /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        [Experimental("UA_NETStandard_1")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, T value, Action<IEncoder, T> encoderFunc)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry, encoderFunc);

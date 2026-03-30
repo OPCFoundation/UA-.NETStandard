@@ -408,8 +408,6 @@ namespace Opc.Ua.Server.Tests
                 .DecodeEventQueue(decoder);
         }
 
-        #region BatchPersistor Round-Trip Tests
-
         [Test]
         public void RoundTripDataChangeBatchViaPersistor()
         {
@@ -507,7 +505,5 @@ namespace Opc.Ua.Server.Tests
             // RestoreInProgress is reset even when file is missing
             Assert.That(batch.RestoreInProgress, Is.False);
         }
-
-        #endregion
     }
 }

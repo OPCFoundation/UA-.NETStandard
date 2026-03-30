@@ -102,20 +102,17 @@ namespace Opc.Ua.Client.AotTests
         {
             var browsePaths = new List<BrowsePath>
             {
-                new BrowsePath
-                {
+                new() {
                     StartingNode = ObjectIds.RootFolder,
                     RelativePath = new RelativePath(
                         QualifiedName.From("Objects"))
                 },
-                new BrowsePath
-                {
+                new() {
                     StartingNode = ObjectIds.RootFolder,
                     RelativePath = new RelativePath(
                         QualifiedName.From("Types"))
                 },
-                new BrowsePath
-                {
+                new() {
                     StartingNode = ObjectIds.RootFolder,
                     RelativePath = new RelativePath(
                         QualifiedName.From("Views"))

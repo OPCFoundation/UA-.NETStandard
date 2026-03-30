@@ -1527,8 +1527,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Scans assembly types for known OPC UA GDS encodeable types.")]
         private async Task ConnectInternalAsync(
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -1563,7 +1561,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (!Session.Factory.TryGetEncodeableType(DataTypeIds.ApplicationRecordDataType, out _))
                 {
-                    Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+                    Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
                 m_endpoint = Session.ConfiguredEndpoint;

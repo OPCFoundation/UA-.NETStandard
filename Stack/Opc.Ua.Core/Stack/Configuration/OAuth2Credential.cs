@@ -66,7 +66,7 @@ namespace Opc.Ua
     public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
         private static readonly XmlQualifiedName s_elementName =
-            new XmlQualifiedName("ListOfOAuth2Credential", Namespaces.OpcUaConfig);
+            new("ListOfOAuth2Credential", Namespaces.OpcUaConfig);
 
         /// <summary>
         /// Decodes an <see cref="OAuth2CredentialCollection"/> from an <see cref="IDecoder"/>.
@@ -306,4 +306,3 @@ namespace Opc.Ua
         }
     }
 }
-

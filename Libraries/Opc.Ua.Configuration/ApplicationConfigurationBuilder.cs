@@ -1114,6 +1114,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Experimental("UA_NETStandard_1")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             T value,

@@ -37,7 +37,6 @@ namespace Opc.Ua.Client
     /// </summary>
     internal static class SessionStateEncoder
     {
-        #region MonitoredItemState
         internal static void EncodeMonitoredItemState(
             BinaryEncoder encoder,
             MonitoredItemState state)
@@ -124,9 +123,7 @@ namespace Opc.Ua.Client
                 CacheQueueSize = cacheQueueSize
             };
         }
-        #endregion
 
-        #region SubscriptionState
         internal static void EncodeSubscriptionState(
             BinaryEncoder encoder,
             SubscriptionState state)
@@ -220,9 +217,7 @@ namespace Opc.Ua.Client
                 Timestamp = timestamp
             };
         }
-        #endregion
 
-        #region SessionConfiguration
         internal static void EncodeSessionConfiguration(
             BinaryEncoder encoder,
             SessionConfiguration config)
@@ -311,9 +306,7 @@ namespace Opc.Ua.Client
                 Subscriptions = subscriptions
             };
         }
-        #endregion
 
-        #region UserIdentity
         private static void EncodeUserIdentity(
             BinaryEncoder encoder,
             IUserIdentity? identity)
@@ -338,9 +331,7 @@ namespace Opc.Ua.Client
 
             return null;
         }
-        #endregion
 
-        #region ConfiguredEndpoint
         private static void EncodeConfiguredEndpoint(
             BinaryEncoder encoder,
             ConfiguredEndpoint? endpoint)
@@ -451,9 +442,7 @@ namespace Opc.Ua.Client
 
             return endpoint;
         }
-        #endregion
 
-        #region EndpointConfiguration
         private static void EncodeEndpointConfiguration(
             BinaryEncoder encoder,
             EndpointConfiguration? config)
@@ -502,6 +491,5 @@ namespace Opc.Ua.Client
                 MaxDecoderRecoveries = decoder.ReadInt32(null)
             };
         }
-        #endregion
     }
 }

@@ -415,6 +415,7 @@ namespace Quickstarts.Servers
             }
             return batch;
         }
+
         internal static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
         {
             encoder.WriteBoolean(null, q.IsDurable);

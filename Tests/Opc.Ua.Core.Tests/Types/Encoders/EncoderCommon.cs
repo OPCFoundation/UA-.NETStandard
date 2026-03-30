@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kTestBlockSize = 0x1000;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
 
-        private static readonly JsonSerializerOptions s_prettifyOptions = new JsonSerializerOptions
+        private static readonly JsonSerializerOptions s_prettifyOptions = new()
         {
             WriteIndented = true,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,

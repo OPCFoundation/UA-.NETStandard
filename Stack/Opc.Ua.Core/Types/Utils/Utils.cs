@@ -1537,6 +1537,8 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
         /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
         /// <returns>The deserialized extension, or the default value if not found.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        [Experimental("UA_NETStandard_1")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -1590,6 +1592,8 @@ namespace Opc.Ua
         /// Adds a new extension if it does not already exist.
         /// Deletes the extension if the value is null.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        [Experimental("UA_NETStandard_1")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,

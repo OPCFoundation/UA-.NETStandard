@@ -40,7 +40,6 @@ namespace Opc.Ua
     /// </summary>
     internal static class AppConfigEncoding
     {
-        #region ApplicationConfiguration
 
         /// <summary>
         /// Encodes the contents of an <see cref="ApplicationConfiguration"/> into the encoder.
@@ -217,9 +216,7 @@ namespace Opc.Ua
             config.DisableHiResClock = decoder.ReadBoolean("DisableHiResClock");
         }
 
-        #endregion
 
-        #region TransportQuotas
 
         internal static void EncodeTransportQuotas(XmlEncoder encoder, TransportQuotas q)
         {
@@ -251,9 +248,7 @@ namespace Opc.Ua
             return q;
         }
 
-        #endregion
 
-        #region TraceConfiguration
 
         internal static void EncodeTraceConfiguration(XmlEncoder encoder, TraceConfiguration tc)
         {
@@ -273,9 +268,7 @@ namespace Opc.Ua
             tc.TraceMasks = decoder.ReadInt32("TraceMasks");
         }
 
-        #endregion
 
-        #region TransportConfiguration
 
         internal static void EncodeTransportConfiguration(XmlEncoder encoder, TransportConfiguration tc)
         {
@@ -331,9 +324,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region ServerSecurityPolicy
 
         internal static void EncodeServerSecurityPolicy(XmlEncoder encoder, ServerSecurityPolicy policy)
         {
@@ -401,9 +392,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region SecurityConfiguration
 
         internal static void EncodeSecurityConfiguration(
             XmlEncoder encoder,
@@ -671,9 +660,7 @@ namespace Opc.Ua
             config.SuppressNonceValidationErrors = decoder.ReadBoolean("SuppressNonceValidationErrors");
         }
 
-        #endregion
 
-        #region SamplingRateGroup
 
         internal static void EncodeSamplingRateGroup(XmlEncoder encoder, SamplingRateGroup g)
         {
@@ -724,9 +711,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region ServerBaseConfiguration
 
         internal static void EncodeServerBaseConfiguration(
             XmlEncoder encoder,
@@ -763,9 +748,7 @@ namespace Opc.Ua
             config.MaxQueuedRequestCount = decoder.ReadInt32("MaxQueuedRequestCount");
         }
 
-        #endregion
 
-        #region OperationLimits
 
         internal static void EncodeOperationLimits(XmlEncoder encoder, OperationLimits limits)
         {
@@ -804,9 +787,7 @@ namespace Opc.Ua
             return limits;
         }
 
-        #endregion
 
-        #region ReverseConnectServerConfiguration
 
         internal static void EncodeReverseConnectServerConfiguration(
             XmlEncoder encoder,
@@ -849,9 +830,7 @@ namespace Opc.Ua
             return config;
         }
 
-        #endregion
 
-        #region ReverseConnectClient
 
         internal static void EncodeReverseConnectClient(XmlEncoder encoder, ReverseConnectClient client)
         {
@@ -904,9 +883,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region ServerConfiguration
 
         internal static void EncodeServerConfiguration(XmlEncoder encoder, ServerConfiguration config)
         {
@@ -1128,9 +1105,7 @@ namespace Opc.Ua
             config.ValidateSecurityPolicies();
         }
 
-        #endregion
 
-        #region ClientConfiguration
 
         internal static void EncodeClientConfiguration(XmlEncoder encoder, ClientConfiguration config)
         {
@@ -1187,9 +1162,7 @@ namespace Opc.Ua
                 DecodeOperationLimits);
         }
 
-        #endregion
 
-        #region ReverseConnectClientConfiguration
 
         internal static void EncodeReverseConnectClientConfiguration(
             XmlEncoder encoder,
@@ -1228,9 +1201,7 @@ namespace Opc.Ua
             return config;
         }
 
-        #endregion
 
-        #region ReverseConnectClientEndpoint
 
         internal static void EncodeReverseConnectClientEndpoint(
             XmlEncoder encoder,
@@ -1280,9 +1251,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region DiscoveryServerConfiguration
 
         internal static void EncodeDiscoveryServerConfiguration(
             XmlEncoder encoder,
@@ -1330,9 +1299,7 @@ namespace Opc.Ua
             config.ValidateSecurityPolicies();
         }
 
-        #endregion
 
-        #region ServerRegistration
 
         internal static void EncodeServerRegistration(XmlEncoder encoder, ServerRegistration reg)
         {
@@ -1390,9 +1357,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        #endregion
 
-        #region CertificateStoreIdentifier
 
         internal static void EncodeCertificateStoreIdentifier(
             XmlEncoder encoder,
@@ -1426,9 +1391,7 @@ namespace Opc.Ua
             store.XmlEncodedValidationOptions = decoder.ReadInt32("ValidationOptions");
         }
 
-        #endregion
 
-        #region CertificateTrustList
 
         internal static void EncodeCertificateTrustList(
             XmlEncoder encoder,
@@ -1490,9 +1453,7 @@ namespace Opc.Ua
             return trustList;
         }
 
-        #endregion
 
-        #region CertificateIdentifier
 
         internal static void EncodeCertificateIdentifier(
             XmlEncoder encoder,
@@ -1583,9 +1544,7 @@ namespace Opc.Ua
             return cert;
         }
 
-        #endregion
 
-        #region ConfiguredEndpointCollection
 
         internal static void EncodeConfiguredEndpointCollection(
             XmlEncoder encoder,
@@ -1647,9 +1606,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
 
-        #region ConfiguredEndpoint
 
         internal static void EncodeConfiguredEndpoint(XmlEncoder encoder, ConfiguredEndpoint endpoint)
         {
@@ -1724,9 +1681,7 @@ namespace Opc.Ua
             return endpoint;
         }
 
-        #endregion
 
-        #region ReverseConnectEndpoint
 
         internal static void EncodeReverseConnectEndpoint(
             XmlEncoder encoder,
@@ -1746,9 +1701,7 @@ namespace Opc.Ua
             return endpoint;
         }
 
-        #endregion
 
-        #region Helpers
 
         /// <summary>
         /// Parses an enum from a string that may be in either "Name_Value" or plain "Name" format.
@@ -1808,7 +1761,6 @@ namespace Opc.Ua
             return result;
         }
 
-        #endregion
     }
 
     /// <summary>

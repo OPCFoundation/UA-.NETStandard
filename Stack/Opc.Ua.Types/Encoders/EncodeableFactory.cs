@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml;
@@ -572,21 +573,26 @@ namespace Opc.Ua
         private static EncodeableFactory Root { get; }
 
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Well-known types are loaded from the types assembly at startup and their types are preserved.")]
+            Justification = "Assembly loading is not performed if platform does not support dynamic code.")]
         static EncodeableFactory()
         {
             var factory = new EncodeableFactory();
-            // Load all well known types from the types assembly
-            IEncodeableFactoryBuilder builder = factory.Builder
-                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
-
-            Assembly? core = CoreUtils.GetOpcUaAssembly();
-            if (core != null)
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+            if (RuntimeFeature.IsDynamicCodeSupported)
+#endif
             {
-                builder = builder.AddEncodeableTypes(core);
+                // Load all well known types from the types assembly
+                IEncodeableFactoryBuilder builder = factory.Builder
+                    .AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
+
+                Assembly? core = CoreUtils.GetOpcUaAssembly();
+                if (core != null)
+                {
+                    builder = builder.AddEncodeableTypes(core);
+                }
+                // else: If not found we are running just with the types library
+                builder.Commit();
             }
-            // else: If not found we are running just with the types library
-            builder.Commit();
             Root = factory;
         }
 

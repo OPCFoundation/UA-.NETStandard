@@ -494,6 +494,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         private object GetObject(Type type, XmlNode element)
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
