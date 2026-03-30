@@ -193,7 +193,8 @@ namespace Opc.Ua
                 {
                     list = configuration.ParseExtension<OAuth2CredentialCollection>(
                         s_elementName,
-                        OAuth2CredentialCollection.Decode) ?? [];
+                        OAuth2CredentialCollection.Decode) ??
+                        [];
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }

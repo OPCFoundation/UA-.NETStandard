@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.AotTests
 
             ReferenceDescription enumRef = refs.ToList().FirstOrDefault(
                 r => r.BrowseName.Name == "EnumStrings"
-                  || r.BrowseName.Name == "EnumValues");
+                    || r.BrowseName.Name == "EnumValues");
 
             await Assert.That(enumRef).IsNotNull();
 

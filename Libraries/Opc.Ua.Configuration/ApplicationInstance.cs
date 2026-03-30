@@ -539,10 +539,6 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA configuration types.")]
         internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             Stream stream,

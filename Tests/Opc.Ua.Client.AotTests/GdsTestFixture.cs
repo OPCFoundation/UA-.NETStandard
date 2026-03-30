@@ -220,11 +220,11 @@ namespace Opc.Ua.Client.AotTests
         [UnconditionalSuppressMessage("AOT",
             "IL2026:RequiresUnreferencedCode",
             Justification = "Test-only code; GDS config serialization " +
-            "is exercised at runtime.")]
+                "is exercised at runtime.")]
         [UnconditionalSuppressMessage("AOT",
             "IL3050:RequiresDynamicCode",
             Justification = "Test-only code; GDS config serialization " +
-            "is exercised at runtime.")]
+                "is exercised at runtime.")]
         private async Task StartGdsServerAsync(int port)
         {
             string[] baseAddresses =

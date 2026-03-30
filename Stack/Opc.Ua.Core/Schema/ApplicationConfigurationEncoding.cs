@@ -515,7 +515,7 @@ namespace Opc.Ua
             // Order 17: UserIssuerCertificates (EmitDefaultValue=false)
             if (config.UserIssuerCertificates != null &&
                 (config.UserIssuerCertificates.StoreType != null ||
-                 config.UserIssuerCertificates.StorePath != null))
+                    config.UserIssuerCertificates.StorePath != null))
             {
                 encoder.Push("UserIssuerCertificates", Namespaces.OpcUaConfig);
                 EncodeCertificateTrustList(encoder, config.UserIssuerCertificates);
@@ -525,7 +525,7 @@ namespace Opc.Ua
             // Order 18: TrustedUserCertificates (EmitDefaultValue=false)
             if (config.TrustedUserCertificates != null &&
                 (config.TrustedUserCertificates.StoreType != null ||
-                 config.TrustedUserCertificates.StorePath != null))
+                    config.TrustedUserCertificates.StorePath != null))
             {
                 encoder.Push("TrustedUserCertificates", Namespaces.OpcUaConfig);
                 EncodeCertificateTrustList(encoder, config.TrustedUserCertificates);
@@ -535,7 +535,7 @@ namespace Opc.Ua
             // Order 19: HttpsIssuerCertificates (EmitDefaultValue=false)
             if (config.HttpsIssuerCertificates != null &&
                 (config.HttpsIssuerCertificates.StoreType != null ||
-                 config.HttpsIssuerCertificates.StorePath != null))
+                    config.HttpsIssuerCertificates.StorePath != null))
             {
                 encoder.Push("HttpsIssuerCertificates", Namespaces.OpcUaConfig);
                 EncodeCertificateTrustList(encoder, config.HttpsIssuerCertificates);
@@ -545,7 +545,7 @@ namespace Opc.Ua
             // Order 20: TrustedHttpsCertificates (EmitDefaultValue=false)
             if (config.TrustedHttpsCertificates != null &&
                 (config.TrustedHttpsCertificates.StoreType != null ||
-                 config.TrustedHttpsCertificates.StorePath != null))
+                    config.TrustedHttpsCertificates.StorePath != null))
             {
                 encoder.Push("TrustedHttpsCertificates", Namespaces.OpcUaConfig);
                 EncodeCertificateTrustList(encoder, config.TrustedHttpsCertificates);
@@ -595,11 +595,13 @@ namespace Opc.Ua
 
             // Order 2: TrustedIssuerCertificates
             config.TrustedIssuerCertificates = DecodeCertificateTrustList(
-                decoder, "TrustedIssuerCertificates") ?? config.TrustedIssuerCertificates;
+                decoder, "TrustedIssuerCertificates") ??
+                config.TrustedIssuerCertificates;
 
             // Order 4: TrustedPeerCertificates
             config.TrustedPeerCertificates = DecodeCertificateTrustList(
-                decoder, "TrustedPeerCertificates") ?? config.TrustedPeerCertificates;
+                decoder, "TrustedPeerCertificates") ??
+                config.TrustedPeerCertificates;
 
             // Order 6: NonceLength
             int nonceLength = decoder.ReadInt32("NonceLength");
@@ -1763,11 +1765,12 @@ namespace Opc.Ua
             int idx = value.LastIndexOf('_');
             // CA1846: using Substring for net472/netstandard2.0 compat; TODO: use AsSpan when min target supports span-based TryParse
 #pragma warning disable CA1846
-            if (idx >= 0 && int.TryParse(
-                value.Substring(idx + 1),
-                System.Globalization.NumberStyles.Integer,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out int intVal))
+            if (idx >= 0 &&
+                int.TryParse(
+                    value.Substring(idx + 1),
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out int intVal))
 #pragma warning restore CA1846
             {
                 try

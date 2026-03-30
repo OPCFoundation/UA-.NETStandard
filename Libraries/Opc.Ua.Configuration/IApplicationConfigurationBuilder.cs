@@ -646,6 +646,18 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value);
+
+        /// <summary>
+        /// Add an extension to the configuration using an encoder function (AOT-safe).
+        /// </summary>
+        /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
+        /// <param name="elementName">The name of the extension, null to use the type name.</param>
+        /// <param name="value">The object to add and encode.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value,
+            Action<IEncoder, T> encoderFunc);
     }
 
     /// <summary>

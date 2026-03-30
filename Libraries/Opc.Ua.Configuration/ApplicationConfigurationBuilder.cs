@@ -1114,6 +1114,16 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value,
+            Action<IEncoder, T> encoderFunc)
+        {
+            ApplicationConfiguration.UpdateExtension<T>(elementName, value, encoderFunc);
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(
             bool durableSubscriptionsEnabled)
         {

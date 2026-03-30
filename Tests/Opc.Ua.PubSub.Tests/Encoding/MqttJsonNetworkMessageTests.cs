@@ -2292,7 +2292,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.That(
                     jsonNetworkMessageDecoded.NetworkMessageContentMask,
                     Is.EqualTo(jsonNetworkMessageEncode.NetworkMessageContentMask &
-                    jsonNetworkMessageDecoded.NetworkMessageContentMask),
+                        jsonNetworkMessageDecoded.NetworkMessageContentMask),
                     "NetworkMessageContentMask were not decoded correctly");
             }
 
