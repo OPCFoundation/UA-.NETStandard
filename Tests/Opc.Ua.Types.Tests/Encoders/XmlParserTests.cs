@@ -1555,8 +1555,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.XmlName)
                 .Returns(new XmlQualifiedName("TestEncodeableWithData", Namespaces.OpcUaXsd));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeableWithData());
-            IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType<TestEncodeableWithData>(out type))
+            IType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
                 .Returns(true);
             messageContext.Factory = mockFactory.Object;
             const string xml = """
@@ -1579,8 +1579,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
-            IEncodeableType type = null;
-            mockFactory.Setup(f => f.TryGetEncodeableType<TestEncodeableWithData>(out type))
+            IType type = null;
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
                 .Returns(false);
             messageContext.Factory = mockFactory.Object;
             const string xml = """

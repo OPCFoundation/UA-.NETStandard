@@ -45,11 +45,16 @@ namespace Opc.Ua
     /// DataMember properties. The type does not need to be serializable.
     /// </para>
     /// <para>
-    /// If a namespace uri is not supplied via a DataContractAttribute then the
-    /// namespace of the DataType NodeId will be used.
+    /// If a namespace uri is not supplied via a DataContractAttribute
+    /// then the namespace of the DataType NodeId will be used.
     /// </para>
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(
+        AttributeTargets.Class |
+        AttributeTargets.Struct |
+        AttributeTargets.Enum,
+        AllowMultiple = false,
+        Inherited = false)]
     public sealed class DataTypeAttribute : Attribute
     {
         /// <summary>

@@ -1065,9 +1065,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return m_inner.TryGetEncodeableType(typeId, out encodeableType);
             }
 
-            public bool TryGetEncodeableType<T>([NotNullWhen(true)] out IEncodeableType encodeableType)
+            public bool TryGetEnumeratedType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEnumeratedType enumeratedType)
             {
-                return m_inner.TryGetEncodeableType<T>(out encodeableType);
+                return m_inner.TryGetEnumeratedType(typeId, out enumeratedType);
+            }
+
+            public bool TryGetType(XmlQualifiedName xmlName, [NotNullWhen(true)] out IType type)
+            {
+                return m_inner.TryGetType(xmlName, out type);
             }
 
             private readonly IEncodeableFactory m_inner;
