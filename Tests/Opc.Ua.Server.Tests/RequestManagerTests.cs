@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 42, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
+
             _requestManager.RequestReceived(context);
 
             bool eventFired = false;
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 42, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -129,12 +129,12 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
+
             _requestManager.RequestReceived(context);
 
             // Act
             _requestManager.RequestCompleted(context);
-            
+
             // Assert
             // To ensure it is removed, cancelling it will yield 0 count
             _requestManager.CancelRequests(42, out uint cancelCount);
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             // TimeoutHint is small to ensure it expires quickly
             var requestHeader = new RequestHeader { RequestHandle = 43, TimeoutHint = 100 };
             using var requestLifetime = new RequestLifetime();
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
+
             bool eventFired = false;
             _requestManager.RequestCancelled += (sender, reqId, status) =>
             {
@@ -168,26 +168,26 @@ namespace Opc.Ua.Server.Tests
                     eventFired = true;
                 }
             };
-            
+
             _requestManager.RequestReceived(context);
 
             // Act
             // Wait for timer to expire since TimeoutHint = 100ms. Note the original timer runs every 1000ms.
             // We need to wait a bit more than 1000ms.
-            await Task.Delay(1200);
+            await Task.Delay(1200).ConfigureAwait(false);
 
             // Assert
             Assert.That(eventFired, Is.True);
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
         }
-        
+
         [Test]
         public void DisposeCancelsPendingRequests()
         {
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 44, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -196,12 +196,12 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
+
             _requestManager.RequestReceived(context);
-            
+
             // Act
             _requestManager.Dispose();
-            
+
             // Assert
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
         }
