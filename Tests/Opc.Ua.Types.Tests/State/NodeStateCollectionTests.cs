@@ -122,7 +122,7 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(view);
             Assert.That(collection, Does.Contain(view));
             var other = new ViewState { NodeId = new NodeId(31) };
-            Assert.That(collection.Contains(other), Is.False);
+            Assert.That(collection, Does.Not.Contain(other));
             view.Dispose();
             other.Dispose();
         }

@@ -361,7 +361,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the name and fills schema
         /// </summary>
+#pragma warning disable RCS1158 // Static member in generic type should use a type parameter
         public static XmlQualifiedName GetSchemaMethod(XmlSchemaSet xs)
+#pragma warning restore RCS1158 // Static member in generic type should use a type parameter
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
             return new XmlQualifiedName("ListOf" + xmlName.Name, xmlName.Namespace);

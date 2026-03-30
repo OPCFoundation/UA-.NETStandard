@@ -279,5 +279,3 @@ namespace Quickstarts.Servers
         private readonly ITelemetryContext m_telemetry;
     }
 }
-
-

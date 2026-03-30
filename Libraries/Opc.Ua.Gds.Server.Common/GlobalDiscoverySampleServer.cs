@@ -393,4 +393,3 @@ namespace Opc.Ua.Gds.Server
         private readonly bool m_autoApprove;
     }
 }
-

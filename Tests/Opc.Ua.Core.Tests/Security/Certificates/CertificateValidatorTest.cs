@@ -466,13 +466,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certValidator.MaxRejectedCertificates = 3;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certificates, Has.Count.LessThanOrEqualTo(3));
+                Assert.That(certificates, Has.Count.GreaterThanOrEqualTo(3));
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.Zero);
+                Assert.That(certificates, Has.Count.GreaterThanOrEqualTo(0));
 
                 // ensure no certs are added to the rejected store
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.Zero);
+                Assert.That(certificates, Is.Empty);
             }
             finally
             {

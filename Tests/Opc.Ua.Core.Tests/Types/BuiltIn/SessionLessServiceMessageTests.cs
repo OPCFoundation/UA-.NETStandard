@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.That(serverUrisToken, Is.Not.Null);
             string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString());
             Assert.That(serverUrisEncoded, Is.Not.Null);
-            Assert.That(serverUrisEncoded.Length, Is.EqualTo(1));
+            Assert.That(serverUrisEncoded, Has.Length.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
         }
     }

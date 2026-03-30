@@ -421,7 +421,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Assertions
                 Assert.That(allNodesReceivedData, Is.True, "Not all nodes received expected data");
-                Assert.That(errors.Count, Is.Zero, $"Test encountered {errors.Count} errors");
+                Assert.That(errors, Is.Empty, $"Test encountered {errors.Count} errors");
                 Assert.That(
                     totalNotifications,
                     Is.GreaterThanOrEqualTo(expectedMinNotifications),

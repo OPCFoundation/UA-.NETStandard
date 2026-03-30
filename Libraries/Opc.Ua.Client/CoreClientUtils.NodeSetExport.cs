@@ -479,4 +479,3 @@ namespace Opc.Ua.Client
         }
     }
 }
-

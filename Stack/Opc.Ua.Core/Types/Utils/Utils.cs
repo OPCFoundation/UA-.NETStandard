@@ -1613,7 +1613,7 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1634,7 +1634,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (value == null)
+                        if (EqualityComparer<T>.Default.Equals(value, default(T)))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1648,7 +1648,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -2181,4 +2181,3 @@ namespace Opc.Ua
         }
     }
 }
-

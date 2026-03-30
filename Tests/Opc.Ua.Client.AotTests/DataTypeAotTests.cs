@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Client;
-
 namespace Opc.Ua.Client.AotTests
 {
     /// <summary>
@@ -71,8 +68,7 @@ namespace Opc.Ua.Client.AotTests
                     CancellationToken.None).ConfigureAwait(false);
 
             ReferenceDescription enumRef = refs.ToList().FirstOrDefault(
-                r => r.BrowseName.Name == "EnumStrings"
-                    || r.BrowseName.Name == "EnumValues");
+                r => r.BrowseName.Name is "EnumStrings" or "EnumValues");
 
             await Assert.That(enumRef).IsNotNull();
 

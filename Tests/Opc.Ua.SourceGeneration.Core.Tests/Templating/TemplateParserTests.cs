@@ -315,7 +315,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Literal));
             Assert.That(operations[0].Item, Is.EqualTo(longString));
-            Assert.That(operations[0].Item.Length, Is.EqualTo(5000));
+            Assert.That(operations[0].Item, Has.Length.EqualTo(5000));
         }
 
         /// <summary>
@@ -728,7 +728,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Token));
             Assert.That(operations[0].Item, Is.EqualTo(value));
-            Assert.That(operations[0].Item.Length, Is.EqualTo(10000));
+            Assert.That(operations[0].Item, Has.Length.EqualTo(10000));
         }
 
         /// <summary>
@@ -1265,7 +1265,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longString));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>

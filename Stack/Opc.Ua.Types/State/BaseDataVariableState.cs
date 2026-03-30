@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -96,7 +95,6 @@ namespace Opc.Ua
         {
             return VariableTypeIds.BaseDataVariableType;
         }
-
 
         /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)

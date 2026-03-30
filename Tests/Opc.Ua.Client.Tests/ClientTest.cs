@@ -989,7 +989,7 @@ namespace Opc.Ua.Client.Tests
             {
                 NUnit.Framework.Assert.Fail(
                     $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}" +
-                    $"Please fix Test parameters or Test server configuration");
+                    "Please fix Test parameters or Test server configuration");
             }
             userIdentity.PolicyId = identityPolicy.PolicyId;
 

@@ -542,4 +542,3 @@ namespace MemoryBuffer
         private readonly Dictionary<string, MemoryBufferState> m_buffers;
     }
 }
-

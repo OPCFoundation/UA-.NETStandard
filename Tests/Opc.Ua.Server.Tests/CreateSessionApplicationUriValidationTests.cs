@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.That(uris.Count, Is.EqualTo(3));
+            Assert.That(uris, Has.Count.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.That(uris.Count, Is.EqualTo(3));
+            Assert.That(uris, Has.Count.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());

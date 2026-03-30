@@ -31,7 +31,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -343,7 +342,7 @@ namespace Quickstarts.Servers
                 ItemsInQueue = decoder.ReadInt32(null),
                 QueueSize = decoder.ReadUInt32(null),
                 EnqueueBatch = DecodeDataChangeBatch(decoder),
-                DequeueBatch = DecodeDataChangeBatch(decoder),
+                DequeueBatch = DecodeDataChangeBatch(decoder)
             };
 
             int batchCount = decoder.ReadInt32(null);
@@ -443,7 +442,7 @@ namespace Quickstarts.Servers
                 MonitoredItemId = decoder.ReadUInt32(null),
                 QueueSize = decoder.ReadUInt32(null),
                 EnqueueBatch = DecodeEventBatch(decoder),
-                DequeueBatch = DecodeEventBatch(decoder),
+                DequeueBatch = DecodeEventBatch(decoder)
             };
 
             int batchCount = decoder.ReadInt32(null);
@@ -517,4 +516,3 @@ namespace Quickstarts.Servers
         }
     }
 }
-

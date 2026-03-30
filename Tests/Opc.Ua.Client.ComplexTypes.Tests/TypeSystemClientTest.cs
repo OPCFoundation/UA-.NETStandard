@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool success = await typeSystem.LoadAsync(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.That(success, Is.True);
 
-            var types = typeSystem.GetDefinedTypes();
+            IReadOnlyList<XmlQualifiedName> types = typeSystem.GetDefinedTypes();
             TestContext.Out.WriteLine("Types loaded: {0} ", types.Count);
             foreach (XmlQualifiedName type in types)
             {
@@ -192,7 +192,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
                 if (type.IsEnum)
                 {
-                    Assert.That(definitions.Count, Is.EqualTo(1));
+                    Assert.That(definitions, Has.Count.EqualTo(1));
                     Assert.That(definitions.First().Value, Is.InstanceOf<EnumDefinition>());
                     Assert.That(definitions.First().Key, Is.EqualTo(localTypeId));
                 }
@@ -482,11 +482,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.That(complexType["ByteValue"], Is.EqualTo((byte)0));
-            Assert.That(complexType["StringValue"], Is.EqualTo("badbeef"));
-            Assert.That(new Variant((uint)3210), Is.EqualTo(complexType["NumberValue"]));
-            Assert.That(new Variant((long)54321), Is.EqualTo(complexType["IntegerValue"]));
-            Assert.That(new Variant((ulong)12345), Is.EqualTo(complexType["UIntegerValue"]));
+            Assert.That(complexType["ByteValue"], Is.EqualTo(new Variant((byte)0)));
+            Assert.That(complexType["StringValue"], Is.EqualTo(new Variant("badbeef")));
+            Assert.That(complexType["NumberValue"], Is.EqualTo(new Variant((uint)3210)));
+            Assert.That(complexType["IntegerValue"], Is.EqualTo(new Variant((long)54321)));
+            Assert.That(complexType["UIntegerValue"], Is.EqualTo(new Variant((ulong)12345)));
         }
     }
 }

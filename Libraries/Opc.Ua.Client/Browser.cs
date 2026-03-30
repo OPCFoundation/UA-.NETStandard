@@ -791,4 +791,3 @@ namespace Opc.Ua.Client
     /// </summary>
     public delegate void BrowserEventHandler(Browser sender, BrowserEventArgs e);
 }
-

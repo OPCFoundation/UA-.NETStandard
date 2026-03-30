@@ -91,7 +91,7 @@ namespace Opc.Ua
                     ClientSecret = xmlParser.ReadString("ClientSecret"),
                     RedirectUrl = xmlParser.ReadString("RedirectUrl"),
                     TokenEndpoint = xmlParser.ReadString("TokenEndpoint"),
-                    AuthorizationEndpoint = xmlParser.ReadString("AuthorizationEndpoint"),
+                    AuthorizationEndpoint = xmlParser.ReadString("AuthorizationEndpoint")
                 };
 
                 if (xmlParser.Peek("Servers"))
@@ -107,7 +107,7 @@ namespace Opc.Ua
                         {
                             ApplicationUri = xmlParser.ReadString("ApplicationUri"),
                             ResourceId = xmlParser.ReadString("ResourceId"),
-                            Scopes = xmlParser.ReadStringArray("Scopes"),
+                            Scopes = xmlParser.ReadStringArray("Scopes")
                         };
 
                         xmlParser.Skip(new XmlQualifiedName("OAuth2ServerSettings", Namespaces.OpcUaConfig));

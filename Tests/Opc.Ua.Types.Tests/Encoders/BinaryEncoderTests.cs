@@ -392,7 +392,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -412,7 +412,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -432,7 +432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -452,7 +452,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -484,7 +484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double) * values.Length));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double) * values.Length));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             for (int i = 0; i < values.Length; i++)
@@ -507,7 +507,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -529,7 +529,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -551,7 +551,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
+            Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
             double readValue = reader.ReadDouble();
@@ -571,7 +571,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.Zero);
         }
 
@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x01)); // DiagnosticInfoEncodingBits.SymbolicId
         }
 
@@ -636,7 +636,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x3F)); // All bits except InnerDiagnosticInfo
         }
 
@@ -662,7 +662,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x41)); // SymbolicId | InnerDiagnosticInfo
         }
 
@@ -743,7 +743,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x02)); // DiagnosticInfoEncodingBits.NamespaceUri
         }
 
@@ -764,7 +764,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x08)); // DiagnosticInfoEncodingBits.Locale
         }
 
@@ -785,7 +785,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x04)); // DiagnosticInfoEncodingBits.LocalizedText
         }
 
@@ -806,7 +806,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x10)); // DiagnosticInfoEncodingBits.AdditionalInfo
         }
 
@@ -827,7 +827,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x20)); // DiagnosticInfoEncodingBits.InnerStatusCode
         }
 
@@ -848,7 +848,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x10)); // DiagnosticInfoEncodingBits.AdditionalInfo
         }
 
@@ -870,7 +870,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x10)); // Only AdditionalInfo
         }
 
@@ -891,7 +891,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0], Is.EqualTo(0x01)); // DiagnosticInfoEncodingBits.SymbolicId
         }
 
@@ -907,7 +907,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -936,7 +936,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -952,7 +952,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
         }
 
@@ -968,7 +968,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.Zero);
         }
 
@@ -985,7 +985,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for -1 (empty marker)
+            Assert.That(buffer, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for -1 (empty marker)
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt32(buffer, 4), Is.EqualTo(-1));
         }
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.Zero);
             Assert.That(buffer[1], Is.Zero);
             Assert.That(buffer[2], Is.Zero);
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0xFF));
             Assert.That(buffer[1], Is.EqualTo(0xFF));
             Assert.That(buffer[2], Is.EqualTo(0xFF));
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0x39));
             Assert.That(buffer[1], Is.EqualTo(0x30));
             Assert.That(buffer[2], Is.Zero);
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0x9F));
             Assert.That(buffer[1], Is.EqualTo(0x86));
             Assert.That(buffer[2], Is.EqualTo(0x01));
@@ -1138,7 +1138,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0x2B));
             Assert.That(buffer[1], Is.EqualTo(0x02));
             Assert.That(buffer[2], Is.Zero);
@@ -1162,7 +1162,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(12));
+            Assert.That(buffer, Has.Length.EqualTo(12));
             // First value (1)
             Assert.That(buffer[0], Is.EqualTo(0x01));
             Assert.That(buffer[1], Is.Zero);
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0x09));
             Assert.That(buffer[1], Is.EqualTo(0x03));
             Assert.That(buffer[2], Is.Zero);
@@ -1215,7 +1215,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             Assert.That(buffer[0], Is.EqualTo(0x78));
             Assert.That(buffer[1], Is.EqualTo(0x03));
             Assert.That(buffer[2], Is.Zero);
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
             int length = reader.ReadInt32();
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(sbyte.MinValue));
         }
 
@@ -1564,7 +1564,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(sbyte.MaxValue));
         }
 
@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.Zero);
         }
 
@@ -1605,7 +1605,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(value));
         }
 
@@ -1622,7 +1622,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(42));
         }
 
@@ -1639,7 +1639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(-42));
         }
 
@@ -1666,7 +1666,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result, Has.Length.EqualTo(3));
             Assert.That((sbyte)result[0], Is.EqualTo(sbyte.MinValue));
             Assert.That((sbyte)result[1], Is.Zero);
             Assert.That((sbyte)result[2], Is.EqualTo(sbyte.MaxValue));
@@ -1685,7 +1685,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That((sbyte)result[0], Is.EqualTo(10));
         }
 
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16), "WriteGuid should write exactly 16 bytes for a Uuid");
+            Assert.That(result, Has.Length.EqualTo(16), "WriteGuid should write exactly 16 bytes for a Uuid");
             Assert.That(result, Is.EqualTo(expectedBytes), "Written bytes should match the Uuid byte representation");
         }
 
@@ -1724,7 +1724,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16), "WriteGuid should write exactly 16 bytes for an empty Uuid");
+            Assert.That(result, Has.Length.EqualTo(16), "WriteGuid should write exactly 16 bytes for an empty Uuid");
             Assert.That(result, Is.EqualTo(expectedBytes), "Written bytes should be all zeros for empty Uuid");
         }
 
@@ -1747,7 +1747,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16));
+            Assert.That(result, Has.Length.EqualTo(16));
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
@@ -1771,7 +1771,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32), "Should write 32 bytes total (16 bytes per Uuid)");
+            Assert.That(result, Has.Length.EqualTo(32), "Should write 32 bytes total (16 bytes per Uuid)");
             byte[] firstGuidBytes = new byte[16];
             byte[] secondGuidBytes = new byte[16];
             Array.Copy(result, 0, firstGuidBytes, 0, 16);
@@ -1796,7 +1796,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16));
+            Assert.That(result, Has.Length.EqualTo(16));
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
@@ -1818,7 +1818,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = stream.ToArray();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16));
+            Assert.That(result, Has.Length.EqualTo(16));
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.Close();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(16));
+            Assert.That(buffer, Has.Length.EqualTo(16));
             Assert.That(buffer, Is.EqualTo(expectedBytes));
         }
 
@@ -1857,7 +1857,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -1876,7 +1876,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -1895,7 +1895,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
             int value = BitConverter.ToInt32(result, 4);
@@ -1916,7 +1916,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(5));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(1));
@@ -1940,7 +1940,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(int.MinValue));
@@ -1962,7 +1962,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(-100));
@@ -1997,7 +1997,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.Zero);
@@ -2196,7 +2196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.Zero);
@@ -2217,7 +2217,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(result[0], Is.EqualTo(0xFF));
             Assert.That(result[1], Is.EqualTo(0xFF));
             Assert.That(result[2], Is.EqualTo(0xFF));
@@ -2727,7 +2727,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -2744,7 +2744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", emptyArray);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.Zero);
         }
@@ -2767,7 +2767,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
@@ -2792,7 +2792,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -2826,7 +2826,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(2));
             // Each null LocalizedText should be encoded as a single 0 byte
@@ -2852,7 +2852,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -2875,7 +2875,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
@@ -2896,7 +2896,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -2921,7 +2921,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteLocalizedTextArray("test", array);
             byte[] buffer = stream.ToArray();
             // Assert
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
@@ -3101,7 +3101,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int decodedValue = BitConverter.ToInt32(result, 0);
             Assert.That(decodedValue, Is.EqualTo(testValue));
         }
@@ -3118,7 +3118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
@@ -3136,7 +3136,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
@@ -3154,7 +3154,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4));
+            Assert.That(buffer, Has.Length.EqualTo(4));
             int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
@@ -3172,7 +3172,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
             int count = reader.ReadInt32();
@@ -3329,7 +3329,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(buffer, Is.EqualTo(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }));
         }
 
@@ -3346,7 +3346,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(buffer, Is.EqualTo(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }));
         }
 
@@ -3367,7 +3367,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(24)); // 3 * 8 bytes
+            Assert.That(buffer, Has.Length.EqualTo(24)); // 3 * 8 bytes
             // Verify first value (1)
             Assert.That(buffer[0], Is.EqualTo(0x01));
             Assert.That(buffer[1], Is.Zero);
@@ -3398,7 +3398,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             // Verify that the expected bit is set
             int byteIndex = bitPosition / 8;
             int bitIndex = bitPosition % 8;
@@ -3428,7 +3428,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2)); // UInt16 is 2 bytes
+            Assert.That(result, Has.Length.EqualTo(2)); // UInt16 is 2 bytes
             Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.Zero);
         }
@@ -3470,7 +3470,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(2));
+            Assert.That(result, Has.Length.GreaterThan(2));
             // First byte should have 0x80 bit set (TwoByte encoding 0x00 | 0x80 = 0x80)
             Assert.That(result[0] & 0x80, Is.EqualTo(0x80));
         }
@@ -3490,7 +3490,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(2));
+            Assert.That(result, Has.Length.GreaterThan(2));
             // First byte should have 0x40 bit set (TwoByte encoding 0x00 | 0x40 = 0x40)
             Assert.That(result[0] & 0x40, Is.EqualTo(0x40));
         }
@@ -3510,7 +3510,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(2));
+            Assert.That(result, Has.Length.GreaterThan(2));
             // First byte should have both 0x80 and 0x40 bits set (0x00 | 0x80 | 0x40 = 0xC0)
             Assert.That(result[0] & 0xC0, Is.EqualTo(0xC0));
         }
@@ -3648,7 +3648,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(23));
+            Assert.That(result, Has.Length.EqualTo(23));
             // First byte should be String encoding (0x03)
             Assert.That(result[0] & 0x0F, Is.EqualTo(0x03));
         }
@@ -3669,7 +3669,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(19));
+            Assert.That(result, Has.Length.EqualTo(19));
             // First byte should be Guid encoding (0x04)
             Assert.That(result[0] & 0x0F, Is.EqualTo(0x04));
         }
@@ -3690,7 +3690,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(23));
+            Assert.That(result, Has.Length.EqualTo(23));
             // First byte should be ByteString encoding (0x05)
             Assert.That(result[0] & 0x0F, Is.EqualTo(0x05));
         }
@@ -3748,7 +3748,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2)); // TwoByte encoding: 1 byte encoding + 1 byte value
+            Assert.That(result, Has.Length.EqualTo(2)); // TwoByte encoding: 1 byte encoding + 1 byte value
             Assert.That(result[0], Is.Zero); // TwoByte encoding
             Assert.That(result[1], Is.EqualTo(byte.MaxValue));
         }
@@ -3768,7 +3768,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // FourByte encoding: 1 byte encoding + 1 byte namespace + 2 bytes value
+            Assert.That(result, Has.Length.EqualTo(4)); // FourByte encoding: 1 byte encoding + 1 byte namespace + 2 bytes value
             Assert.That(result[0], Is.EqualTo(0x01)); // FourByte encoding
         }
 
@@ -3787,7 +3787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7)); // SevenByte encoding: 1 byte encoding + 2 byte namespace + 4 bytes value
+            Assert.That(result, Has.Length.EqualTo(7)); // SevenByte encoding: 1 byte encoding + 2 byte namespace + 4 bytes value
             Assert.That(result[0], Is.EqualTo(0x02)); // SevenByte encoding
         }
 
@@ -3803,7 +3803,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32
+            Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -3819,7 +3819,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32
+            Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -3839,7 +3839,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(6)); // 4 bytes for length + 2 bytes for short
+            Assert.That(result, Has.Length.EqualTo(6)); // 4 bytes for length + 2 bytes for short
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt16(result, 4), Is.EqualTo(expectedValue));
         }
@@ -3864,7 +3864,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(14)); // 4 bytes for length + 10 bytes for 5 shorts
+            Assert.That(result, Has.Length.EqualTo(14)); // 4 bytes for length + 10 bytes for 5 shorts
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
             for (int i = 0; i < expectedValues.Length; i++)
             {
@@ -4014,7 +4014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(result[1], Is.EqualTo(2)); // namespace index 2 via mapping
             Assert.That(result[2], Is.EqualTo(100)); // namespace index 2 via mapping
         }
@@ -4032,7 +4032,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", emptyArray);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -4051,7 +4051,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
         }
@@ -4075,7 +4075,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -4099,7 +4099,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -4142,7 +4142,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -4166,7 +4166,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("test", array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1000));
         }
@@ -4188,7 +4188,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteNodeIdArray("SomeFieldName", array);
             byte[] result = stream.ToArray();
             // Assert - should produce same output regardless of fieldName
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
         }
 
         [Test]
@@ -4267,7 +4267,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(0x01));
         }
 
@@ -4284,7 +4284,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.Zero);
         }
 
@@ -4304,7 +4304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(result[0], Is.EqualTo(0x01));
             Assert.That(result[1], Is.Zero);
             Assert.That(result[2], Is.EqualTo(0x01));
@@ -4325,7 +4325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(expectedByte));
         }
 
@@ -4342,7 +4342,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(long.MaxValue));
         }
@@ -4360,7 +4360,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.Zero);
         }
@@ -4379,7 +4379,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.Zero);
         }
@@ -4398,7 +4398,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.Zero);
         }
@@ -4419,7 +4419,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
@@ -4441,7 +4441,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
@@ -4463,7 +4463,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
@@ -4484,7 +4484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
@@ -4505,7 +4505,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
             Assert.That(writtenValue, Is.GreaterThan(0));
@@ -4531,7 +4531,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
@@ -4547,7 +4547,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.Zero);
         }
 
@@ -4579,7 +4579,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x01, Is.EqualTo(0x01)); // Value bit set
         }
 
@@ -4595,7 +4595,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x02, Is.EqualTo(0x02)); // StatusCode bit set
         }
 
@@ -4614,7 +4614,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
         }
 
@@ -4634,7 +4634,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
             Assert.That(result[0] & 0x10, Is.EqualTo(0x10)); // SourcePicoseconds bit set
         }
@@ -4655,7 +4655,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
             Assert.That(result[0] & 0x10, Is.Zero); // SourcePicoseconds bit not set
         }
@@ -4675,7 +4675,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
         }
 
@@ -4695,7 +4695,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
@@ -4716,7 +4716,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
             Assert.That(result[0] & 0x20, Is.Zero); // ServerPicoseconds bit not set
         }
@@ -4741,7 +4741,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x01, Is.EqualTo(0x01)); // Value bit set
             Assert.That(result[0] & 0x02, Is.EqualTo(0x02)); // StatusCode bit set
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
@@ -4783,7 +4783,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x02, Is.Zero); // StatusCode bit not set
         }
 
@@ -4824,7 +4824,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x10, Is.EqualTo(0x10)); // SourcePicoseconds bit set
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
@@ -4847,7 +4847,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x10, Is.EqualTo(0x10)); // SourcePicoseconds bit set
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
@@ -4868,7 +4868,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x02, Is.EqualTo(0x02)); // StatusCode bit set
         }
 
@@ -4888,7 +4888,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(1));
+            Assert.That(result, Has.Length.GreaterThan(1));
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
         }
@@ -4905,7 +4905,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -4922,7 +4922,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -4939,7 +4939,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
+            Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(12345L));
         }
@@ -4957,7 +4957,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
+            Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(100L));
             Assert.That(BitConverter.ToInt64(result, 12), Is.EqualTo(200L));
@@ -4977,7 +4977,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for longs
+            Assert.That(result, Has.Length.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for longs
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(long.MinValue));
             Assert.That(BitConverter.ToInt64(result, 12), Is.EqualTo(long.MaxValue));
@@ -5011,7 +5011,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
+            Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(10L));
             Assert.That(BitConverter.ToInt64(result, 12), Is.EqualTo(20L));
@@ -5031,7 +5031,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
+            Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(-100L));
             Assert.That(BitConverter.ToInt64(result, 12), Is.EqualTo(-999999L));
@@ -5050,7 +5050,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
+            Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt64(result, 4), Is.Zero);
         }
@@ -5067,7 +5067,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // int32 = 4 bytes
+            Assert.That(buffer, Has.Length.EqualTo(4)); // int32 = 4 bytes
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -5084,7 +5084,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // int32 = 4 bytes
+            Assert.That(buffer, Has.Length.EqualTo(4)); // int32 = 4 bytes
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.Zero);
         }
@@ -5102,7 +5102,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.GreaterThan(4)); // At least the length int32
+            Assert.That(buffer, Has.Length.GreaterThan(4)); // At least the length int32
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
@@ -5122,7 +5122,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.GreaterThan(4));
+            Assert.That(buffer, Has.Length.GreaterThan(4));
             int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -5439,7 +5439,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -5455,7 +5455,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -5475,7 +5475,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5)); // 4 bytes for length + 1 byte for value
+            Assert.That(result, Has.Length.EqualTo(5)); // 4 bytes for length + 1 byte for value
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That((sbyte)result[4], Is.EqualTo(42));
         }
@@ -5499,7 +5499,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4 + values.Length)); // 4 bytes for length + 1 byte per element
+            Assert.That(result, Has.Length.EqualTo(4 + values.Length)); // 4 bytes for length + 1 byte per element
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(values.Length));
             for (int i = 0; i < values.Length; i++)
             {
@@ -5532,7 +5532,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(14)); // 4 bytes for length + 10 bytes for values
+            Assert.That(result, Has.Length.EqualTo(14)); // 4 bytes for length + 10 bytes for values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(10));
         }
 
@@ -5554,7 +5554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7)); // 4 bytes for length + 3 bytes for values
+            Assert.That(result, Has.Length.EqualTo(7)); // 4 bytes for length + 3 bytes for values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
@@ -5576,7 +5576,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1004)); // 4 bytes for length + 1000 bytes for values
+            Assert.That(result, Has.Length.EqualTo(1004)); // 4 bytes for length + 1000 bytes for values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1000));
             for (int i = 0; i < 1000; i++)
             {
@@ -5597,7 +5597,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -5615,7 +5615,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -5634,7 +5634,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(20)); // 4 bytes for length + 16 bytes for GUID
+            Assert.That(result, Has.Length.EqualTo(20)); // 4 bytes for length + 16 bytes for GUID
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
             byte[] guidBytes = new byte[16];
@@ -5659,7 +5659,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
+            Assert.That(result, Has.Length.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             byte[] guidBytes1 = new byte[16];
@@ -5706,7 +5706,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(36)); // 4 bytes for length + 2 * 16 bytes for GUIDs
+            Assert.That(result, Has.Length.EqualTo(36)); // 4 bytes for length + 2 * 16 bytes for GUIDs
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(2));
             byte[] guidBytes1 = new byte[16];
@@ -5734,7 +5734,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
+            Assert.That(result, Has.Length.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
@@ -5780,7 +5780,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1604)); // 4 bytes for length + 100 * 16 bytes for GUIDs
+            Assert.That(result, Has.Length.EqualTo(1604)); // 4 bytes for length + 100 * 16 bytes for GUIDs
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(100));
         }
@@ -6015,7 +6015,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0], Is.Zero);
             Assert.That(result[1], Is.Zero);
         }
@@ -6033,7 +6033,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(0xFF));
             Assert.That(result[1], Is.EqualTo(0xFF));
         }
@@ -6056,7 +6056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
@@ -6073,7 +6073,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(0x39));
             Assert.That(result[1], Is.EqualTo(0x30));
         }
@@ -6091,7 +6091,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(0x94));
             Assert.That(result[1], Is.EqualTo(0x26));
         }
@@ -6110,7 +6110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(6));
+            Assert.That(result, Has.Length.EqualTo(6));
             // First value (1): 0x01, 0x00
             Assert.That(result[0], Is.EqualTo(0x01));
             Assert.That(result[1], Is.Zero);
@@ -6172,7 +6172,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = stream.ToArray();
 
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
+            Assert.That(result, Has.Length.EqualTo(4), "Should write 4 bytes for Int32 length");
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero, "Length should be 0 for empty string");
         }
@@ -6189,7 +6189,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = stream.ToArray();
 
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
+            Assert.That(result, Has.Length.EqualTo(4), "Should write 4 bytes for Int32 length");
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for null string");
         }
@@ -6206,7 +6206,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -6240,7 +6240,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, emptySpan);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
+            Assert.That(result, Has.Length.EqualTo(4), "Should write 4 bytes for Int32 length");
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for empty span");
         }
@@ -6270,7 +6270,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString("testField", span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4 + arraySize), "Should write 4 bytes for length + data bytes");
+            Assert.That(result, Has.Length.EqualTo(4 + arraySize), "Should write 4 bytes for length + data bytes");
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(arraySize), "Encoded length should match array size");
             byte[] encodedData = new byte[arraySize];
@@ -6301,7 +6301,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4 + maxLength));
+            Assert.That(result, Has.Length.EqualTo(4 + maxLength));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(maxLength));
         }
@@ -6345,7 +6345,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4 + maxLength - 1));
+            Assert.That(result, Has.Length.EqualTo(4 + maxLength - 1));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(maxLength - 1));
         }
@@ -6367,7 +6367,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4 + 10000));
+            Assert.That(result, Has.Length.EqualTo(4 + 10000));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(10000));
         }
@@ -6389,7 +6389,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(5));
+            Assert.That(result, Has.Length.EqualTo(5));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(1));
             Assert.That(result[4], Is.EqualTo(0x42));
@@ -6412,7 +6412,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByteString(null, span);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4 + 1000));
+            Assert.That(result, Has.Length.EqualTo(4 + 1000));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(1000));
         }
@@ -6430,7 +6430,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int actualValue = BitConverter.ToInt32(result, 0);
             Assert.That(actualValue, Is.EqualTo(-1));
         }
@@ -6449,7 +6449,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int actualValue = BitConverter.ToInt32(result, 0);
             Assert.That(actualValue, Is.EqualTo(999));
         }
@@ -6485,7 +6485,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // Only -1 as int32
+            Assert.That(buffer, Has.Length.EqualTo(4)); // Only -1 as int32
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
         }
 
@@ -6502,7 +6502,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // Only 0 as int32
+            Assert.That(buffer, Has.Length.EqualTo(4)); // Only 0 as int32
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.Zero);
         }
 
@@ -6519,7 +6519,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for float
+            Assert.That(buffer, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for float
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
         }
@@ -6537,7 +6537,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(16)); // 4 bytes for length + 12 bytes for 3 floats
+            Assert.That(buffer, Has.Length.EqualTo(16)); // 4 bytes for length + 12 bytes for 3 floats
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(3));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
             Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(-2.5f));
@@ -6557,7 +6557,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
         }
@@ -6574,7 +6574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.PositiveInfinity));
         }
@@ -6591,7 +6591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.NegativeInfinity));
         }
@@ -6608,7 +6608,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MinValue));
         }
@@ -6625,7 +6625,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MaxValue));
         }
@@ -6642,7 +6642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.Zero);
         }
@@ -6659,7 +6659,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(buffer, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(-0.0f));
         }
@@ -6696,7 +6696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(404)); // 4 bytes for length + 400 bytes for 100 floats
+            Assert.That(buffer, Has.Length.EqualTo(404)); // 4 bytes for length + 400 bytes for 100 floats
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(100));
             for (int i = 0; i < 100; i++)
             {
@@ -6716,7 +6716,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(28)); // 4 bytes for length + 24 bytes for 6 floats
+            Assert.That(buffer, Has.Length.EqualTo(28)); // 4 bytes for length + 24 bytes for 6 floats
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(6));
             Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
             Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(float.PositiveInfinity));
@@ -6738,7 +6738,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(24)); // 4 bytes for length + 20 bytes for 5 floats
+            Assert.That(buffer, Has.Length.EqualTo(24)); // 4 bytes for length + 20 bytes for 5 floats
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(5));
         }
 
@@ -6754,7 +6754,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -6770,7 +6770,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -6787,7 +6787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
@@ -6806,7 +6806,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
@@ -6838,7 +6838,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
@@ -6884,7 +6884,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(result, Has.Length.GreaterThan(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
         }
 
@@ -7092,7 +7092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2));
+            Assert.That(result, Has.Length.GreaterThanOrEqualTo(2));
             Assert.That(result[0], Is.EqualTo(expectedBytes[0]));
             Assert.That(result[1], Is.EqualTo(expectedBytes[1]));
         }
@@ -7114,7 +7114,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(6));
+            Assert.That(result, Has.Length.GreaterThanOrEqualTo(6));
             // Value1: 100 = 0x0064
             Assert.That(result[0], Is.EqualTo(0x64));
             Assert.That(result[1], Is.Zero);
@@ -7330,7 +7330,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -7346,7 +7346,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -7366,7 +7366,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5));
+            Assert.That(result, Has.Length.EqualTo(5));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(result[4], Is.EqualTo(value ? (byte)1 : (byte)0));
         }
@@ -7389,7 +7389,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(4));
             Assert.That(result[4], Is.EqualTo(1));
             Assert.That(result[5], Is.Zero);
@@ -7414,7 +7414,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7));
+            Assert.That(result, Has.Length.EqualTo(7));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(result[4], Is.EqualTo(1));
             Assert.That(result[5], Is.EqualTo(1));
@@ -7438,7 +7438,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7));
+            Assert.That(result, Has.Length.EqualTo(7));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(result[4], Is.Zero);
             Assert.That(result[5], Is.Zero);
@@ -7476,7 +7476,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(104));
+            Assert.That(result, Has.Length.EqualTo(104));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(100));
             for (int i = 0; i < 100; i++)
             {
@@ -7503,7 +7503,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9));
+            Assert.That(result, Has.Length.EqualTo(9));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
@@ -7540,7 +7540,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -7556,7 +7556,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -7573,7 +7573,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for DateTime
+            Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for DateTime
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
@@ -7595,7 +7595,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for DateTimes
+            Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for DateTimes
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
@@ -7611,7 +7611,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(result, Has.Length.EqualTo(12));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
@@ -7627,7 +7627,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(result, Has.Length.EqualTo(12));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
@@ -7670,7 +7670,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for DateTimes
+            Assert.That(result, Has.Length.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for DateTimes
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
@@ -7687,7 +7687,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(result, Has.Length.EqualTo(12));
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
@@ -7703,7 +7703,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
+            Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32 = 4 bytes
             using var stream = new MemoryStream(result);
             using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
@@ -7722,7 +7722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
+            Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32 = 4 bytes
             using var stream = new MemoryStream(result);
             using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
@@ -7747,7 +7747,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4)); // More than just the length
+            Assert.That(result, Has.Length.GreaterThan(4)); // More than just the length
             using var stream = new MemoryStream(result);
             using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
@@ -8152,7 +8152,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(2));
+            Assert.That(result, Has.Length.GreaterThan(2));
             ushort writtenIndex = BitConverter.ToUInt16(result, 0);
             Assert.That(writtenIndex, Is.EqualTo(namespaceIndex));
         }
@@ -8333,7 +8333,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(10000));
+            Assert.That(result, Has.Length.GreaterThan(10000));
         }
 
         [TestCase("   ")]
@@ -8396,7 +8396,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -8414,7 +8414,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -8432,7 +8432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for value
+            Assert.That(result, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for value
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
             uint value = BitConverter.ToUInt32(result, 4);
@@ -8460,7 +8460,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(5));
             for (int i = 0; i < 5; i++)
@@ -8483,7 +8483,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
             uint value = BitConverter.ToUInt32(result, 4);
@@ -8503,7 +8503,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
             uint value = BitConverter.ToUInt32(result, 4);
@@ -8533,7 +8533,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32)); // 4 bytes for length + 7 * 4 bytes for values
+            Assert.That(result, Has.Length.EqualTo(32)); // 4 bytes for length + 7 * 4 bytes for values
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(7));
             for (int i = 0; i < values.Length; i++)
@@ -8556,7 +8556,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             uint value = BitConverter.ToUInt32(result, 4);
             Assert.That(value, Is.EqualTo(123u));
         }
@@ -8574,7 +8574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
+            Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32 = 4 bytes
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
@@ -8591,7 +8591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
+            Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32 = 4 bytes
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -8650,7 +8650,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             uint writtenValue = BitConverter.ToUInt32(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedCode));
         }
@@ -8673,7 +8673,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12), "Three StatusCodes should result in 12 bytes (3 * 4 bytes)");
+            Assert.That(result, Has.Length.EqualTo(12), "Three StatusCodes should result in 12 bytes (3 * 4 bytes)");
             uint value1 = BitConverter.ToUInt32(result, 0);
             uint value2 = BitConverter.ToUInt32(result, 4);
             uint value3 = BitConverter.ToUInt32(result, 8);
@@ -8696,7 +8696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             // Verify little-endian byte order: 0x12345678 -> [0x78, 0x56, 0x34, 0x12]
             Assert.That(result[0], Is.EqualTo(0x78));
             Assert.That(result[1], Is.EqualTo(0x56));
@@ -8718,7 +8718,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             uint writtenValue = BitConverter.ToUInt32(result, 0);
             Assert.That(writtenValue, Is.Zero);
         }
@@ -8735,7 +8735,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // Only length is written (0 as int32)
+            Assert.That(result, Has.Length.EqualTo(4)); // Only length is written (0 as int32)
             Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
         }
 
@@ -8751,7 +8751,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
+            Assert.That(result, Has.Length.EqualTo(5)); // Length (4 bytes) + 1 byte value
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(result[4], Is.EqualTo(42));
         }
@@ -8768,7 +8768,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
+            Assert.That(result, Has.Length.EqualTo(9)); // Length (4 bytes) + 5 byte values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
             Assert.That(result[4], Is.EqualTo(1));
             Assert.That(result[5], Is.EqualTo(2));
@@ -8789,7 +8789,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7)); // Length (4 bytes) + 3 byte values
+            Assert.That(result, Has.Length.EqualTo(7)); // Length (4 bytes) + 3 byte values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
             Assert.That(result[4], Is.EqualTo(byte.MinValue));
             Assert.That(result[5], Is.EqualTo(byte.MaxValue));
@@ -8821,7 +8821,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
+            Assert.That(result, Has.Length.EqualTo(9)); // Length (4 bytes) + 5 byte values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
@@ -8837,7 +8837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(6)); // Length (4 bytes) + 2 byte values
+            Assert.That(result, Has.Length.EqualTo(6)); // Length (4 bytes) + 2 byte values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
             Assert.That(result[4], Is.EqualTo(10));
             Assert.That(result[5], Is.EqualTo(20));
@@ -8855,7 +8855,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
+            Assert.That(result, Has.Length.EqualTo(5)); // Length (4 bytes) + 1 byte value
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
             Assert.That(result[4], Is.EqualTo(100));
         }
@@ -8878,7 +8878,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1004)); // Length (4 bytes) + 1000 byte values
+            Assert.That(result, Has.Length.EqualTo(1004)); // Length (4 bytes) + 1000 byte values
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1000));
             for (int i = 0; i < 1000; i++)
             {
@@ -8899,7 +8899,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -8917,7 +8917,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -9057,7 +9057,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(arrayLength, Is.EqualTo(1));
             int elementLength = BitConverter.ToInt32(result, 4);
             Assert.That(elementLength, Is.EqualTo(1000));
-            Assert.That(result.Length, Is.EqualTo(8 + 1000));
+            Assert.That(result, Has.Length.EqualTo(8 + 1000));
         }
 
         [Test]
@@ -9091,7 +9091,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray("TestField", emptyArray);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
             int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.Zero);
         }
@@ -9109,7 +9109,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray("TestField", singleItemArray);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for count + 4 bytes for value
+            Assert.That(result, Has.Length.EqualTo(8)); // 4 bytes for count + 4 bytes for value
             int count = BitConverter.ToInt32(result, 0);
             Assert.That(count, Is.EqualTo(1));
             int value = BitConverter.ToInt32(result, 4);
@@ -9129,7 +9129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray("TestField", multipleItemsArray);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes count + 3 * 4 bytes values
+            Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes count + 3 * 4 bytes values
             int count = BitConverter.ToInt32(result, 0);
             Assert.That(count, Is.EqualTo(3));
             int value1 = BitConverter.ToInt32(result, 4);
@@ -9153,7 +9153,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray("TestField", edgeCaseArray);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(16));
+            Assert.That(result, Has.Length.EqualTo(16));
             int count = BitConverter.ToInt32(result, 0);
             Assert.That(count, Is.EqualTo(3));
             int value1 = BitConverter.ToInt32(result, 4);
@@ -9178,7 +9178,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray("TestField", arrayWithInvalidEnum);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             int count = BitConverter.ToInt32(result, 0);
             Assert.That(count, Is.EqualTo(1));
             int value = BitConverter.ToInt32(result, 4);
@@ -9198,7 +9198,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteEnumeratedArray(null, array);
             byte[] result = stream.ToArray();
             // Assert
-            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(result, Has.Length.EqualTo(8));
             int count = BitConverter.ToInt32(result, 0);
             Assert.That(count, Is.EqualTo(1));
         }
@@ -9217,7 +9217,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(value));
         }
 
@@ -9237,7 +9237,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(value));
         }
 
@@ -9255,7 +9255,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 
@@ -9284,7 +9284,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(testValues.Length));
+            Assert.That(result, Has.Length.EqualTo(testValues.Length));
             for (int i = 0; i < testValues.Length; i++)
             {
                 Assert.That(result[i], Is.EqualTo(testValues[i]), $"Byte at index {i} should match");
@@ -9305,7 +9305,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 
@@ -9325,7 +9325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             byte[] result = stream.ToArray();
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 

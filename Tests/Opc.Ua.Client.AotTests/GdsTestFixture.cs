@@ -33,7 +33,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
-using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
@@ -160,7 +159,7 @@ namespace Opc.Ua.Client.AotTests
             // Select the None security endpoint for simplicity
             var endpointConfiguration =
                 EndpointConfiguration.Create(m_clientConfiguration);
-            using var discoveryClient = await DiscoveryClient.CreateAsync(
+            using DiscoveryClient discoveryClient = await DiscoveryClient.CreateAsync(
                 new Uri(EndpointUrl),
                 endpointConfiguration,
                 Telemetry).ConfigureAwait(false);

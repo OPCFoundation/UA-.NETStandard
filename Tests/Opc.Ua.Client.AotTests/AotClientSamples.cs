@@ -29,7 +29,6 @@
 
 using System.Text;
 using Opc.Ua;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.AotTests;
 
@@ -325,14 +324,10 @@ public static class AotClientSamples
                 int ii = 0;
                 foreach (BrowseResult browseResult in browseResultCollection)
                 {
-                    StatusCode statusCode = browseResult.StatusCode;
-                    if (StatusCode.IsBad(statusCode))
+                    if (browseResult.StatusCode == StatusCodes.BadNoContinuationPoints)
                     {
-                        if (statusCode == StatusCodes.BadNoContinuationPoints)
-                        {
-                            unprocessedOperations.Add(browseCollection[ii++]);
-                            continue;
-                        }
+                        unprocessedOperations.Add(browseCollection[ii++]);
+                        continue;
                     }
                     allBrowseResults.Add(browseResult);
                     ii++;
@@ -433,7 +428,7 @@ public static class AotClientSamples
         var browseDescriptionCollection = new List<BrowseDescription>();
         foreach (NodeId nodeId in nodeIdCollection)
         {
-            var browseDescription = CoreUtils.Clone(template);
+            BrowseDescription browseDescription = CoreUtils.Clone(template);
             browseDescription.NodeId = nodeId;
             browseDescriptionCollection.Add(browseDescription);
         }

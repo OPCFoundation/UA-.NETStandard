@@ -702,4 +702,3 @@ namespace Opc.Ua.Configuration
         Task<ApplicationConfiguration> CreateAsync(CancellationToken ct = default);
     }
 }
-

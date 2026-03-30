@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.AotTests
                 .CertificateValidation += (s, e) => e.Accept = true;
 
             // Connect session
-            var endpointDescription = await CoreClientUtils.SelectEndpointAsync(
+            EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                 m_clientConfiguration, ServerUrl, useSecurity: false,
                 Telemetry, CancellationToken.None).ConfigureAwait(false);
             var configuredEndpoint = new ConfiguredEndpoint(
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.AotTests
         public async Task<ISession> CreateSessionAsync(
             string sessionName = "AotTestNewSession")
         {
-            var endpointDescription = await CoreClientUtils.SelectEndpointAsync(
+            EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                 m_clientConfiguration, ServerUrl, useSecurity: false,
                 Telemetry, CancellationToken.None).ConfigureAwait(false);
             var configuredEndpoint = new ConfiguredEndpoint(
@@ -189,5 +189,4 @@ namespace Opc.Ua.Client.AotTests
             }
         }
     }
-
 }

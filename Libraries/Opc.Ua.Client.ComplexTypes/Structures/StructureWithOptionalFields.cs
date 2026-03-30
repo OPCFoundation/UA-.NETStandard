@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
                 return false;
             }
 
-            for (var ii = 0; ii < m_propertyList.Count; ii++)
+            for (int ii = 0; ii < m_propertyList.Count; ii++)
             {
                 if (m_propertyList[ii].IsOptional &&
                     (m_propertyList[ii].OptionalFieldMask & EncodingMask) == 0)

@@ -1013,8 +1013,8 @@ namespace Opc.Ua
                     }
                     else if (batchLinksToAdd.Count < operationLimit)
                     {
-                        batchLinksToRemove = linksToRemove.Slice(0, (int)operationLimit - batchLinksToAdd.Count);
-                        linksToRemove = linksToRemove.Slice(batchLinksToRemove.Count);
+                        batchLinksToRemove = linksToRemove[..((int)operationLimit - batchLinksToAdd.Count)];
+                        linksToRemove = linksToRemove[batchLinksToRemove.Count..];
                     }
                     else
                     {

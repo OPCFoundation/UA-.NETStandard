@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -206,7 +205,7 @@ namespace Opc.Ua
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
 #pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-                var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
 #pragma warning restore CS0618
                 var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
                 var endpoints = new ConfiguredEndpointCollection();
@@ -256,7 +255,7 @@ namespace Opc.Ua
         public void Save(Stream ostrm)
         {
 #pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-            var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
 #pragma warning restore CS0618
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
             var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
@@ -1544,4 +1543,3 @@ namespace Opc.Ua
         }
     }
 }
-

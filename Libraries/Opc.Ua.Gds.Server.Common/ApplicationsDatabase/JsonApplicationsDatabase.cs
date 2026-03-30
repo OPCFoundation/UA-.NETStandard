@@ -100,8 +100,5 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         IncludeFields = false)]
-    internal partial class GdsApplicationsDatabaseJsonContext : JsonSerializerContext
-    {
-    }
+    internal partial class GdsApplicationsDatabaseJsonContext : JsonSerializerContext;
 }
-

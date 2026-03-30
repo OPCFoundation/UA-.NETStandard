@@ -1576,8 +1576,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // check if there are as many metadata messages as metadata were created in ARRAY
             Assert.That(
-                uaMetaDataNetworkMessages.Count,
-                Is.EqualTo(dataSetMetaDataArray.Length),
+                uaMetaDataNetworkMessages,
+                Has.Count.EqualTo(dataSetMetaDataArray.Length),
                 "The ua-metadata messages count is different from the number of metadata in publisher!");
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
@@ -1617,7 +1617,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // check if there are any metadata messages. second time around there shall be no metadata messages
             Assert.That(
                 uaMetaDataNetworkMessages.Count,
-                Is.EqualTo(0),
+                Is.Zero,
                 "The ua-metadata messages count shall be zero for the second time when create messages is called!");
         }
 
@@ -1698,8 +1698,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // check if there are as many metadata messages as metadata were created in ARRAY
             Assert.That(
-                uaMetaDataNetworkMessages.Count,
-                Is.EqualTo(dataSetMetaDataArray.Length),
+                uaMetaDataNetworkMessages,
+                Has.Count.EqualTo(dataSetMetaDataArray.Length),
                 "The ua-metadata messages count is different from the number of metadata in publisher!");
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
@@ -1739,7 +1739,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // check if there are any metadata messages. second time around there shall be no metadata messages
             Assert.That(
                 uaMetaDataNetworkMessages.Count,
-                Is.EqualTo(0),
+                Is.Zero,
                 "The ua-metadata messages count shall be zero for the second time when create messages is called!");
 
             // change the metadata version
@@ -1776,8 +1776,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
             Assert.That(
-                uaMetaDataNetworkMessages.Count,
-                Is.EqualTo(dataSetMetaDataArray.Length),
+                uaMetaDataNetworkMessages,
+                Has.Count.EqualTo(dataSetMetaDataArray.Length),
                 "After MetaDataVersion change - The ua-metadata messages count shall be equal to number of dataSetMetaData!");
 
             index = 0;
@@ -1881,8 +1881,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             Assert.That(
-                faultIndex < 0,
-                Is.True,
+                faultIndex,
+                Is.LessThan(0),
                 $"publishingInterval={metaDataUpdateTime}, maxDeviation={maxDeviation}, publishTimeInSeconds={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} has maximum deviation");
         }
 
@@ -2325,15 +2325,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.SingleDataSetMessage) == 0)
             {
                 Assert.That(
-                    receivedDataSetMessages.Count,
-                    Is.EqualTo(jsonNetworkMessageEncode.DataSetMessages.Count),
+                    receivedDataSetMessages,
+                    Has.Count.EqualTo(jsonNetworkMessageEncode.DataSetMessages.Count),
                     $"JsonDataSetMessages.Count was not decoded correctly (Count = {receivedDataSetMessages.Count})");
             }
             else
             {
                 Assert.That(
-                    receivedDataSetMessages.Count,
-                    Is.EqualTo(1),
+                    receivedDataSetMessages,
+                    Has.Count.EqualTo(1),
                     $"JsonDataSetMessages.Count was not decoded correctly. There is no SingleDataSetMessage (Coount = {receivedDataSetMessages.Count})");
             }
 
@@ -2356,8 +2356,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     $"DataSet '{jsonDataSetMessage.DataSet.Name}' is missing from subscriber datasets!");
 
                 Assert.That(
-                    decodedDataSet.Fields.Length,
-                    Is.EqualTo(jsonDataSetMessage.DataSet.Fields.Length),
+                    decodedDataSet.Fields,
+                    Has.Length.EqualTo(jsonDataSetMessage.DataSet.Fields.Length),
                     $"DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {jsonDataSetMessage.DataSetWriterId}");
 
                 // check the fields data consistency

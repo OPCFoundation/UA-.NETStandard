@@ -328,7 +328,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
@@ -569,7 +569,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
@@ -775,7 +775,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 

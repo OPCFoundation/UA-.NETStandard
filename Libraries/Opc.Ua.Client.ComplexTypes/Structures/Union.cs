@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
             if (m_switchField != 0)
             {
                 uint unionSelector = m_switchField;
-                for (var ii = 0; ii < m_propertyList.Count; ii++)
+                for (int ii = 0; ii < m_propertyList.Count; ii++)
                 {
                     if (--unionSelector == 0)
                     {

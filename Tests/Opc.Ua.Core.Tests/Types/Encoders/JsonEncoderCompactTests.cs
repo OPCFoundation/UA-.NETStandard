@@ -694,14 +694,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a1 = v1.GetInt64Matrix();
-            Assert.That(a1.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(a1.Dimensions, Has.Length.EqualTo(2));
             Assert.That(a1.Count, Is.EqualTo(6));
             Assert.That(a1.Dimensions[0], Is.EqualTo(2));
             Assert.That(a1.Dimensions[1], Is.EqualTo(3));
 
             Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a2 = v2.GetInt64Matrix();
-            Assert.That(a2.Dimensions.Length, Is.EqualTo(3));
+            Assert.That(a2.Dimensions, Has.Length.EqualTo(3));
             Assert.That(a2.Count, Is.EqualTo(6));
             Assert.That(a2.Dimensions[0], Is.EqualTo(1));
             Assert.That(a2.Dimensions[1], Is.EqualTo(2));
@@ -998,4 +998,3 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
     }
 }
-

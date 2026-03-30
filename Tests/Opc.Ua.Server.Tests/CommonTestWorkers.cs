@@ -872,7 +872,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.MoreNotifications, Is.False);
-            Assert.That(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId), Is.True);
+            Assert.That(subscriptionIds.ToArray(), Does.Contain(publishResponse.SubscriptionId));
             Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code

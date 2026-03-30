@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -926,4 +925,3 @@ namespace TestData
         private VectorVariableValue m_dataDynamicVectorScalarValue;
     }
 }
-

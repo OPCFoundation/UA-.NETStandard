@@ -427,7 +427,7 @@ namespace Opc.Ua.Client
             // Extensions
             var extensions = decoder.ReadXmlElementArray(null);
 
-            var endpoint = new ConfiguredEndpoint(
+            return new ConfiguredEndpoint(
                 null,
                 description ?? new EndpointDescription(),
                 configuration)
@@ -439,8 +439,6 @@ namespace Opc.Ua.Client
                 ReverseConnect = reverseConnect,
                 Extensions = extensions
             };
-
-            return endpoint;
         }
 
         private static void EncodeEndpointConfiguration(

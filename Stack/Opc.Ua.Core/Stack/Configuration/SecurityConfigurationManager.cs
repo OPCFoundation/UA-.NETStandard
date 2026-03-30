@@ -171,7 +171,7 @@ namespace Opc.Ua.Security
                             FileShare.Read);
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
 #pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-                        var ctx = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+                        IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
 #pragma warning restore CS0618
                         var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
                         applicationConfiguration = new ApplicationConfiguration();
@@ -499,7 +499,7 @@ namespace Opc.Ua.Security
         {
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
 #pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-            var context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
 #pragma warning restore CS0618
             // Use element.OuterXml so the XmlParser sees the root element (e.g. <SecurityConfiguration>).
             if (type == typeof(SecurityConfiguration))
@@ -551,4 +551,3 @@ namespace Opc.Ua.Security
         private readonly ITelemetryContext m_telemetry;
     }
 }
-

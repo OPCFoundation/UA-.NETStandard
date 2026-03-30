@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var singleStatusCode = (StatusCode[])variant3.Value;
 #pragma warning restore CS0618 // Type or member is obsolete
-            Assert.That(singleStatusCode.Length, Is.EqualTo(1));
+            Assert.That(singleStatusCode, Has.Length.EqualTo(1));
             Assert.That(singleStatusCode[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             if (expected is Array expectedArray && actual is Array actualArray)
             {
-                Assert.That(actualArray.Length, Is.EqualTo(expectedArray.Length), "Array lengths differ");
+                Assert.That(actualArray, Has.Length.EqualTo(expectedArray.Length), "Array lengths differ");
                 for (int i = 0; i < expectedArray.Length; i++)
                 {
                     AssertValueEquality(expectedArray.GetValue(i), actualArray.GetValue(i));

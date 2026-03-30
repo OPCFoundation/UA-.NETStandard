@@ -1569,7 +1569,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                var browseDescription = CoreUtils.Clone(template);
+                BrowseDescription browseDescription = CoreUtils.Clone(template);
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1798,4 +1798,3 @@ namespace Quickstarts
         private DateTimeUtc m_lastEventTime = DateTimeUtc.Now;
     }
 }
-

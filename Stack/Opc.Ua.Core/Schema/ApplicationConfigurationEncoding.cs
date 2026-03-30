@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Xml;
 
 namespace Opc.Ua
@@ -40,7 +39,6 @@ namespace Opc.Ua
     /// </summary>
     internal static class AppConfigEncoding
     {
-
         /// <summary>
         /// Encodes the contents of an <see cref="ApplicationConfiguration"/> into the encoder.
         /// The caller must have already pushed the root element.
@@ -216,8 +214,6 @@ namespace Opc.Ua
             config.DisableHiResClock = decoder.ReadBoolean("DisableHiResClock");
         }
 
-
-
         internal static void EncodeTransportQuotas(XmlEncoder encoder, TransportQuotas q)
         {
             encoder.WriteInt32("OperationTimeout", q.OperationTimeout);
@@ -234,21 +230,20 @@ namespace Opc.Ua
 
         internal static TransportQuotas DecodeTransportQuotas(XmlParser decoder)
         {
-            var q = new TransportQuotas();
-            q.OperationTimeout = decoder.ReadInt32("OperationTimeout");
-            q.MaxStringLength = decoder.ReadInt32("MaxStringLength");
-            q.MaxByteStringLength = decoder.ReadInt32("MaxByteStringLength");
-            q.MaxArrayLength = decoder.ReadInt32("MaxArrayLength");
-            q.MaxMessageSize = decoder.ReadInt32("MaxMessageSize");
-            q.MaxBufferSize = decoder.ReadInt32("MaxBufferSize");
-            q.MaxEncodingNestingLevels = decoder.ReadInt32("MaxEncodingNestingLevels");
-            q.MaxDecoderRecoveries = decoder.ReadInt32("MaxDecoderRecoveries");
-            q.ChannelLifetime = decoder.ReadInt32("ChannelLifetime");
-            q.SecurityTokenLifetime = decoder.ReadInt32("SecurityTokenLifetime");
-            return q;
+            return new TransportQuotas
+            {
+                OperationTimeout = decoder.ReadInt32("OperationTimeout"),
+                MaxStringLength = decoder.ReadInt32("MaxStringLength"),
+                MaxByteStringLength = decoder.ReadInt32("MaxByteStringLength"),
+                MaxArrayLength = decoder.ReadInt32("MaxArrayLength"),
+                MaxMessageSize = decoder.ReadInt32("MaxMessageSize"),
+                MaxBufferSize = decoder.ReadInt32("MaxBufferSize"),
+                MaxEncodingNestingLevels = decoder.ReadInt32("MaxEncodingNestingLevels"),
+                MaxDecoderRecoveries = decoder.ReadInt32("MaxDecoderRecoveries"),
+                ChannelLifetime = decoder.ReadInt32("ChannelLifetime"),
+                SecurityTokenLifetime = decoder.ReadInt32("SecurityTokenLifetime")
+            };
         }
-
-
 
         internal static void EncodeTraceConfiguration(XmlEncoder encoder, TraceConfiguration tc)
         {
@@ -268,8 +263,6 @@ namespace Opc.Ua
             tc.TraceMasks = decoder.ReadInt32("TraceMasks");
         }
 
-
-
         internal static void EncodeTransportConfiguration(XmlEncoder encoder, TransportConfiguration tc)
         {
             if (tc.UriScheme != null)
@@ -285,10 +278,11 @@ namespace Opc.Ua
 
         internal static TransportConfiguration DecodeTransportConfiguration(XmlParser decoder)
         {
-            var tc = new TransportConfiguration();
-            tc.UriScheme = decoder.ReadString("UriScheme");
-            tc.TypeName = decoder.ReadString("TypeName");
-            return tc;
+            return new TransportConfiguration
+            {
+                UriScheme = decoder.ReadString("UriScheme"),
+                TypeName = decoder.ReadString("TypeName")
+            };
         }
 
         internal static void EncodeTransportConfigurationCollection(
@@ -323,8 +317,6 @@ namespace Opc.Ua
 
             return collection;
         }
-
-
 
         internal static void EncodeServerSecurityPolicy(XmlEncoder encoder, ServerSecurityPolicy policy)
         {
@@ -391,8 +383,6 @@ namespace Opc.Ua
 
             return collection;
         }
-
-
 
         internal static void EncodeSecurityConfiguration(
             XmlEncoder encoder,
@@ -633,25 +623,25 @@ namespace Opc.Ua
             config.AddAppCertToTrustedStore = decoder.ReadBoolean("AddAppCertToTrustedStore");
             config.SendCertificateChain = decoder.ReadBoolean("SendCertificateChain");
 
-            var userIssuer = DecodeCertificateTrustList(decoder, "UserIssuerCertificates");
+            CertificateTrustList userIssuer = DecodeCertificateTrustList(decoder, "UserIssuerCertificates");
             if (userIssuer != null)
             {
                 config.UserIssuerCertificates = userIssuer;
             }
 
-            var trustedUser = DecodeCertificateTrustList(decoder, "TrustedUserCertificates");
+            CertificateTrustList trustedUser = DecodeCertificateTrustList(decoder, "TrustedUserCertificates");
             if (trustedUser != null)
             {
                 config.TrustedUserCertificates = trustedUser;
             }
 
-            var httpsIssuer = DecodeCertificateTrustList(decoder, "HttpsIssuerCertificates");
+            CertificateTrustList httpsIssuer = DecodeCertificateTrustList(decoder, "HttpsIssuerCertificates");
             if (httpsIssuer != null)
             {
                 config.HttpsIssuerCertificates = httpsIssuer;
             }
 
-            var trustedHttps = DecodeCertificateTrustList(decoder, "TrustedHttpsCertificates");
+            CertificateTrustList trustedHttps = DecodeCertificateTrustList(decoder, "TrustedHttpsCertificates");
             if (trustedHttps != null)
             {
                 config.TrustedHttpsCertificates = trustedHttps;
@@ -659,8 +649,6 @@ namespace Opc.Ua
 
             config.SuppressNonceValidationErrors = decoder.ReadBoolean("SuppressNonceValidationErrors");
         }
-
-
 
         internal static void EncodeSamplingRateGroup(XmlEncoder encoder, SamplingRateGroup g)
         {
@@ -671,11 +659,12 @@ namespace Opc.Ua
 
         internal static SamplingRateGroup DecodeSamplingRateGroup(XmlParser decoder)
         {
-            var g = new SamplingRateGroup();
-            g.Start = decoder.ReadDouble("Start");
-            g.Increment = decoder.ReadDouble("Increment");
-            g.Count = decoder.ReadInt32("Count");
-            return g;
+            return new SamplingRateGroup
+            {
+                Start = decoder.ReadDouble("Start"),
+                Increment = decoder.ReadDouble("Increment"),
+                Count = decoder.ReadInt32("Count")
+            };
         }
 
         internal static void EncodeSamplingRateGroupCollection(
@@ -710,8 +699,6 @@ namespace Opc.Ua
 
             return collection;
         }
-
-
 
         internal static void EncodeServerBaseConfiguration(
             XmlEncoder encoder,
@@ -748,8 +735,6 @@ namespace Opc.Ua
             config.MaxQueuedRequestCount = decoder.ReadInt32("MaxQueuedRequestCount");
         }
 
-
-
         internal static void EncodeOperationLimits(XmlEncoder encoder, OperationLimits limits)
         {
             encoder.WriteUInt32("MaxNodesPerRead", limits.MaxNodesPerRead);
@@ -770,24 +755,23 @@ namespace Opc.Ua
 
         internal static OperationLimits DecodeOperationLimits(XmlParser decoder)
         {
-            var limits = new OperationLimits();
-            limits.MaxNodesPerRead = decoder.ReadUInt32("MaxNodesPerRead");
-            limits.MaxNodesPerHistoryReadData = decoder.ReadUInt32("MaxNodesPerHistoryReadData");
-            limits.MaxNodesPerHistoryReadEvents = decoder.ReadUInt32("MaxNodesPerHistoryReadEvents");
-            limits.MaxNodesPerWrite = decoder.ReadUInt32("MaxNodesPerWrite");
-            limits.MaxNodesPerHistoryUpdateData = decoder.ReadUInt32("MaxNodesPerHistoryUpdateData");
-            limits.MaxNodesPerHistoryUpdateEvents = decoder.ReadUInt32("MaxNodesPerHistoryUpdateEvents");
-            limits.MaxNodesPerMethodCall = decoder.ReadUInt32("MaxNodesPerMethodCall");
-            limits.MaxNodesPerBrowse = decoder.ReadUInt32("MaxNodesPerBrowse");
-            limits.MaxNodesPerRegisterNodes = decoder.ReadUInt32("MaxNodesPerRegisterNodes");
-            limits.MaxNodesPerTranslateBrowsePathsToNodeIds =
-                decoder.ReadUInt32("MaxNodesPerTranslateBrowsePathsToNodeIds");
-            limits.MaxNodesPerNodeManagement = decoder.ReadUInt32("MaxNodesPerNodeManagement");
-            limits.MaxMonitoredItemsPerCall = decoder.ReadUInt32("MaxMonitoredItemsPerCall");
-            return limits;
+            return new OperationLimits
+            {
+                MaxNodesPerRead = decoder.ReadUInt32("MaxNodesPerRead"),
+                MaxNodesPerHistoryReadData = decoder.ReadUInt32("MaxNodesPerHistoryReadData"),
+                MaxNodesPerHistoryReadEvents = decoder.ReadUInt32("MaxNodesPerHistoryReadEvents"),
+                MaxNodesPerWrite = decoder.ReadUInt32("MaxNodesPerWrite"),
+                MaxNodesPerHistoryUpdateData = decoder.ReadUInt32("MaxNodesPerHistoryUpdateData"),
+                MaxNodesPerHistoryUpdateEvents = decoder.ReadUInt32("MaxNodesPerHistoryUpdateEvents"),
+                MaxNodesPerMethodCall = decoder.ReadUInt32("MaxNodesPerMethodCall"),
+                MaxNodesPerBrowse = decoder.ReadUInt32("MaxNodesPerBrowse"),
+                MaxNodesPerRegisterNodes = decoder.ReadUInt32("MaxNodesPerRegisterNodes"),
+                MaxNodesPerTranslateBrowsePathsToNodeIds =
+                    decoder.ReadUInt32("MaxNodesPerTranslateBrowsePathsToNodeIds"),
+                MaxNodesPerNodeManagement = decoder.ReadUInt32("MaxNodesPerNodeManagement"),
+                MaxMonitoredItemsPerCall = decoder.ReadUInt32("MaxMonitoredItemsPerCall")
+            };
         }
-
-
 
         internal static void EncodeReverseConnectServerConfiguration(
             XmlEncoder encoder,
@@ -830,8 +814,6 @@ namespace Opc.Ua
             return config;
         }
 
-
-
         internal static void EncodeReverseConnectClient(XmlEncoder encoder, ReverseConnectClient client)
         {
             encoder.WriteString("EndpointUrl", client.EndpointUrl);
@@ -842,12 +824,13 @@ namespace Opc.Ua
 
         internal static ReverseConnectClient DecodeReverseConnectClient(XmlParser decoder)
         {
-            var client = new ReverseConnectClient();
-            client.EndpointUrl = decoder.ReadString("EndpointUrl");
-            client.Timeout = decoder.ReadInt32("Timeout");
-            client.MaxSessionCount = decoder.ReadInt32("MaxSessionCount");
-            client.Enabled = decoder.ReadBoolean("Enabled");
-            return client;
+            return new ReverseConnectClient
+            {
+                EndpointUrl = decoder.ReadString("EndpointUrl"),
+                Timeout = decoder.ReadInt32("Timeout"),
+                MaxSessionCount = decoder.ReadInt32("MaxSessionCount"),
+                Enabled = decoder.ReadBoolean("Enabled")
+            };
         }
 
         internal static void EncodeReverseConnectClientCollection(
@@ -882,8 +865,6 @@ namespace Opc.Ua
 
             return collection;
         }
-
-
 
         internal static void EncodeServerConfiguration(XmlEncoder encoder, ServerConfiguration config)
         {
@@ -1105,8 +1086,6 @@ namespace Opc.Ua
             config.ValidateSecurityPolicies();
         }
 
-
-
         internal static void EncodeClientConfiguration(XmlEncoder encoder, ClientConfiguration config)
         {
             // Order 0: DefaultSessionTimeout
@@ -1162,8 +1141,6 @@ namespace Opc.Ua
                 DecodeOperationLimits);
         }
 
-
-
         internal static void EncodeReverseConnectClientConfiguration(
             XmlEncoder encoder,
             ReverseConnectClientConfiguration config)
@@ -1201,8 +1178,6 @@ namespace Opc.Ua
             return config;
         }
 
-
-
         internal static void EncodeReverseConnectClientEndpoint(
             XmlEncoder encoder,
             ReverseConnectClientEndpoint endpoint)
@@ -1213,9 +1188,10 @@ namespace Opc.Ua
         internal static ReverseConnectClientEndpoint DecodeReverseConnectClientEndpoint(
             XmlParser decoder)
         {
-            var endpoint = new ReverseConnectClientEndpoint();
-            endpoint.EndpointUrl = decoder.ReadString("EndpointUrl");
-            return endpoint;
+            return new ReverseConnectClientEndpoint
+            {
+                EndpointUrl = decoder.ReadString("EndpointUrl")
+            };
         }
 
         internal static void EncodeReverseConnectClientEndpointCollection(
@@ -1250,8 +1226,6 @@ namespace Opc.Ua
 
             return collection;
         }
-
-
 
         internal static void EncodeDiscoveryServerConfiguration(
             XmlEncoder encoder,
@@ -1299,8 +1273,6 @@ namespace Opc.Ua
             config.ValidateSecurityPolicies();
         }
 
-
-
         internal static void EncodeServerRegistration(XmlEncoder encoder, ServerRegistration reg)
         {
             // Order 1: ApplicationUri (EmitDefaultValue=false)
@@ -1318,10 +1290,11 @@ namespace Opc.Ua
 
         internal static ServerRegistration DecodeServerRegistration(XmlParser decoder)
         {
-            var reg = new ServerRegistration();
-            reg.ApplicationUri = decoder.ReadString("ApplicationUri");
-            reg.AlternateDiscoveryUrls = decoder.ReadStringArray("AlternateDiscoveryUrls");
-            return reg;
+            return new ServerRegistration
+            {
+                ApplicationUri = decoder.ReadString("ApplicationUri"),
+                AlternateDiscoveryUrls = decoder.ReadStringArray("AlternateDiscoveryUrls")
+            };
         }
 
         internal static void EncodeServerRegistrationCollection(
@@ -1357,8 +1330,6 @@ namespace Opc.Ua
             return collection;
         }
 
-
-
         internal static void EncodeCertificateStoreIdentifier(
             XmlEncoder encoder,
             CertificateStoreIdentifier store)
@@ -1390,8 +1361,6 @@ namespace Opc.Ua
             store.StorePath = decoder.ReadString("StorePath");
             store.XmlEncodedValidationOptions = decoder.ReadInt32("ValidationOptions");
         }
-
-
 
         internal static void EncodeCertificateTrustList(
             XmlEncoder encoder,
@@ -1453,8 +1422,6 @@ namespace Opc.Ua
             return trustList;
         }
 
-
-
         internal static void EncodeCertificateIdentifier(
             XmlEncoder encoder,
             CertificateIdentifier cert)
@@ -1514,11 +1481,13 @@ namespace Opc.Ua
 
         internal static CertificateIdentifier DecodeCertificateIdentifier(XmlParser decoder)
         {
-            var cert = new CertificateIdentifier();
-            cert.StoreType = decoder.ReadString("StoreType");
-            cert.StorePath = decoder.ReadString("StorePath");
-            cert.SubjectName = decoder.ReadString("SubjectName");
-            cert.Thumbprint = decoder.ReadString("Thumbprint");
+            var cert = new CertificateIdentifier
+            {
+                StoreType = decoder.ReadString("StoreType"),
+                StorePath = decoder.ReadString("StorePath"),
+                SubjectName = decoder.ReadString("SubjectName"),
+                Thumbprint = decoder.ReadString("Thumbprint")
+            };
 
             ByteString rawData = decoder.ReadByteString("RawData");
             if (!rawData.IsNull)
@@ -1543,8 +1512,6 @@ namespace Opc.Ua
 
             return cert;
         }
-
-
 
         internal static void EncodeConfiguredEndpointCollection(
             XmlEncoder encoder,
@@ -1588,7 +1555,7 @@ namespace Opc.Ua
                 {
                     decoder.ReadStartElement();
                     decoder.PushNamespace(Namespaces.OpcUaConfig);
-                    var endpoint = DecodeConfiguredEndpoint(decoder);
+                    ConfiguredEndpoint endpoint = DecodeConfiguredEndpoint(decoder);
                     endpoint.Collection = collection;
                     collection.Endpoints.Add(endpoint);
                     decoder.PopNamespace();
@@ -1605,8 +1572,6 @@ namespace Opc.Ua
                 collection.TcpProxyUrl = new Uri(tcpProxy);
             }
         }
-
-
 
         internal static void EncodeConfiguredEndpoint(XmlEncoder encoder, ConfiguredEndpoint endpoint)
         {
@@ -1681,8 +1646,6 @@ namespace Opc.Ua
             return endpoint;
         }
 
-
-
         internal static void EncodeReverseConnectEndpoint(
             XmlEncoder encoder,
             ReverseConnectEndpoint endpoint)
@@ -1694,14 +1657,13 @@ namespace Opc.Ua
 
         internal static ReverseConnectEndpoint DecodeReverseConnectEndpoint(XmlParser decoder)
         {
-            var endpoint = new ReverseConnectEndpoint();
-            endpoint.Enabled = decoder.ReadBoolean("Enabled");
-            endpoint.ServerUri = decoder.ReadString("ServerUri");
-            endpoint.Thumbprint = decoder.ReadString("Thumbprint");
-            return endpoint;
+            return new ReverseConnectEndpoint
+            {
+                Enabled = decoder.ReadBoolean("Enabled"),
+                ServerUri = decoder.ReadString("ServerUri"),
+                Thumbprint = decoder.ReadString("Thumbprint")
+            };
         }
-
-
 
         /// <summary>
         /// Parses an enum from a string that may be in either "Name_Value" or plain "Name" format.
@@ -1720,7 +1682,7 @@ namespace Opc.Ua
 #pragma warning disable CA1846
             if (idx >= 0 &&
                 int.TryParse(
-                    value.Substring(idx + 1),
+                    value[(idx + 1)..],
                     System.Globalization.NumberStyles.Integer,
                     System.Globalization.CultureInfo.InvariantCulture,
                     out int intVal))
@@ -1743,6 +1705,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes an optional nested DataContract object using the Peek/ReadStartElement/decode/Skip pattern.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         private static T DecodeOptionalObject<T>(
             XmlParser decoder,
             string elementName,
@@ -1760,7 +1723,6 @@ namespace Opc.Ua
             decoder.Skip(new XmlQualifiedName(elementName, Namespaces.OpcUaConfig));
             return result;
         }
-
     }
 
     /// <summary>

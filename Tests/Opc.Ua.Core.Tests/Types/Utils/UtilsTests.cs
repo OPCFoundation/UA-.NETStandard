@@ -84,10 +84,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(Utils.ToHexString(littleEndian, false), Is.EqualTo("CEFA"));
         }
 
-        /// <summary>
-        /// Convert to big endian hex string.
-        /// </summary>
-        private void ToHexBigEndian()
+        [Test]
+        public void ToHexBigEndian()
         {
             byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "FF06050403020100";

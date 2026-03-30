@@ -226,11 +226,11 @@ namespace Opc.Ua.Client.Tests
                     var nodeSet = UANodeSet.Read(stream);
                     Assert.That(nodeSet, Is.Not.Null, "Should be able to read the exported NodeSet2");
                     Assert.That(nodeSet.Items, Is.Not.Null, "NodeSet2 should contain items");
-                    Assert.That(nodeSet.Items.Length, Is.EqualTo(allNodes.Count), "Should have exported all nodes");
+                    Assert.That(nodeSet.Items, Has.Length.EqualTo(allNodes.Count), "Should have exported all nodes");
 
                     // Verify we have different node types
                     var nodeTypes = nodeSet.Items.Select(n => n.GetType()).Distinct().ToList();
-                    Assert.That(nodeTypes.Count, Is.GreaterThan(1), "Should have multiple node types");
+                    Assert.That(nodeTypes, Has.Count.GreaterThan(1), "Should have multiple node types");
                 }
             }
             finally
@@ -299,7 +299,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     nodeSet.Import(localContext, importedNodeStates);
-                    Assert.That(importedNodeStates.Count, Is.EqualTo(allNodes.Count), "Should have imported all nodes");
+                    Assert.That(importedNodeStates, Has.Count.EqualTo(allNodes.Count), "Should have imported all nodes");
                 }
             }
             finally
@@ -672,13 +672,13 @@ namespace Opc.Ua.Client.Tests
                     List<UAMethod> methodsNoContext = nodeSetNoContext.Items?.OfType<UAMethod>().ToList() ?? [];
                     List<UAMethod> methodsWithContext = nodeSetWithContext.Items?.OfType<UAMethod>().ToList() ?? [];
 
-                    Assert.That(methodsWithContext.Count, Is.EqualTo(methodsNoContext.Count), "Should have same number of methods");
+                    Assert.That(methodsWithContext, Has.Count.EqualTo(methodsNoContext.Count), "Should have same number of methods");
 
                     // Variables with context should potentially have UserAccessLevel if different from AccessLevel
                     List<UAVariable> variablesNoContext = nodeSetNoContext.Items?.OfType<UAVariable>().ToList() ?? [];
                     List<UAVariable> variablesWithContext = nodeSetWithContext.Items?.OfType<UAVariable>().ToList() ?? [];
 
-                    Assert.That(variablesWithContext.Count, Is.EqualTo(variablesNoContext.Count), "Should have same number of variables");
+                    Assert.That(variablesWithContext, Has.Count.EqualTo(variablesNoContext.Count), "Should have same number of variables");
 
                     // File with user context should be larger or equal
                     var fileNoContext = new FileInfo(tempFileNoContext);

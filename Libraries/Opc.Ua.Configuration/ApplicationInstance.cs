@@ -1152,4 +1152,3 @@ namespace Opc.Ua.Configuration
         private readonly ILogger m_logger;
     }
 }
-

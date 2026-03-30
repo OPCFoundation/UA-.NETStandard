@@ -4393,12 +4393,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             public void Encode(IEncoder encoder)
             {
             }
+
             public void Decode(IDecoder decoder)
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable) => false;
-            public object Clone() => new CoverageTestEncodeable();
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new CoverageTestEncodeable();
+            }
         }
 
         [DataContract(Name = "CoverageTestEncodeableWithData", Namespace = Namespaces.OpcUaXsd)]

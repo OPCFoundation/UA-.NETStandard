@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        private void GlobalSetup()
+        public void GlobalSetup()
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
@@ -1096,7 +1096,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        private void GlobalCleanup()
+        public void GlobalCleanup()
         {
             m_context = null;
             m_memoryStream.Dispose();

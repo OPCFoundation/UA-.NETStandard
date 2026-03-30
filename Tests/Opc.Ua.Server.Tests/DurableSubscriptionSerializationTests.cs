@@ -189,7 +189,6 @@ namespace Opc.Ua.Server.Tests
                 Is.Zero);
         }
 
-
         [Test]
         public void RoundTripStorableDataChangeQueue()
         {

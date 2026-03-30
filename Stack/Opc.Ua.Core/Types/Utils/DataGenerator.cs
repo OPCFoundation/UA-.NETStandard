@@ -30,13 +30,11 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Test
 {

@@ -191,8 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 }
             }
             Assert.That(
-                faultIndex < 0,
-                Is.True,
+                faultIndex,
+                Is.LessThan(0),
                 $"publishingInterval={publishingInterval}, maxDeviation={maxDeviation}, publishTimeInSecods={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} as max deviation");
         }
     }

@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            var copy = CreateCopy();
+            NodeState copy = CreateCopy();
             CopyTo(copy);
             return copy;
         }
@@ -238,7 +238,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    var child = CoreUtils.Clone(children[ii]);
+                    BaseInstanceState child = CoreUtils.Clone(children[ii]);
                     clone.m_children.Add(child);
                 }
             }

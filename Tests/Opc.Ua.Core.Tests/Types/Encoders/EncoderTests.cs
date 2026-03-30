@@ -35,9 +35,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Xml;
-using System.Text.Json;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {

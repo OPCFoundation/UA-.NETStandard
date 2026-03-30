@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             MatrixOf<ExtensionObject> resultMatrix = result.GetExtensionObjectMatrix();
             Assert.That(resultMatrix.IsNull, Is.False);
             Assert.That(resultMatrix.Count, Is.EqualTo(2));
-            Assert.That(resultMatrix.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(resultMatrix.Dimensions, Has.Length.EqualTo(2));
             Assert.That(resultMatrix.Dimensions[0], Is.EqualTo(2));
             Assert.That(resultMatrix.Dimensions[1], Is.EqualTo(1));
         }
@@ -1213,7 +1213,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             MatrixOf<int> resultMatrix = result.GetInt32Matrix();
             Assert.That(resultMatrix.IsNull, Is.False);
-            Assert.That(resultMatrix.Dimensions.Length, Is.EqualTo(1));
+            Assert.That(resultMatrix.Dimensions, Has.Length.EqualTo(1));
             Assert.That(resultMatrix.Count, Is.Zero);
         }
 

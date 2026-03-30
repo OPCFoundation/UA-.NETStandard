@@ -838,13 +838,13 @@ namespace Opc.Ua.Client
             cts.Dispose();
         }
 
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        private Type? m_configType;
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-        private Type? m_configType;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
@@ -853,4 +853,3 @@ namespace Opc.Ua.Client
         private CancellationTokenSource m_cts;
     }
 }
-

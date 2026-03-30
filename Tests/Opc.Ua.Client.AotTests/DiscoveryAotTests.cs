@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Client;
-
 namespace Opc.Ua.Client.AotTests
 {
     /// <summary>
@@ -44,7 +41,7 @@ namespace Opc.Ua.Client.AotTests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = await DiscoveryClient.CreateAsync(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 new Uri(fixture.ServerUrl),
                 endpointConfiguration,
                 fixture.Telemetry).ConfigureAwait(false);
@@ -62,7 +59,7 @@ namespace Opc.Ua.Client.AotTests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using var client = await DiscoveryClient.CreateAsync(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 new Uri(fixture.ServerUrl),
                 endpointConfiguration,
                 fixture.Telemetry).ConfigureAwait(false);

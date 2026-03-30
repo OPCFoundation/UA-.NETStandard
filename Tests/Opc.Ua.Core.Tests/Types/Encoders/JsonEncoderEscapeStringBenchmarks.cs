@@ -40,7 +40,6 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using NUnit.Framework;
 
-
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     [TestFixture]
@@ -913,4 +912,3 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         };
     }
 }
-

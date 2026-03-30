@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Client;
-
 namespace Opc.Ua.Client.AotTests
 {
     /// <summary>
@@ -154,7 +151,7 @@ namespace Opc.Ua.Client.AotTests
             // Clone subscriptions for transfer
             var sourceSubscriptions =
                 new SubscriptionCollection(sourceSession.Subscriptions);
-            var transferSubscriptions =
+            SubscriptionCollection transferSubscriptions =
                 sourceSubscriptions.CloneSubscriptions(false);
 
             foreach (Subscription s in transferSubscriptions)

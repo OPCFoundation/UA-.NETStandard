@@ -186,9 +186,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(decodedsan.DomainNames, Is.Not.Null);
             Assert.That(decodedsan.IPAddresses, Is.Not.Null);
             Assert.That(decodedsan.Uris, Is.Not.Null);
-            Assert.That(decodedsan.Uris.Count, Is.EqualTo(1));
-            Assert.That(decodedsan.DomainNames.Count, Is.EqualTo(1));
-            Assert.That(decodedsan.IPAddresses.Count, Is.EqualTo(2));
+            Assert.That(decodedsan.Uris, Has.Count.EqualTo(1));
+            Assert.That(decodedsan.DomainNames, Has.Count.EqualTo(1));
+            Assert.That(decodedsan.IPAddresses, Has.Count.EqualTo(2));
             Assert.That(san.Oid.Value, Is.EqualTo(decodedsan.Oid.Value));
             Assert.That(san.Critical, Is.EqualTo(decodedsan.Critical));
             Assert.That(decodedsan.Uris[0], Is.EqualTo(applicationUri));

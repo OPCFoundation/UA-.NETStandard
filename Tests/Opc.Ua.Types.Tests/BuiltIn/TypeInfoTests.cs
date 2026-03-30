@@ -1606,7 +1606,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Array array = TypeInfo.CreateArray(type, 3);
             Assert.That(array, Is.Not.Null);
             Assert.That(array.GetType(), Is.EqualTo(expectedArrayType));
-            Assert.That(array.Length, Is.EqualTo(3));
+            Assert.That(array, Has.Length.EqualTo(3));
         }
 
         [Test]

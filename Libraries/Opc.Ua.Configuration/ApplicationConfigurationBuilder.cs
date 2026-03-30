@@ -1483,4 +1483,3 @@ namespace Opc.Ua.Configuration
         private bool m_typeSelected;
     }
 }
-

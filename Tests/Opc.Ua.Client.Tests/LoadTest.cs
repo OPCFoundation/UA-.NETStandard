@@ -483,7 +483,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
-                Assert.That(readErrors.Count, Is.Zero, "There were read errors.");
+                Assert.That(readErrors, Is.Empty, "There were read errors.");
                 Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
                 Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
             }

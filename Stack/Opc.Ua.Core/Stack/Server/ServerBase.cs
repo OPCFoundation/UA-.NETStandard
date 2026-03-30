@@ -1352,15 +1352,12 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             StringTable stringTable)
         {
-            var responseHeader = new ResponseHeader
+            return new ResponseHeader
             {
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle
+                RequestHandle = requestHeader.RequestHandle,
+                StringTable = stringTable.ToArrayOf()
             };
-
-            responseHeader.StringTable = stringTable.ToArrayOf();
-
-            return responseHeader;
         }
 
         /// <summary>
@@ -1641,7 +1638,7 @@ namespace Opc.Ua
                 );
 
                 // Start worker tasks
-                var token = m_cts.Token;
+                CancellationToken token = m_cts.Token;
                 for (int i = 0; i < m_minThreadCount; i++)
                 {
                     m_workers.Add(Task.Run(() => WorkerLoopAsync(token)));

@@ -264,7 +264,7 @@ namespace Quickstarts.Servers
                 PublishingInterval = decoder.ReadDouble(null),
                 Priority = decoder.ReadByte(null),
                 LastSentMessage = decoder.ReadInt32(null),
-                SequenceNumber = decoder.ReadUInt32(null),
+                SequenceNumber = decoder.ReadUInt32(null)
             };
 
             ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
@@ -315,7 +315,7 @@ namespace Quickstarts.Servers
                 DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null),
                 TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null),
                 ClientHandle = decoder.ReadUInt32(null),
-                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null),
+                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null)
             };
 
             ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
@@ -351,4 +351,3 @@ namespace Quickstarts.Servers
         }
     }
 }
-

@@ -673,7 +673,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
-            Assert.That(result.Length, Is.EqualTo(2001));
+            Assert.That(result, Has.Length.EqualTo(2001));
         }
 
         /// <summary>
@@ -999,7 +999,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longName));
-            Assert.That(result.Length, Is.EqualTo(1000));
+            Assert.That(result, Has.Length.EqualTo(1000));
         }
 
         /// <summary>
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(20001)); // 10000 + 1 (PathChar) + 10000
+            Assert.That(result, Has.Length.EqualTo(20001)); // 10000 + 1 (PathChar) + 10000
             Assert.That(result, Does.StartWith(longParentName));
             Assert.That(result, Does.Contain("_"));
             Assert.That(result, Does.EndWith(longChildName));

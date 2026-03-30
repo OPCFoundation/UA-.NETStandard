@@ -27,20 +27,20 @@ namespace Opc.Ua.Core.Tests.Schema
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
                     SecurityPolicies.Basic128Rsa15,
-                    logger) <
-                SecuredApplication.CalculateSecurityLevel(
+                    logger),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.Basic128Rsa15,
-                    logger));
+                    logger)));
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
                     SecurityPolicies.Basic128Rsa15,
-                    logger) <
-                SecuredApplication.CalculateSecurityLevel(
+                    logger),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.Aes256_Sha256_RsaPss,
-                    logger));
+                    logger)));
         }
 
         /// <summary>
@@ -78,36 +78,36 @@ namespace Opc.Ua.Core.Tests.Schema
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic128Rsa15, logger) <
-                SecuredApplication.CalculateSecurityLevel(
+                    SecurityPolicies.Basic128Rsa15, logger),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic256, logger));
+                    SecurityPolicies.Basic256, logger)));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic256, logger) <
-                SecuredApplication.CalculateSecurityLevel(
+                    SecurityPolicies.Basic256, logger),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic256Sha256, logger));
+                    SecurityPolicies.Basic256Sha256, logger)));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic256Sha256, logger) <
-                SecuredApplication.CalculateSecurityLevel(
+                    SecurityPolicies.Basic256Sha256, logger),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Aes128_Sha256_RsaOaep, logger));
+                    SecurityPolicies.Aes128_Sha256_RsaOaep, logger)));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
                     SecurityPolicies.Aes128_Sha256_RsaOaep,
                     logger
-                ) <
-                SecuredApplication.CalculateSecurityLevel(
+                ),
+                Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Aes256_Sha256_RsaPss, logger));
+                    SecurityPolicies.Aes256_Sha256_RsaPss, logger)));
         }
     }
 }

@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.AotTests
         [Test]
         public async Task BrowseFullAddressSpace()
         {
-            var refs = await AotClientSamples
+            ArrayOf<ReferenceDescription> refs = await AotClientSamples
                 .BrowseFullAddressSpaceAsync(
                     fixture.Session!, ObjectIds.RootFolder)
                 .ConfigureAwait(false);
@@ -91,7 +91,7 @@ namespace Opc.Ua.Client.AotTests
         [Test]
         public async Task FetchAllNodesNodeCache()
         {
-            var nodes = await AotClientSamples
+            IList<INode> nodes = await AotClientSamples
                 .FetchAllNodesNodeCacheAsync(
                     fixture.Session!, ObjectIds.ObjectsFolder)
                 .ConfigureAwait(false);
