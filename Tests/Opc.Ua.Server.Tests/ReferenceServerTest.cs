@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests
         [GlobalCleanup]
         public async Task GlobalCleanupAsync()
         {
-            await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, true, CancellationToken.None).ConfigureAwait(false);
+            await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, true, RequestLifetime.None).ConfigureAwait(false);
             await m_fixture.StopAsync().ConfigureAwait(false);
             Thread.Sleep(1000);
         }
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests
         {
             // test that the server accepts an invalid timestamp
             m_requestHeader.Timestamp = DateTimeUtc.Now - TimeSpan.FromDays(30);
-            await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, false, CancellationToken.None).ConfigureAwait(false);
+            await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, false, RequestLifetime.None).ConfigureAwait(false);
             m_sessionClosed = true;
         }
 
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Neither,
                 readIdCollection,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 readResponse.DiagnosticInfos,
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 kMaxAge,
                 TimestampsToReturn.Neither,
-                nodesToRead, CancellationToken.None).ConfigureAwait(false);
+                nodesToRead, RequestLifetime.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 readResponse.DiagnosticInfos,
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests
                     requestHeader,
                     kMaxAge,
                     TimestampsToReturn.Both,
-                    nodesToRead, CancellationToken.None).ConfigureAwait(false);
+                    nodesToRead, RequestLifetime.None).ConfigureAwait(false);
                 ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     readResponse.DiagnosticInfos,
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server.Tests
             WriteResponse writeResponse = await m_server.WriteAsync(
                 m_secureChannelContext,
                 requestHeader,
-                nodesToWrite, CancellationToken.None).ConfigureAwait(false);
+                nodesToWrite, RequestLifetime.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 writeResponse.DiagnosticInfos,
@@ -425,7 +425,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(firstReadResponse, Is.Not.Null);
             Assert.That(firstReadResponse.Results.IsNull, Is.False);
@@ -452,7 +452,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(secondReadResponse, Is.Not.Null);
             Assert.That(secondReadResponse.Results.IsNull, Is.False);
@@ -502,7 +502,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(firstReadResponse, Is.Not.Null);
             Assert.That(firstReadResponse.Results.IsNull, Is.False);
@@ -529,7 +529,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(secondReadResponse, Is.Not.Null);
             Assert.That(secondReadResponse.Results.IsNull, Is.False);
@@ -786,7 +786,7 @@ namespace Opc.Ua.Server.Tests
 
                 // Close session without deleting subscriptions - makes them abandoned
                 header.Timestamp = DateTimeUtc.Now;
-                await m_server.CloseSessionAsync(context, header, false, CancellationToken.None)
+                await m_server.CloseSessionAsync(context, header, false, RequestLifetime.None)
                     .ConfigureAwait(false);
             }
 
@@ -845,7 +845,7 @@ namespace Opc.Ua.Server.Tests
                 -1).ConfigureAwait(false);
 
             transferRequestHeader.Timestamp = DateTimeUtc.Now;
-            await m_server.CloseSessionAsync(transferContext, transferRequestHeader, false, CancellationToken.None).ConfigureAwait(false);
+            await m_server.CloseSessionAsync(transferContext, transferRequestHeader, false, RequestLifetime.None).ConfigureAwait(false);
 
             //restore security context, transfer abandoned subscription
             serverTestServices.SecureChannelContext = m_secureChannelContext;
@@ -922,7 +922,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             transferRequestHeader.Timestamp = DateTimeUtc.Now;
-            await m_server.CloseSessionAsync(transferSecurityContext, transferRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
+            await m_server.CloseSessionAsync(transferSecurityContext, transferRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Server.Tests
             CallResponse callResponse = await m_server.CallAsync(
                 resendDataSecurityContext,
                 resendDataRequestHeader,
-                nodesToCall, CancellationToken.None).ConfigureAwait(false);
+                nodesToCall, RequestLifetime.None).ConfigureAwait(false);
 
             serverTestServices.SecureChannelContext = m_secureChannelContext;
 
@@ -1115,7 +1115,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
 
             resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
-            await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
+            await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
         }
 
         private static async Task<int> CollectNotificationsAsync(
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.Server.Tests
             CallResponse callResponse = await m_server.CallAsync(
                 m_secureChannelContext,
                 m_requestHeader,
-                nodesToCall, CancellationToken.None).ConfigureAwait(false);
+                nodesToCall, RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(callResponse.Results[0].StatusCode, Is.EqualTo(expectedStatus));
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 kMaxAge,
                 TimestampsToReturn.Neither,
-                nodesToRead, CancellationToken.None).ConfigureAwait(false);
+                nodesToRead, RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -1265,7 +1265,7 @@ namespace Opc.Ua.Server.Tests
             WriteResponse writeResponse = await m_server.WriteAsync(
                 m_secureChannelContext,
                 requestHeader,
-                nodesToWrite, CancellationToken.None).ConfigureAwait(false);
+                nodesToWrite, RequestLifetime.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 writeResponse.DiagnosticInfos,
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 0,
                 TimestampsToReturn.Both,
-                readIdCollection, CancellationToken.None).ConfigureAwait(false);
+                readIdCollection, RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
@@ -1326,7 +1326,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 0,
                 TimestampsToReturn.Both,
-                historyCapabilitiesReadIds, CancellationToken.None).ConfigureAwait(false);
+                historyCapabilitiesReadIds, RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, historyCapabilitiesReadIds);
             Assert.That(readResponse.Results.Count, Is.EqualTo(2));
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.Server.Tests
                 0,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
             Assert.That(readResponse.Results.Count, Is.EqualTo(3));
@@ -1439,7 +1439,7 @@ namespace Opc.Ua.Server.Tests
                 kMaxAge,
                 TimestampsToReturn.Neither,
                 readIdCollection,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             Assert.That(readResponse.Results.Count, Is.EqualTo(2));
@@ -1480,7 +1480,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Both,
                 false,
                 nodesToRead,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
             Assert.That(historyReadResponse.Results.Count, Is.EqualTo(1));

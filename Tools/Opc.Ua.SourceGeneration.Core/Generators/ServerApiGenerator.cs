@@ -174,8 +174,8 @@ namespace Opc.Ua.SourceGeneration
 
             CollectParameters(serviceType.Request, types, names);
 
-            types.Add("global::System.Threading.CancellationToken");
-            names.Add("ct");
+            types.Add("global::Opc.Ua.RequestLifetime");
+            names.Add("requestLifetime");
 
             // write method type if not writing an interface declaration.
             if (!isInterface)

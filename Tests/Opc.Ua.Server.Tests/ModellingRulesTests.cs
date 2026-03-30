@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 null,
                 0,
-                browseDescriptions, CancellationToken.None).ConfigureAwait(false);
+                browseDescriptions, RequestLifetime.None).ConfigureAwait(false);
 
             ArrayOf<BrowseResult> results = browseResponse.Results;
             Assert.That(results.IsNull, Is.False);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 null,
                 0,
-                browseDescriptions, CancellationToken.None).ConfigureAwait(false);
+                browseDescriptions, RequestLifetime.None).ConfigureAwait(false);
 
             ArrayOf<BrowseResult> results = browseResponse.Results;
             Assert.That(results.IsNull, Is.False);

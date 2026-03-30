@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             SecureChannelContext secureChannelContext,
             RequestType requestType,
-            CancellationToken cancellationToken = default);
+            RequestLifetime requestLifetime);
 
         /// <summary>
         /// Triggers the <see cref="SessionDiagnosticsChanged"/> event so subscribers can react.

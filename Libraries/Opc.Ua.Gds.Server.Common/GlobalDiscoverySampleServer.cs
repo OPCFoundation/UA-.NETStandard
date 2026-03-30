@@ -144,13 +144,13 @@ namespace Opc.Ua.Gds.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             RequestType requestType,
-            CancellationToken cancellationToken = default)
+            RequestLifetime requestLifetime)
         {
             OperationContext context = await base.ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 requestType,
-                cancellationToken).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
 
             if (requestType == RequestType.Write)
             {

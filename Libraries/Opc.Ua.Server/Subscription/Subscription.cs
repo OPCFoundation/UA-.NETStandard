@@ -412,7 +412,7 @@ namespace Opc.Ua.Server
                     {
                         ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                     };
-                    context = new OperationContext(requestHeader, null, RequestType.Unknown);
+                    context = new OperationContext(requestHeader, null, RequestType.Unknown, null);
                 }
 
                 await DeleteMonitoredItemsAsync(
