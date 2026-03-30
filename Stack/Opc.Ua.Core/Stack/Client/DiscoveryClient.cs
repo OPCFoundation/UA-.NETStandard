@@ -330,7 +330,7 @@ namespace Opc.Ua
                 null,
                 connection,
                 configuration,
-                new ServiceMessageContext(telemetry),
+                ServiceMessageContext.Create(telemetry),
                 null,
                 ct).ConfigureAwait(false);
             return new DiscoveryClient(channel, telemetry)
@@ -363,7 +363,7 @@ namespace Opc.Ua
                 null,
                 discoveryUrl,
                 endpointConfiguration,
-                new ServiceMessageContext(telemetry),
+                ServiceMessageContext.Create(telemetry),
                 clientCertificate,
                 ct).ConfigureAwait(false);
             return new DiscoveryClient(channel, telemetry)

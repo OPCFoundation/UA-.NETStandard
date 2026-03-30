@@ -937,12 +937,12 @@ namespace Opc.Ua.Server
             ISystemContext context,
             TrustListDataType trustList)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext =
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris
+                };
             var strm = new MemoryStream();
             using (var encoder = new BinaryEncoder(strm, messageContext, true))
             {
@@ -957,12 +957,12 @@ namespace Opc.Ua.Server
             MemoryStream strm)
         {
             var trustList = new TrustListDataType();
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext =
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris
+                };
             strm.Position = 0;
             using (var decoder = new BinaryDecoder(strm, messageContext))
             {

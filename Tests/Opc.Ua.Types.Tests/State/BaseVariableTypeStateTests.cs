@@ -47,7 +47,7 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(m_telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
         }
 
         [OneTimeTearDown]

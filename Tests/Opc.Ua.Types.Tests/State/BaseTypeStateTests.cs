@@ -48,7 +48,7 @@ namespace Opc.Ua.Types.Tests.State
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
             m_context = new SystemContext(telemetry)
             {

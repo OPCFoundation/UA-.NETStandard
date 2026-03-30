@@ -51,7 +51,7 @@ namespace Opc.Ua.Fuzzing
         public static void Run(string workPath, ITelemetryContext telemetry)
         {
             // Create the Testcases for the binary decoder.
-            FuzzableCode.MessageContext = new ServiceMessageContext(telemetry);
+            FuzzableCode.MessageContext = ServiceMessageContext.Create(telemetry);
             string pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Binary];
             string pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
             foreach (MessageEncoder messageEncoder in MessageEncoders)

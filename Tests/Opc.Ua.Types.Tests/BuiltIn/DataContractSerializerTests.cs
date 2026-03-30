@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static string GetSerializedData<T>(T instance)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
             using var stream = new MemoryStream();
@@ -119,7 +119,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static T Roundtrip<T>(T value)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
 

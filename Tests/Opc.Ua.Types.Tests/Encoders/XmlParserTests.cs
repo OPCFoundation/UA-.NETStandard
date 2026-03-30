@@ -998,8 +998,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            ServiceMessageContext messageContext = CreateMockContext();
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
@@ -1026,9 +1026,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadExtensionObjectBodyUnknownTypeReturnsXmlElement()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns((Type)null);
@@ -1161,12 +1161,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadEncodeableWithTypeIdThrowsWhenFactoryMissing()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
             IEncodeableType type = null;
             mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
                 .Returns(false);
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
             const string xml = """
             <TestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Value>1</Value>
@@ -1548,7 +1548,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void DecodeMessageReturnsDecodedValue()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeableWithData));
@@ -1558,7 +1557,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             IType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
                 .Returns(true);
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
             const string xml = """
             <TestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Value>5</Value>
@@ -1577,12 +1577,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void DecodeMessageThrowsWhenTypeUnknown()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
             IType type = null;
             mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
                 .Returns(false);
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
             const string xml = """
             <TestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Value>1</Value>
@@ -1732,8 +1732,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            ServiceMessageContext messageContext = CreateMockContext();
-            messageContext.Factory = mockFactory.Object;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns((Type)null);
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateMockContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            return new ServiceMessageContext(telemetryContext);
+            return ServiceMessageContext.CreateEmpty(telemetryContext);
         }
 
         private static string CreateDiagnosticInfoWithDepth(int depth)
@@ -4442,7 +4442,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            return new ServiceMessageContext(telemetryContext);
+            return ServiceMessageContext.CreateEmpty(telemetryContext);
         }
     }
 }

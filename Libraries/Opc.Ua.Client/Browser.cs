@@ -716,13 +716,13 @@ namespace Opc.Ua.Client
         /// </summary>
         public static Browser? Load(Stream stream, ITelemetryContext telemetry)
         {
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             using var decoder = new BinaryDecoder(stream, context, true);
             ArrayOf<string> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
             context.ServerUris = new StringTable(serverUris.Memory.ToArray());
-            var options = BrowserStateEncoder.DecodeBrowserOptions(decoder);
+            BrowserOptions options = BrowserStateEncoder.DecodeBrowserOptions(decoder);
             return new Browser(telemetry, options);
         }
 
@@ -731,8 +731,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Save(Stream stream)
         {
-            var context = AmbientMessageContext.CurrentContext
-                ?? new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext
+                ?? ServiceMessageContext.Create(m_telemetry);
             using var encoder = new BinaryEncoder(stream, context, true);
             encoder.WriteStringArray(
                 null, context.NamespaceUris.ToArrayOf());

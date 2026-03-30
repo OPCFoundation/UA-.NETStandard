@@ -32,7 +32,7 @@ namespace Opc.Ua.Server.Tests
             new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(
                 t => new MonitoredItemQueueFactory(t)) },
             new object[] { TelemetryParameterizable.Create<IMonitoredItemQueueFactory>(
-                t => new DurableMonitoredItemQueueFactory(t, new ServiceMessageContext(t))) }
+                t => new DurableMonitoredItemQueueFactory(t, ServiceMessageContext.Create(t))) }
         ];
 
         public DurableMonitoredItemTests(TelemetryParameterizable<IMonitoredItemQueueFactory> factory)

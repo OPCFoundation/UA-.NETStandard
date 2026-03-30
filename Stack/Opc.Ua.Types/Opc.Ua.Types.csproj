@@ -13,6 +13,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua" />
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>

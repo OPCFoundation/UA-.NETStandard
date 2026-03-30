@@ -509,12 +509,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using var stream = new MemoryStream();
             string text;
-            using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(Telemetry), true))
+            using (var encoder = new BinaryEncoder(stream, ServiceMessageContext.Create(Telemetry), true))
             {
                 text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
-            using var decoder = new BinaryDecoder(stream, new ServiceMessageContext(Telemetry));
+            using var decoder = new BinaryDecoder(stream, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -529,13 +529,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var encoder = new XmlEncoder(
                     new XmlQualifiedName("ByteStrings", Ua.Types.Namespaces.OpcUaXsd),
                     writer,
-                    new ServiceMessageContext(Telemetry)))
+                    ServiceMessageContext.Create(Telemetry)))
             {
                 string text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
             using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null, reader, new ServiceMessageContext(Telemetry));
+            using var decoder = new XmlDecoder(null, reader, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -547,13 +547,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string text;
             using (var encoder = new JsonEncoder(
                 stream,
-                new ServiceMessageContext(Telemetry)))
+                ServiceMessageContext.Create(Telemetry)))
             {
                 text = WriteByteStringData(encoder);
             }
 
             stream.Position = 0;
-            using var decoder = new JsonDecoder(stream, new ServiceMessageContext(Telemetry));
+            using var decoder = new JsonDecoder(stream, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 

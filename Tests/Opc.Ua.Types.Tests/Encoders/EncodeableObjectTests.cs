@@ -47,7 +47,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            return new ServiceMessageContext(telemetryContext);
+            return ServiceMessageContext.CreateEmpty(telemetryContext);
         }
 
         /// <summary>

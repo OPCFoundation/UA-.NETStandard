@@ -171,11 +171,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             int i = 1;
             foreach (StructureField field in complexTypeStructure.Fields)
             {
-                var fieldType = TypeInfo.GetSystemType(field.DataType, null);
+                IType fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
                 fieldBuilder.AddField(field, fieldType, i++, false);
             }
-            var complexType = fieldBuilder.CreateType();
+            IEncodeableType complexType = fieldBuilder.CreateType();
             if (context != null)
             {
                 context.Factory.Builder.AddEncodeableType(nodeId, complexType).Commit();

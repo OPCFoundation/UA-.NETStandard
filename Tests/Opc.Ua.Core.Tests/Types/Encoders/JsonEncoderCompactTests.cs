@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -405,7 +405,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = EncoderCommon.PrettifyAndValidateJson(
                 jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
             using var encoder = new JsonEncoder(context,
@@ -471,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -520,7 +520,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = EncoderCommon.PrettifyAndValidateJson(
                 jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -617,7 +617,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var context1 = new ServiceMessageContext(telemetry);
+            var context1 = ServiceMessageContext.Create(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -638,7 +638,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext(telemetry);
+            var context2 = ServiceMessageContext.Create(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -689,7 +689,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
                 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
@@ -729,7 +729,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var encoder = new JsonEncoder(context,
                 jsonEncoding == JsonEncodingType.Verbose ?
@@ -786,7 +786,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -848,7 +848,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -906,7 +906,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -969,7 +969,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 

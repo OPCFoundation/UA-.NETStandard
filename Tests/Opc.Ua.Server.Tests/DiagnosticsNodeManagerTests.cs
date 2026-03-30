@@ -54,7 +54,11 @@ namespace Opc.Ua.Server.Tests
             namespaces.Append(Ua.Namespaces.OpcUa);
             var serverUris = new StringTable();
             var typeTree = new TypeTable(namespaces);
-            var messageContext = new ServiceMessageContext(telemetry) { NamespaceUris = namespaces, ServerUris = serverUris };
+            var messageContext = new ServiceMessageContext(telemetry, EncodeableFactory.Create())
+            {
+                NamespaceUris = namespaces,
+                ServerUris = serverUris
+            };
 
             m_coreNodeManagerMock = new Mock<ICoreNodeManager>();
             m_coreNodeManagerMock.Setup(m => m.ImportNodesAsync(
@@ -600,7 +604,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
 
-            // 1. Create server and session diagnostics 
+            // 1. Create server and session diagnostics
             await manager.CreateServerDiagnosticsAsync(
                 manager.SystemContext,
                 new ServerDiagnosticsSummaryDataType(),

@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(s => s.MessageContext)
-                .Returns(new ServiceMessageContext(telemetry));
+                .Returns(ServiceMessageContext.Create(telemetry));
             channel
                 .SetupGet(s => s.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);

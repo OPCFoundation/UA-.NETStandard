@@ -292,9 +292,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -534,9 +533,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -741,9 +739,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -936,7 +933,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
             TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
-            factory.AddEncodeableType(internalNodeId, enumType);
+            factory.AddType(internalNodeId, enumType);
         }
 
         private static ExpandedNodeId NormalizeExpandedNodeId(

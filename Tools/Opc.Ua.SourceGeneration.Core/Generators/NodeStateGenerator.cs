@@ -50,7 +50,7 @@ namespace Opc.Ua.SourceGeneration
         public NodeStateGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
             m_systemContext = new SystemContext(context.Telemetry)
             {
                 NamespaceUris = context.ModelDesign.NamespaceUris

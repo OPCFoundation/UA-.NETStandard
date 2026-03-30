@@ -47,7 +47,7 @@ namespace Opc.Ua.SourceGeneration
         public DataTypeGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
             m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
         }
 

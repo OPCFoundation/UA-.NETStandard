@@ -127,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = ServiceMessageContext.Create(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = ServiceMessageContext.Create(m_telemetry);
             m_memoryManager = new RecyclableMemoryStreamManager(
                 new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(

@@ -915,11 +915,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(m_telemetry),
+                ServiceMessageContext.Create(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 
@@ -932,11 +932,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(m_telemetry),
+                ServiceMessageContext.Create(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 

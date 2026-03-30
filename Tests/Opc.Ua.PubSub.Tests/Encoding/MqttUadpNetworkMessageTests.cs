@@ -1917,11 +1917,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Is.True,
                 "The received message is not a metadata message");
 
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(telemetry));
 
             ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
-            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(telemetry), bytes, null);
+            uaNetworkMessageDecoded.Decode(ServiceMessageContext.Create(telemetry), bytes, null);
 
             Assert.That(
                 uaNetworkMessageDecoded.IsMetaDataMessage,
@@ -1951,11 +1951,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
 
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(telemetry),
+                ServiceMessageContext.Create(telemetry),
                 bytes,
                 dataSetReaders);
 

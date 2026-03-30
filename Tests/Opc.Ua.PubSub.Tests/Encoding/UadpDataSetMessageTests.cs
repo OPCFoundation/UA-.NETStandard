@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -496,7 +496,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using var memoryStream = new MemoryStream();
             using var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true);
@@ -586,7 +586,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using (var memoryStream = new MemoryStream())
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -675,7 +675,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -870,7 +870,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage, ILogger logger)
         {
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using (var memoryStream = new MemoryStream())
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))

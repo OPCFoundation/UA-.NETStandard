@@ -1984,11 +1984,9 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(m_telemetry)
-            {
-                NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = m_serverUris
-            };
+            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+            messageContext.NamespaceUris = m_settings.NamespaceUris;
+            messageContext.ServerUris = m_serverUris;
 
             var decoder = new XmlDecoder((XmlElement)source, messageContext);
 

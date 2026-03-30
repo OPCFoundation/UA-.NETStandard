@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Gds.Client
                 Session.KeepAlive += Session_KeepAliveAsync;
                 Session.KeepAlive += KeepAlive;
 
-                if (!Session.Factory.TryGetEncodeableType(Ua.DataTypeIds.TrustListDataType, out _))
+                if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
                 {
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }

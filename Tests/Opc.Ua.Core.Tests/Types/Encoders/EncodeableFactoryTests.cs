@@ -190,7 +190,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeId = new ExpandedNodeId(5000);
 
             // Act
-            builder.AddEncodeableType(typeId, typeof(TestEncodeable));
+            builder.AddType(typeId, typeof(TestEncodeable));
             builder.Commit();
 
             // Assert
@@ -219,7 +219,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert
-            IEncodeableFactoryBuilder result = builder.AddEncodeableType(new ExpandedNodeId(100000), typeof(TestEncodeable));
+            IEncodeableFactoryBuilder result = builder.AddType(new ExpandedNodeId(100000), typeof(TestEncodeable));
             Assert.That(result, Is.SameAs(builder));
         }
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeId = new ExpandedNodeId(7000); // Use unique ID to avoid conflicts with pre-loaded types
 
             // Act
-            builder.AddEncodeableType(typeId, typeof(TestEncodeable));
+            builder.AddType(typeId, typeof(TestEncodeable));
             bool foundInBuilder = builder.TryGetEncodeableType(typeId, out IEncodeableType builderType);
             bool foundInFactory = factory.TryGetEncodeableType(typeId, out IEncodeableType factoryType);
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeId = new ExpandedNodeId(8000); // Use unique ID
 
             // Act
-            builder.AddEncodeableType(typeId, typeof(TestEncodeable));
+            builder.AddType(typeId, typeof(TestEncodeable));
             builder.Commit();
             builder.Commit(); // Second commit should be no-op
 
@@ -376,7 +376,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         for (uint j = 0; j < operationsPerThread; j++)
                         {
                             IEncodeableFactoryBuilder builder = factory.Builder;
-                            builder.AddEncodeableType(
+                            builder.AddType(
                                 new ExpandedNodeId((threadId * 1000) + j + 10000),
                                 typeof(TestEncodeable));
                             builder.Commit();
@@ -409,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
             var typeId = new ExpandedNodeId(9001); // Use unique ID
-            factory.Builder.AddEncodeableType(typeId, typeof(TestEncodeable)).Commit();
+            factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access Clone method
             var concreteFactory = (EncodeableFactory)factory;
@@ -434,7 +434,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();
             var typeId = new ExpandedNodeId(9002); // Use unique ID
-            factory.Builder.AddEncodeableType(typeId, typeof(TestEncodeable)).Commit();
+            factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access MemberwiseClone method
             var concreteFactory = (EncodeableFactory)factory;
@@ -460,14 +460,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
             var initialTypeId = new ExpandedNodeId(9003);
             var newTypeId = new ExpandedNodeId(9004);
-            factory.Builder.AddEncodeableType(initialTypeId, typeof(TestEncodeable)).Commit();
+            factory.Builder.AddType(initialTypeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access Clone method
             var concreteFactory = (EncodeableFactory)factory;
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Add type to original
-            factory.Builder.AddEncodeableType(newTypeId, typeof(TestJsonEncodeable)).Commit();
+            factory.Builder.AddType(newTypeId, typeof(TestJsonEncodeable)).Commit();
 
             // Assert - Clone should not have the new type
             bool originalHasNewType = factory.TryGetEncodeableType(newTypeId, out _);
@@ -496,7 +496,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null NodeIds gracefully rather than throwing
-            Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
+            Assert.DoesNotThrow(() => builder.AddType(default, typeof(TestEncodeable)));
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeIdWithoutNs = new ExpandedNodeId(9100);
 
             // Act
-            builder.AddEncodeableType(typeIdWithDefaultNs, typeof(TestEncodeable));
+            builder.AddType(typeIdWithDefaultNs, typeof(TestEncodeable));
             builder.Commit();
 
             // Assert - Should be findable with both NodeId forms
@@ -650,8 +650,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act
-            builder.AddEncodeableType(new ExpandedNodeId(9200), typeof(TestEncodeable)).Commit();
-            builder.AddEncodeableType(new ExpandedNodeId(9201), typeof(TestJsonEncodeable)).Commit();
+            builder.AddType(new ExpandedNodeId(9200), typeof(TestEncodeable)).Commit();
+            builder.AddType(new ExpandedNodeId(9201), typeof(TestJsonEncodeable)).Commit();
 
             // Assert
             bool foundFirst = factory.TryGetEncodeableType(new ExpandedNodeId(9200), out IEncodeableType firstType);
@@ -1106,7 +1106,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Pre-populate factory with a type
-            factory.Builder.AddEncodeableType(new ExpandedNodeId(60000), typeof(TestEncodeable)).Commit();
+            factory.Builder.AddType(new ExpandedNodeId(60000), typeof(TestEncodeable)).Commit();
 
             // Act - Try to find type that's only in the factory, not in the builder
             bool found = builder.TryGetEncodeableType(new ExpandedNodeId(60000), out IEncodeableType encodeableType);
@@ -1124,11 +1124,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeId = new ExpandedNodeId(61000);
 
             // Add one type to factory
-            factory.Builder.AddEncodeableType(typeId, typeof(TestEncodeable)).Commit();
+            factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
             // Add different type to builder with same ID
             IEncodeableFactoryBuilder builder = factory.Builder;
-            builder.AddEncodeableType(typeId, typeof(TestJsonEncodeable));
+            builder.AddType(typeId, typeof(TestJsonEncodeable));
 
             // Act
             bool found = builder.TryGetEncodeableType(typeId, out IEncodeableType encodeableType);
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Act - Register multiple types with different encoding patterns
             builder.AddEncodeableType(typeof(TestEncodeable))
                    .AddEncodeableType(typeof(TestJsonEncodeable))
-                   .AddEncodeableType(new ExpandedNodeId(99999), typeof(TestEncodeableWithDefaultNamespace));
+                   .AddType(new ExpandedNodeId(99999), typeof(TestEncodeableWithDefaultNamespace));
             builder.Commit();
 
             // Assert - All types should be accessible

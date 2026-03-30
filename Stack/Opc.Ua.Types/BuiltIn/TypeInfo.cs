@@ -1226,10 +1226,11 @@ namespace Opc.Ua
                 case BuiltInType.Enumeration:
                     return new SystemType<int>(builtInType);
                 case BuiltInType.Null:
-                    return null;
+                    return new SystemType<Variant>(builtInType);
+                    // Above for backcompat. -- should be: return null;
                 default:
                     throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {builtInType}");
+                        $"Unexpected BuiltInType {builtInType}");
             }
         }
 
@@ -1246,7 +1247,7 @@ namespace Opc.Ua
         {
             if (valueRank == ValueRanks.Scalar)
             {
-                return GetSystemType(builtInType).Type;
+                return GetSystemType(builtInType)?.Type;
             }
             else if (valueRank == ValueRanks.OneDimension)
             {

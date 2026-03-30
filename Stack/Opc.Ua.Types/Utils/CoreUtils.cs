@@ -1108,22 +1108,5 @@ namespace Opc.Ua
                 new DataContractSurrogates(messageContext ?? AmbientMessageContext.CurrentContext));
             return serializer;
         }
-
-        /// <summary>
-        /// Get the opc ua core assembly to load manifest from or encodeable types
-        /// </summary>
-        /// <returns></returns>
-        public static Assembly GetOpcUaAssembly()
-        {
-            // Find the core assembly with all generated core types if referenced
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (assembly.GetName().Name.Equals("Opc.Ua", StringComparison.Ordinal))
-                {
-                    return assembly;
-                }
-            }
-            return null;
-        }
     }
 }

@@ -347,7 +347,7 @@ namespace Opc.Ua.Bindings
             OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory)
             {
                 MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                 MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
@@ -356,8 +356,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = m_settings.Configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
                 NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = m_settings.Factory
+                ServerUris = new StringTable()
             })
             {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,

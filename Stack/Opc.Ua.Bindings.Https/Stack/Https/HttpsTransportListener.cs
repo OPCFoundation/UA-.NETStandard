@@ -195,7 +195,7 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, EncodeableFactory.Create())
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,

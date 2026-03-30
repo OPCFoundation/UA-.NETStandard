@@ -420,7 +420,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void NodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
             {
                 NamespaceUris = new NamespaceTable()
             };
@@ -451,7 +451,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidNumeric()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             NodeId result = NodeId.Parse(context, "i=42");
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result, Is.EqualTo(new NodeId(42u)));
@@ -460,7 +460,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidString()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             NodeId result = NodeId.Parse(context, "ns=2;s=TestNode");
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
@@ -469,7 +469,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidGuid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var guid = Guid.NewGuid();
             NodeId result = NodeId.Parse(context, $"g={guid}");
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
@@ -480,7 +480,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidOpaque()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             byte[] bytes = new byte[] { 1, 2, 3, 4 };
             string base64 = Convert.ToBase64String(bytes);
             NodeId result = NodeId.Parse(context, $"b={base64}");
@@ -490,7 +490,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNullOrEmptyReturnsNull()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             NodeId result = NodeId.Parse(context, string.Empty);
             Assert.That(result.IsNull, Is.True);
         }
@@ -498,7 +498,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextInvalidThrows()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "x=invalid"));
         }
@@ -506,7 +506,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriValid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://test.org/UA/";
             context.NamespaceUris.GetIndexOrAppend(nsUri);
             NodeId result = NodeId.Parse(context, $"nsu={nsUri};i=100");
@@ -517,7 +517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriMissingSemicolon()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://test.org"));
         }
@@ -525,7 +525,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriNotInTable()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://unknown.org/;i=1"));
         }
@@ -533,7 +533,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNsIndexMissingSemicolon()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "ns=2"));
         }
@@ -541,7 +541,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextInvalidIdentifierTypeReturnsError()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "ns=0;x=invalid", out NodeId value);
             Assert.That(result, Is.False);
             Assert.That(value.IsNull, Is.True);
@@ -550,7 +550,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextStringWhitespaceIdentifier()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "s=   ", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -558,7 +558,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextOpaqueInvalidBase64()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "b=!!!invalid!!!", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -566,7 +566,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextGuidInvalid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "g=not-a-guid", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -574,7 +574,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNumericInvalid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=abc", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -582,7 +582,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextShortIdentifier()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "a", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -590,7 +590,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextUpdateTablesOption()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             NodeId result = NodeId.Parse(context, "nsu=http://newuri.com/;i=5", options);
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
@@ -600,7 +600,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceMappingsOption()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions
             {
                 NamespaceMappings = [0, 5, 10]
@@ -630,7 +630,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptions()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=99", null, out NodeId value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new NodeId(99u)));
@@ -639,7 +639,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptionsAndError()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=77", null, out NodeId value, out NodeIdParseError error);
             Assert.That(result, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
@@ -687,7 +687,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextNullReturnsEmpty()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             NodeId nullId = NodeId.Null;
             string result = nullId.Format(context);
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -696,7 +696,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUri()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://format.test.org/";
             ushort nsIndex = context.NamespaceUris.GetIndexOrAppend(nsUri);
             var nodeId = new NodeId(42u, nsIndex);
@@ -708,7 +708,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUriNotFound()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             // namespace index 999 won't be in the table, falls back to ns= format
             var nodeId = new NodeId(42u, 999);
             string result = nodeId.Format(context, useNamespaceUri: true);
@@ -718,7 +718,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextNoNamespaceUri()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(42u, 3);
             string result = nodeId.Format(context, useNamespaceUri: false);
             Assert.That(result, Does.Contain("ns=3"));
@@ -728,7 +728,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextGuid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             string result = nodeId.Format(context);
@@ -738,7 +738,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextOpaque()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(new ByteString(new byte[] { 0xAA, 0xBB }));
             string result = nodeId.Format(context);
             Assert.That(result, Does.StartWith("b="));
@@ -747,7 +747,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextString()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId("TestString", 0);
             string result = nodeId.Format(context);
             Assert.That(result, Is.EqualTo("s=TestString"));
@@ -1907,7 +1907,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void RoundTripContextFormat()
         {
             // Round trip through Format(context) and Parse(context)
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://roundtrip.org/";
             context.NamespaceUris.GetIndexOrAppend(nsUri);
             var original = new NodeId(42u, 1);

@@ -25,7 +25,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var namespaceTable = new NamespaceTable([Namespaces.OpcUa, "http://bar", "http://foo"]);
             const string expectedServerUri = "http://foobar";
             var serverUris = new StringTable([Namespaces.OpcUa, expectedServerUri]);
-            var context = new ServiceMessageContext(telemetry)
+            var context = new ServiceMessageContext(telemetry, EncodeableFactory.Create())
             {
                 NamespaceUris = namespaceTable,
                 ServerUris = serverUris

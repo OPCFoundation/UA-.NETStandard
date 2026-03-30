@@ -1557,7 +1557,7 @@ namespace Opc.Ua.Gds.Client
                 {
                 }
 
-                if (!Session.Factory.TryGetEncodeableType(DataTypeIds.ApplicationRecordDataType, out _))
+                if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
                 {
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }

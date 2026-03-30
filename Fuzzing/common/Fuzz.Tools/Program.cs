@@ -75,7 +75,7 @@ namespace Opc.Ua.Fuzzing
 
                 // TODO: this loads opc ua assembly, but this should not be needed.
                 // but otherwise encoderfactory currently does not get all types.
-                var temp = new AlarmConditionState(null);
+                // TODO: Remove: var temp = new AlarmConditionState(null);
 
                 if (testcases)
                 {

@@ -203,7 +203,8 @@ namespace Opc.Ua
         /// the factory builder</param>
         IEncodeableFactoryBuilder AddEncodeableType(
             [DynamicallyAccessedMembers(
-                DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType);
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type systemType);
 
         /// <summary>
         /// Associates an .net system type with an encoding id. The
@@ -218,7 +219,7 @@ namespace Opc.Ua
         /// node</param>
         /// <param name="systemType">The system type to use for the
         /// specified encoding.</param>
-        IEncodeableFactoryBuilder AddEncodeableType(
+        IEncodeableFactoryBuilder AddType(
             ExpandedNodeId encodingId,
             [DynamicallyAccessedMembers(
                 DynamicallyAccessedMemberTypes.PublicConstructors)]
@@ -316,6 +317,39 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks whether the type exists in the factory lookup
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetType(typeId, out _);
+        }
+
+        /// <summary>
+        /// Checks whether the enumerated type exists
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsEnumeratedType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetEnumeratedType(typeId, out _);
+        }
+
+        /// <summary>
+        /// Checks whether the encodeable type exists
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsEncodeableType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetEncodeableType(typeId, out _);
+        }
+
+        /// <summary>
         /// Adds an extension type to the factory builder.
         /// </summary>
         public static void AddEncodeableType(
@@ -337,7 +371,7 @@ namespace Opc.Ua
                 DynamicallyAccessedMemberTypes.PublicConstructors)]
             Type systemType)
         {
-            factory.Builder.AddEncodeableType(encodingId, systemType).Commit();
+            factory.Builder.AddType(encodingId, systemType).Commit();
         }
 
         /// <summary>

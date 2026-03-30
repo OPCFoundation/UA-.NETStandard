@@ -425,7 +425,7 @@ namespace Opc.Ua.Client
             }
 
             // Extensions
-            var extensions = decoder.ReadXmlElementArray(null);
+            ArrayOf<XmlElement> extensions = decoder.ReadXmlElementArray(null);
 
             return new ConfiguredEndpoint(
                 null,

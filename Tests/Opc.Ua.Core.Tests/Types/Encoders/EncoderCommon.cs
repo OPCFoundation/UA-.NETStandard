@@ -92,7 +92,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            Context = new ServiceMessageContext(Telemetry) { MaxArrayLength = kMaxArrayLength };
+            Context = new ServiceMessageContext(Telemetry, EncodeableFactory.Create())
+            {
+                MaxArrayLength = kMaxArrayLength
+            };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);

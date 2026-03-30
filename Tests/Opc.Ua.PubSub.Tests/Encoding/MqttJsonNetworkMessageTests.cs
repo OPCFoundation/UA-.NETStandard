@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void MyTestInitialize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(telemetry);
+            m_messageContext = ServiceMessageContext.Create(telemetry);
             // add some namespaceUris to be used at encode/decode
             m_messageContext.NamespaceUris
                 .Append("http://opcfoundation.org/UA/DI/");
@@ -2957,7 +2957,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         field.FieldMetaData.Name);
 
                                                     ushort namespaceIndex = Convert.ToUInt16(
-                                                        new ServiceMessageContext(jsonDecoder.Context.Telemetry)
+                                                        ServiceMessageContext.Create(jsonDecoder.Context.Telemetry)
                                                             .NamespaceUris
                                                             .GetIndex(
                                                                 ((ExpandedNodeId)decodedFieldValue)
@@ -3099,7 +3099,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
 #pragma warning disable CS0618 // Type or member is obsolete
                                                         ushort namespaceIndex = Convert.ToUInt16(
-                                                            new ServiceMessageContext(jsonDecoder.Context.Telemetry)
+                                                            ServiceMessageContext.Create(jsonDecoder.Context.Telemetry)
                                                                 .NamespaceUris
                                                                 .GetIndex(
                                                                     ((ExpandedNodeId)dataValue

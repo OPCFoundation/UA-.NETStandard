@@ -63,15 +63,9 @@ namespace Opc.Ua
     public sealed class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
-        /// The default factory for the process.
+        /// Create an empty instance of the encodeable factory.
         /// </summary>
-        [Obsolete("Obtain a factory from a context or use EncodeableFactory.Create()")]
-        public static EncodeableFactory GlobalFactory { get; } = new();
-
-        /// <summary>
-        /// Create single instance of the encodeable factory.
-        /// </summary>
-        private EncodeableFactory()
+        internal EncodeableFactory()
         {
 #pragma warning disable IDE0301 // Simplify collection initialization
             m_encodeableTypes = FrozenDictionary<ExpandedNodeId, IEncodeableType>.Empty;
@@ -88,15 +82,6 @@ namespace Opc.Ua
             m_encodeableTypes = factory.m_encodeableTypes;
             m_enumeratedTypes = factory.m_enumeratedTypes;
             m_xmlNameToType = factory.m_xmlNameToType;
-        }
-
-        /// <summary>
-        /// Create a new encodeble factory initialized with all known types.
-        /// </summary>
-        /// <returns></returns>
-        public static IEncodeableFactory Create()
-        {
-            return new EncodeableFactory(Root);
         }
 
         /// <inheritdoc/>
@@ -148,11 +133,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return MemberwiseClone();
+            return Fork();
         }
 
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
+        /// <summary>
+        /// Create a fork of the factory which can be independently modified.
+        /// The new factory will share the same internal dictionaries until
+        /// a modification is made
+        /// </summary>
+        /// <returns></returns>
+        public EncodeableFactory Fork()
         {
             return new EncodeableFactory(this);
         }
@@ -176,7 +166,7 @@ namespace Opc.Ua
                     DynamicallyAccessedMemberTypes.PublicConstructors)]
                 Type systemType)
             {
-                AddEncodeableType(systemType, null);
+                AddType(systemType, null);
                 return this;
             }
 
@@ -260,7 +250,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public IEncodeableFactoryBuilder AddEncodeableType(
+            public IEncodeableFactoryBuilder AddType(
                 ExpandedNodeId encodingId,
                 [DynamicallyAccessedMembers(
                     DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
@@ -341,7 +331,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    AddEncodeableType(systemTypes[ii], unboundTypeIds);
+                    AddType(systemTypes[ii], unboundTypeIds);
                 }
 
                 // only needed while adding assembly types
@@ -450,7 +440,7 @@ namespace Opc.Ua
             /// <param name="systemType">The underlying system type to add to the factory</param>
             /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
             /// referenced by object name.</param>
-            private void AddEncodeableType(
+            private void AddType(
                 [DynamicallyAccessedMembers(
                     DynamicallyAccessedMemberTypes.PublicConstructors)]
                 Type systemType,
@@ -613,33 +603,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Default factory which contains all known encodeable types.
+        /// The root encodeable factory (Only to be used by Opc.Ua assembly)
         /// </summary>
-        private static EncodeableFactory Root { get; }
-
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Assembly loading is not performed if platform does not support dynamic code.")]
-        static EncodeableFactory()
-        {
-            var factory = new EncodeableFactory();
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            if (RuntimeFeature.IsDynamicCodeSupported)
-#endif
-            {
-                // Load all well known types from the types assembly
-                IEncodeableFactoryBuilder builder = factory.Builder
-                    .AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
-
-                Assembly? core = CoreUtils.GetOpcUaAssembly();
-                if (core != null)
-                {
-                    builder = builder.AddEncodeableTypes(core);
-                }
-                // else: If not found we are running just with the types library
-                builder.Commit();
-            }
-            Root = factory;
-        }
+        internal static Lazy<EncodeableFactory> Root { get; } = new();
 
         /// <summary>
         /// <para>

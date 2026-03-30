@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            EncoderContext = new ServiceMessageContext(Telemetry);
+            EncoderContext = ServiceMessageContext.Create(Telemetry);
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);

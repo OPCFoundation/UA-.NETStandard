@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void MyTestInitialize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(telemetry);
+            m_messageContext = ServiceMessageContext.Create(telemetry);
             m_logger = telemetry.CreateLogger<UdpPubSubConnectionTests>();
 
             // Create a publisher application

@@ -175,40 +175,40 @@ namespace TestData
                     case Variables.UserScalarValueObjectType_UInt16Value:
                         return m_generator.GetRandomUInt16();
                     case Variables.AnalogScalarValueObjectType_UInt16Value:
-                        return (ushort)((m_generator.GetRandomUInt32() % 201) + 50);
+                        return Variant.From((ushort)((m_generator.GetRandomUInt32() % 201) + 50));
                     case Variables.ScalarValueObjectType_Int32Value:
                     case Variables.UserScalarValueObjectType_Int32Value:
                         return m_generator.GetRandomInt32();
                     case Variables.AnalogScalarValueObjectType_Int32Value:
                     case Variables.AnalogScalarValueObjectType_IntegerValue:
-                        return ((int)(m_generator.GetRandomUInt32() % 201)) - 100;
+                        return Variant.From(((int)(m_generator.GetRandomUInt32() % 201)) - 100);
                     case Variables.ScalarValueObjectType_UInt32Value:
                     case Variables.UserScalarValueObjectType_UInt32Value:
                         return m_generator.GetRandomUInt32();
                     case Variables.AnalogScalarValueObjectType_UInt32Value:
                     case Variables.AnalogScalarValueObjectType_UIntegerValue:
-                        return (m_generator.GetRandomUInt32() % 201) + 50;
+                        return Variant.From((m_generator.GetRandomUInt32() % 201) + 50);
                     case Variables.ScalarValueObjectType_Int64Value:
                     case Variables.UserScalarValueObjectType_Int64Value:
                         return m_generator.GetRandomInt64();
                     case Variables.AnalogScalarValueObjectType_Int64Value:
-                        return (long)(((int)(m_generator.GetRandomUInt32() % 201)) - 100);
+                        return Variant.From((long)(((int)(m_generator.GetRandomUInt32() % 201)) - 100));
                     case Variables.ScalarValueObjectType_UInt64Value:
                     case Variables.UserScalarValueObjectType_UInt64Value:
                         return m_generator.GetRandomUInt64();
                     case Variables.AnalogScalarValueObjectType_UInt64Value:
-                        return (ulong)((m_generator.GetRandomUInt32() % 201) + 50);
+                        return Variant.From((ulong)((m_generator.GetRandomUInt32() % 201) + 50));
                     case Variables.ScalarValueObjectType_FloatValue:
                     case Variables.UserScalarValueObjectType_FloatValue:
                         return m_generator.GetRandomFloat();
                     case Variables.AnalogScalarValueObjectType_FloatValue:
-                        return (float)(((int)(m_generator.GetRandomUInt32() % 201)) - 100);
+                        return Variant.From((float)(((int)(m_generator.GetRandomUInt32() % 201)) - 100));
                     case Variables.ScalarValueObjectType_DoubleValue:
                     case Variables.UserScalarValueObjectType_DoubleValue:
                         return m_generator.GetRandomDouble();
                     case Variables.AnalogScalarValueObjectType_DoubleValue:
                     case Variables.AnalogScalarValueObjectType_NumberValue:
-                        return (double)(((int)(m_generator.GetRandomUInt32() % 201)) - 100);
+                        return Variant.From((double)(((int)(m_generator.GetRandomUInt32() % 201)) - 100));
                     case Variables.ScalarValueObjectType_StringValue:
                     case Variables.UserScalarValueObjectType_StringValue:
                         return m_generator.GetRandomString();

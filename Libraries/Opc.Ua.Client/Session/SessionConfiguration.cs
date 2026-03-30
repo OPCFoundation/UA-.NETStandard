@@ -179,7 +179,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             using var decoder = new BinaryDecoder(stream, context, true);
             ArrayOf<string> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);

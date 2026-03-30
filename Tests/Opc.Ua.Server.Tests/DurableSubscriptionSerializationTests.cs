@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(telemetry);
+            m_context = ServiceMessageContext.Create(telemetry);
             m_context.NamespaceUris.GetIndexOrAppend(
                 "urn:test:namespace1");
             m_context.NamespaceUris.GetIndexOrAppend(

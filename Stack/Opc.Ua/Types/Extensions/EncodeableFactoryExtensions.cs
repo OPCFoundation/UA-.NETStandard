@@ -27,37 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Bindings
+#nullable enable
+
+namespace Opc.Ua
 {
     /// <summary>
-    /// The binding for the UA native stack
+    /// Extension methods for encodeable factories.
     /// </summary>
-    public abstract class BaseBinding
+    public static class EncodeableFactoryExtensions
     {
-        /// <summary>
-        /// Initializes the binding.
-        /// </summary>
-        protected BaseBinding(
-            NamespaceTable namespaceUris,
-            IEncodeableFactory factory,
-            EndpointConfiguration configuration,
-            ITelemetryContext telemetry)
+        extension(EncodeableFactory)
         {
-            MessageContext = new ServiceMessageContext(telemetry, factory)
+            /// <summary>
+            /// Create a new encodeble factory initialized with all known types.
+            /// </summary>
+            /// <returns></returns>
+            public static IEncodeableFactory Create()
             {
-                MaxStringLength = configuration.MaxStringLength,
-                MaxByteStringLength = configuration.MaxByteStringLength,
-                MaxArrayLength = configuration.MaxArrayLength,
-                MaxMessageSize = configuration.MaxMessageSize,
-                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
-                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                NamespaceUris = namespaceUris
-            };
-        }
+                return GetRoot().Fork();
+            }
 
-        /// <summary>
-        /// The message context to use with the binding.
-        /// </summary>
-        public IServiceMessageContext MessageContext { get; set; }
+            /// <summary>
+            /// Lazy create a root encodeable factory with the OPC UA types
+            /// loaded.
+            /// </summary>
+            /// <returns></returns>
+            private static EncodeableFactory GetRoot()
+            {
+                if (!EncodeableFactory.Root.IsValueCreated
+                    ||
+                    // Also test whether it was initialized to prevent that
+                    // a service message context was created with the root
+                    // and then the encodeable factory is created.
+                    !EncodeableFactory.Root.Value.ContainsEncodeableType(
+                        DataTypeIds.ServiceFault)
+                    )
+                {
+                    EncodeableFactory.Root.Value.Builder.AddOpcUa().Commit();
+                }
+                return EncodeableFactory.Root.Value;
+            }
+        }
     }
 }
