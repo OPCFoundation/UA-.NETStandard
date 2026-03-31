@@ -187,6 +187,7 @@ BundleArtifacts/
 
 # Others
 ClientBin/
+_publish/
 ~$*
 *~
 *.dbmdl

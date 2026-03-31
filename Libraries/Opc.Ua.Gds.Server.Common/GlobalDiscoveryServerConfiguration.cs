@@ -35,8 +35,10 @@ namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
+    /// The configuration object is serialized to and from XML
+    /// using the generated IEncodeable implementation, leave
+    /// the class partial for the source generator to work.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class GlobalDiscoveryServerConfiguration
     {
@@ -47,35 +49,27 @@ namespace Opc.Ua.Gds.Server
         {
         }
 
-        [DataMember(Order = 1)]
         [DataTypeField(Order = 0)]
         public string AuthoritiesStorePath { get; set; }
 
-        [DataMember(Order = 2)]
         [DataTypeField(Order = 1)]
         public string ApplicationCertificatesStorePath { get; set; }
 
-        [DataMember(Order = 3)]
         [DataTypeField(Order = 2)]
         public string BaseCertificateGroupStorePath { get; set; }
 
-        [DataMember(Order = 4)]
         [DataTypeField(Order = 3)]
         public string DefaultSubjectNameContext { get; set; }
 
-        [DataMember(Order = 5)]
         [DataTypeField(Order = 4)]
         public ArrayOf<CertificateGroupConfiguration> CertificateGroups { get; set; }
 
-        [DataMember(Order = 6)]
         [DataTypeField(Order = 5)]
         public ArrayOf<string> KnownHostNames { get; set; }
 
-        [DataMember(Order = 7)]
         [DataTypeField(Order = 6)]
         public string DatabaseStorePath { get; set; }
 
-        [DataMember(Order = 8)]
         [DataTypeField(Order = 7)]
         public string UsersDatabaseStorePath { get; set; }
     }
@@ -83,7 +77,6 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class CertificateGroupConfiguration
     {
@@ -91,23 +84,6 @@ namespace Opc.Ua.Gds.Server
         /// The default constructor.
         /// </summary>
         public CertificateGroupConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
         {
             DefaultCertificateLifetime = CertificateFactory.DefaultLifeTime;
             DefaultCertificateKeySize = CertificateFactory.DefaultKeySize;
@@ -118,11 +94,10 @@ namespace Opc.Ua.Gds.Server
             CertificateTypes = [];
         }
 
-        [DataMember(IsRequired = true, Order = 10)]
-        [DataTypeField(Order = 0)]
+        [DataTypeField(IsRequired = true, Order = 10)]
         public string Id { get; set; }
 
-        [DataMember(IsRequired = false, Order = 20)]
+        // [DataTypeField(IsRequired = false, Order = 20)]
         public string CertificateType
         {
             get
@@ -157,80 +132,37 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        [DataMember(IsRequired = false, Order = 21)]
-        [DataTypeField(Order = 1)]
+        [DataTypeField(IsRequired = false, Order = 21)]
         public ArrayOf<string> CertificateTypes { get; set; }
 
-        [DataMember(IsRequired = true, Order = 25)]
-        [DataTypeField(Order = 2)]
+        [DataTypeField(IsRequired = true, Order = 25)]
         public string SubjectName { get; set; }
 
-        [DataMember(IsRequired = true, Order = 30)]
-        [DataTypeField(Order = 3)]
+        [DataTypeField(IsRequired = true, Order = 30)]
         public string BaseStorePath { get; set; }
 
-        [DataMember(Order = 40)]
-        [DataTypeField(Order = 4)]
+        [DataTypeField(Order = 40)]
         public ushort DefaultCertificateLifetime { get; set; }
 
-        [DataMember(Order = 50)]
-        [DataTypeField(Order = 5)]
+        [DataTypeField(Order = 50)]
         public ushort DefaultCertificateKeySize { get; set; }
 
-        [DataMember(Order = 60)]
-        [DataTypeField(Order = 6)]
+        [DataTypeField(Order = 60)]
         public ushort DefaultCertificateHashSize { get; set; }
 
-        [DataMember(Order = 70)]
-        [DataTypeField(Order = 7)]
+        [DataTypeField(Order = 70)]
         public ushort CACertificateLifetime { get; set; }
 
-        [DataMember(Order = 80)]
-        [DataTypeField(Order = 8)]
+        [DataTypeField(Order = 80)]
         public ushort CACertificateKeySize { get; set; }
 
-        [DataMember(Order = 90)]
-        [DataTypeField(Order = 9)]
+        [DataTypeField(Order = 90)]
         public ushort CACertificateHashSize { get; set; }
 
-        public string TrustedListPath => BaseStorePath + Path.DirectorySeparatorChar + "trusted";
-        public string IssuerListPath => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
-    }
+        public string TrustedListPath
+            => BaseStorePath + Path.DirectorySeparatorChar + "trusted";
 
-    [CollectionDataContract(
-        Name = "ListOfCertificateGroupConfiguration",
-        Namespace = Namespaces.OpcUaGds + "Configuration.xsd",
-        ItemName = "CertificateGroupConfiguration"
-    )]
-    public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public CertificateGroupConfigurationCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public CertificateGroupConfigurationCollection(
-            IEnumerable<CertificateGroupConfiguration> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public CertificateGroupConfigurationCollection(int capacity)
-            : base(capacity)
-        {
-        }
+        public string IssuerListPath
+            => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
     }
 }
