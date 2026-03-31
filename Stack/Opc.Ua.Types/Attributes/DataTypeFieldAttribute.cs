@@ -53,5 +53,12 @@ namespace Opc.Ua
         /// during serialization and deserialization.
         /// </summary>
         public string? Name { get; set; }
+
+        /// <summary>
+        /// Unused - reserved for future use to specify
+        /// if the field is optional in a structure with
+        /// optional fields.
+        /// </summary>
+        public bool IsRequired { get; set; }
     }
 }

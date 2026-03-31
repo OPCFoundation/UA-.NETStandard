@@ -168,6 +168,7 @@ namespace Opc.Ua.Aot.Tests
             };
             await m_clientConfiguration.ValidateAsync(ApplicationType.Client)
                 .ConfigureAwait(false);
+
             m_clientConfiguration.CertificateValidator
                 .CertificateValidation += (s, e) => e.Accept = true;
 
