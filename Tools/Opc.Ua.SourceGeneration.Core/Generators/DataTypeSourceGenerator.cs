@@ -101,20 +101,18 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, model.Namespace);
             template.AddReplacement(Tokens.Namespace, model.NamespaceSymbol);
             template.AddReplacement(Tokens.NamespaceUri, model.NamespaceUri);
-            template.AddReplacement(Tokens.Tool, "Opc.Ua.SourceGeneration");
-            template.AddReplacement(Tokens.Version, "1.0.0");
 
             if (model.IsEnum)
             {
                 template.AddReplacement(Tokens.ListOfTypes, (string)null);
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
-                    new object[] { model },
+                    [model],
                     LoadEnumActivator,
                     WriteActivator);
                 template.AddReplacement(
                     Tokens.ListOfActivatorRegistrations,
-                    new object[] { model },
+                    [model],
                     LoadEnumRegistration,
                     WriteActivator);
             }
@@ -122,17 +120,17 @@ namespace Opc.Ua.SourceGeneration
             {
                 template.AddReplacement(
                     Tokens.ListOfTypes,
-                    new object[] { new ClassBodyContext(model, validFields) },
+                    [new ClassBodyContext(model, validFields)],
                     LoadPartialClassBody,
                     WritePartialClassBody);
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
-                    new object[] { model },
+                    [model],
                     LoadStructureActivator,
                     WriteActivator);
                 template.AddReplacement(
                     Tokens.ListOfActivatorRegistrations,
-                    new object[] { model },
+                    [model],
                     LoadStructureRegistration,
                     WriteActivator);
             }

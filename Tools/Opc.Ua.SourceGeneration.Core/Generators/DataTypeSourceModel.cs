@@ -37,7 +37,7 @@ namespace Opc.Ua.SourceGeneration
     /// Populated from Roslyn symbols in DataTypeCompilation, consumed by
     /// DataTypeSourceGenerator in the Core project without Roslyn dependency.
     /// </summary>
-    internal sealed class DataTypeSourceModel
+    internal sealed record class DataTypeSourceModel
     {
         /// <summary>
         /// The C# class/enum name.
@@ -50,19 +50,21 @@ namespace Opc.Ua.SourceGeneration
         public string Namespace { get; set; }
 
         /// <summary>
-        /// OPC UA namespace URI (from [DataType].Namespace, [DataContract].Namespace,
-        /// or fallback to "urn:" + dotnet namespace lowered).
+        /// OPC UA namespace URI (from [DataType].Namespace,
+        /// [DataContract].Namespace, or fallback to
+        /// "urn:" + dotnet namespace lowered).
         /// </summary>
         public string NamespaceUri { get; set; }
 
         /// <summary>
-        /// The dot-stripped namespace for use in extension method names
-        /// (e.g. "OpcUaGdsServer").
+        /// The dot-stripped namespace for use in extension
+        /// method names (e.g. "OpcUaGdsServer").
         /// </summary>
         public string NamespaceSymbol { get; set; }
 
         /// <summary>
-        /// Data type id string (e.g. "i=395", "s=MyType", or null for auto).
+        /// Data type id string (e.g. "i=395", "s=MyType",
+        /// or null for auto).
         /// </summary>
         public string DataTypeId { get; set; }
 
@@ -104,12 +106,14 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Ordered list of fields to encode/decode.
         /// </summary>
-        public IReadOnlyList<DataTypeSourceField> Fields { get; set; } = Array.Empty<DataTypeSourceField>();
+        public IReadOnlyList<DataTypeSourceField> Fields { get; set; }
+            = Array.Empty<DataTypeSourceField>();
 
         /// <summary>
         /// For enums, the list of enum members.
         /// </summary>
-        public IReadOnlyList<DataTypeSourceEnumMember> EnumMembers { get; set; } = Array.Empty<DataTypeSourceEnumMember>();
+        public IReadOnlyList<DataTypeSourceEnumMember> EnumMembers { get; set; }
+            = Array.Empty<DataTypeSourceEnumMember>();
     }
 
     /// <summary>
@@ -117,7 +121,7 @@ namespace Opc.Ua.SourceGeneration
     /// Contains only the information extracted from Roslyn symbols.
     /// The generator resolves encoder/decoder methods from the type info.
     /// </summary>
-    internal sealed class DataTypeSourceField
+    internal sealed record class DataTypeSourceField
     {
         /// <summary>
         /// The C# property name.
@@ -125,17 +129,20 @@ namespace Opc.Ua.SourceGeneration
         public string PropertyName { get; set; }
 
         /// <summary>
-        /// The serialized field name (from [DataTypeField].Name or defaults to PropertyName).
+        /// The serialized field name (from [DataTypeField].Name
+        /// or defaults to PropertyName).
         /// </summary>
         public string FieldName { get; set; }
 
         /// <summary>
-        /// The fully qualified C# type name (e.g. "global::System.String", "global::Opc.Ua.NodeId").
+        /// The fully qualified C# type name (e.g.
+        /// "global::System.String", "global::Opc.Ua.NodeId").
         /// </summary>
         public string TypeName { get; set; }
 
         /// <summary>
-        /// Short type name without namespace prefix (e.g. "String", "NodeId", "Int32").
+        /// Short type name without namespace prefix (e.g.
+        /// "String", "NodeId", "Int32").
         /// </summary>
         public string ShortTypeName { get; set; }
 
@@ -150,12 +157,14 @@ namespace Opc.Ua.SourceGeneration
         public bool IsMatrix { get; set; }
 
         /// <summary>
-        /// The element type short name for ArrayOf/MatrixOf (e.g. "Int32", "NodeId").
+        /// The element type short name for ArrayOf/MatrixOf
+        /// (e.g. "Int32", "NodeId").
         /// </summary>
         public string ElementShortTypeName { get; set; }
 
         /// <summary>
-        /// The element fully qualified type name for ArrayOf/MatrixOf.
+        /// The element fully qualified type name for
+        /// ArrayOf/MatrixOf.
         /// </summary>
         public string ElementTypeName { get; set; }
 
@@ -175,13 +184,15 @@ namespace Opc.Ua.SourceGeneration
         public bool IsEnum { get; set; }
 
         /// <summary>
-        /// The serialization order from [DataTypeField].Order or declaration order.
+        /// The serialization order from [DataTypeField].Order
+        /// or declaration order.
         /// </summary>
         public int Order { get; set; }
 
         /// <summary>
         /// True if this field was annotated with [DataTypeField].
-        /// Used to determine if validation failures should be errors vs warnings.
+        /// Used to determine if validation failures should be
+        /// errors vs warnings.
         /// </summary>
         public bool HasDataTypeFieldAttribute { get; set; }
     }
@@ -189,7 +200,7 @@ namespace Opc.Ua.SourceGeneration
     /// <summary>
     /// Represents an enum member for a source-annotated enum type.
     /// </summary>
-    internal sealed class DataTypeSourceEnumMember
+    internal sealed record class DataTypeSourceEnumMember
     {
         /// <summary>
         /// The member name.
