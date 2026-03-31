@@ -163,7 +163,7 @@ namespace Opc.Ua
                 attribute.Namespace ??
                 type.GetCustomAttribute<DataContractAttribute>(
                     false)?.Namespace ??
-                ("urn:" + type.Namespace.ToLowerInvariant());
+                ("urn:" + (type.Namespace?.ToLowerInvariant() ?? string.Empty));
 
             return TryGetTypeIdsFromType(
                 typeNamespace,
