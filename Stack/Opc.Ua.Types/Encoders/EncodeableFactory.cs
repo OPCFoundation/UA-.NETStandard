@@ -191,7 +191,7 @@ namespace Opc.Ua
                 {
                     throw new ArgumentNullException(nameof(type));
                 }
-                if (TryGetTypeIdsFromType(
+                if (DataTypeAttribute.TryGetTypeIdsFromType(
                     type.Type,
                     out ExpandedNodeId typeId,
                     out ExpandedNodeId binaryEncodingId,
@@ -467,7 +467,7 @@ namespace Opc.Ua
                 IEncodeableType encodeableType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
-                if (TryGetTypeIdsFromType(
+                if (DataTypeAttribute.TryGetTypeIdsFromType(
                     encodeableType.Type,
                     out ExpandedNodeId typeId,
                     out ExpandedNodeId binaryEncodingId,
@@ -559,39 +559,6 @@ namespace Opc.Ua
                     }
                     return nodeId;
                 }
-            }
-
-            /// <summary>
-            /// Try get the type ids from the attribute of the type
-            /// </summary>
-            private bool TryGetTypeIdsFromType(
-                Type type,
-                out ExpandedNodeId typeId,
-                out ExpandedNodeId binaryEncodingId,
-                out ExpandedNodeId xmlEncodingId,
-                out ExpandedNodeId jsonEncodingId)
-            {
-                DataTypeAttribute? attribute =
-                    type.GetCustomAttribute<DataTypeAttribute>(false);
-                if (!ExpandedNodeId.TryParse(
-                        attribute?.DataTypeId,
-                        out typeId) ||
-                    !ExpandedNodeId.TryParse(
-                        attribute?.BinaryEncodingId,
-                        out binaryEncodingId) ||
-                    !ExpandedNodeId.TryParse(
-                        attribute?.XmlEncodingId,
-                        out xmlEncodingId) ||
-                    !ExpandedNodeId.TryParse(
-                        attribute?.JsonEncodingId,
-                        out jsonEncodingId))
-                {
-                    binaryEncodingId = default;
-                    xmlEncodingId = default;
-                    jsonEncodingId = default;
-                    return false;
-                }
-                return true;
             }
 
             private readonly EncodeableFactory m_factory;

@@ -30,23 +30,54 @@
 #nullable enable
 
 using System;
+using System.Reflection;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// <para>
-    /// Declares a type as an IEncodeable data type with the specified data type
-    /// and encoding identifiers. The source generator will implement the IEncodeable
-    /// interface with the given information and register the type as an encodeable.
+    /// Declares a type as an IEncodeable data type with the specified
+    /// data type and encoding identifiers.
     /// </para>
     /// <para>
-    /// If the DataContractAttribute is also applied to the class then the source
-    /// generator will only generate the IEncodeable implementation for its
-    /// DataMember properties. The type does not need to be serializable.
+    /// If the type is a partial class the source generator will
+    /// implement the <see cref="IEncodeable"/> interface with the
+    /// given information. The resulting encodeable is always of type
+    /// <see cref="StructureType.StructureWithSubtypedValues"/>.
+    /// Optional fields and Union
     /// </para>
     /// <para>
-    /// If a namespace uri is not supplied via a DataContractAttribute
-    /// then the namespace of the DataType NodeId will be used.
+    /// If the type is an enum the source generator will generate
+    /// <see cref="EnumeratedType{T}"/> whith an extension method
+    /// Add[NamespaceWithoutDots] in the current .net namespace to
+    /// add the enumerated type to an encodeable factory builder.
+    /// In addition the source generator will also generate a factory
+    /// for the corresponding <see cref="EnumDefinition"/>
+    /// (see "model" generated data types).
+    /// </para>
+    /// <para>
+    /// If the type is a partial class the source generator will
+    /// generate a <see cref="EncodeableType{T}"/> instead which is
+    /// added to a encodeable factory via the extension method
+    /// Add[NamespaceWithoutDots] in the current .net namespace.
+    /// In this case the source generator will generate a factory for
+    /// <see cref="StructureDefinition"/> (same as "model" generated
+    /// data types).
+    /// </para>
+    /// <para>
+    /// If the public properties of the partial class are annoteded
+    /// with a <see cref="DataTypeFieldAttribute"/> then only the
+    /// annotated fields are part of the <see cref="IEncodeable"/>
+    /// implementation. Otherwise all public properties are part of
+    /// it.
+    /// </para>
+    /// <para>
+    /// If the class is a **record type**, the Clone, IsEqual and
+    /// GetHashCode implementation of the <see cref="IEncodeable"/>
+    /// are delegated to the record implementation.
+    /// Otherwise they are generated just like for the data types
+    /// generated from the models.
     /// </para>
     /// </summary>
     [AttributeUsage(
@@ -58,42 +89,153 @@ namespace Opc.Ua
     public sealed class DataTypeAttribute : Attribute
     {
         /// <summary>
-        /// Creates a new encodeable attribute.
+        /// The namespace uri to use for the data type. If a
+        /// namespace uri is not supplied via a DataContractAttribute
+        /// then the .net namespace name will be used prefixed
+        /// with urn:.
         /// </summary>
-        /// <param name="dataTypeId">The type node id of the data type</param>
-        /// <param name="binaryEncodingId">The binary encoding id</param>
-        /// <param name="xmlEncodingId">The xml encoding id</param>
-        /// <param name="jsonEncodingId">The json encoding id></param>
-        public DataTypeAttribute(
-            string dataTypeId,
-            string? binaryEncodingId = null,
-            string? xmlEncodingId = null,
-            string? jsonEncodingId = null)
+        public string? Namespace { get; set; }
+
+        /// <summary>
+        /// Data type identifier to use - if null the identifier
+        /// will be a string identifier with the name being the
+        /// name of the annotated type (e.g "s=MyTypeName").
+        /// The identifier must be prefixed with i=, s=, g=, or b=
+        /// everything else is an error. Namespace indexes are
+        /// discarded. The identifier must be unique across all
+        /// data types in the namespace. If the namespace is open
+        /// it is best to use a random Guid string prefixed with g=.
+        /// </summary>
+        public string? DataTypeId { get; set; }
+
+        /// <summary>
+        /// The optional binary encoding id. The identifier must
+        /// be prefixed with i=, s=, g=, or b= everything else is
+        /// an error. Namespace indexes are discarded.
+        /// </summary>
+        public string? BinaryEncodingId { get; set; }
+
+        /// <summary>
+        /// The optional xml encoding id. The identifier must
+        /// be prefixed with i=, s=, g=, or b= everything else is
+        /// an error. Namespace indexes are discarded.
+        /// </summary>
+        public string? XmlEncodingId { get; set; }
+
+        /// <summary>
+        /// The optional Json encoding id. The identifier must
+        /// be prefixed with i=, s=, g=, or b= everything else is
+        /// an error. Namespace indexes are discarded.
+        /// </summary>
+        public string? JsonEncodingId { get; set; }
+
+        /// <summary>
+        /// Try get the type ids from the attribute of the type.
+        /// Parses the information in the data type attribute
+        /// according to the documented rules and returns the
+        /// identifiers.
+        /// </summary>
+        /// <returns>
+        /// False if parsing of any identifier failed (e.g.
+        /// because it contained a namespace uri or no prefix.
+        /// </returns>
+        public static bool TryGetTypeIdsFromType(
+            Type type,
+            out ExpandedNodeId typeId,
+            out ExpandedNodeId binaryEncodingId,
+            out ExpandedNodeId xmlEncodingId,
+            out ExpandedNodeId jsonEncodingId)
         {
-            DataTypeId = dataTypeId;
-            BinaryEncodingId = binaryEncodingId;
-            XmlEncodingId = xmlEncodingId;
-            JsonEncodingId = jsonEncodingId;
+            DataTypeAttribute? attribute =
+                type.GetCustomAttribute<DataTypeAttribute>(false);
+            if (attribute == null)
+            {
+                // Not a decorated type
+                typeId = default;
+                binaryEncodingId = default;
+                xmlEncodingId = default;
+                jsonEncodingId = default;
+                return false;
+            }
+
+            string typename = type.Name;
+            string typeNamespace =
+                attribute.Namespace ??
+                type.GetCustomAttribute<DataContractAttribute>(
+                    false)?.Namespace ??
+                ("urn:" + type.Namespace.ToLowerInvariant());
+
+            return TryGetTypeIdsFromType(
+                typeNamespace,
+                attribute.DataTypeId,
+                attribute.BinaryEncodingId,
+                attribute.XmlEncodingId,
+                attribute.JsonEncodingId,
+                typename,
+                out typeId,
+                out binaryEncodingId,
+                out xmlEncodingId,
+                out jsonEncodingId);
         }
 
         /// <summary>
-        /// Data type identifier to use
+        /// Get type ids from strings according to the documented
+        /// rules and returns the identifiers.
         /// </summary>
-        public string DataTypeId { get; }
+        /// <returns>
+        /// False if parsing of any identifier failed (e.g.
+        /// because it contained a namespace uri or no prefix.
+        /// </returns>
+        public static bool TryGetTypeIdsFromType(
+            string namespaceUri,
+            string? dataTypeIdString,
+            string? binaryEncodingIdString,
+            string? xmlEncodingIdString,
+            string? jsonEncodingIdString,
+            string typename,
+            out ExpandedNodeId typeId,
+            out ExpandedNodeId binaryEncodingId,
+            out ExpandedNodeId xmlEncodingId,
+            out ExpandedNodeId jsonEncodingId)
+        {
+            typeId = default;
+            binaryEncodingId = default;
+            xmlEncodingId = default;
+            jsonEncodingId = default;
 
-        /// <summary>
-        /// The binary encoding id
-        /// </summary>
-        public string? BinaryEncodingId { get; }
+            string? nodeIdString = dataTypeIdString;
+            // Parsing null string succeeds with true and returns NodeId.Null
+            if (!NodeId.TryParse(nodeIdString, out NodeId nodeId))
+            {
+                return false;
+            }
+            typeId = nodeId.IsNull ?
+                new ExpandedNodeId(typename, namespaceUri) :
+                new ExpandedNodeId(nodeId, namespaceUri);
 
-        /// <summary>
-        /// The xml encoding id
-        /// </summary>
-        public string? XmlEncodingId { get; }
-
-        /// <summary>
-        /// Json encoding id
-        /// </summary>
-        public string? JsonEncodingId { get; }
+            // Parse the rest but fail if parsing the identifier fails.
+            if (!NodeId.TryParse(binaryEncodingIdString, out nodeId))
+            {
+                return false;
+            }
+            binaryEncodingId = nodeId.IsNull ?
+                default :
+                new ExpandedNodeId(nodeId, namespaceUri);
+            if (!NodeId.TryParse(xmlEncodingIdString, out nodeId))
+            {
+                return false;
+            }
+            xmlEncodingId = nodeId.IsNull ?
+                default :
+                new ExpandedNodeId(nodeId, namespaceUri);
+            if (!NodeId.TryParse(jsonEncodingIdString, out nodeId))
+            {
+                return false;
+            }
+            jsonEncodingId = nodeId.IsNull ?
+                default :
+                new ExpandedNodeId(nodeId, namespaceUri);
+            return true;
+        }
     }
 }
