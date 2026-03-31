@@ -27,37 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
     public class RequestManagerTests
     {
-        private Mock<IServerInternal> _mockServer;
-        private RequestManager _requestManager;
+        private Mock<IServerInternal> m_mockServer;
+        private RequestManager m_requestManager;
 
         [SetUp]
         public void SetUp()
         {
-            _mockServer = new Mock<IServerInternal>();
+            m_mockServer = new Mock<IServerInternal>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockTelemetry.Setup(t => t.LoggerFactory).Returns(NullLoggerFactory.Instance);
-            _mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
-            _requestManager = new RequestManager(_mockServer.Object);
+            m_mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
+            m_requestManager = new RequestManager(m_mockServer.Object);
         }
 
         [TearDown]
         public void TearDown()
         {
-            _requestManager?.Dispose();
+            m_requestManager?.Dispose();
         }
 
         [Test]
@@ -69,13 +65,13 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RequestReceivedThrowsArgumentNullExceptionWhenContextNull()
         {
-            Assert.That(() => _requestManager.RequestReceived(null), Throws.ArgumentNullException);
+            Assert.That(() => m_requestManager.RequestReceived(null), Throws.ArgumentNullException);
         }
 
         [Test]
         public void RequestCompletedThrowsArgumentNullExceptionWhenContextNull()
         {
-            Assert.That(() => _requestManager.RequestCompleted(null), Throws.ArgumentNullException);
+            Assert.That(() => m_requestManager.RequestCompleted(null), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -84,7 +80,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 42, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -93,19 +89,19 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
-            _requestManager.RequestReceived(context);
+
+            m_requestManager.RequestReceived(context);
 
             bool eventFired = false;
             uint cancelledRequestId = 0;
-            _requestManager.RequestCancelled += (sender, reqId, status) =>
+            m_requestManager.RequestCancelled += (sender, reqId, status) =>
             {
                 eventFired = true;
                 cancelledRequestId = reqId;
             };
 
             // Act
-            _requestManager.CancelRequests(42, out uint cancelCount);
+            m_requestManager.CancelRequests(42, out uint cancelCount);
 
             // Assert
             Assert.That(cancelCount, Is.EqualTo(1));
@@ -120,7 +116,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 42, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -129,27 +125,27 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
-            _requestManager.RequestReceived(context);
+
+            m_requestManager.RequestReceived(context);
 
             // Act
-            _requestManager.RequestCompleted(context);
-            
+            m_requestManager.RequestCompleted(context);
+
             // Assert
             // To ensure it is removed, cancelling it will yield 0 count
-            _requestManager.CancelRequests(42, out uint cancelCount);
-            Assert.That(cancelCount, Is.EqualTo(0));
+            m_requestManager.CancelRequests(42, out uint cancelCount);
+            Assert.That(cancelCount, Is.Zero);
             // Assert that lifetime is completed (disposed), which means TryCancel returns false
             Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
         }
 
         [Test]
-        public async Task TimerCancelsExpiredRequestsAndFiresEvent()
+        public async Task TimerCancelsExpiredRequestsAndFiresEventAsync()
         {
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             // TimeoutHint is small to ensure it expires quickly
             var requestHeader = new RequestHeader { RequestHandle = 43, TimeoutHint = 100 };
             using var requestLifetime = new RequestLifetime();
@@ -159,35 +155,35 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
+
             bool eventFired = false;
-            _requestManager.RequestCancelled += (sender, reqId, status) =>
+            m_requestManager.RequestCancelled += (sender, reqId, status) =>
             {
                 if (reqId == context.RequestId && status == StatusCodes.BadTimeout)
                 {
                     eventFired = true;
                 }
             };
-            
-            _requestManager.RequestReceived(context);
+
+            m_requestManager.RequestReceived(context);
 
             // Act
             // Wait for timer to expire since TimeoutHint = 100ms. Note the original timer runs every 1000ms.
             // We need to wait a bit more than 1000ms.
-            await Task.Delay(1200);
+            await Task.Delay(1200).ConfigureAwait(false);
 
             // Assert
             Assert.That(eventFired, Is.True);
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
         }
-        
+
         [Test]
         public void DisposeCancelsPendingRequests()
         {
             // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.Id).Returns(new NodeId(1));
-            
+
             var requestHeader = new RequestHeader { RequestHandle = 44, TimeoutHint = 0 };
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
@@ -196,12 +192,12 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
-            
-            _requestManager.RequestReceived(context);
-            
+
+            m_requestManager.RequestReceived(context);
+
             // Act
-            _requestManager.Dispose();
-            
+            m_requestManager.Dispose();
+
             // Assert
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
         }
