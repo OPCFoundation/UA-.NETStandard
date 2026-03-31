@@ -242,6 +242,10 @@ namespace Opc.Ua.SourceGeneration
             CancellationToken ct)
         {
             string ns = symbol.GetFullNamespace();
+            bool baseTypeIsEncodeable = symbol.BaseType != null &&
+                symbol.BaseType.Name != "Object" &&
+                (symbol.BaseType.ImplementsInterface("IEncodeable") ||
+                 symbol.BaseType.HasAttribute("DataTypeAttribute"));
             return new TypeSourceModel
             {
                 ClassName = symbol.Name,
@@ -255,6 +259,12 @@ namespace Opc.Ua.SourceGeneration
                 JsonEncodingId = jsonEncodingId,
                 IsRecord = symbol.IsRecord,
                 IsEnum = false,
+                IsSealed = symbol.IsSealed,
+                IsDerived = baseTypeIsEncodeable,
+                IsInternal =
+                    symbol.DeclaredAccessibility == Accessibility.Internal ||
+                    symbol.DeclaredAccessibility == Accessibility.NotApplicable,
+                BaseTypeIsEncodeable = baseTypeIsEncodeable,
                 Fields = CollectFields(symbol, ct),
                 BaseClassName = symbol.BaseType?.Name == "Object"
                     ? null : symbol.BaseType?.Name
@@ -348,7 +358,7 @@ namespace Opc.Ua.SourceGeneration
                     string fieldName = dtfAttr.GetValue(
                         nameof(DataTypeFieldAttribute.Name))
                         ?? prop.Name;
-                    fields.Add(CreateField(prop, fieldName, orderIndex, true));
+                    fields.Add(CreateField(prop, fieldName, orderIndex, true, dtfAttr));
                 }
             }
             fields.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -357,7 +367,8 @@ namespace Opc.Ua.SourceGeneration
 
         private static TypeFieldModel CreateField(
             IPropertySymbol prop, string fieldName,
-            int order, bool hasDataTypeFieldAttr)
+            int order, bool hasDataTypeFieldAttr,
+            AttributeData dtfAttr = null)
         {
             ITypeSymbol type = prop.Type;
             string shortName = type.Name;
@@ -371,6 +382,7 @@ namespace Opc.Ua.SourceGeneration
             bool isMatrix = false;
             string elementShortTypeName = null;
             string elementTypeName = null;
+            ITypeSymbol encodeableType = type;
 
             if (shortName == "ArrayOf" &&
                 type is INamedTypeSymbol arrayType &&
@@ -385,6 +397,7 @@ namespace Opc.Ua.SourceGeneration
                     elem.ImplementsInterface(nameof(IEncodeable)) ||
                     elem.HasAttribute(nameof(DataTypeAttribute));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                encodeableType = elem;
             }
             else if (shortName == "MatrixOf" &&
                 type is INamedTypeSymbol matrixType &&
@@ -398,9 +411,28 @@ namespace Opc.Ua.SourceGeneration
                 isEncodeable =
                     elem.ImplementsInterface(nameof(IEncodeable)) ||
                     elem.HasAttribute(nameof(DataTypeAttribute));
-                    elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                encodeableType = elem;
             }
+
+            bool? forceEncodeable = null;
+            if (dtfAttr != null)
+            {
+                foreach (var kvp in dtfAttr.NamedArguments)
+                {
+                    if (kvp.Key == "ForceEncodeable" && kvp.Value.Value is bool b)
+                    {
+                        forceEncodeable = b;
+                    }
+                }
+            }
+
+            bool fieldTypeIsSealed = encodeableType.IsSealed;
+            bool fieldTypeHasEncodeableBase =
+                encodeableType is INamedTypeSymbol namedFieldType &&
+                namedFieldType.BaseType != null &&
+                namedFieldType.BaseType.Name != "Object" &&
+                namedFieldType.BaseType.ImplementsInterface("IEncodeable");
 
             return new TypeFieldModel
             {
@@ -416,7 +448,10 @@ namespace Opc.Ua.SourceGeneration
                 IsEncodeable = isEncodeable,
                 IsEnum = isEnum,
                 Order = order,
-                HasDataTypeFieldAttribute = hasDataTypeFieldAttr
+                HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
+                ForceEncodeable = forceEncodeable,
+                FieldTypeIsSealed = fieldTypeIsSealed,
+                FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
             };
         }
 

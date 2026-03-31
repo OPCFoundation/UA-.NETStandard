@@ -209,7 +209,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void GenerateWithEncodeableFieldUsesWriteEncodeable()
+        public void GenerateWithEncodeableFieldDefaultUsesExtensionObject()
         {
             var model = new TypeSourceModel
             {
@@ -235,9 +235,72 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string result = TypeSourceGenerator.Generate(model);
 
+            Assert.That(result, Does.Contain("WriteEncodeableAsExtensionObject"));
+            Assert.That(result, Does.Contain("ReadEncodeableAsExtensionObject"));
+        }
+
+        [Test]
+        public void GenerateWithSealedEncodeableFieldUsesWriteEncodeable()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "Parent",
+                Namespace = "Test.Ns",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "TestNs",
+                IsEnum = false,
+                IsRecord = false,
+                Fields = new[]
+                {
+                    new TypeFieldModel
+                    {
+                        PropertyName = "Child",
+                        FieldName = "Child",
+                        TypeName = "global::Test.Ns.ChildType",
+                        ShortTypeName = "ChildType",
+                        IsEncodeable = true,
+                        FieldTypeIsSealed = true,
+                        Order = 0
+                    }
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
             Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
             Assert.That(result, Does.Contain("decoder.ReadEncodeable(\"Child\""));
-            Assert.That(result, Does.Contain("typeof(global::Test.Ns.ChildType)"));
+        }
+
+        [Test]
+        public void GenerateWithForceEncodeableTrueUsesWriteEncodeable()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "Parent",
+                Namespace = "Test.Ns",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "TestNs",
+                IsEnum = false,
+                IsRecord = false,
+                Fields = new[]
+                {
+                    new TypeFieldModel
+                    {
+                        PropertyName = "Child",
+                        FieldName = "Child",
+                        TypeName = "global::Test.Ns.ChildType",
+                        ShortTypeName = "ChildType",
+                        IsEncodeable = true,
+                        ForceEncodeable = true,
+                        Order = 0
+                    }
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
+            Assert.That(result, Does.Not.Contain("ExtensionObject"));
         }
 
         [Test]

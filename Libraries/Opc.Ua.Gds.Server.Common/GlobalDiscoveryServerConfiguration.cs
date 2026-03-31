@@ -39,6 +39,7 @@ namespace Opc.Ua.Gds.Server
     /// using the generated IEncodeable implementation, leave
     /// the class partial for the source generator to work.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class GlobalDiscoveryServerConfiguration
     {
@@ -84,6 +85,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class CertificateGroupConfiguration
     {

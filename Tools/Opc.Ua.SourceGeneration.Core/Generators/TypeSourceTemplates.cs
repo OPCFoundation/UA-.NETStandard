@@ -79,7 +79,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString PartialClassBody = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            partial class {{Tokens.ClassName}} :
+            {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}} :
                 global::Opc.Ua.IEncodeable,
                 global::Opc.Ua.IJsonEncodeable
             {
@@ -131,6 +131,227 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public virtual object Clone()
+                {
+                    return ({{Tokens.ClassName}})this.MemberwiseClone();
+                }
+
+                /// <inheritdoc/>
+                public new object MemberwiseClone()
+                {
+                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
+                    {{Tokens.ListOfClonedFields}}
+                    return clone;
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Partial class body for a sealed root class.
+        /// Same as <see cref="PartialClassBody"/> but without <c>virtual</c> modifiers.
+        /// </summary>
+        public static readonly TemplateString SealedPartialClassBody = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}} :
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
+            {
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId TypeId
+                    => {{Tokens.DataTypeIdConstant}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId BinaryEncodingId
+                    => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId XmlEncodingId
+                    => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId JsonEncodingId
+                    => {{Tokens.JsonEncodingId}};
+
+                /// <inheritdoc/>
+                public void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                {
+                    if (encodeable is null) return false;
+                    if (object.ReferenceEquals(this, encodeable)) return true;
+
+                    {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
+                    if (value is null) return false;
+
+                    {{Tokens.ListOfComparedFields}}
+
+                    return true;
+                }
+
+                /// <inheritdoc/>
+                public object Clone()
+                {
+                    return ({{Tokens.ClassName}})this.MemberwiseClone();
+                }
+
+                /// <inheritdoc/>
+                public new object MemberwiseClone()
+                {
+                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
+                    {{Tokens.ListOfClonedFields}}
+                    return clone;
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Partial class body for a non-sealed derived class.
+        /// Uses <c>override</c> instead of <c>virtual</c>, calls base in
+        /// Encode, Decode and IsEqual, and omits the interface list.
+        /// </summary>
+        public static readonly TemplateString DerivedPartialClassBody = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}}
+            {
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId TypeId
+                    => {{Tokens.DataTypeIdConstant}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId BinaryEncodingId
+                    => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId XmlEncodingId
+                    => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId
+                    => {{Tokens.JsonEncodingId}};
+
+                /// <inheritdoc/>
+                public override void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    base.Encode(encoder);
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public override void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    base.Decode(decoder);
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                {
+                    if (encodeable is null) return false;
+                    if (object.ReferenceEquals(this, encodeable)) return true;
+
+                    {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
+                    if (value is null) return false;
+
+                    {{Tokens.ListOfComparedFields}}
+
+                    return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public override object Clone()
+                {
+                    return ({{Tokens.ClassName}})this.MemberwiseClone();
+                }
+
+                /// <inheritdoc/>
+                public new object MemberwiseClone()
+                {
+                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
+                    {{Tokens.ListOfClonedFields}}
+                    return clone;
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Partial class body for a sealed derived class.
+        /// Same as <see cref="DerivedPartialClassBody"/> but uses
+        /// <c>sealed override</c> instead of <c>override</c>.
+        /// </summary>
+        public static readonly TemplateString DerivedSealedPartialClassBody = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}}
+            {
+                /// <inheritdoc/>
+                public sealed override global::Opc.Ua.ExpandedNodeId TypeId
+                    => {{Tokens.DataTypeIdConstant}};
+
+                /// <inheritdoc/>
+                public sealed override global::Opc.Ua.ExpandedNodeId BinaryEncodingId
+                    => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public sealed override global::Opc.Ua.ExpandedNodeId XmlEncodingId
+                    => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public sealed override global::Opc.Ua.ExpandedNodeId JsonEncodingId
+                    => {{Tokens.JsonEncodingId}};
+
+                /// <inheritdoc/>
+                public sealed override void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    base.Encode(encoder);
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public sealed override void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    base.Decode(decoder);
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public sealed override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                {
+                    if (encodeable is null) return false;
+                    if (object.ReferenceEquals(this, encodeable)) return true;
+
+                    {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
+                    if (value is null) return false;
+
+                    {{Tokens.ListOfComparedFields}}
+
+                    return base.IsEqual(encodeable);
+                }
+
+                /// <inheritdoc/>
+                public sealed override object Clone()
                 {
                     return ({{Tokens.ClassName}})this.MemberwiseClone();
                 }

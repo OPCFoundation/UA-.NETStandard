@@ -192,8 +192,20 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            return ctx.IsRecord
-                ? TypeSourceTemplates.RecordPartialClassBody
+            if (ctx.IsRecord)
+            {
+                return TypeSourceTemplates.RecordPartialClassBody;
+            }
+
+            if (ctx.IsDerived)
+            {
+                return ctx.IsSealed
+                    ? TypeSourceTemplates.DerivedSealedPartialClassBody
+                    : TypeSourceTemplates.DerivedPartialClassBody;
+            }
+
+            return ctx.IsSealed
+                ? TypeSourceTemplates.SealedPartialClassBody
                 : TypeSourceTemplates.PartialClassBody;
         }
 
@@ -221,6 +233,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"\"{model.NamespaceUri.Escape()}\"");
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsInternal ? "internal" : "public");
 
             context.Template.AddReplacement(
                 Tokens.ListOfEncodedFields,
@@ -257,15 +271,24 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
                 {
+                    string method = useExtObj
+                        ? "WriteEncodeableArrayAsExtensionObjects"
+                        : "WriteEncodeableArray";
                     return (TemplateString)CoreUtils.Format(
-                        """encoder.WriteEncodeableArray("{0}", {1});""",
+                        "encoder.{0}(\"{1}\", {2});",
+                        method,
                         field.FieldName.Escape(),
                         field.PropertyName);
                 }
+                string scalarMethod = useExtObj
+                    ? "WriteEncodeableAsExtensionObject"
+                    : "WriteEncodeable";
                 return (TemplateString)CoreUtils.Format(
-                    """encoder.WriteEncodeable("{0}", {1});""",
+                    "encoder.{0}(\"{1}\", {2});",
+                    scalarMethod,
                     field.FieldName.Escape(),
                     field.PropertyName);
             }
@@ -307,16 +330,29 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
                 {
+                    string method = useExtObj
+                        ? "ReadEncodeableArrayAsExtensionObjects"
+                        : "ReadEncodeableArray";
                     return (TemplateString)CoreUtils.Format(
-                        """{0} = decoder.ReadEncodeableArray<{1}>("{2}");""",
+                        "{0} = decoder.{1}<{2}>(\"{3}\");",
                         field.PropertyName,
+                        method,
                         field.ElementTypeName,
                         field.FieldName.Escape());
                 }
+                if (useExtObj)
+                {
+                    return (TemplateString)CoreUtils.Format(
+                        "{0} = decoder.ReadEncodeableAsExtensionObject<{1}>(\"{2}\");",
+                        field.PropertyName,
+                        field.TypeName,
+                        field.FieldName.Escape());
+                }
                 return (TemplateString)CoreUtils.Format(
-                    """{0} = ({1})decoder.ReadEncodeable("{2}", typeof({1}));""",
+                    "{0} = ({1})decoder.ReadEncodeable(\"{2}\", typeof({1}));",
                     field.PropertyName,
                     field.TypeName,
                     field.FieldName.Escape());
@@ -437,6 +473,33 @@ namespace Opc.Ua.SourceGeneration
                 """);
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Determines whether an IEncodeable field should be encoded as
+        /// an ExtensionObject (allowing subtyping) or directly.
+        /// </summary>
+        internal static bool ShouldUseExtensionObject(TypeFieldModel field)
+        {
+            // Explicit override from [DataTypeField(ForceEncodeable = ...)]
+            if (field.ForceEncodeable == true)
+            {
+                return false;
+            }
+            if (field.ForceEncodeable == false)
+            {
+                return true;
+            }
+
+            // Auto-detect: use WriteEncodeable if the type is sealed
+            // and does not derive from another IEncodeable base type
+            if (field.FieldTypeIsSealed && !field.FieldTypeHasEncodeableBase)
+            {
+                return false;
+            }
+
+            // Default: use ExtensionObject to allow subtyping
+            return true;
         }
 
         /// <summary>
