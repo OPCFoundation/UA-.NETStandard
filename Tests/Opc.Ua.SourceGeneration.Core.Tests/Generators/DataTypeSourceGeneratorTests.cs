@@ -44,7 +44,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateSimpleClassProducesEncodeDecodeAndActivator()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "MyConfig",
                 Namespace = "MyApp.Config",
@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("partial class MyConfig"));
             Assert.That(result, Does.Contain("IEncodeable"));
@@ -83,7 +83,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateWithCustomFieldNamesUsesFieldName()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "TestType",
                 Namespace = "Test.Ns",
@@ -93,7 +93,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = false,
                 Fields = new[]
                 {
-                    new DataTypeSourceField
+                    new TypeFieldModel
                     {
                         PropertyName = "ServerName",
                         FieldName = "server_name",
@@ -104,7 +104,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("encoder.WriteString(\"server_name\", ServerName)"));
             Assert.That(result, Does.Contain("decoder.ReadString(\"server_name\")"));
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateRecordClassDelegatesCloneAndIsEqual()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "MyRecord",
                 Namespace = "Test.Records",
@@ -127,7 +127,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("this with { }"));
             Assert.That(result, Does.Contain("Equals(encodeable as MyRecord)"));
@@ -137,7 +137,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateEnumProducesEnumeratedTypeActivator()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "MyEnum",
                 Namespace = "Test.Enums",
@@ -146,13 +146,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsEnum = true,
                 EnumMembers = new[]
                 {
-                    new DataTypeSourceEnumMember { Name = "None", Value = "0" },
-                    new DataTypeSourceEnumMember { Name = "Active", Value = "1" },
-                    new DataTypeSourceEnumMember { Name = "Disabled", Value = "2" },
+                    new TypeEnumMember { Name = "None", Value = "0" },
+                    new TypeEnumMember { Name = "Active", Value = "1" },
+                    new TypeEnumMember { Name = "Disabled", Value = "2" },
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("MyEnumActivator"));
             Assert.That(result, Does.Contain("EnumeratedType<MyEnum>"));
@@ -165,7 +165,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateWithCustomTypeIdsUsesSpecifiedIds()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "CustomType",
                 Namespace = "Custom.Ns",
@@ -177,10 +177,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 JsonEncodingId = "i=12348",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = Array.Empty<DataTypeSourceField>()
+                Fields = Array.Empty<TypeFieldModel>()
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("i=12345"));
             Assert.That(result, Does.Contain("i=12346"));
@@ -191,7 +191,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateWithNullTypeIdUsesStringIdentifier()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "AutoIdType",
                 Namespace = "Auto.Ns",
@@ -199,10 +199,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "AutoNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = Array.Empty<DataTypeSourceField>()
+                Fields = Array.Empty<TypeFieldModel>()
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("\"AutoIdType\""));
             Assert.That(result, Does.Contain("\"urn:auto:ns\""));
@@ -211,7 +211,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateWithEncodeableFieldUsesWriteEncodeable()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "Parent",
                 Namespace = "Test.Ns",
@@ -221,7 +221,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = false,
                 Fields = new[]
                 {
-                    new DataTypeSourceField
+                    new TypeFieldModel
                     {
                         PropertyName = "Child",
                         FieldName = "Child",
@@ -233,7 +233,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
             Assert.That(result, Does.Contain("decoder.ReadEncodeable(\"Child\""));
@@ -243,7 +243,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateWithArrayOfFieldClonesArray()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "WithArray",
                 Namespace = "Test.Ns",
@@ -253,7 +253,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = false,
                 Fields = new[]
                 {
-                    new DataTypeSourceField
+                    new TypeFieldModel
                     {
                         PropertyName = "Items",
                         FieldName = "Items",
@@ -267,7 +267,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("Utils.Clone(this.Items)"));
             Assert.That(result, Does.Contain("WriteStringArray"));
@@ -290,7 +290,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             foreach (string typeName in expectedTypes)
             {
-                Assert.That(DataTypeSourceGenerator.s_scalarTypeMap.ContainsKey(typeName),
+                Assert.That(TypeSourceGenerator.s_scalarTypeMap.ContainsKey(typeName),
                     Is.True,
                     $"Missing type mapping for {typeName}");
             }
@@ -300,7 +300,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ResolveEncoderDecoderForScalarField()
         {
             var field = CreateField("Value", "Int32");
-            var result = DataTypeSourceGenerator.ResolveEncoderDecoder(field);
+            var result = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(result.writeMethod, Is.EqualTo("WriteInt32"));
             Assert.That(result.readMethod, Is.EqualTo("ReadInt32"));
         }
@@ -309,7 +309,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ResolveEncoderDecoderForArrayField()
         {
             var field = CreateField("Values", "ArrayOf", isArray: true, elementType: "String");
-            var result = DataTypeSourceGenerator.ResolveEncoderDecoder(field);
+            var result = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(result.writeMethod, Is.EqualTo("WriteStringArray"));
             Assert.That(result.readMethod, Is.EqualTo("ReadStringArray"));
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void ValidateAndFilterRejectsUnsupportedType()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "BadType",
                 Namespace = "Test",
@@ -327,7 +327,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Fields = new[]
                 {
                     CreateField("Good", "String"),
-                    new DataTypeSourceField
+                    new TypeFieldModel
                     {
                         PropertyName = "Bad",
                         FieldName = "Bad",
@@ -338,8 +338,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            IReadOnlyList<DataTypeSourceDiagnostic> diagnostics =
-                DataTypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> valid);
+            IReadOnlyList<TypeSourceGeneratorDiagnostic> diagnostics =
+                TypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<TypeFieldModel> valid);
 
             Assert.That(valid, Has.Count.EqualTo(1));
             Assert.That(valid[0].PropertyName, Is.EqualTo("Good"));
@@ -350,7 +350,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void ValidateAndFilterReportsErrorForAnnotatedUnsupportedType()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "BadAnnotated",
                 Namespace = "Test",
@@ -359,7 +359,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsEnum = false,
                 Fields = new[]
                 {
-                    new DataTypeSourceField
+                    new TypeFieldModel
                     {
                         PropertyName = "Bad",
                         FieldName = "Bad",
@@ -371,8 +371,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             };
 
-            IReadOnlyList<DataTypeSourceDiagnostic> diagnostics =
-                DataTypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> valid);
+            IReadOnlyList<TypeSourceGeneratorDiagnostic> diagnostics =
+                TypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<TypeFieldModel> valid);
 
             Assert.That(valid, Has.Count.EqualTo(0));
             Assert.That(diagnostics, Has.Count.EqualTo(1));
@@ -382,7 +382,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void GenerateNamespaceMatchesModel()
         {
-            var model = new DataTypeSourceModel
+            var model = new TypeSourceModel
             {
                 ClassName = "NsTest",
                 Namespace = "My.Deep.Namespace",
@@ -390,20 +390,20 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "MyDeepNamespace",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = Array.Empty<DataTypeSourceField>()
+                Fields = Array.Empty<TypeFieldModel>()
             };
 
-            string result = DataTypeSourceGenerator.Generate(model);
+            string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("namespace My.Deep.Namespace"));
         }
 
-        private static DataTypeSourceField CreateField(
+        private static TypeFieldModel CreateField(
             string name, string shortType,
             bool isArray = false,
             string elementType = null)
         {
-            return new DataTypeSourceField
+            return new TypeFieldModel
             {
                 PropertyName = name,
                 FieldName = name,

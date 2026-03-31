@@ -37,7 +37,7 @@ namespace Opc.Ua.SourceGeneration
     /// Populated from Roslyn symbols in DataTypeCompilation, consumed by
     /// DataTypeSourceGenerator in the Core project without Roslyn dependency.
     /// </summary>
-    internal sealed record class DataTypeSourceModel
+    internal sealed record class TypeSourceModel
     {
         /// <summary>
         /// The C# class/enum name.
@@ -106,14 +106,14 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Ordered list of fields to encode/decode.
         /// </summary>
-        public IReadOnlyList<DataTypeSourceField> Fields { get; set; }
-            = Array.Empty<DataTypeSourceField>();
+        public IReadOnlyList<TypeFieldModel> Fields { get; set; }
+            = Array.Empty<TypeFieldModel>();
 
         /// <summary>
         /// For enums, the list of enum members.
         /// </summary>
-        public IReadOnlyList<DataTypeSourceEnumMember> EnumMembers { get; set; }
-            = Array.Empty<DataTypeSourceEnumMember>();
+        public IReadOnlyList<TypeEnumMember> EnumMembers { get; set; }
+            = Array.Empty<TypeEnumMember>();
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ namespace Opc.Ua.SourceGeneration
     /// Contains only the information extracted from Roslyn symbols.
     /// The generator resolves encoder/decoder methods from the type info.
     /// </summary>
-    internal sealed record class DataTypeSourceField
+    internal sealed record class TypeFieldModel
     {
         /// <summary>
         /// The C# property name.
@@ -200,7 +200,7 @@ namespace Opc.Ua.SourceGeneration
     /// <summary>
     /// Represents an enum member for a source-annotated enum type.
     /// </summary>
-    internal sealed record class DataTypeSourceEnumMember
+    internal sealed record class TypeEnumMember
     {
         /// <summary>
         /// The member name.

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -41,37 +42,41 @@ namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Handles a single [DataType]-annotated class or enum.
-    /// Builds and validates a <see cref="DataTypeSourceModel"/> during
+    /// Builds and validates a <see cref="TypeSourceModel"/> during
     /// construction. Models are collected via <c>.Collect()</c> and
     /// emitted as a batch (one file per namespace) by
     /// <see cref="EmitBatch"/> to avoid conflicting extension methods.
     /// </summary>
     internal sealed record class DataTypeCompilation
     {
-        private const string DataTypeFieldAttributeName = "DataTypeFieldAttribute";
-
         /// <summary>
         /// The validated model, or null if structural validation failed.
         /// </summary>
-        public DataTypeSourceModel Model { get; }
+        public TypeSourceModel Model { get; }
 
         /// <summary>
         /// The validated fields (empty for enums or on error).
         /// </summary>
-        public IReadOnlyList<DataTypeSourceField> ValidFields { get; }
+        public IReadOnlyList<TypeFieldModel> ValidFields { get; }
 
         /// <summary>
         /// Diagnostics from field validation.
         /// </summary>
-        public IReadOnlyList<DataTypeSourceDiagnostic> Diagnostics { get; }
+        public IReadOnlyList<TypeSourceGeneratorDiagnostic> Diagnostics { get; }
 
-        /// <summary>Location for diagnostic reporting.</summary>
+        /// <summary>
+        /// Location for diagnostic reporting.
+        /// </summary>
         public Location Location { get; }
 
-        /// <summary>True if the model has fatal errors.</summary>
+        /// <summary>
+        /// True if the model has fatal errors.
+        /// </summary>
         public bool HasErrors { get; }
 
-        /// <summary>Structural error message (non-partial, no ctor).</summary>
+        /// <summary>
+        /// Structural error message (non-partial, no ctor).
+        /// </summary>
         public string ErrorMessage { get; }
 
         /// <summary>
@@ -96,23 +101,22 @@ namespace Opc.Ua.SourceGeneration
 
             AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();
             string dataTypeNamespace =
-                GetNamedArgString(dataTypeAttr, "Namespace");
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.Namespace));
             string dataTypeId =
-                GetNamedArgString(dataTypeAttr, "DataTypeId");
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.DataTypeId));
             string binaryEncodingId =
-                GetNamedArgString(dataTypeAttr, "BinaryEncodingId");
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.BinaryEncodingId));
             string xmlEncodingId =
-                GetNamedArgString(dataTypeAttr, "XmlEncodingId");
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.XmlEncodingId));
             string jsonEncodingId =
-                GetNamedArgString(dataTypeAttr, "JsonEncodingId");
-
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.JsonEncodingId));
             if (symbol.TypeKind == TypeKind.Enum)
             {
                 Model = BuildEnumModel(
                     symbol, dataTypeNamespace, dataTypeId,
                     binaryEncodingId, xmlEncodingId, jsonEncodingId);
-                ValidFields = System.Array.Empty<DataTypeSourceField>();
-                Diagnostics = System.Array.Empty<DataTypeSourceDiagnostic>();
+                ValidFields = System.Array.Empty<TypeFieldModel>();
+                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
                 return;
             }
 
@@ -124,8 +128,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 HasErrors = true;
                 ErrorMessage = "[DataType] class must be declared as partial.";
-                ValidFields = System.Array.Empty<DataTypeSourceField>();
-                Diagnostics = System.Array.Empty<DataTypeSourceDiagnostic>();
+                ValidFields = System.Array.Empty<TypeFieldModel>();
+                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
                 return;
             }
 
@@ -136,8 +140,8 @@ namespace Opc.Ua.SourceGeneration
                 HasErrors = true;
                 ErrorMessage =
                     "[DataType] class must have a parameterless constructor.";
-                ValidFields = System.Array.Empty<DataTypeSourceField>();
-                Diagnostics = System.Array.Empty<DataTypeSourceDiagnostic>();
+                ValidFields = System.Array.Empty<TypeFieldModel>();
+                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
                 return;
             }
 
@@ -146,9 +150,9 @@ namespace Opc.Ua.SourceGeneration
                 binaryEncodingId, xmlEncodingId, jsonEncodingId,
                 cancellationToken);
 
-            IReadOnlyList<DataTypeSourceDiagnostic> diags =
-                DataTypeSourceGenerator.ValidateAndFilter(
-                    Model, out IReadOnlyList<DataTypeSourceField> valid);
+            IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
+                TypeSourceGenerator.ValidateAndFilter(
+                    Model, out IReadOnlyList<TypeFieldModel> valid);
 
             ValidFields = valid;
             Diagnostics = diags;
@@ -173,7 +177,7 @@ namespace Opc.Ua.SourceGeneration
                             comp.ErrorMessage));
                 }
 
-                foreach (DataTypeSourceDiagnostic diag in comp.Diagnostics)
+                foreach (TypeSourceGeneratorDiagnostic diag in comp.Diagnostics)
                 {
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
@@ -185,50 +189,44 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            var validByNamespace = compilations
-                .Where(c => !c.HasErrors && c.Model != null)
-                .GroupBy(c => c.Model.Namespace);
-
-            foreach (IGrouping<string, DataTypeCompilation> group
-                in validByNamespace)
+            IEnumerable<IGrouping<string, DataTypeCompilation>> validByNamespace =
+                compilations
+                    .Where(c => !c.HasErrors && c.Model != null)
+                    .GroupBy(c => c.Model.Namespace);
+            foreach (IGrouping<string, DataTypeCompilation> group in validByNamespace)
             {
-                List<DataTypeCompilation> entries = group.ToList();
-                DataTypeSourceModel first = entries[0].Model;
+                List<DataTypeCompilation> entries = [.. group];
+                TypeSourceModel first = entries[0].Model;
 
-                var allTypes = new List<object>();
-                var allActivators = new List<object>();
-                var allRegistrations = new List<object>();
+                var allTypes = new List<TypeSourceModel>();
+                var allActivators = new List<TypeSourceModel>();
 
                 foreach (DataTypeCompilation comp in entries)
                 {
                     if (comp.Model.IsEnum)
                     {
                         allActivators.Add(comp.Model);
-                        allRegistrations.Add(comp.Model);
                     }
                     else
                     {
-                        allTypes.Add(new ClassBodyContext(
-                            comp.Model, comp.ValidFields));
+                        allTypes.Add(comp.Model with { Fields = comp.ValidFields });
                         allActivators.Add(comp.Model);
-                        allRegistrations.Add(comp.Model);
                     }
                 }
 
-                string source = DataTypeSourceGenerator.GenerateBatch(
+                string source = TypeSourceGenerator.GenerateBatch(
                     first.Namespace,
                     first.NamespaceSymbol,
                     first.NamespaceUri,
                     allTypes,
-                    allActivators,
-                    allRegistrations);
+                    allActivators);
 
                 sourceContext.AddSource(
-                    first.NamespaceSymbol + ".DataTypes.g.cs", source);
+                    first.NamespaceSymbol + ".Types.g.cs", source);
             }
         }
 
-        private static DataTypeSourceModel BuildClassModel(
+        private static TypeSourceModel BuildClassModel(
             INamedTypeSymbol symbol,
             string dataTypeNamespace,
             string dataTypeId,
@@ -237,15 +235,13 @@ namespace Opc.Ua.SourceGeneration
             string jsonEncodingId,
             CancellationToken ct)
         {
-            string ns = GetFullNamespace(symbol);
-            string nsUri = ResolveNamespaceUri(
-                symbol, dataTypeNamespace, ns);
-
-            return new DataTypeSourceModel
+            string ns = symbol.GetFullNamespace();
+            return new TypeSourceModel
             {
                 ClassName = symbol.Name,
                 Namespace = ns,
-                NamespaceUri = nsUri,
+                NamespaceUri = ResolveNamespaceUri(
+                    symbol, dataTypeNamespace, ns),
                 NamespaceSymbol = ns.Replace(".", string.Empty),
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
@@ -259,7 +255,7 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        private static DataTypeSourceModel BuildEnumModel(
+        private static TypeSourceModel BuildEnumModel(
             INamedTypeSymbol symbol,
             string dataTypeNamespace,
             string dataTypeId,
@@ -267,16 +263,13 @@ namespace Opc.Ua.SourceGeneration
             string xmlEncodingId,
             string jsonEncodingId)
         {
-            string ns = GetFullNamespace(symbol);
-            string nsUri = ResolveNamespaceUri(
-                symbol, dataTypeNamespace, ns);
-
-            var members = new List<DataTypeSourceEnumMember>();
+            string ns = symbol.GetFullNamespace();
+            var members = new List<TypeEnumMember>();
             foreach (ISymbol member in symbol.GetMembers())
             {
                 if (member is IFieldSymbol field && field.HasConstantValue)
                 {
-                    members.Add(new DataTypeSourceEnumMember
+                    members.Add(new TypeEnumMember
                     {
                         Name = field.Name,
                         Value = field.ConstantValue?.ToString() ?? "0"
@@ -284,11 +277,12 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            return new DataTypeSourceModel
+            return new TypeSourceModel
             {
                 ClassName = symbol.Name,
                 Namespace = ns,
-                NamespaceUri = nsUri,
+                NamespaceUri = ResolveNamespaceUri(
+                    symbol, dataTypeNamespace, ns),
                 NamespaceSymbol = ns.Replace(".", string.Empty),
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
@@ -301,54 +295,61 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        private static List<DataTypeSourceField> CollectFields(
+        private static List<TypeFieldModel> CollectFields(
             INamedTypeSymbol symbol, CancellationToken ct)
         {
-            IPropertySymbol[] allProperties = symbol.GetMembers()
-                .OfType<IPropertySymbol>()
-                .Where(p => !p.IsAbstract && !p.IsStatic &&
-                    !p.IsReadOnly &&
-                    p.DeclaredAccessibility == Accessibility.Public)
-                .ToArray();
-
-            bool hasAttr = allProperties.Any(p =>
-                p.GetAttributes().Any(a =>
-                    a.AttributeClass?.Name == DataTypeFieldAttributeName));
-
-            IPropertySymbol[] selected = hasAttr
-                ? allProperties.Where(p =>
-                    p.GetAttributes().Any(a =>
-                        a.AttributeClass?.Name ==
-                            DataTypeFieldAttributeName))
-                    .ToArray()
-                : allProperties;
-
-            var fields = new List<DataTypeSourceField>();
+            IPropertySymbol[] allProperties =
+            [
+                .. symbol.GetMembers()
+                    .OfType<IPropertySymbol>()
+                    .Where(p => !p.IsAbstract &&
+                        !p.IsStatic &&
+                        !p.IsReadOnly &&
+                        p.DeclaredAccessibility == Accessibility.Public)
+            ];
+            // Check if any property has [DataTypeField] — if so, use only those
+            Tuple<IPropertySymbol, AttributeData>[] selectedPropsWithAttribute =
+            [
+                .. allProperties
+                    .Select(p => Tuple.Create(p, p.GetAttributes()
+                        .FirstOrDefault(a =>
+                            a.AttributeClass?.Name == nameof(DataTypeFieldAttribute))))
+                    .Where(p => p.Item2 != null)
+            ];
+            var fields = new List<TypeFieldModel>();
             int orderIndex = 0;
-            foreach (IPropertySymbol prop in selected)
+            if (selectedPropsWithAttribute.Length == 0)
             {
-                ct.ThrowIfCancellationRequested();
-                AttributeData dtfAttr = prop.GetAttributes()
-                    .FirstOrDefault(a =>
-                        a.AttributeClass?.Name ==
-                            DataTypeFieldAttributeName);
-                int order = dtfAttr != null
-                    ? GetNamedArgInt(dtfAttr, "Order", orderIndex)
-                    : orderIndex;
-                string fieldName = dtfAttr != null
-                    ? GetNamedArgString(dtfAttr, "Name") ?? prop.Name
-                    : prop.Name;
-
-                fields.Add(CreateField(
-                    prop, fieldName, order, dtfAttr != null));
-                orderIndex++;
+                // None annotated - use all unnotated
+                foreach (IPropertySymbol prop in allProperties)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    fields.Add(CreateField(prop, prop.Name, orderIndex++, false));
+                }
             }
-
+            else
+            {
+                // Use annotations
+                foreach (Tuple<IPropertySymbol, AttributeData> propWithAttribute
+                    in selectedPropsWithAttribute)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    AttributeData dtfAttr = propWithAttribute.Item2;
+                    IPropertySymbol prop = propWithAttribute.Item1;
+                    orderIndex = dtfAttr.GetInteger(
+                        nameof(DataTypeFieldAttribute.Order),
+                        ++orderIndex);
+                    string fieldName = dtfAttr.GetValue(
+                        nameof(DataTypeFieldAttribute.Name))
+                        ?? prop.Name;
+                    fields.Add(CreateField(prop, fieldName, orderIndex, true));
+                }
+            }
             fields.Sort((a, b) => a.Order.CompareTo(b.Order));
             return fields;
         }
 
-        private static DataTypeSourceField CreateField(
+        private static TypeFieldModel CreateField(
             IPropertySymbol prop, string fieldName,
             int order, bool hasDataTypeFieldAttr)
         {
@@ -357,7 +358,7 @@ namespace Opc.Ua.SourceGeneration
             bool isNullable =
                 prop.NullableAnnotation == NullableAnnotation.Annotated;
             bool isEncodeable =
-                ImplementsInterface(type, "IEncodeable");
+                type.ImplementsInterface(nameof(IEncodeable));
             bool isEnum = type.TypeKind == TypeKind.Enum;
             bool isArray = false;
             bool isMatrix = false;
@@ -372,9 +373,9 @@ namespace Opc.Ua.SourceGeneration
                 isArray = true;
                 ITypeSymbol elem = arrayType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
-                elementTypeName = GetFullyQualifiedTypeName(elem);
+                elementTypeName = elem.GetFullyQualifiedTypeName();
                 isEncodeable =
-                    ImplementsInterface(elem, "IEncodeable");
+                    elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
             }
             else if (shortName == "MatrixOf" &&
@@ -385,17 +386,17 @@ namespace Opc.Ua.SourceGeneration
                 isMatrix = true;
                 ITypeSymbol elem = matrixType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
-                elementTypeName = GetFullyQualifiedTypeName(elem);
+                elementTypeName = elem.GetFullyQualifiedTypeName();
                 isEncodeable =
-                    ImplementsInterface(elem, "IEncodeable");
+                    elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
             }
 
-            return new DataTypeSourceField
+            return new TypeFieldModel
             {
                 PropertyName = prop.Name,
                 FieldName = fieldName,
-                TypeName = GetFullyQualifiedTypeName(prop.Type),
+                TypeName = prop.Type.GetFullyQualifiedTypeName(),
                 ShortTypeName = shortName,
                 IsArray = isArray,
                 IsMatrix = isMatrix,
@@ -420,11 +421,10 @@ namespace Opc.Ua.SourceGeneration
 
             AttributeData dcAttr = symbol.GetAttributes()
                 .FirstOrDefault(a =>
-                    a.AttributeClass?.Name ==
-                        nameof(DataContractAttribute));
+                    a.AttributeClass?.Name == nameof(DataContractAttribute));
             if (dcAttr != null)
             {
-                string dcNs = GetNamedArgString(dcAttr, "Namespace");
+                string dcNs = dcAttr.GetValue(nameof(DataContractAttribute.Namespace));
                 if (!string.IsNullOrEmpty(dcNs))
                 {
                     return dcNs;
@@ -432,67 +432,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return "urn:" + dotNetNamespace.ToLowerInvariant();
-        }
-
-        private static string GetFullNamespace(INamedTypeSymbol symbol)
-        {
-            var parts = new List<string>();
-            INamespaceSymbol ns = symbol.ContainingNamespace;
-            while (ns != null && !ns.IsGlobalNamespace)
-            {
-                parts.Insert(0, ns.Name);
-                ns = ns.ContainingNamespace;
-            }
-            return string.Join(".", parts);
-        }
-
-        private static string GetFullyQualifiedTypeName(ITypeSymbol type)
-        {
-            return "global::" + type.ToDisplayString(
-                SymbolDisplayFormat.FullyQualifiedFormat
-                    .WithGlobalNamespaceStyle(
-                        SymbolDisplayGlobalNamespaceStyle.Omitted));
-        }
-
-        private static bool ImplementsInterface(
-            ITypeSymbol type, string interfaceName)
-        {
-            return type.AllInterfaces
-                .Any(i => i.Name == interfaceName);
-        }
-
-        private static string GetNamedArgString(
-            AttributeData attr, string name)
-        {
-            if (attr == null)
-            {
-                return null;
-            }
-            foreach (var kvp in attr.NamedArguments)
-            {
-                if (kvp.Key == name && kvp.Value.Value is string s)
-                {
-                    return s;
-                }
-            }
-            return null;
-        }
-
-        private static int GetNamedArgInt(
-            AttributeData attr, string name, int defaultValue)
-        {
-            if (attr == null)
-            {
-                return defaultValue;
-            }
-            foreach (var kvp in attr.NamedArguments)
-            {
-                if (kvp.Key == name && kvp.Value.Value is int i)
-                {
-                    return i;
-                }
-            }
-            return defaultValue;
         }
     }
 }

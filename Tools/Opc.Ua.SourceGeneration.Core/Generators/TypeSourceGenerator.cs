@@ -39,21 +39,21 @@ namespace Opc.Ua.SourceGeneration
     /// Generates source code for [DataType]-annotated classes and enums
     /// using the template system shared with the model-based generators.
     /// </summary>
-    internal static class DataTypeSourceGenerator
+    internal static class TypeSourceGenerator
     {
         /// <summary>
         /// Validates the fields of a model and returns diagnostics for
         /// properties with unsupported types. Valid fields are returned
         /// in the out parameter.
         /// </summary>
-        public static IReadOnlyList<DataTypeSourceDiagnostic> ValidateAndFilter(
-            DataTypeSourceModel model,
-            out IReadOnlyList<DataTypeSourceField> validFields)
+        public static IReadOnlyList<TypeSourceGeneratorDiagnostic> ValidateAndFilter(
+            TypeSourceModel model,
+            out IReadOnlyList<TypeFieldModel> validFields)
         {
-            var diagnostics = new List<DataTypeSourceDiagnostic>();
-            var valid = new List<DataTypeSourceField>();
+            var diagnostics = new List<TypeSourceGeneratorDiagnostic>();
+            var valid = new List<TypeFieldModel>();
 
-            foreach (DataTypeSourceField field in model.Fields)
+            foreach (TypeFieldModel field in model.Fields)
             {
                 string resolvedType = field.IsArray || field.IsMatrix
                     ? field.ElementShortTypeName
@@ -73,7 +73,7 @@ namespace Opc.Ua.SourceGeneration
 
                 // Unsupported type
                 bool isError = field.HasDataTypeFieldAttribute;
-                diagnostics.Add(new DataTypeSourceDiagnostic
+                diagnostics.Add(new TypeSourceGeneratorDiagnostic
                 {
                     PropertyName = field.PropertyName,
                     TypeName = field.TypeName,
@@ -89,65 +89,54 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Generate the source text for a [DataType]-annotated type.
-        /// Only valid fields (those that passed validation) are included.
+        /// Enable tests to collect the output as string
         /// </summary>
-        public static string Generate(DataTypeSourceModel model,
-            IReadOnlyList<DataTypeSourceField> validFields)
+        public static string Generate(TypeSourceModel model)
         {
+            ValidateAndFilter(model, out IReadOnlyList<TypeFieldModel> validFields);
             using var stringWriter = new StringWriter();
             using var templateWriter = new TemplateWriter(stringWriter);
 
-            var template = new Template(templateWriter, DataTypeSourceTemplates.File);
+            var template = new Template(templateWriter, TypeSourceTemplates.File);
             template.AddReplacement(Tokens.NamespacePrefix, model.Namespace);
             template.AddReplacement(Tokens.Namespace, model.NamespaceSymbol);
             template.AddReplacement(Tokens.NamespaceUri, model.NamespaceUri);
 
             if (model.IsEnum)
             {
-                template.AddReplacement(Tokens.ListOfTypes, (string)null);
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
+                    DataTypeTemplates.EnumerationActivatorClass,
                     [model],
-                    LoadEnumActivator,
-                    WriteActivator);
+                    WriteTemplate_ListOfTypeActivators);
                 template.AddReplacement(
                     Tokens.ListOfActivatorRegistrations,
+                    TypeSourceTemplates.SourceEnumActivatorRegistration,
                     [model],
-                    LoadEnumRegistration,
-                    WriteActivator);
+                    WriteTemplate_ListOfTypeActivators);
             }
             else
             {
                 template.AddReplacement(
                     Tokens.ListOfTypes,
-                    [new ClassBodyContext(model, validFields)],
-                    LoadPartialClassBody,
-                    WritePartialClassBody);
+                    [model with { Fields = validFields }],
+                    LoadTemplate_ListOfPartialClasses,
+                    WriteTemplate_ListOfPartialClasses);
+
                 template.AddReplacement(
                     Tokens.ListOfTypeActivators,
+                    DataTypeTemplates.StructureActivatorClass,
                     [model],
-                    LoadStructureActivator,
-                    WriteActivator);
+                    WriteTemplate_ListOfTypeActivators);
                 template.AddReplacement(
                     Tokens.ListOfActivatorRegistrations,
+                    TypeSourceTemplates.SourceActivatorRegistration,
                     [model],
-                    LoadStructureRegistration,
-                    WriteActivator);
+                    WriteTemplate_ListOfTypeActivators);
             }
 
             template.Render();
             return stringWriter.ToString();
-        }
-
-        /// <summary>
-        /// Overload for backward compatibility with tests.
-        /// Validates, filters, and generates in one call.
-        /// </summary>
-        public static string Generate(DataTypeSourceModel model)
-        {
-            ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> validFields);
-            return Generate(model, validFields);
         }
 
         /// <summary>
@@ -158,15 +147,14 @@ namespace Opc.Ua.SourceGeneration
             string ns,
             string nsSymbol,
             string nsUri,
-            IReadOnlyList<object> allTypes,
-            IReadOnlyList<object> allActivators,
-            IReadOnlyList<object> allRegistrations)
+            IReadOnlyList<TypeSourceModel> allTypes,
+            IReadOnlyList<TypeSourceModel> allActivators)
         {
             using var stringWriter = new StringWriter();
             using var templateWriter = new TemplateWriter(stringWriter);
 
             var template = new Template(
-                templateWriter, DataTypeSourceTemplates.File);
+                templateWriter, TypeSourceTemplates.File);
             template.AddReplacement(Tokens.NamespacePrefix, ns);
             template.AddReplacement(Tokens.Namespace, nsSymbol);
             template.AddReplacement(Tokens.NamespaceUri, nsUri);
@@ -174,46 +162,43 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.ListOfTypes,
                 allTypes,
-                LoadPartialClassBody,
-                WritePartialClassBody);
+                LoadTemplate_ListOfPartialClasses,
+                WriteTemplate_ListOfPartialClasses);
             template.AddReplacement(
                 Tokens.ListOfTypeActivators,
                 allActivators,
-                LoadActivator,
-                WriteActivator);
+                LoadTemplate_ListOfTypeActivators,
+                WriteTemplate_ListOfTypeActivators);
             template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
-                allRegistrations,
-                LoadRegistration,
-                WriteActivator);
+                allActivators,
+                LoadTemplate_ListOfActivatorRegistrations,
+                WriteTemplate_ListOfTypeActivators);
 
             template.Render();
             return stringWriter.ToString();
         }
 
-        private static TemplateString LoadPartialClassBody(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfPartialClasses(ILoadContext context)
         {
-            if (!(context.Target is ClassBodyContext ctx))
+            if (context.Target is not TypeSourceModel ctx ||
+                ctx.IsEnum)
             {
                 return null;
             }
 
-            return ctx.Model.IsRecord
-                ? DataTypeSourceTemplates.RecordPartialClassBody
-                : DataTypeSourceTemplates.PartialClassBody;
+            return ctx.IsRecord
+                ? TypeSourceTemplates.RecordPartialClassBody
+                : TypeSourceTemplates.PartialClassBody;
         }
 
-        private static bool WritePartialClassBody(IWriteContext context)
+        private static bool WriteTemplate_ListOfPartialClasses(IWriteContext context)
         {
-            if (!(context.Target is ClassBodyContext ctx))
+            if (context.Target is not TypeSourceModel model)
             {
                 return false;
             }
 
-            DataTypeSourceModel model = ctx.Model;
-            IReadOnlyList<DataTypeSourceField> fields = ctx.Fields;
-
-            Template t = context.Template;
             string typeIdExpr = FormatExpandedNodeIdExpression(
                 model.DataTypeId, model.ClassName, model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
@@ -223,31 +208,38 @@ namespace Opc.Ua.SourceGeneration
             string jsonIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.JsonEncodingId, model.NamespaceUri);
 
-            t.AddReplacement(Tokens.ClassName, model.ClassName);
-            t.AddReplacement(Tokens.BrowseName, model.ClassName);
-            t.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
-            t.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
-            t.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
-            t.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
-            t.AddReplacement(Tokens.XmlNamespaceUri,
-                $"\"{EscapeString(model.NamespaceUri)}\"");
+            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
+            context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
+            context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
+            context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
+            context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
+            context.Template.AddReplacement(Tokens.XmlNamespaceUri,
+                $"\"{model.NamespaceUri.Escape()}\"");
 
-            var fieldList = fields.Cast<object>().ToList();
-            t.AddReplacement(Tokens.ListOfEncodedFields, fieldList,
-                LoadEncodedField, null);
-            t.AddReplacement(Tokens.ListOfDecodedFields, fieldList,
-                LoadDecodedField, null);
-            t.AddReplacement(Tokens.ListOfComparedFields, fieldList,
-                LoadComparedField, null);
-            t.AddReplacement(Tokens.ListOfClonedFields, fieldList,
-                LoadClonedField, null);
+            context.Template.AddReplacement(
+                Tokens.ListOfEncodedFields,
+                model.Fields,
+                LoadTemplate_ListOfEncodedFields);
+            context.Template.AddReplacement(
+                Tokens.ListOfDecodedFields,
+                model.Fields,
+                LoadTemplate_ListOfDecodedFields);
+            context.Template.AddReplacement(
+                Tokens.ListOfComparedFields,
+                model.Fields,
+                LoadTemplate_ListOfComparedFields);
+            context.Template.AddReplacement(
+                Tokens.ListOfClonedFields,
+                model.Fields,
+                LoadTemplate_ListOfClonedFields);
 
-            return t.Render();
+            return context.Template.Render();
         }
 
-        private static TemplateString LoadEncodedField(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfEncodedFields(ILoadContext context)
         {
-            if (!(context.Target is DataTypeSourceField field))
+            if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
@@ -260,32 +252,37 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
-                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "encoder.WriteEncodeable(\"{0}\", {1});",
-                    EscapeString(field.FieldName), field.PropertyName);
+                return (TemplateString)CoreUtils.Format(
+                    """encoder.WriteEncodeable("{0}", {1});""",
+                    field.FieldName.Escape(),
+                    field.PropertyName);
             }
 
             if (field.IsEnum)
             {
                 if (field.IsArray)
                 {
-                    return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "encoder.WriteEnumeratedArray(\"{0}\", {1});",
-                        EscapeString(field.FieldName), field.PropertyName);
+                    return (TemplateString)CoreUtils.Format(
+                    """encoder.WriteEnumeratedArray("{0}", {1});""",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
                 }
-                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "encoder.WriteEnumerated(\"{0}\", {1});",
-                    EscapeString(field.FieldName), field.PropertyName);
+                return (TemplateString)CoreUtils.Format(
+                    """encoder.WriteEnumerated("{0}", {1});""",
+                    field.FieldName.Escape(),
+                    field.PropertyName);
             }
 
-            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "encoder.{0}(\"{1}\", {2});",
-                writeMethod, EscapeString(field.FieldName), field.PropertyName);
+            return (TemplateString)CoreUtils.Format(
+                """encoder.{0}("{1}", {2});""",
+                writeMethod,
+                field.FieldName.Escape(),
+                field.PropertyName);
         }
 
-        private static TemplateString LoadDecodedField(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfDecodedFields(ILoadContext context)
         {
-            if (!(context.Target is DataTypeSourceField field))
+            if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
@@ -298,9 +295,11 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
-                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "{0} = ({1})decoder.ReadEncodeable(\"{2}\", typeof({1}));",
-                    field.PropertyName, field.TypeName, EscapeString(field.FieldName));
+                return (TemplateString)CoreUtils.Format(
+                    """{0} = ({1})decoder.ReadEncodeable("{2}", typeof({1}));""",
+                    field.PropertyName,
+                    field.TypeName,
+                    field.FieldName.Escape());
             }
 
             if (field.IsEnum)
@@ -308,114 +307,111 @@ namespace Opc.Ua.SourceGeneration
                 string typeName = field.IsArray ? field.ElementTypeName : field.TypeName;
                 if (field.IsArray)
                 {
-                    return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "{0} = decoder.ReadEnumeratedArray<{1}>(\"{2}\");",
-                        field.PropertyName, typeName, EscapeString(field.FieldName));
+                    return (TemplateString)CoreUtils.Format(
+                    """{0} = decoder.ReadEnumeratedArray<{1}>("{2}");""",
+                        field.PropertyName,
+                        typeName,
+                        field.FieldName.Escape());
                 }
-                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "{0} = ({1})decoder.ReadEnumerated(\"{2}\", typeof({1}));",
-                    field.PropertyName, typeName, EscapeString(field.FieldName));
+                return (TemplateString)CoreUtils.Format(
+                    """{0} = ({1})decoder.ReadEnumerated("{2}", typeof({1}));""",
+                    field.PropertyName,
+                    typeName,
+                    field.FieldName.Escape());
             }
 
-            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "{0} = decoder.{1}(\"{2}\");",
-                field.PropertyName, readMethod, EscapeString(field.FieldName));
+            return (TemplateString)CoreUtils.Format(
+                    """{0} = decoder.{1}("{2}");""",
+                field.PropertyName,
+                readMethod,
+                field.FieldName.Escape());
         }
 
-        private static TemplateString LoadComparedField(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
         {
-            if (!(context.Target is DataTypeSourceField field))
+            if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
-
-            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
-                    "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
+            return (TemplateString)CoreUtils.Format(
+                "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
                 field.PropertyName);
         }
 
-        private static TemplateString LoadClonedField(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)
         {
-            if (!(context.Target is DataTypeSourceField field))
+            if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
-
             if (field.IsArray || field.IsMatrix || field.IsEncodeable)
             {
-                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                return (TemplateString)CoreUtils.Format(
                     "clone.{0} = ({1})global::Opc.Ua.Utils.Clone(this.{0});",
                     field.PropertyName, field.TypeName);
             }
-
             return null;
         }
 
-        private static TemplateString LoadStructureActivator(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfTypeActivators(ILoadContext context)
         {
-            return DataTypeTemplates.StructureActivatorClass;
-        }
-
-        private static TemplateString LoadEnumActivator(ILoadContext context)
-        {
-            return DataTypeTemplates.EnumerationActivatorClass;
-        }
-
-        private static TemplateString LoadActivator(ILoadContext context)
-        {
-            if (context.Target is DataTypeSourceModel model && model.IsEnum)
+            if (context.Target is not TypeSourceModel model)
+            {
+                return null;
+            }
+            if (model.IsEnum)
             {
                 return DataTypeTemplates.EnumerationActivatorClass;
             }
             return DataTypeTemplates.StructureActivatorClass;
         }
 
-        private static TemplateString LoadStructureRegistration(ILoadContext context)
+        private static TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
         {
-            return DataTypeSourceTemplates.SourceActivatorRegistration;
-        }
-
-        private static TemplateString LoadEnumRegistration(ILoadContext context)
-        {
-            return DataTypeSourceTemplates.SourceEnumActivatorRegistration;
-        }
-
-        private static TemplateString LoadRegistration(ILoadContext context)
-        {
-            if (context.Target is DataTypeSourceModel model && model.IsEnum)
+            if (context.Target is not TypeSourceModel model)
             {
-                return DataTypeSourceTemplates.SourceEnumActivatorRegistration;
+                return null;
             }
-            return DataTypeSourceTemplates.SourceActivatorRegistration;
+            if (model.IsEnum)
+            {
+                return TypeSourceTemplates.SourceEnumActivatorRegistration;
+            }
+            return TypeSourceTemplates.SourceActivatorRegistration;
         }
 
-        private static bool WriteActivator(IWriteContext context)
+        private static bool WriteTemplate_ListOfTypeActivators(IWriteContext context)
         {
-            if (context.Target is not DataTypeSourceModel model)
+            if (context.Target is not TypeSourceModel model)
             {
                 return false;
             }
 
-            Template t = context.Template;
             string typeIdExpr = FormatExpandedNodeIdExpression(
-                model.DataTypeId, model.ClassName, model.NamespaceUri);
+                model.DataTypeId,
+                model.ClassName,
+                model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.BinaryEncodingId, model.NamespaceUri);
+                model.BinaryEncodingId,
+                model.NamespaceUri);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.XmlEncodingId, model.NamespaceUri);
+                model.XmlEncodingId,
+                model.NamespaceUri);
             string jsonIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.JsonEncodingId, model.NamespaceUri);
+                model.JsonEncodingId,
+                model.NamespaceUri);
 
-            t.AddReplacement(Tokens.ClassName, model.ClassName);
-            t.AddReplacement(Tokens.BrowseName, model.ClassName);
-            t.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
-            t.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
-            t.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
-            t.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
-            t.AddReplacement(Tokens.XmlNamespaceUri,
-                $"\"{EscapeString(model.NamespaceUri)}\"");
+            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
+            context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
+            context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
+            context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
+            context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
+            context.Template.AddReplacement(Tokens.XmlNamespaceUri,
+                $"""
+                "{model.NamespaceUri.Escape()}"
+                """);
 
-            return t.Render();
+            return context.Template.Render();
         }
 
         /// <summary>
@@ -423,7 +419,7 @@ namespace Opc.Ua.SourceGeneration
         /// Returns (writeMethod, readMethod) or (null, null) if unsupported.
         /// </summary>
         internal static (string writeMethod, string readMethod) ResolveEncoderDecoder(
-            DataTypeSourceField field)
+            TypeFieldModel field)
         {
             if (field.IsEncodeable)
             {
@@ -447,8 +443,9 @@ namespace Opc.Ua.SourceGeneration
                 ? field.ElementShortTypeName
                 : field.ShortTypeName;
 
-            if (lookupType != null && s_scalarTypeMap.TryGetValue(
-                lookupType, out (string write, string read) methods))
+            if (lookupType != null &&
+                s_scalarTypeMap.TryGetValue(
+                    lookupType, out (string write, string read) methods))
             {
                 if (field.IsArray)
                 {
@@ -469,7 +466,7 @@ namespace Opc.Ua.SourceGeneration
         /// Only these types (plus IEncodeable and enums) are allowed.
         /// </summary>
         internal static readonly Dictionary<string, (string write, string read)> s_scalarTypeMap =
-            new Dictionary<string, (string, string)>(StringComparer.Ordinal)
+            new(StringComparer.OrdinalIgnoreCase)
             {
                 ["Boolean"] = ("WriteBoolean", "ReadBoolean"),
                 ["bool"] = ("WriteBoolean", "ReadBoolean"),
@@ -490,7 +487,6 @@ namespace Opc.Ua.SourceGeneration
                 ["UInt64"] = ("WriteUInt64", "ReadUInt64"),
                 ["ulong"] = ("WriteUInt64", "ReadUInt64"),
                 ["Single"] = ("WriteFloat", "ReadFloat"),
-                ["Float"] = ("WriteFloat", "ReadFloat"),
                 ["float"] = ("WriteFloat", "ReadFloat"),
                 ["Double"] = ("WriteDouble", "ReadDouble"),
                 ["double"] = ("WriteDouble", "ReadDouble"),
@@ -514,72 +510,52 @@ namespace Opc.Ua.SourceGeneration
             };
 
         private static string FormatExpandedNodeIdExpression(
-            string idString, string className, string nsUri)
+            string idString,
+            string className,
+            string nsUri)
         {
             if (string.IsNullOrEmpty(idString))
             {
-                return "new global::Opc.Ua.ExpandedNodeId(\"" +
-                    EscapeString(className) + "\", \"" +
-                    EscapeString(nsUri) + "\")";
+                return $"""new global::Opc.Ua.ExpandedNodeId("{className.Escape()}", "{nsUri.Escape()}")""";
             }
-            return "global::Opc.Ua.ExpandedNodeId.Parse(\"" +
-                EscapeString(idString) + "\", \"" +
-                EscapeString(nsUri) + "\")";
+            return $"""global::Opc.Ua.ExpandedNodeId.Parse("{idString.Escape()}", "{nsUri.Escape()}")""";
         }
 
         private static string FormatOptionalExpandedNodeIdExpression(
-            string idString, string nsUri)
+            string idString,
+            string nsUri)
         {
             if (string.IsNullOrEmpty(idString))
             {
                 return "global::Opc.Ua.ExpandedNodeId.Null";
             }
-            return "global::Opc.Ua.ExpandedNodeId.Parse(\"" +
-                EscapeString(idString) + "\", \"" +
-                EscapeString(nsUri) + "\")";
-        }
-
-        internal static string EscapeString(string value)
-        {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-#if NETSTANDARD2_0
-            return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-#else
-            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
-#endif
+            return $"""global::Opc.Ua.ExpandedNodeId.Parse("{idString.Escape()}", "{nsUri.Escape()}")""";
         }
     }
 
     /// <summary>
     /// A diagnostic message produced during source generation.
     /// </summary>
-    internal sealed class DataTypeSourceDiagnostic
+    internal sealed class TypeSourceGeneratorDiagnostic
     {
+        /// <summary>
+        /// Name of the property in the type
+        /// </summary>
         public string PropertyName { get; set; }
+
+        /// <summary>
+        /// Type name to generate code for
+        /// </summary>
         public string TypeName { get; set; }
+
+        /// <summary>
+        /// Error code
+        /// </summary>
         public bool IsError { get; set; }
+
+        /// <summary>
+        /// Message
+        /// </summary>
         public string Message { get; set; }
-    }
-
-    /// <summary>
-    /// Wrapper to pass model + validated fields as a single target object
-    /// to the template system (avoids ValueTuple deconstruct issues on netstandard2.0).
-    /// </summary>
-    internal sealed class ClassBodyContext
-    {
-        public DataTypeSourceModel Model { get; }
-        public IReadOnlyList<DataTypeSourceField> Fields { get; }
-
-        public ClassBodyContext(
-            DataTypeSourceModel model,
-            IReadOnlyList<DataTypeSourceField> fields)
-        {
-            Model = model;
-            Fields = fields;
-        }
     }
 }

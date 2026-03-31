@@ -34,7 +34,7 @@ namespace Opc.Ua.SourceGeneration
     /// These emit into the user's existing partial class/enum.
     /// Activator and registration templates are reused from <see cref="DataTypeTemplates"/>.
     /// </summary>
-    internal static class DataTypeSourceTemplates
+    internal static class TypeSourceTemplates
     {
         /// <summary>
         /// Top-level file template for a source-annotated data type.
