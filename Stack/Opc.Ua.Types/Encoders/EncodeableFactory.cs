@@ -224,13 +224,12 @@ namespace Opc.Ua
                 ExpandedNodeId encodingId,
                 IEncodeableType type)
             {
-                if (encodingId.IsNull)
+                if (!encodingId.IsNull)
                 {
-                    throw new ArgumentNullException(nameof(encodingId));
+                    m_encodeableTypes[encodingId] = type ??
+                        throw new ArgumentNullException(nameof(type));
+                    m_xmlNameToType[type.XmlName] = type;
                 }
-                m_encodeableTypes[encodingId] = type ??
-                    throw new ArgumentNullException(nameof(type));
-                m_xmlNameToType[type.XmlName] = type;
                 return this;
             }
 
@@ -239,13 +238,12 @@ namespace Opc.Ua
                 ExpandedNodeId encodingId,
                 IEnumeratedType type)
             {
-                if (encodingId.IsNull)
+                if (!encodingId.IsNull)
                 {
-                    throw new ArgumentNullException(nameof(encodingId));
+                    m_enumeratedTypes[encodingId] = type ??
+                        throw new ArgumentNullException(nameof(type));
+                    m_xmlNameToType[type.XmlName] = type;
                 }
-                m_enumeratedTypes[encodingId] = type ??
-                    throw new ArgumentNullException(nameof(type));
-                m_xmlNameToType[type.XmlName] = type;
                 return this;
             }
 
@@ -605,7 +603,8 @@ namespace Opc.Ua
         /// <summary>
         /// The root encodeable factory (Only to be used by Opc.Ua assembly)
         /// </summary>
-        internal static Lazy<EncodeableFactory> Root { get; } = new();
+        internal static Lazy<EncodeableFactory> Root { get; }
+            = new(() => new EncodeableFactory());
 
         /// <summary>
         /// <para>

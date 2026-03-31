@@ -196,7 +196,9 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(IEncodeableFactory factory)
         {
-            var messageContext = new ServiceMessageContext(m_telemetry, factory);
+            var messageContext = new ServiceMessageContext(
+                m_telemetry,
+                factory ?? EncodeableFactory.Create());
 
             if (TransportQuotas != null)
             {

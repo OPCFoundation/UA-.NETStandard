@@ -1397,7 +1397,8 @@ namespace Opc.Ua
         {
             // use the message context from the configuration to ensure the channels are
             // using the same one. This also sets the telemetry context for the server
-            // from configuration. If a private factory was specified, use it.
+            // from configuration. If a private factory was specified, use it, otherwise
+            // create a new encodeable factory with the Opc ua types included.
             ServiceMessageContext messageContext = configuration.CreateMessageContext(PrivateEncodeableFactory);
             messageContext.NamespaceUris = new NamespaceTable();
             m_messageContext = messageContext;

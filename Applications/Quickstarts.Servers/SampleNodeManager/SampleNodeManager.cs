@@ -263,20 +263,6 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Adds all encodeable types defined in a node manager to the server factory.
-        /// </summary>
-        /// <param name="assembly">The assembly which contains the encodeable types.</param>
-        /// <param name="filter">A filter with which the FullName of the type must start.</param>
-        [RequiresUnreferencedCode(
-            "Scans assembly types via reflection.")]
-        protected void AddEncodeableNodeManagerTypes(Assembly assembly, string filter)
-        {
-            Server.Factory.AddEncodeableTypes(assembly
-                .GetExportedTypes()
-                .Where(t => t.FullName.StartsWith(filter, StringComparison.Ordinal)));
-        }
-
-        /// <summary>
         /// Returns the namespaces used by the node manager.
         /// </summary>
         /// <remarks>

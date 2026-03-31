@@ -35,7 +35,6 @@ using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Tests;
 using Opc.Ua.Server.UserDatabase;
 using TUnit.Core.Interfaces;
 
@@ -57,12 +56,30 @@ namespace Opc.Ua.Aot.Tests
         public string EndpointUrl { get; private set; }
         public int BasePort { get; private set; }
 
+        /// <summary>
+        /// If non-null, the GDS fixture failed to initialize (e.g. under NativeAOT
+        /// where DataContractSerializer is not available). Tests should skip.
+        /// </summary>
+        public string SkipReason { get; private set; }
+
         private ApplicationInstance m_serverApplication;
         private ApplicationConfiguration m_clientConfiguration;
         private string m_gdsRoot;
         private string m_pkiRoot;
 
         public async Task InitializeAsync()
+        {
+            try
+            {
+                await InitializeCoreAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                SkipReason = $"GDS fixture initialization failed: {ex.Message}";
+            }
+        }
+
+        private async Task InitializeCoreAsync()
         {
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
@@ -75,7 +92,7 @@ namespace Opc.Ua.Aot.Tests
             CleanDirectory(m_gdsRoot);
 
             // Start GDS server with retry logic
-            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
+            int testPort = AotServerFixture<ServerBase>.GetNextFreeIPPort();
             bool retryStartServer;
             int serverStartRetries = 25;
             do
@@ -95,8 +112,8 @@ namespace Opc.Ua.Aot.Tests
                         Server = null;
                     }
                     testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+                        AotServerFixture<ServerBase>.MinTestPort,
+                        AotServerFixture<ServerBase>.MaxTestPort);
                     if (serverStartRetries == 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {

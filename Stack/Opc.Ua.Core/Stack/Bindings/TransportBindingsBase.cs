@@ -67,6 +67,18 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Initialize object with pre-created binding instances (AOT-safe).
+        /// </summary>
+        protected TransportBindingsBase(T[] instances)
+        {
+            Bindings = [];
+            foreach (T binding in instances)
+            {
+                Bindings[binding.UriScheme] = binding;
+            }
+        }
+
+        /// <summary>
         /// Dictionary of bindings.
         /// </summary>
         protected Dictionary<string, T> Bindings { get; }
@@ -128,7 +140,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
             Justification = "Binding types are expected to have constructors preserved by the caller.")]
-        protected static bool IsBindingType(Type bindingType)
+        protected static bool IsBindingType(
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+            Type bindingType)
         {
             if (bindingType == null)
             {

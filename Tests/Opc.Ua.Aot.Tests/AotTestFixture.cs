@@ -29,7 +29,6 @@
 
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
-using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using TUnit.Core.Interfaces;
 
@@ -42,7 +41,7 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class AotTestFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public ServerFixture<ReferenceServer> ServerFixture { get; private set; } = null!;
+        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; } = null!;
         public ISession Session { get; private set; }
         public string ServerUrl { get; private set; } = null!;
         public ITelemetryContext Telemetry { get; private set; } = null!;
@@ -55,7 +54,8 @@ namespace Opc.Ua.Aot.Tests
                 builder.SetMinimumLevel(LogLevel.Warning));
 
             // Start server
-            ServerFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t));
+            ServerFixture = new AotServerFixture<ReferenceServer>(
+                t => new ReferenceServer(t), Telemetry);
             ServerFixture.AutoAccept = true;
             ServerFixture.SecurityNone = true;
             ServerFixture.AllNodeManagers = true;

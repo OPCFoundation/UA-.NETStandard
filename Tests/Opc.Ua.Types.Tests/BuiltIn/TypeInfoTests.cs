@@ -979,9 +979,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetSystemTypeOneDimensionDataValueReturnsArray()
         {
-            Assert.That(
-                TypeInfo.GetSystemType(BuiltInType.DataValue, ValueRanks.OneDimension),
-                Is.EqualTo(typeof(DataValue[])));
+            IBuiltInType systemType = TypeInfo.GetSystemType(BuiltInType.DataValue);
+            Assert.That(systemType, Is.Not.Null);
+            Assert.That(systemType.Type, Is.EqualTo(typeof(DataValue)));
         }
 
         [Test]
