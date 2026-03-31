@@ -89,8 +89,9 @@ namespace Opc.Ua.SourceGeneration
                     "Opc.Ua.DataTypeAttribute",
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
-                .Where(static m => m is not null),
-                static (spc, source) => source.Emit(spc));
+                .Where(static m => m is not null)
+                .Collect(),
+                static (spc, sources) => DataTypeCompilation.EmitBatch(spc, sources));
         }
     }
 }

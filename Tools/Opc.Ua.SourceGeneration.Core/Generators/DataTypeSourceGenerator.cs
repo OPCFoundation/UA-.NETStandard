@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -149,6 +150,47 @@ namespace Opc.Ua.SourceGeneration
             return Generate(model, validFields);
         }
 
+        /// <summary>
+        /// Generate a single file containing all types from the same namespace.
+        /// Produces one extension method with all registrations combined.
+        /// </summary>
+        public static string GenerateBatch(
+            string ns,
+            string nsSymbol,
+            string nsUri,
+            IReadOnlyList<object> allTypes,
+            IReadOnlyList<object> allActivators,
+            IReadOnlyList<object> allRegistrations)
+        {
+            using var stringWriter = new StringWriter();
+            using var templateWriter = new TemplateWriter(stringWriter);
+
+            var template = new Template(
+                templateWriter, DataTypeSourceTemplates.File);
+            template.AddReplacement(Tokens.NamespacePrefix, ns);
+            template.AddReplacement(Tokens.Namespace, nsSymbol);
+            template.AddReplacement(Tokens.NamespaceUri, nsUri);
+
+            template.AddReplacement(
+                Tokens.ListOfTypes,
+                allTypes,
+                LoadPartialClassBody,
+                WritePartialClassBody);
+            template.AddReplacement(
+                Tokens.ListOfTypeActivators,
+                allActivators,
+                LoadActivator,
+                WriteActivator);
+            template.AddReplacement(
+                Tokens.ListOfActivatorRegistrations,
+                allRegistrations,
+                LoadRegistration,
+                WriteActivator);
+
+            template.Render();
+            return stringWriter.ToString();
+        }
+
         private static TemplateString LoadPartialClassBody(ILoadContext context)
         {
             if (!(context.Target is ClassBodyContext ctx))
@@ -218,7 +260,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
-                return (TemplateString)string.Format(
+                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
                     "encoder.WriteEncodeable(\"{0}\", {1});",
                     EscapeString(field.FieldName), field.PropertyName);
             }
@@ -227,17 +269,17 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (field.IsArray)
                 {
-                    return (TemplateString)string.Format(
-                        "encoder.WriteEnumeratedArray(\"{0}\", {1});",
+                    return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                    "encoder.WriteEnumeratedArray(\"{0}\", {1});",
                         EscapeString(field.FieldName), field.PropertyName);
                 }
-                return (TemplateString)string.Format(
+                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
                     "encoder.WriteEnumerated(\"{0}\", {1});",
                     EscapeString(field.FieldName), field.PropertyName);
             }
 
-            return (TemplateString)string.Format(
-                "encoder.{0}(\"{1}\", {2});",
+            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                    "encoder.{0}(\"{1}\", {2});",
                 writeMethod, EscapeString(field.FieldName), field.PropertyName);
         }
 
@@ -256,7 +298,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
-                return (TemplateString)string.Format(
+                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
                     "{0} = ({1})decoder.ReadEncodeable(\"{2}\", typeof({1}));",
                     field.PropertyName, field.TypeName, EscapeString(field.FieldName));
             }
@@ -266,17 +308,17 @@ namespace Opc.Ua.SourceGeneration
                 string typeName = field.IsArray ? field.ElementTypeName : field.TypeName;
                 if (field.IsArray)
                 {
-                    return (TemplateString)string.Format(
-                        "{0} = decoder.ReadEnumeratedArray<{1}>(\"{2}\");",
+                    return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                    "{0} = decoder.ReadEnumeratedArray<{1}>(\"{2}\");",
                         field.PropertyName, typeName, EscapeString(field.FieldName));
                 }
-                return (TemplateString)string.Format(
+                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
                     "{0} = ({1})decoder.ReadEnumerated(\"{2}\", typeof({1}));",
                     field.PropertyName, typeName, EscapeString(field.FieldName));
             }
 
-            return (TemplateString)string.Format(
-                "{0} = decoder.{1}(\"{2}\");",
+            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                    "{0} = decoder.{1}(\"{2}\");",
                 field.PropertyName, readMethod, EscapeString(field.FieldName));
         }
 
@@ -287,8 +329,8 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            return (TemplateString)string.Format(
-                "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
+            return (TemplateString)string.Format(CultureInfo.InvariantCulture,
+                    "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
                 field.PropertyName);
         }
 
@@ -301,7 +343,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsArray || field.IsMatrix || field.IsEncodeable)
             {
-                return (TemplateString)string.Format(
+                return (TemplateString)string.Format(CultureInfo.InvariantCulture,
                     "clone.{0} = ({1})global::Opc.Ua.Utils.Clone(this.{0});",
                     field.PropertyName, field.TypeName);
             }
@@ -319,6 +361,15 @@ namespace Opc.Ua.SourceGeneration
             return DataTypeTemplates.EnumerationActivatorClass;
         }
 
+        private static TemplateString LoadActivator(ILoadContext context)
+        {
+            if (context.Target is DataTypeSourceModel model && model.IsEnum)
+            {
+                return DataTypeTemplates.EnumerationActivatorClass;
+            }
+            return DataTypeTemplates.StructureActivatorClass;
+        }
+
         private static TemplateString LoadStructureRegistration(ILoadContext context)
         {
             return DataTypeSourceTemplates.SourceActivatorRegistration;
@@ -327,6 +378,15 @@ namespace Opc.Ua.SourceGeneration
         private static TemplateString LoadEnumRegistration(ILoadContext context)
         {
             return DataTypeSourceTemplates.SourceEnumActivatorRegistration;
+        }
+
+        private static TemplateString LoadRegistration(ILoadContext context)
+        {
+            if (context.Target is DataTypeSourceModel model && model.IsEnum)
+            {
+                return DataTypeSourceTemplates.SourceEnumActivatorRegistration;
+            }
+            return DataTypeSourceTemplates.SourceActivatorRegistration;
         }
 
         private static bool WriteActivator(IWriteContext context)
