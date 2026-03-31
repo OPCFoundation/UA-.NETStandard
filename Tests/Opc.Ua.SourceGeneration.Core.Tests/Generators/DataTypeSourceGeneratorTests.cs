@@ -269,7 +269,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string result = TypeSourceGenerator.Generate(model);
 
-            Assert.That(result, Does.Contain("Utils.Clone(this.Items)"));
+            Assert.That(result, Does.Not.Contain("Clone(this.Items)"),
+                "ArrayOf<T> is a value type, no deep clone needed");
             Assert.That(result, Does.Contain("WriteStringArray"));
             Assert.That(result, Does.Contain("ReadStringArray"));
         }

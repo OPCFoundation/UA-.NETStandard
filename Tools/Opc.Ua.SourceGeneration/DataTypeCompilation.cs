@@ -358,7 +358,8 @@ namespace Opc.Ua.SourceGeneration
             bool isNullable =
                 prop.NullableAnnotation == NullableAnnotation.Annotated;
             bool isEncodeable =
-                type.ImplementsInterface(nameof(IEncodeable));
+                type.ImplementsInterface(nameof(IEncodeable)) ||
+                type.HasAttribute(nameof(DataTypeAttribute));
             bool isEnum = type.TypeKind == TypeKind.Enum;
             bool isArray = false;
             bool isMatrix = false;
@@ -375,7 +376,8 @@ namespace Opc.Ua.SourceGeneration
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
                 isEncodeable =
-                    elem.ImplementsInterface(nameof(IEncodeable));
+                    elem.ImplementsInterface(nameof(IEncodeable)) ||
+                    elem.HasAttribute(nameof(DataTypeAttribute));
                 isEnum = elem.TypeKind == TypeKind.Enum;
             }
             else if (shortName == "MatrixOf" &&
@@ -388,6 +390,8 @@ namespace Opc.Ua.SourceGeneration
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
                 isEncodeable =
+                    elem.ImplementsInterface(nameof(IEncodeable)) ||
+                    elem.HasAttribute(nameof(DataTypeAttribute));
                     elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
             }

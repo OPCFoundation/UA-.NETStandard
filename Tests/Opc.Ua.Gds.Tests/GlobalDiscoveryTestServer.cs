@@ -123,7 +123,7 @@ namespace Opc.Ua.Gds.Tests
                     Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
                 foreach (CertificateGroupConfiguration group in additionalCertGroups)
                 {
-                    gdsConfig.CertificateGroups.Add(group);
+                    gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItem(group);
                 }
                 Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
             }

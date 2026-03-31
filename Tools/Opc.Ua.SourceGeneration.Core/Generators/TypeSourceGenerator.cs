@@ -252,6 +252,13 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                if (field.IsArray)
+                {
+                    return (TemplateString)CoreUtils.Format(
+                        """encoder.WriteEncodeableArray("{0}", {1});""",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+                }
                 return (TemplateString)CoreUtils.Format(
                     """encoder.WriteEncodeable("{0}", {1});""",
                     field.FieldName.Escape(),
@@ -295,6 +302,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                if (field.IsArray)
+                {
+                    return (TemplateString)CoreUtils.Format(
+                        """{0} = decoder.ReadEncodeableArray<{1}>("{2}");""",
+                        field.PropertyName,
+                        field.ElementTypeName,
+                        field.FieldName.Escape());
+                }
                 return (TemplateString)CoreUtils.Format(
                     """{0} = ({1})decoder.ReadEncodeable("{2}", typeof({1}));""",
                     field.PropertyName,
@@ -334,7 +349,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
             return (TemplateString)CoreUtils.Format(
-                "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
+                "if (!global::Opc.Ua.CoreUtils.IsEqual(this.{0}, value.{0})) return false;",
                 field.PropertyName);
         }
 
@@ -344,10 +359,15 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            if (field.IsArray || field.IsMatrix || field.IsEncodeable)
+            // ArrayOf<T> and MatrixOf<T> are value types — copied by MemberwiseClone
+            if (field.IsArray || field.IsMatrix)
+            {
+                return null;
+            }
+            if (field.IsEncodeable)
             {
                 return (TemplateString)CoreUtils.Format(
-                    "clone.{0} = ({1})global::Opc.Ua.Utils.Clone(this.{0});",
+                    "clone.{0} = ({1})((global::Opc.Ua.IEncodeable)this.{0})?.Clone();",
                     field.PropertyName, field.TypeName);
             }
             return null;
