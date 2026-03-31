@@ -133,13 +133,13 @@ namespace Opc.Ua.Server.Tests
             // Assert
             // To ensure it is removed, cancelling it will yield 0 count
             m_requestManager.CancelRequests(42, out uint cancelCount);
-            Assert.That(cancelCount, Is.EqualTo(0));
+            Assert.That(cancelCount, Is.Zero);
             // Assert that lifetime is completed (disposed), which means TryCancel returns false
             Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
         }
 
         [Test]
-        public async Task TimerCancelsExpiredRequestsAndFiresEvent()
+        public async Task TimerCancelsExpiredRequestsAndFiresEventAsync()
         {
             // Arrange
             var mockSession = new Mock<ISession>();
