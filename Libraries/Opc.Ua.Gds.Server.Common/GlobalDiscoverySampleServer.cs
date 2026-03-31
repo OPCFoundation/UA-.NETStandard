@@ -89,7 +89,10 @@ namespace Opc.Ua.Gds.Server
             if (!MessageContext.Factory.ContainsEncodeableType(
                 DataTypeIds.ApplicationRecordDataType))
             {
-                MessageContext.Factory.Builder.AddOpcUaGds().Commit();
+                MessageContext.Factory.Builder
+                    .AddOpcUaGds()
+                    .AddOpcUaGdsServerDataTypes()
+                    .Commit();
             }
         }
 

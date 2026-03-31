@@ -164,7 +164,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static void EmitBatch(
             SourceProductionContext sourceContext,
-            ImmutableArray<DataTypeCompilation> compilations)
+            ImmutableArray<DataTypeCompilation> compilations,
+            bool publicExtensions)
         {
             foreach (DataTypeCompilation comp in compilations)
             {
@@ -203,14 +204,18 @@ namespace Opc.Ua.SourceGeneration
 
                 foreach (DataTypeCompilation comp in entries)
                 {
-                    if (comp.Model.IsEnum)
+                    TypeSourceModel model = comp.Model with
                     {
-                        allActivators.Add(comp.Model);
+                        PublicExtensions = publicExtensions
+                    };
+                    if (model.IsEnum)
+                    {
+                        allActivators.Add(model);
                     }
                     else
                     {
-                        allTypes.Add(comp.Model with { Fields = comp.ValidFields });
-                        allActivators.Add(comp.Model);
+                        allTypes.Add(model with { Fields = comp.ValidFields });
+                        allActivators.Add(model);
                     }
                 }
 
@@ -218,6 +223,7 @@ namespace Opc.Ua.SourceGeneration
                     first.Namespace,
                     first.NamespaceSymbol,
                     first.NamespaceUri,
+                    publicExtensions,
                     allTypes,
                     allActivators);
 

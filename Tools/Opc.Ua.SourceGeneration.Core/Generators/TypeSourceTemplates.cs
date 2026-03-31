@@ -55,12 +55,12 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-                public static partial class {{Tokens.Namespace}}Extensions
+                {{Tokens.AccessModifier}} static partial class {{Tokens.Namespace}}DataTypeExtensions
                 {
                     /// <summary>
                     /// Adds all [DataType]-annotated encodeables of the {{Tokens.NamespaceUri}} namespace.
                     /// </summary>
-                    public static global::Opc.Ua.IEncodeableFactoryBuilder Add{{Tokens.Namespace}}(
+                    {{Tokens.AccessModifier}} static global::Opc.Ua.IEncodeableFactoryBuilder Add{{Tokens.Namespace}}DataTypes(
                         this global::Opc.Ua.IEncodeableFactoryBuilder builder)
                     {
                         {{Tokens.ListOfActivatorRegistrations}}

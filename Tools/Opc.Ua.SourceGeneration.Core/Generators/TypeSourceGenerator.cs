@@ -101,6 +101,8 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, model.Namespace);
             template.AddReplacement(Tokens.Namespace, model.NamespaceSymbol);
             template.AddReplacement(Tokens.NamespaceUri, model.NamespaceUri);
+            template.AddReplacement(Tokens.AccessModifier,
+                model.PublicExtensions ? "public" : "internal");
 
             if (model.IsEnum)
             {
@@ -147,6 +149,7 @@ namespace Opc.Ua.SourceGeneration
             string ns,
             string nsSymbol,
             string nsUri,
+            bool publicExtensions,
             IReadOnlyList<TypeSourceModel> allTypes,
             IReadOnlyList<TypeSourceModel> allActivators)
         {
@@ -158,6 +161,8 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, ns);
             template.AddReplacement(Tokens.Namespace, nsSymbol);
             template.AddReplacement(Tokens.NamespaceUri, nsUri);
+            template.AddReplacement(Tokens.AccessModifier,
+                publicExtensions ? "public" : "internal");
 
             template.AddReplacement(
                 Tokens.ListOfTypes,

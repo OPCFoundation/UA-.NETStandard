@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Does.Contain("public virtual object Clone"));
             Assert.That(result, Does.Contain("MyConfigActivator"));
             Assert.That(result, Does.Contain("EncodeableType<MyConfig>"));
-            Assert.That(result, Does.Contain("AddMyAppConfig"));
+            Assert.That(result, Does.Contain("AddMyAppConfigDataTypes"));
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.That(result, Does.Contain("MyEnumActivator"));
             Assert.That(result, Does.Contain("EnumeratedType<MyEnum>"));
-            Assert.That(result, Does.Contain("AddTestEnums"));
+            Assert.That(result, Does.Contain("AddTestEnumsDataTypes"));
             Assert.That(result, Does.Not.Contain("partial class MyEnum"));
             Assert.That(result, Does.Not.Contain("void Encode"));
             Assert.That(result, Does.Not.Contain("void Decode"));

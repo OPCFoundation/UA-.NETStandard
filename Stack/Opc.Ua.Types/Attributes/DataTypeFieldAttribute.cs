@@ -55,10 +55,21 @@ namespace Opc.Ua
         public string? Name { get; set; }
 
         /// <summary>
-        /// Unused - reserved for future use to specify
-        /// if the field is optional in a structure with
-        /// optional fields.
+        /// If explicitly set to <c>true</c>, the field is encoded using
+        /// <c>WriteEncodeable</c>/<c>ReadEncodeable</c> (exact type).
+        /// If explicitly set to <c>false</c>, the field is encoded using
+        /// <c>WriteEncodeableAsExtensionObject</c>/<c>ReadEncodeableAsExtensionObject</c>
+        /// (allows subtyping).
+        /// If not set (null), the generator decides automatically:
+        /// <c>WriteEncodeable</c> is used if the field type is sealed
+        /// and does not derive from another IEncodeable base type;
+        /// otherwise <c>WriteEncodeableAsExtensionObject</c> is used.
         /// </summary>
-        public bool IsRequired { get; set; }
+        /// <remarks>
+        /// Only applicable to fields whose type implements
+        /// <see cref="IEncodeable"/>. Ignored for built-in types,
+        /// enums, and arrays.
+        /// </remarks>
+        public object? ForceEncodeable { get; set; }
     }
 }

@@ -49,28 +49,35 @@ namespace Opc.Ua.Gds.Server
         {
         }
 
+        [DataMember(Order = 1)]
         [DataTypeField(Order = 0)]
         public string AuthoritiesStorePath { get; set; }
 
+        [DataMember(Order = 2)]
         [DataTypeField(Order = 1)]
         public string ApplicationCertificatesStorePath { get; set; }
 
+        [DataMember(Order = 3)]
         [DataTypeField(Order = 2)]
         public string BaseCertificateGroupStorePath { get; set; }
 
+        [DataMember(Order = 4)]
         [DataTypeField(Order = 3)]
         public string DefaultSubjectNameContext { get; set; }
 
-        [DataTypeField(Order = 4)]
-        public ArrayOf<CertificateGroupConfiguration> CertificateGroups { get; set; }
+        [DataMember(Order = 5)]
+        public CertificateGroupConfigurationCollection CertificateGroups { get; set; }
 
-        [DataTypeField(Order = 5)]
+        [DataMember(Order = 6)]
+        [DataTypeField(Order = 4)]
         public ArrayOf<string> KnownHostNames { get; set; }
 
-        [DataTypeField(Order = 6)]
+        [DataMember(Order = 7)]
+        [DataTypeField(Order = 5)]
         public string DatabaseStorePath { get; set; }
 
-        [DataTypeField(Order = 7)]
+        [DataMember(Order = 8)]
+        [DataTypeField(Order = 6)]
         public string UsersDatabaseStorePath { get; set; }
     }
 
@@ -94,10 +101,11 @@ namespace Opc.Ua.Gds.Server
             CertificateTypes = [];
         }
 
-        [DataTypeField(IsRequired = true, Order = 10)]
+        [DataMember(IsRequired = true, Order = 10)]
+        [DataTypeField(Order = 0)]
         public string Id { get; set; }
 
-        // [DataTypeField(IsRequired = false, Order = 20)]
+        [DataMember(IsRequired = false, Order = 20)]
         public string CertificateType
         {
             get
@@ -112,10 +120,6 @@ namespace Opc.Ua.Gds.Server
             {
                 if (!CertificateTypes.IsEmpty)
                 {
-                    // This is broken - we remove potentially everything by
-                    // assigning null multiple times. This should not be settable
-                    // at all, but for backward compatibility with existing
-                    // configuration we keep it like this.
                     if (value == null)
                     {
                         CertificateTypes = CertificateTypes[1..];
@@ -132,31 +136,40 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        [DataTypeField(IsRequired = false, Order = 21)]
+        [DataMember(IsRequired = false, Order = 21)]
+        [DataTypeField(Order = 1)]
         public ArrayOf<string> CertificateTypes { get; set; }
 
-        [DataTypeField(IsRequired = true, Order = 25)]
+        [DataMember(IsRequired = true, Order = 25)]
+        [DataTypeField(Order = 2)]
         public string SubjectName { get; set; }
 
-        [DataTypeField(IsRequired = true, Order = 30)]
+        [DataMember(IsRequired = true, Order = 30)]
+        [DataTypeField(Order = 3)]
         public string BaseStorePath { get; set; }
 
-        [DataTypeField(Order = 40)]
+        [DataMember(Order = 40)]
+        [DataTypeField(Order = 4)]
         public ushort DefaultCertificateLifetime { get; set; }
 
-        [DataTypeField(Order = 50)]
+        [DataMember(Order = 50)]
+        [DataTypeField(Order = 5)]
         public ushort DefaultCertificateKeySize { get; set; }
 
-        [DataTypeField(Order = 60)]
+        [DataMember(Order = 60)]
+        [DataTypeField(Order = 6)]
         public ushort DefaultCertificateHashSize { get; set; }
 
-        [DataTypeField(Order = 70)]
+        [DataMember(Order = 70)]
+        [DataTypeField(Order = 7)]
         public ushort CACertificateLifetime { get; set; }
 
-        [DataTypeField(Order = 80)]
+        [DataMember(Order = 80)]
+        [DataTypeField(Order = 8)]
         public ushort CACertificateKeySize { get; set; }
 
-        [DataTypeField(Order = 90)]
+        [DataMember(Order = 90)]
+        [DataTypeField(Order = 9)]
         public ushort CACertificateHashSize { get; set; }
 
         public string TrustedListPath
@@ -164,5 +177,28 @@ namespace Opc.Ua.Gds.Server
 
         public string IssuerListPath
             => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
+    }
+
+    [CollectionDataContract(
+        Name = "ListOfCertificateGroupConfiguration",
+        Namespace = Namespaces.OpcUaGds + "Configuration.xsd",
+        ItemName = "CertificateGroupConfiguration"
+    )]
+    public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
+    {
+        public CertificateGroupConfigurationCollection()
+        {
+        }
+
+        public CertificateGroupConfigurationCollection(
+            IEnumerable<CertificateGroupConfiguration> collection)
+            : base(collection)
+        {
+        }
+
+        public CertificateGroupConfigurationCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
 }
