@@ -110,9 +110,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Validate: must have parameterless constructor
-            bool hasCtor = m_symbol.Constructors.Any(c =>
-                c.Parameters.Length == 0 && !c.IsImplicitlyDeclared == false) ||
-                m_symbol.Constructors.Any(c => c.Parameters.Length == 0);
+            bool hasCtor = m_symbol.Constructors.Any(c => c.Parameters.Length == 0);
             if (!hasCtor)
             {
                 sourceContext.ReportDiagnostic(
@@ -124,7 +122,31 @@ namespace Opc.Ua.SourceGeneration
             }
 
             DataTypeSourceModel model = BuildClassModel();
-            string source = DataTypeSourceGenerator.Generate(model);
+
+            // Validate fields and report diagnostics for unsupported types
+            IReadOnlyList<DataTypeSourceDiagnostic> diagnostics =
+                DataTypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> validFields);
+
+            bool hasErrors = false;
+            foreach (DataTypeSourceDiagnostic diag in diagnostics)
+            {
+                sourceContext.ReportDiagnostic(
+                    Diagnostic.Create(
+                        diag.IsError ? SourceGenerator.Exception : SourceGenerator.GenericWarning,
+                        m_location,
+                        diag.Message));
+                if (diag.IsError)
+                {
+                    hasErrors = true;
+                }
+            }
+
+            if (hasErrors)
+            {
+                return;
+            }
+
+            string source = DataTypeSourceGenerator.Generate(model, validFields);
             sourceContext.AddSource($"{model.ClassName}.g.cs", source);
         }
 
@@ -230,7 +252,7 @@ namespace Opc.Ua.SourceGeneration
                     ? GetNamedArgString(dtfAttr, "Name") ?? prop.Name
                     : prop.Name;
 
-                DataTypeSourceField field = CreateField(prop, fieldName, order);
+                DataTypeSourceField field = CreateField(prop, fieldName, order, dtfAttr != null);
                 fields.Add(field);
                 orderIndex++;
             }
@@ -242,59 +264,38 @@ namespace Opc.Ua.SourceGeneration
         private DataTypeSourceField CreateField(
             IPropertySymbol prop,
             string fieldName,
-            int order)
+            int order,
+            bool hasDataTypeFieldAttr)
         {
             ITypeSymbol type = prop.Type;
             string shortName = type.Name;
             bool isNullable = prop.NullableAnnotation == NullableAnnotation.Annotated;
             bool isEncodeable = ImplementsInterface(type, "IEncodeable");
             bool isEnum = type.TypeKind == TypeKind.Enum;
-            bool isCollection = false;
+            bool isArray = false;
+            bool isMatrix = false;
+            string elementShortTypeName = null;
             string elementTypeName = null;
 
-            // Check for generic collections (List<T>, etc.)
-            if (type is INamedTypeSymbol namedType &&
-                namedType.IsGenericType &&
-                (shortName == "List" || shortName == "IList" || shortName == "IReadOnlyList"))
+            if (shortName == "ArrayOf" && type is INamedTypeSymbol arrayType &&
+                arrayType.IsGenericType && arrayType.TypeArguments.Length == 1)
             {
-                isCollection = true;
-                ITypeSymbol elemType = namedType.TypeArguments[0];
-                elementTypeName = elemType.Name;
-                shortName = elementTypeName;
+                isArray = true;
+                ITypeSymbol elemType = arrayType.TypeArguments[0];
+                elementShortTypeName = elemType.Name;
+                elementTypeName = GetFullyQualifiedTypeName(elemType);
+                isEncodeable = ImplementsInterface(elemType, "IEncodeable");
+                isEnum = elemType.TypeKind == TypeKind.Enum;
             }
-
-            // Resolve encoder/decoder method
-            string encoderMethod = null;
-            string decoderMethod = null;
-
-            if (isEncodeable)
+            else if (shortName == "MatrixOf" && type is INamedTypeSymbol matrixType &&
+                matrixType.IsGenericType && matrixType.TypeArguments.Length == 1)
             {
-                encoderMethod = "WriteEncodeable";
-                decoderMethod = "ReadEncodeable";
-            }
-            else if (isEnum)
-            {
-                encoderMethod = "WriteEnumerated";
-                decoderMethod = "ReadEnumerated";
-            }
-            else
-            {
-                var methods = DataTypeSourceGenerator.GetEncoderDecoderMethods(shortName);
-                if (methods.HasValue)
-                {
-                    encoderMethod = isCollection
-                        ? methods.Value.encoder.Replace("Write", "Write") + "Array"
-                        : methods.Value.encoder;
-                    decoderMethod = isCollection
-                        ? methods.Value.decoder.Replace("Read", "Read") + "Array"
-                        : methods.Value.decoder;
-                }
-                else
-                {
-                    encoderMethod = "WriteEncodeable";
-                    decoderMethod = "ReadEncodeable";
-                    isEncodeable = true;
-                }
+                isMatrix = true;
+                ITypeSymbol elemType = matrixType.TypeArguments[0];
+                elementShortTypeName = elemType.Name;
+                elementTypeName = GetFullyQualifiedTypeName(elemType);
+                isEncodeable = ImplementsInterface(elemType, "IEncodeable");
+                isEnum = elemType.TypeKind == TypeKind.Enum;
             }
 
             return new DataTypeSourceField
@@ -303,14 +304,15 @@ namespace Opc.Ua.SourceGeneration
                 FieldName = fieldName,
                 TypeName = GetFullyQualifiedTypeName(prop.Type),
                 ShortTypeName = shortName,
-                IsCollection = isCollection,
+                IsArray = isArray,
+                IsMatrix = isMatrix,
+                ElementShortTypeName = elementShortTypeName,
                 ElementTypeName = elementTypeName,
                 IsOptional = isNullable,
                 IsEncodeable = isEncodeable,
                 IsEnum = isEnum,
                 Order = order,
-                EncoderMethod = encoderMethod,
-                DecoderMethod = decoderMethod
+                HasDataTypeFieldAttribute = hasDataTypeFieldAttr
             };
         }
 

@@ -114,6 +114,8 @@ namespace Opc.Ua.SourceGeneration
 
     /// <summary>
     /// Represents a single field of a source-annotated data type.
+    /// Contains only the information extracted from Roslyn symbols.
+    /// The generator resolves encoder/decoder methods from the type info.
     /// </summary>
     internal sealed class DataTypeSourceField
     {
@@ -138,17 +140,22 @@ namespace Opc.Ua.SourceGeneration
         public string ShortTypeName { get; set; }
 
         /// <summary>
-        /// The OPC UA built-in type, or null if it's a complex/encodeable type.
+        /// True if the field type is ArrayOf&lt;T&gt;.
         /// </summary>
-        public string BuiltInType { get; set; }
+        public bool IsArray { get; set; }
 
         /// <summary>
-        /// True if this field is a collection (List, Array, etc.).
+        /// True if the field type is MatrixOf&lt;T&gt;.
         /// </summary>
-        public bool IsCollection { get; set; }
+        public bool IsMatrix { get; set; }
 
         /// <summary>
-        /// The element type name for collections.
+        /// The element type short name for ArrayOf/MatrixOf (e.g. "Int32", "NodeId").
+        /// </summary>
+        public string ElementShortTypeName { get; set; }
+
+        /// <summary>
+        /// The element fully qualified type name for ArrayOf/MatrixOf.
         /// </summary>
         public string ElementTypeName { get; set; }
 
@@ -173,19 +180,10 @@ namespace Opc.Ua.SourceGeneration
         public int Order { get; set; }
 
         /// <summary>
-        /// The IEncoder method to call (e.g. "WriteString", "WriteInt32", "WriteEncodeable").
+        /// True if this field was annotated with [DataTypeField].
+        /// Used to determine if validation failures should be errors vs warnings.
         /// </summary>
-        public string EncoderMethod { get; set; }
-
-        /// <summary>
-        /// The IDecoder method to call (e.g. "ReadString", "ReadInt32", "ReadEncodeable").
-        /// </summary>
-        public string DecoderMethod { get; set; }
-
-        /// <summary>
-        /// Default value expression for initialization (e.g. "null", "0", "string.Empty").
-        /// </summary>
-        public string DefaultValue { get; set; }
+        public bool HasDataTypeFieldAttribute { get; set; }
     }
 
     /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
@@ -53,9 +54,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = false,
                 Fields = new[]
                 {
-                    CreateField("Name", "String", "WriteString", "ReadString"),
-                    CreateField("Port", "Int32", "WriteInt32", "ReadInt32"),
-                    CreateField("Enabled", "Boolean", "WriteBoolean", "ReadBoolean"),
+                    CreateField("Name", "String"),
+                    CreateField("Port", "Int32"),
+                    CreateField("Enabled", "Boolean"),
                 }
             };
 
@@ -76,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Does.Contain("public virtual object Clone"));
             Assert.That(result, Does.Contain("MyConfigActivator"));
             Assert.That(result, Does.Contain("EncodeableType<MyConfig>"));
-            Assert.That(result, Does.Contain("AddMyConfig"));
+            Assert.That(result, Does.Contain("AddMyAppConfig"));
         }
 
         [Test]
@@ -98,8 +99,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         FieldName = "server_name",
                         TypeName = "global::System.String",
                         ShortTypeName = "String",
-                        EncoderMethod = "WriteString",
-                        DecoderMethod = "ReadString",
                         Order = 0
                     }
                 }
@@ -124,7 +123,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = true,
                 Fields = new[]
                 {
-                    CreateField("Value", "Int32", "WriteInt32", "ReadInt32"),
+                    CreateField("Value", "Int32"),
                 }
             };
 
@@ -157,7 +156,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.That(result, Does.Contain("MyEnumActivator"));
             Assert.That(result, Does.Contain("EnumeratedType<MyEnum>"));
-            Assert.That(result, Does.Contain("AddMyEnum"));
+            Assert.That(result, Does.Contain("AddTestEnums"));
             Assert.That(result, Does.Not.Contain("partial class MyEnum"));
             Assert.That(result, Does.Not.Contain("void Encode"));
             Assert.That(result, Does.Not.Contain("void Decode"));
@@ -228,8 +227,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         FieldName = "Child",
                         TypeName = "global::Test.Ns.ChildType",
                         ShortTypeName = "ChildType",
-                        EncoderMethod = "WriteEncodeable",
-                        DecoderMethod = "ReadEncodeable",
                         IsEncodeable = true,
                         Order = 0
                     }
@@ -244,11 +241,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void GenerateWithCollectionFieldClonesCollection()
+        public void GenerateWithArrayOfFieldClonesArray()
         {
             var model = new DataTypeSourceModel
             {
-                ClassName = "WithList",
+                ClassName = "WithArray",
                 Namespace = "Test.Ns",
                 NamespaceUri = "urn:test",
                 NamespaceSymbol = "TestNs",
@@ -260,12 +257,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     {
                         PropertyName = "Items",
                         FieldName = "Items",
-                        TypeName = "global::System.Collections.Generic.List<global::System.String>",
-                        ShortTypeName = "String",
-                        EncoderMethod = "WriteStringArray",
-                        DecoderMethod = "ReadStringArray",
-                        IsCollection = true,
-                        ElementTypeName = "String",
+                        TypeName = "global::Opc.Ua.ArrayOf<global::System.String>",
+                        ShortTypeName = "ArrayOf",
+                        IsArray = true,
+                        ElementShortTypeName = "String",
+                        ElementTypeName = "global::System.String",
                         Order = 0
                     }
                 }
@@ -274,10 +270,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string result = DataTypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("Utils.Clone(this.Items)"));
+            Assert.That(result, Does.Contain("WriteStringArray"));
+            Assert.That(result, Does.Contain("ReadStringArray"));
         }
 
         [Test]
-        public void TypeMethodMapContainsAllBuiltInTypes()
+        public void TypeMapContainsAllBuiltInTypes()
         {
             string[] expectedTypes = new[]
             {
@@ -292,14 +290,93 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             foreach (string typeName in expectedTypes)
             {
-                var result = DataTypeSourceGenerator.GetEncoderDecoderMethods(typeName);
-                Assert.That(result, Is.Not.Null,
-                    $"Missing encoder/decoder mapping for {typeName}");
-                Assert.That(result.Value.encoder, Does.StartWith("Write"),
-                    $"Encoder method for {typeName} should start with Write");
-                Assert.That(result.Value.decoder, Does.StartWith("Read"),
-                    $"Decoder method for {typeName} should start with Read");
+                Assert.That(DataTypeSourceGenerator.s_scalarTypeMap.ContainsKey(typeName),
+                    Is.True,
+                    $"Missing type mapping for {typeName}");
             }
+        }
+
+        [Test]
+        public void ResolveEncoderDecoderForScalarField()
+        {
+            var field = CreateField("Value", "Int32");
+            var result = DataTypeSourceGenerator.ResolveEncoderDecoder(field);
+            Assert.That(result.writeMethod, Is.EqualTo("WriteInt32"));
+            Assert.That(result.readMethod, Is.EqualTo("ReadInt32"));
+        }
+
+        [Test]
+        public void ResolveEncoderDecoderForArrayField()
+        {
+            var field = CreateField("Values", "ArrayOf", isArray: true, elementType: "String");
+            var result = DataTypeSourceGenerator.ResolveEncoderDecoder(field);
+            Assert.That(result.writeMethod, Is.EqualTo("WriteStringArray"));
+            Assert.That(result.readMethod, Is.EqualTo("ReadStringArray"));
+        }
+
+        [Test]
+        public void ValidateAndFilterRejectsUnsupportedType()
+        {
+            var model = new DataTypeSourceModel
+            {
+                ClassName = "BadType",
+                Namespace = "Test",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "Test",
+                IsEnum = false,
+                Fields = new[]
+                {
+                    CreateField("Good", "String"),
+                    new DataTypeSourceField
+                    {
+                        PropertyName = "Bad",
+                        FieldName = "Bad",
+                        TypeName = "global::MyApp.CustomThing",
+                        ShortTypeName = "CustomThing",
+                        Order = 1
+                    }
+                }
+            };
+
+            IReadOnlyList<DataTypeSourceDiagnostic> diagnostics =
+                DataTypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> valid);
+
+            Assert.That(valid, Has.Count.EqualTo(1));
+            Assert.That(valid[0].PropertyName, Is.EqualTo("Good"));
+            Assert.That(diagnostics, Has.Count.EqualTo(1));
+            Assert.That(diagnostics[0].IsError, Is.False);
+        }
+
+        [Test]
+        public void ValidateAndFilterReportsErrorForAnnotatedUnsupportedType()
+        {
+            var model = new DataTypeSourceModel
+            {
+                ClassName = "BadAnnotated",
+                Namespace = "Test",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "Test",
+                IsEnum = false,
+                Fields = new[]
+                {
+                    new DataTypeSourceField
+                    {
+                        PropertyName = "Bad",
+                        FieldName = "Bad",
+                        TypeName = "global::MyApp.CustomThing",
+                        ShortTypeName = "CustomThing",
+                        HasDataTypeFieldAttribute = true,
+                        Order = 0
+                    }
+                }
+            };
+
+            IReadOnlyList<DataTypeSourceDiagnostic> diagnostics =
+                DataTypeSourceGenerator.ValidateAndFilter(model, out IReadOnlyList<DataTypeSourceField> valid);
+
+            Assert.That(valid, Has.Count.EqualTo(0));
+            Assert.That(diagnostics, Has.Count.EqualTo(1));
+            Assert.That(diagnostics[0].IsError, Is.True);
         }
 
         [Test]
@@ -323,7 +400,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static DataTypeSourceField CreateField(
             string name, string shortType,
-            string encoder, string decoder)
+            bool isArray = false,
+            string elementType = null)
         {
             return new DataTypeSourceField
             {
@@ -331,8 +409,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 FieldName = name,
                 TypeName = $"global::System.{shortType}",
                 ShortTypeName = shortType,
-                EncoderMethod = encoder,
-                DecoderMethod = decoder,
+                IsArray = isArray,
+                ElementShortTypeName = elementType,
                 Order = 0
             };
         }
