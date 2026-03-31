@@ -356,6 +356,119 @@ namespace TestApp.Shared
             Assert.That(generated, Does.Contain("TypeBActivator.Instance"));
         }
 
+        [Test]
+        public void IncrementalAddSecondClassProducesSingleFileWithBothTypes()
+        {
+            const string sourceA = @"
+using Opc.Ua;
+
+namespace TestApp.Incremental
+{
+    [DataType]
+    public partial class FirstType
+    {
+        public string Name { get; set; }
+    }
+}";
+
+            const string sourceB = @"
+using Opc.Ua;
+
+namespace TestApp.Incremental
+{
+    [DataType]
+    public partial class SecondType
+    {
+        public int Count { get; set; }
+    }
+}";
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+            CSharpParseOptions parseOptions = new CSharpParseOptions()
+                .WithKind(SourceCodeKind.Regular)
+                .WithLanguageVersion(LanguageVersion.CSharp13);
+
+            // Step 1: compile with only FirstType
+            CSharpCompilation compilationA = OptimizationLevel.Release
+                .CreateCompilation("IncrementalTest")
+                .AddCode(
+                    new[] { new System.Collections.Generic.KeyValuePair<string, string>(
+                        "SourceA.cs", sourceA) }
+                    .WithOpcUaGeneratedStack(),
+                    LanguageVersion.CSharp13);
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(parseOptions);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilationA,
+                out Compilation outputA,
+                out ImmutableArray<Diagnostic> diagsA);
+
+            Assert.That(
+                diagsA.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray(),
+                Is.Empty, "Step 1 generator errors");
+
+            GeneratorDriverRunResult runA = driver.GetRunResult();
+            GeneratorRunResult resultA = runA.Results[0];
+            Assert.That(resultA.GeneratedSources, Has.Length.EqualTo(1),
+                "Step 1 should produce 1 file");
+
+            string generatedA = resultA.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generatedA, Does.Contain("partial class FirstType"));
+            Assert.That(generatedA, Does.Not.Contain("SecondType"));
+
+            // Step 2: add SecondType and re-run the same driver (incremental)
+            // Use the original compilation (not outputA which includes generated trees)
+            SyntaxTree newTree = CSharpSyntaxTree.ParseText(
+                sourceB, parseOptions, "SourceB.cs");
+            CSharpCompilation compilationB = compilationA.AddSyntaxTrees(newTree);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilationB,
+                out Compilation outputB,
+                out ImmutableArray<Diagnostic> diagsB);
+
+            Assert.That(
+                diagsB.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray(),
+                Is.Empty, "Step 2 generator errors");
+
+            GeneratorDriverRunResult runB = driver.GetRunResult();
+            GeneratorRunResult resultB = runB.Results[0];
+            Assert.That(resultB.GeneratedSources, Has.Length.EqualTo(1),
+                "Step 2 should still produce exactly 1 file (both types batched)");
+
+            string generatedB = resultB.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generatedB, Does.Contain("partial class FirstType"),
+                "Final output must contain FirstType");
+            Assert.That(generatedB, Does.Contain("partial class SecondType"),
+                "Final output must contain SecondType");
+            Assert.That(generatedB, Does.Contain("FirstTypeActivator"),
+                "Final output must contain FirstType activator");
+            Assert.That(generatedB, Does.Contain("SecondTypeActivator"),
+                "Final output must contain SecondType activator");
+
+            // Verify single extension class with both registrations
+            int extCount = CountOccurrences(
+                generatedB, "TestAppIncrementalExtensions");
+            Assert.That(extCount, Is.GreaterThanOrEqualTo(1),
+                "Should have one extension class");
+            Assert.That(generatedB, Does.Contain("FirstTypeActivator.Instance"));
+            Assert.That(generatedB, Does.Contain("SecondTypeActivator.Instance"));
+
+            // Verify the final compilation succeeds
+            outputB.GetDiagnostics().Check(
+                TestContext.Out,
+                out int errors,
+                out int warnings,
+                filterLinkerAndReferenceErrors: true);
+            errors -= outputB.GetDiagnostics()
+                .Count(d => d.Id == "CS0234" &&
+                    d.Severity == DiagnosticSeverity.Error);
+            Assert.That(errors, Is.Zero,
+                $"Final incremental compilation produced {errors} errors");
+        }
+
         private static GeneratorRunResult RunGenerator(
             string source,
             bool expectErrors = false,
