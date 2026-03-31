@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = ServiceMessageContext.Create(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void GlobalSetup()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = ServiceMessageContext.Create(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void ConstructorDefault(JsonEncodingType encodingType)
         {
-            var context = ServiceMessageContext.Create(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context,
                 encodingType == JsonEncodingType.Verbose ?
                 JsonEncoderOptions.Verbose :
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         private void ConstructorStream(MemoryStream memoryStream)
         {
-            var context = ServiceMessageContext.Create(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
                 TestEncoding(jsonEncoder);
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStreamSequence()
         {
-            var context = ServiceMessageContext.Create(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
@@ -1269,7 +1269,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStreamSequence()
         {
-            var context = ServiceMessageContext.Create(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
             using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
             {

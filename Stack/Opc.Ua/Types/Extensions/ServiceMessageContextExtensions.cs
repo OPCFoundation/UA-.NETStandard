@@ -42,7 +42,7 @@ namespace Opc.Ua
             /// Create a new service message context initialized with all known types.
             /// </summary>
             /// <returns></returns>
-            public static ServiceMessageContext Create(ITelemetryContext telemetry)
+            public static ServiceMessageContext Create(ITelemetryContext? telemetry)
             {
                 return new ServiceMessageContext(telemetry, EncodeableFactory.Create());
             }

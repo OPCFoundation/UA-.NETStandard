@@ -64,7 +64,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Built in type
+    /// Built in type or sub datatype of a built in type.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
     public interface IBuiltInType : IType

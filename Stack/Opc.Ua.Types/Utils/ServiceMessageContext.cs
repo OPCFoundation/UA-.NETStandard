@@ -66,17 +66,15 @@ namespace Opc.Ua
         public ServiceMessageContext(ITelemetryContext telemetry, IEncodeableFactory factory)
         {
             Telemetry = telemetry;
-            Factory = factory ?? (EncodeableFactory.Root.IsValueCreated ?
-                EncodeableFactory.Root.Value :
-                new EncodeableFactory());
+            Factory = factory;
             MaxStringLength = DefaultEncodingLimits.MaxStringLength;
             MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
             MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
             MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
             MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            m_namespaceUris = new NamespaceTable();
-            m_serverUris = new StringTable();
+            NamespaceUris = new NamespaceTable();
+            ServerUris = new StringTable();
         }
 
         /// <summary>
@@ -95,8 +93,8 @@ namespace Opc.Ua
             MaxMessageSize = context.MaxMessageSize;
             MaxEncodingNestingLevels = context.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = context.MaxDecoderRecoveries;
-            m_namespaceUris = new NamespaceTable(context.NamespaceUris);
-            m_serverUris = new StringTable(context.ServerUris);
+            NamespaceUris = new NamespaceTable(context.NamespaceUris);
+            ServerUris = new StringTable(context.ServerUris);
         }
 
         /// <summary>
@@ -108,6 +106,24 @@ namespace Opc.Ua
         public static ServiceMessageContext CreateEmpty(ITelemetryContext telemetry)
         {
             return new ServiceMessageContext(telemetry, new EncodeableFactory());
+        }
+
+        /// <summary>
+        /// The default context for the process (used only during XML serialization).
+        /// </summary>
+        [Obsolete("Use CreateEmpty() to create an empty context or a copy of an existing one for a scope.")]
+        public static ServiceMessageContext GlobalContext { get; } = new(null);
+
+        /// <summary>
+        /// The default context for the thread (used only during XML serialization).
+        /// </summary>
+        [Obsolete("Use CreateEmpty() to create an empty context or a copy of an existing one for a scope.")]
+        public static ServiceMessageContext ThreadContext
+        {
+            get => GlobalContext;
+            set
+            {
+            }
         }
 
         /// <inheritdoc/>
@@ -134,43 +150,50 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris
         {
-            get => m_namespaceUris;
+            get => field;
             set
             {
                 if (value == null)
                 {
-                    m_namespaceUris = new NamespaceTable();
+                    field = new NamespaceTable();
                     return;
                 }
-                m_namespaceUris = value;
+                field = value;
             }
         }
 
         /// <inheritdoc/>
         public StringTable ServerUris
         {
-            get => m_serverUris;
+            get => field;
             set
             {
                 if (value == null)
                 {
-                    m_serverUris = new StringTable();
+                    field = new StringTable();
                     return;
                 }
 
-                m_serverUris = value;
+                field = value;
             }
         }
 
         /// <inheritdoc/>
         public IEncodeableFactory Factory
         {
-            get => m_factory;
-            private set => m_factory = value ?? throw new ArgumentNullException(nameof(value));
-        }
+            get => field;
+            private set
+            {
+                if (value == null)
+                {
+                    field = EncodeableFactory.Root.IsValueCreated ?
+                        EncodeableFactory.Root.Value :
+                        new EncodeableFactory();
+                    return;
+                }
 
-        private NamespaceTable m_namespaceUris;
-        private StringTable m_serverUris;
-        private IEncodeableFactory m_factory;
+                field = value;
+            }
+        }
     }
 }

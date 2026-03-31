@@ -2012,8 +2012,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
@@ -2068,8 +2067,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(

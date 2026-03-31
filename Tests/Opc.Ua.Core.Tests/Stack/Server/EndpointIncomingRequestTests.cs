@@ -56,7 +56,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             public Action<IEndpointIncomingRequest> OnScheduleIncomingRequest { get; set; }
 
-            public override void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
+            public override void ScheduleIncomingRequest(
+                IEndpointIncomingRequest request,
+                CancellationToken cancellationToken = default)
             {
                 if (OnScheduleIncomingRequest != null)
                 {
@@ -101,7 +103,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 return ((EndpointIncomingRequest)incomingRequest).CallAsync();
             }
 
-            public void OperationCompletedLocal(object incomingRequest, IServiceResponse response, ServiceResult error)
+            public void OperationCompletedLocal(
+                object incomingRequest,
+                IServiceResponse response,
+                ServiceResult error)
             {
                 var req = (EndpointIncomingRequest)incomingRequest;
                 req.OperationCompleted(response, error);
@@ -114,15 +119,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var r3 = new EndpointIncomingRequest(this, null, req3);
                 EndpointIncomingRequest rr1 = r1;
 
-                Assert.That(r1.Equals(rr1), Is.True);
-                Assert.That(r1.Equals(r2), Is.False);
-                Assert.That(r1.Equals(r3), Is.True);
+                Assert.That(r1, Is.EqualTo(rr1));
+                Assert.That(r1, Is.Not.EqualTo(r2));
+                Assert.That(r1, Is.EqualTo(r3));
 
-                Assert.That(r1.Equals((object)rr1), Is.True);
-                Assert.That(r1.Equals(new object()), Is.False);
+                Assert.That(r1, Is.EqualTo((object)rr1));
+                Assert.That(r1, Is.Not.EqualTo(new object()));
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
                 Assert.That(r1 == rr1, Is.True);
                 Assert.That(r1 != r2, Is.True);
+#pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
 
                 Assert.That(r1.GetHashCode(), Is.EqualTo(r3.GetHashCode()));
             }
@@ -170,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
 
             ValueTask<IServiceResponse> responseTask = endpoint.ProcessAsyncLocal(incoming);
-            IServiceResponse response = await responseTask;
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
@@ -179,7 +186,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         public async Task ProcessAsync_CatchesScheduleException_ReturnsFault()
         {
             using var server = new TestServer();
-            server.OnScheduleIncomingRequest = (r) => throw new InvalidOperationException("Simulated exception");
+            server.OnScheduleIncomingRequest = (r)
+                => throw new InvalidOperationException("Simulated exception");
 
             var endpoint = new TestEndpointBase(server);
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
@@ -187,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             var incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = endpoint.ProcessAsyncLocal(incoming);
-            IServiceResponse response = await responseTask;
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -204,9 +212,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
             var expectedResponse = new ReadResponse();
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => {
-                return new ValueTask<IServiceResponse>(expectedResponse);
-            });
+            endpoint.AddServiceLocal(
+                req.TypeId,
+                typeof(ReadRequest),
+                (request, context, lifetime) => new ValueTask<IServiceResponse>(expectedResponse));
 
             var incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = endpoint.ProcessAsyncLocal(incoming);
@@ -227,9 +236,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => {
-                throw new OperationCanceledException();
-            });
+            endpoint.AddServiceLocal(
+                req.TypeId,
+                typeof(ReadRequest),
+                (request, context, lifetime) => throw new OperationCanceledException());
 
             var incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = endpoint.ProcessAsyncLocal(incoming);
@@ -276,9 +286,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => {
-                throw new InvalidOperationException("Error");
-            });
+            endpoint.AddServiceLocal(
+                req.TypeId,
+                typeof(ReadRequest),
+                (request, context, lifetime) => throw new InvalidOperationException("Error"));
 
             var incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = endpoint.ProcessAsyncLocal(incoming);

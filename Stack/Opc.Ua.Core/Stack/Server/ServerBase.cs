@@ -694,7 +694,7 @@ namespace Opc.Ua
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
-        /// Gets or sets the private encodeable factory to use for this server instance.
+        /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -704,7 +704,7 @@ namespace Opc.Ua
         /// </para>
         /// <para>
         /// If this property is null (the default), a new factory will be created
-        /// during server startup via <see cref="EncodeableFactory.Create()"/>.
+        /// during server startup.
         /// </para>
         /// </remarks>
         public IEncodeableFactory PrivateEncodeableFactory { get; set; }

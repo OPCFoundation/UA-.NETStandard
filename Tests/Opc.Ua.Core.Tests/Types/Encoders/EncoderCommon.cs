@@ -330,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             try
             {
                 string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-                Type type = TypeInfo.GetSystemType(builtInType, -1);
+                IBuiltInType type = TypeInfo.GetSystemType(builtInType);
                 TestContext.Out.WriteLine(encodeInfo);
 
                 byte[] buffer;
@@ -341,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             encoderType,
                             Context,
                             encoderStream,
-                            type,
+                            type?.Type,
                             jsonEncodingType))
                     {
                         encoder.WriteVariantValue(builtInType.ToString(), expected);
@@ -363,9 +363,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+                using (IDecoder decoder = CreateDecoder(
+                    encoderType,
+                    useXmlParser,
+                    Context,
+                    decoderStream,
+                    type?.Type))
                 {
-                    result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
+                    result = decoder.ReadVariantValue(
+                        builtInType.ToString(),
+                        expected.TypeInfo);
                 }
 
                 Assert.That(result, Is.EqualTo(expected), encodeInfo);

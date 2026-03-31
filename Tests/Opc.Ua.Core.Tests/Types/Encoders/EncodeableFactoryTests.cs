@@ -436,9 +436,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var typeId = new ExpandedNodeId(9002); // Use unique ID
             factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
-            // Act - Cast to concrete type to access MemberwiseClone method
+            // Act - Cast to concrete type to access Clone method
             var concreteFactory = (EncodeableFactory)factory;
-            var clonedFactory = (EncodeableFactory)concreteFactory.MemberwiseClone();
+            var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Assert
             Assert.That(clonedFactory, Is.Not.Null);

@@ -67,9 +67,10 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-            var parser = new XmlParser(typeof(ConfigurationLocation), element.OuterXml, ServiceMessageContext.GlobalContext);
-#pragma warning restore CS0618
+            var parser = new XmlParser(
+                typeof(ConfigurationLocation),
+                element.OuterXml,
+                ServiceMessageContext.CreateEmpty(null));
             return new ConfigurationLocation { FilePath = parser.ReadString("FilePath") };
         }
     }
@@ -321,9 +322,8 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
-#pragma warning restore CS0618
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
                 ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
@@ -506,9 +506,8 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-                IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
-#pragma warning restore CS0618
+                IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
                 configuration = systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
@@ -576,9 +575,8 @@ namespace Opc.Ua
         {
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-#pragma warning disable CS0618 // ServiceMessageContext.GlobalContext is obsolete - used as fallback when no scoped context is set
-            IServiceMessageContext context = AmbientMessageContext.CurrentContext ?? ServiceMessageContext.GlobalContext;
-#pragma warning restore CS0618
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext
+                ?? ServiceMessageContext.CreateEmpty(m_telemetry);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);

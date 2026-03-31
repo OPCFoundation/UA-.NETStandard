@@ -606,7 +606,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 arrayDimension);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            IBuiltInType type = TypeInfo.GetSystemType(builtInType);
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(randomData);
@@ -620,7 +620,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoderType,
                         Context,
                         encoderStream,
-                        type,
+                        type?.Type,
                         jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -637,9 +637,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                useXmlParser,
+                Context,
+                decoderStream,
+                type?.Type))
             {
-                result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
+                result = decoder.ReadVariantValue(
+                    builtInType.ToString(),
+                    randomData.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -736,7 +743,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Variant randomData = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            IBuiltInType type = TypeInfo.GetSystemType(builtInType);
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(randomData);
@@ -749,7 +756,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     encoderType,
                     Context,
                     encoderStream,
-                    type,
+                    type?.Type,
                     jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -766,9 +773,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                useXmlParser,
+                Context,
+                decoderStream,
+                type?.Type))
             {
-                result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
+                result = decoder.ReadVariantValue(
+                    builtInType.ToString(),
+                    randomData.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");
