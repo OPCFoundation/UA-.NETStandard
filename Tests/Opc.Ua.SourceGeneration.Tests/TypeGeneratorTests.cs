@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
@@ -43,7 +45,7 @@ namespace Opc.Ua.SourceGeneration
     [Category("SourceGeneration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class DataTypeGeneratorCompilationTests
+    public class TypeGeneratorTests
     {
         [Test]
         public void SingleClassWithScalarPropertiesCompilesSuccessfully()
@@ -140,7 +142,8 @@ namespace TestApp.Client
         [Test]
         public void ClassWithDataTypeFieldAnnotationsOnlyEncodesAnnotatedProperties()
         {
-            const string source = @"
+            const string source = """
+
 using Opc.Ua;
 
 namespace TestApp.Selective
@@ -151,13 +154,14 @@ namespace TestApp.Selective
         [DataTypeField(Order = 0)]
         public string Name { get; set; }
 
-        [DataTypeField(Order = 1, Name = ""server_port"")]
+        [DataTypeField(Order = 1, Name = "server_port")]
         public int Port { get; set; }
 
         // Not annotated - should be excluded
         public string InternalNote { get; set; }
     }
-}";
+}
+""";
             GeneratorRunResult result = RunGenerator(source);
 
             Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
@@ -218,8 +222,7 @@ namespace TestApp.BadType
 
             Assert.That(result.Diagnostics.Any(d =>
                 d.Severity == DiagnosticSeverity.Warning &&
-                d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)
-                    .Contains("Bad", System.StringComparison.Ordinal)),
+                d.GetMessage(CultureInfo.InvariantCulture).Contains("Bad", StringComparison.Ordinal)),
                 Is.True, "Should warn about unsupported type");
         }
 
@@ -303,17 +306,19 @@ namespace TestApp.BuiltIns
         [Test]
         public void ClassWithCustomDataTypeIdUsesSpecifiedIds()
         {
-            const string source = @"
+            const string source = """
+
 using Opc.Ua;
 
 namespace TestApp.CustomId
 {
-    [DataType(DataTypeId = ""i=12345"", BinaryEncodingId = ""i=12346"")]
+    [DataType(DataTypeId = "i=12345", BinaryEncodingId = "i=12346")]
     public partial class CustomIdConfig
     {
         public string Name { get; set; }
     }
-}";
+}
+""";
             GeneratorRunResult result = RunGenerator(source);
 
             Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
