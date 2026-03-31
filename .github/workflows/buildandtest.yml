@@ -77,3 +77,49 @@ jobs:
         verbose: true
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
+
+  aot-test:
+    name: aot-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - dotnet-version: '10.0.x'
+            configuration: 'Release'
+
+    env:
+      AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Publish NativeAOT
+      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ matrix.configuration }}
+
+    - name: Run NativeAOT Tests (Linux)
+      if: runner.os == 'Linux'
+      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
+
+    - name: Run NativeAOT Tests (Windows)
+      if: runner.os == 'Windows'
+      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/win-x64/publish/Opc.Ua.Aot.Tests.exe
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v7
+      with:
+        name: aot-results-${{ matrix.os }}
+        path: '**/TestResults/**'
+      if: ${{ always() }}
