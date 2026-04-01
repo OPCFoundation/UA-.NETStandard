@@ -1655,6 +1655,147 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Looks for an extension with the specified type and decodes it
+        /// using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="extensions">The list of extensions to search.</param>
+        /// <param name="elementName">Name of the element (null to derive from type name).</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        public static T ParseEncodeable<T>(
+            ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            ITelemetryContext telemetry)
+            where T : IEncodeable, new()
+        {
+            if (extensions.IsEmpty)
+            {
+                return default;
+            }
+
+            if (elementName is null)
+            {
+                elementName = GetEncodeableXmlName(typeof(T));
+            }
+
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+
+            for (int ii = 0; ii < extensions.Count; ii++)
+            {
+                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+
+                if (element.LocalName != elementName.Name ||
+                    element.NamespaceURI != elementName.Namespace)
+                {
+                    continue;
+                }
+
+                // Use null for systemType so PushWithSystemType reads the
+                // namespace directly from the XML document element, which
+                // matches the namespace used in the config file.
+                using var parser = new XmlParser(
+                    (Type)null, element.OuterXml, AmbientMessageContext.CurrentContext);
+                var result = new T();
+                result.Decode(parser);
+                return result;
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Updates or adds an extension using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="extensions">The list of extensions to update.</param>
+        /// <param name="elementName">Name of the element (null to derive from type name).</param>
+        /// <param name="value">The value to encode.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        public static void UpdateEncodeable<T>(
+            ref ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            T value,
+            ITelemetryContext telemetry)
+            where T : IEncodeable
+        {
+            if (elementName is null)
+            {
+                elementName = GetEncodeableXmlName(typeof(T));
+            }
+
+            var document = new XmlDocument();
+
+            if (value != null)
+            {
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                encoder.Push(elementName.Name, elementName.Namespace);
+                value.Encode(encoder);
+                encoder.Pop();
+                string xml = encoder.CloseAndReturnText();
+                document.LoadInnerXml(xml);
+            }
+
+            var xmlElements = extensions.ToList();
+            if (xmlElements.Count > 0)
+            {
+                for (int ii = 0; ii < xmlElements.Count; ii++)
+                {
+                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    if (element != null &&
+                        element.LocalName == elementName.Name &&
+                        element.NamespaceURI == elementName.Namespace)
+                    {
+                        if (value == null)
+                        {
+                            xmlElements.RemoveAt(ii);
+                            extensions = xmlElements.ToArrayOf();
+                            return;
+                        }
+
+                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
+                        extensions = xmlElements.ToArrayOf();
+                        return;
+                    }
+                }
+            }
+
+            if (value != null)
+            {
+                xmlElements.Add(XmlElement.From(document.DocumentElement));
+                extensions = xmlElements.ToArrayOf();
+            }
+        }
+
+        /// <summary>
+        /// Gets the XML qualified name for an IEncodeable type,
+        /// checking [DataContract] first, then [DataType] attribute.
+        /// </summary>
+        private static XmlQualifiedName GetEncodeableXmlName(Type type)
+        {
+            // Try [DataContract] attribute
+            XmlQualifiedName qname = TypeInfo.GetXmlName(type);
+            if (qname != null && qname.Namespace != Namespaces.OpcUaXsd)
+            {
+                return qname;
+            }
+
+            // Try [DataType] attribute
+            if (DataTypeAttribute.TryGetTypeIdsFromType(
+                type,
+                out ExpandedNodeId typeId,
+                out _, out _, out _) &&
+                !typeId.IsNull)
+            {
+                return new XmlQualifiedName(type.Name, typeId.NamespaceUri);
+            }
+
+            return qname ?? throw new ArgumentException(
+                "Cannot determine XML name for type " + type.Name);
+        }
+
         private static readonly DateTime s_baseDateTime = new(
             2000,
             1,

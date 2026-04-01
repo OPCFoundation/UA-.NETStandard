@@ -71,5 +71,11 @@ namespace Opc.Ua
         /// enums, and arrays.
         /// </remarks>
         public object? ForceEncodeable { get; set; }
+
+        /// <summary>
+        /// Indicates whether the field is required.
+        /// Reserved for future use in optional-field structures.
+        /// </summary>
+        public bool IsRequired { get; set; }
     }
 }

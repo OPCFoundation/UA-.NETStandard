@@ -27,19 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua.Gds.Server
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
-    /// The configuration object is serialized to and from XML
-    /// using the generated IEncodeable implementation, leave
-    /// the class partial for the source generator to work.
+    /// Stores the configuration for the Global Discovery Server.
+    /// Serialized via source-generated IEncodeable implementation.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class GlobalDiscoveryServerConfiguration
     {
@@ -50,49 +45,47 @@ namespace Opc.Ua.Gds.Server
         {
         }
 
-        [DataMember(Order = 1)]
         [DataTypeField(Order = 0)]
         public string AuthoritiesStorePath { get; set; }
 
-        [DataMember(Order = 2)]
         [DataTypeField(Order = 1)]
         public string ApplicationCertificatesStorePath { get; set; }
 
-        [DataMember(Order = 3)]
         [DataTypeField(Order = 2)]
         public string BaseCertificateGroupStorePath { get; set; }
 
-        [DataMember(Order = 4)]
         [DataTypeField(Order = 3)]
         public string DefaultSubjectNameContext { get; set; }
 
-        [DataMember(Order = 5)]
-        public CertificateGroupConfigurationCollection CertificateGroups { get; set; }
-
-        [DataMember(Order = 6)]
         [DataTypeField(Order = 4)]
+        public ArrayOf<CertificateGroupConfiguration> CertificateGroups { get; set; }
+
+        [DataTypeField(Order = 5)]
         public ArrayOf<string> KnownHostNames { get; set; }
 
-        [DataMember(Order = 7)]
-        [DataTypeField(Order = 5)]
+        [DataTypeField(Order = 6)]
         public string DatabaseStorePath { get; set; }
 
-        [DataMember(Order = 8)]
-        [DataTypeField(Order = 6)]
+        [DataTypeField(Order = 7)]
         public string UsersDatabaseStorePath { get; set; }
     }
 
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// Stores the configuration for a certificate group.
+    /// Serialized via source-generated IEncodeable implementation.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
-    public partial class CertificateGroupConfiguration
+    public sealed partial class CertificateGroupConfiguration
     {
         /// <summary>
         /// The default constructor.
         /// </summary>
         public CertificateGroupConfiguration()
+        {
+            Initialize();
+        }
+
+        private void Initialize()
         {
             DefaultCertificateLifetime = CertificateFactory.DefaultLifeTime;
             DefaultCertificateKeySize = CertificateFactory.DefaultKeySize;
@@ -103,74 +96,33 @@ namespace Opc.Ua.Gds.Server
             CertificateTypes = [];
         }
 
-        [DataMember(IsRequired = true, Order = 10)]
-        [DataTypeField(Order = 0)]
+        [DataTypeField(Order = 0, IsRequired = true)]
         public string Id { get; set; }
 
-        [DataMember(IsRequired = false, Order = 20)]
-        public string CertificateType
-        {
-            get
-            {
-                if (!CertificateTypes.IsEmpty)
-                {
-                    return CertificateTypes[0];
-                }
-                return null;
-            }
-            set
-            {
-                if (!CertificateTypes.IsEmpty)
-                {
-                    if (value == null)
-                    {
-                        CertificateTypes = CertificateTypes[1..];
-                    }
-                    else
-                    {
-                        CertificateTypes = CertificateTypes.AddItem(value, 0);
-                    }
-                }
-                else
-                {
-                    CertificateTypes = [value];
-                }
-            }
-        }
-
-        [DataMember(IsRequired = false, Order = 21)]
         [DataTypeField(Order = 1)]
         public ArrayOf<string> CertificateTypes { get; set; }
 
-        [DataMember(IsRequired = true, Order = 25)]
-        [DataTypeField(Order = 2)]
+        [DataTypeField(Order = 2, IsRequired = true)]
         public string SubjectName { get; set; }
 
-        [DataMember(IsRequired = true, Order = 30)]
-        [DataTypeField(Order = 3)]
+        [DataTypeField(Order = 3, IsRequired = true)]
         public string BaseStorePath { get; set; }
 
-        [DataMember(Order = 40)]
         [DataTypeField(Order = 4)]
         public ushort DefaultCertificateLifetime { get; set; }
 
-        [DataMember(Order = 50)]
         [DataTypeField(Order = 5)]
         public ushort DefaultCertificateKeySize { get; set; }
 
-        [DataMember(Order = 60)]
         [DataTypeField(Order = 6)]
         public ushort DefaultCertificateHashSize { get; set; }
 
-        [DataMember(Order = 70)]
         [DataTypeField(Order = 7)]
         public ushort CACertificateLifetime { get; set; }
 
-        [DataMember(Order = 80)]
         [DataTypeField(Order = 8)]
         public ushort CACertificateKeySize { get; set; }
 
-        [DataMember(Order = 90)]
         [DataTypeField(Order = 9)]
         public ushort CACertificateHashSize { get; set; }
 
@@ -179,28 +131,5 @@ namespace Opc.Ua.Gds.Server
 
         public string IssuerListPath
             => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
-    }
-
-    [CollectionDataContract(
-        Name = "ListOfCertificateGroupConfiguration",
-        Namespace = Namespaces.OpcUaGds + "Configuration.xsd",
-        ItemName = "CertificateGroupConfiguration"
-    )]
-    public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
-    {
-        public CertificateGroupConfigurationCollection()
-        {
-        }
-
-        public CertificateGroupConfigurationCollection(
-            IEnumerable<CertificateGroupConfiguration> collection)
-            : base(collection)
-        {
-        }
-
-        public CertificateGroupConfigurationCollection(int capacity)
-            : base(capacity)
-        {
-        }
     }
 }
