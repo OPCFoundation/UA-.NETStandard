@@ -722,7 +722,8 @@ namespace Opc.Ua.Client
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
             context.ServerUris = new StringTable(serverUris.Memory.ToArray());
-            BrowserOptions options = BrowserStateEncoder.DecodeBrowserOptions(decoder);
+            BrowserOptions options = new BrowserOptions();
+            options.Decode(decoder);
             return new Browser(telemetry, options);
         }
 
@@ -738,7 +739,7 @@ namespace Opc.Ua.Client
                 null, context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(
                 null, context.ServerUris.ToArrayOf());
-            BrowserStateEncoder.EncodeBrowserOptions(encoder, State);
+            State.Encode(encoder);
         }
 
         /// <summary>

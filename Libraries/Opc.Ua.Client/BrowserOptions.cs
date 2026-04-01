@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Client
@@ -37,77 +36,77 @@ namespace Opc.Ua.Client
 
     /// <summary>
     /// Stores the options to use for a browse operation. Can be serialized and
-    /// deserialized.
+    /// deserialized via the source-generated IEncodeable implementation.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class BrowserOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class BrowserOptions
     {
         /// <summary>
         /// Request header to use for the browse operations.
         /// </summary>
-        [DataMember(Order = 0)]
-        public RequestHeader? RequestHeader { get; init; }
+        [DataTypeField(Order = 0)]
+        public RequestHeader? RequestHeader { get; set; }
 
         /// <summary>
         /// The view to use for the browse operation.
         /// </summary>
-        [DataMember(Order = 1)]
-        public ViewDescription? View { get; init; }
+        [DataTypeField(Order = 1)]
+        public ViewDescription? View { get; set; }
 
         /// <summary>
         /// The maximum number of references to return in a single browse operation.
         /// </summary>
-        [DataMember(Order = 2)]
-        public uint MaxReferencesReturned { get; init; }
+        [DataTypeField(Order = 2)]
+        public uint MaxReferencesReturned { get; set; }
 
         /// <summary>
         /// The direction to browse.
         /// </summary>
-        [DataMember(Order = 3)]
-        public BrowseDirection BrowseDirection { get; init; } = BrowseDirection.Forward;
+        [DataTypeField(Order = 3)]
+        public BrowseDirection BrowseDirection { get; set; } = BrowseDirection.Forward;
 
         /// <summary>
         /// The reference type to follow.
         /// </summary>
-        [DataMember(Order = 4)]
-        public NodeId ReferenceTypeId { get; init; } = NodeId.Null;
+        [DataTypeField(Order = 4)]
+        public NodeId ReferenceTypeId { get; set; } = NodeId.Null;
 
         /// <summary>
         /// Whether subtypes of the reference type should be included.
         /// </summary>
-        [DataMember(Order = 5)]
-        public bool IncludeSubtypes { get; init; } = true;
+        [DataTypeField(Order = 5)]
+        public bool IncludeSubtypes { get; set; } = true;
 
         /// <summary>
         /// The classes of the target nodes.
         /// </summary>
-        [DataMember(Order = 6)]
-        public int NodeClassMask { get; init; }
+        [DataTypeField(Order = 6)]
+        public int NodeClassMask { get; set; }
 
         /// <summary>
         /// The results to return.
         /// </summary>
-        [DataMember(Order = 7)]
-        public uint ResultMask { get; init; } = (uint)BrowseResultMask.All;
+        [DataTypeField(Order = 7)]
+        public uint ResultMask { get; set; } = (uint)BrowseResultMask.All;
 
         /// <summary>
         /// gets or set the policy which is used to prevent the allocation
         /// of too many Continuation Points in the browse operation
         /// </summary>
-        [DataMember(Order = 8)]
-        public ContinuationPointPolicy ContinuationPointPolicy { get; init; }
+        [DataTypeField(Order = 8)]
+        public ContinuationPointPolicy ContinuationPointPolicy { get; set; }
 
         /// <summary>
         /// Max nodes to browse in a single operation.
         /// </summary>
-        [DataMember(Order = 9)]
+        [DataTypeField(Order = 9)]
         public uint MaxNodesPerBrowse { get; set; }
 
         /// <summary>
         /// Max continuation points to use when ContinuationPointPolicy is set
         /// to Balanced.
         /// </summary>
-        [DataMember(Order = 10)]
+        [DataTypeField(Order = 10)]
         public ushort MaxBrowseContinuationPoints { get; set; }
     }
 

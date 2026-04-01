@@ -105,58 +105,78 @@ namespace Opc.Ua.SourceGeneration
             string dataTypeId =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.DataTypeId));
             string binaryEncodingId =
-                dataTypeAttr.GetValue(nameof(DataTypeAttribute.BinaryEncodingId));
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.BinaryEncodingId));
             string xmlEncodingId =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.XmlEncodingId));
             string jsonEncodingId =
-                dataTypeAttr.GetValue(nameof(DataTypeAttribute.JsonEncodingId));
-            if (symbol.TypeKind == TypeKind.Enum)
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.JsonEncodingId));
+
+            try
             {
-                Model = BuildEnumModel(
+                if (symbol.TypeKind == TypeKind.Enum)
+                {
+                    Model = BuildEnumModel(
+                        symbol, dataTypeNamespace, dataTypeId,
+                        binaryEncodingId, xmlEncodingId, jsonEncodingId);
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool isPartial = symbol.DeclaringSyntaxReferences
+                    .Any(r => r.GetSyntax(cancellationToken)
+                        is TypeDeclarationSyntax tds &&
+                        tds.Modifiers.Any(SyntaxKind.PartialKeyword));
+                if (!isPartial)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must be declared as partial.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool hasCtor = symbol.Constructors
+                    .Any(c => c.Parameters.Length == 0);
+                if (!hasCtor)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must have a parameterless ctor.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                Model = BuildClassModel(
                     symbol, dataTypeNamespace, dataTypeId,
-                    binaryEncodingId, xmlEncodingId, jsonEncodingId);
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
-            }
+                    binaryEncodingId, xmlEncodingId, jsonEncodingId,
+                    cancellationToken);
 
-            bool isPartial = symbol.DeclaringSyntaxReferences
-                .Any(r => r.GetSyntax(cancellationToken)
-                    is ClassDeclarationSyntax cds &&
-                    cds.Modifiers.Any(SyntaxKind.PartialKeyword));
-            if (!isPartial)
-            {
-                HasErrors = true;
-                ErrorMessage = "[DataType] class must be declared as partial.";
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
-            }
+                IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
+                    TypeSourceGenerator.ValidateAndFilter(
+                        Model, out IReadOnlyList<TypeFieldModel> valid);
 
-            bool hasCtor = symbol.Constructors
-                .Any(c => c.Parameters.Length == 0);
-            if (!hasCtor)
+                ValidFields = valid;
+                Diagnostics = diags;
+                HasErrors = diags.Any(d => d.IsError);
+            }
+            catch (System.Exception ex)
             {
                 HasErrors = true;
                 ErrorMessage =
-                    "[DataType] class must have a parameterless constructor.";
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
+                    $"[DataType] generator error for '{symbol.Name}': " +
+                    $"{ex.GetType().Name}: {ex.Message}";
+                ValidFields ??= System.Array.Empty<TypeFieldModel>();
+                Diagnostics ??=
+                    System.Array.Empty<TypeSourceGeneratorDiagnostic>();
             }
-
-            Model = BuildClassModel(
-                symbol, dataTypeNamespace, dataTypeId,
-                binaryEncodingId, xmlEncodingId, jsonEncodingId,
-                cancellationToken);
-
-            IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
-                TypeSourceGenerator.ValidateAndFilter(
-                    Model, out IReadOnlyList<TypeFieldModel> valid);
-
-            ValidFields = valid;
-            Diagnostics = diags;
-            HasErrors = diags.Any(d => d.IsError);
         }
 
         /// <summary>

@@ -374,7 +374,7 @@ namespace Opc.Ua.SourceGeneration
                         field.FieldName.Escape());
                 }
                 return (TemplateString)CoreUtils.Format(
-                    """{0} = ({1})decoder.ReadEnumerated("{2}", typeof({1}));""",
+                    "{0} = decoder.ReadEnumerated<{1}>(\"{2}\");",
                     field.PropertyName,
                     typeName,
                     field.FieldName.Escape());
