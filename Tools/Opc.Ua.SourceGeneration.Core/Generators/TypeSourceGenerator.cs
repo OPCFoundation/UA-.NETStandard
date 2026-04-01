@@ -405,7 +405,7 @@ namespace Opc.Ua.SourceGeneration
                         field.FieldName.Escape());
                 }
                 return (TemplateString)CoreUtils.Format(
-                    "{0} = ({1})decoder.ReadEncodeable(\"{2}\", typeof({1}));",
+                    "{0} = decoder.ReadEncodeable<{1}>(\"{2}\");",
                     field.PropertyName,
                     field.TypeName,
                     field.FieldName.Escape());

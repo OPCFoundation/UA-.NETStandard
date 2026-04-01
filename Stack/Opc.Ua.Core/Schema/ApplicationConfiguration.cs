@@ -183,7 +183,7 @@ namespace Opc.Ua
         /// The security configuration for the application.
         /// </summary>
         /// <value>The security configuration.</value>
-        [DataTypeField(Order = 4)]
+        [DataTypeField(Order = 4, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 4)]
         public SecurityConfiguration SecurityConfiguration
         {
@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         /// <value>The transport quotas.</value>
-        [DataTypeField(Order = 5)]
+        [DataTypeField(Order = 5, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
         public TransportQuotas TransportQuotas { get; set; }
 
@@ -214,7 +214,7 @@ namespace Opc.Ua
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
-        [DataTypeField(Order = 6)]
+        [DataTypeField(Order = 6, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
@@ -222,7 +222,7 @@ namespace Opc.Ua
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
-        [DataTypeField(Order = 7)]
+        [DataTypeField(Order = 7, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
-        [DataTypeField(Order = 8)]
+        [DataTypeField(Order = 8, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
@@ -250,7 +250,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         /// <value>The trace configuration.</value>
-        [DataTypeField(Order = 10)]
+        [DataTypeField(Order = 10, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
@@ -896,7 +896,7 @@ namespace Opc.Ua
         /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
-        [DataTypeField(Order = 3)]
+        [DataTypeField(Order = 3, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
@@ -2858,7 +2858,7 @@ namespace Opc.Ua
         /// <summary>
         /// The description for the endpoint.
         /// </summary>
-        [DataTypeField(Order = 0, Name = "Endpoint")]
+        [DataTypeField(Order = 0, Name = "Endpoint", ForceEncodeable = true)]
         [DataMember(Name = "Endpoint", Order = 1, IsRequired = true)]
         public EndpointDescription Description
         {
@@ -2869,7 +2869,7 @@ namespace Opc.Ua
         /// <summary>
         /// The configuration to use when connecting to an endpoint.
         /// </summary>
-        [DataTypeField(Order = 1)]
+        [DataTypeField(Order = 1, ForceEncodeable = true)]
         [DataMember(Name = "Configuration", Order = 2, IsRequired = false)]
         public EndpointConfiguration Configuration
         {
@@ -2917,14 +2917,14 @@ namespace Opc.Ua
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
-        [DataTypeField(Order = 5)]
+        [DataTypeField(Order = 5, ForceEncodeable = true)]
         [DataMember(Name = "UserIdentity", Order = 6, IsRequired = false)]
         public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
-        [DataTypeField(Order = 6)]
+        [DataTypeField(Order = 6, ForceEncodeable = true)]
         [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
         public ReverseConnectEndpoint ReverseConnect { get; set; }
 
