@@ -135,6 +135,63 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void GenerateSealedRecordOmitsVirtual()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MySealedRecord",
+                Namespace = "Test.Records",
+                NamespaceUri = "urn:test:records",
+                NamespaceSymbol = "TestRecords",
+                IsEnum = false,
+                IsRecord = true,
+                IsSealed = true,
+                Fields = new[]
+                {
+                    CreateField("Value", "Int32"),
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("this with { }"));
+            Assert.That(result, Does.Contain("public void Encode"));
+            Assert.That(result, Does.Not.Contain("virtual void Encode"));
+            Assert.That(result, Does.Not.Contain("override void Encode"));
+        }
+
+        [Test]
+        public void GenerateDerivedRecordUsesOverrideAndBaseCall()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MyDerivedRecord",
+                Namespace = "Test.Records",
+                NamespaceUri = "urn:test:records",
+                NamespaceSymbol = "TestRecords",
+                IsEnum = false,
+                IsRecord = true,
+                IsDerived = true,
+                BaseTypeIsEncodeable = true,
+                Fields = new[]
+                {
+                    CreateField("Extra", "String"),
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("override void Encode"));
+            Assert.That(result, Does.Contain("base.Encode(encoder)"));
+            Assert.That(result, Does.Contain("override void Decode"));
+            Assert.That(result, Does.Contain("base.Decode(decoder)"));
+            Assert.That(result, Does.Contain("override bool IsEqual"));
+            Assert.That(result, Does.Contain("Equals(encodeable as MyDerivedRecord)"));
+            Assert.That(result, Does.Not.Contain("this with { }"),
+                "Derived record does not re-declare Clone");
+        }
+
+        [Test]
         public void GenerateEnumProducesEnumeratedTypeActivator()
         {
             var model = new TypeSourceModel

@@ -194,7 +194,13 @@ namespace Opc.Ua.SourceGeneration
 
             if (ctx.IsRecord)
             {
-                return TypeSourceTemplates.RecordPartialClassBody;
+                if (ctx.IsDerived)
+                {
+                    return TypeSourceTemplates.DerivedRecordPartialClassBody;
+                }
+                return ctx.IsSealed
+                    ? TypeSourceTemplates.SealedRecordPartialClassBody
+                    : TypeSourceTemplates.RecordPartialClassBody;
             }
 
             if (ctx.IsDerived)
@@ -202,12 +208,9 @@ namespace Opc.Ua.SourceGeneration
                 return TypeSourceTemplates.DerivedPartialClassBody;
             }
 
-            if (ctx.IsSealed)
-            {
-                return TypeSourceTemplates.SealedPartialClassBody;
-            }
-
-            return TypeSourceTemplates.PartialClassBody;
+            return ctx.IsSealed
+                ? TypeSourceTemplates.SealedPartialClassBody
+                : TypeSourceTemplates.PartialClassBody;
         }
 
         private static bool WriteTemplate_ListOfPartialClasses(IWriteContext context)

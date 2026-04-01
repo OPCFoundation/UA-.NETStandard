@@ -350,6 +350,115 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Partial class body for a sealed record type.
+        /// Same as RecordPartialClassBody but no virtual keyword.
+        /// </summary>
+        public static readonly TemplateString SealedRecordPartialClassBody = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            partial class {{Tokens.ClassName}} :
+                global::Opc.Ua.IEncodeable,
+                global::Opc.Ua.IJsonEncodeable
+            {
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId TypeId
+                    => {{Tokens.DataTypeIdConstant}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId BinaryEncodingId
+                    => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId XmlEncodingId
+                    => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public global::Opc.Ua.ExpandedNodeId JsonEncodingId
+                    => {{Tokens.JsonEncodingId}};
+
+                /// <inheritdoc/>
+                public void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                {
+                    return Equals(encodeable as {{Tokens.ClassName}});
+                }
+
+                /// <inheritdoc/>
+                object global::Opc.Ua.IEncodeable.Clone()
+                {
+                    return this with { };
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Partial class body for a derived record type.
+        /// Uses override + base.Encode/Decode. Clone/IsEqual
+        /// delegate to the record implementation.
+        /// </summary>
+        public static readonly TemplateString DerivedRecordPartialClassBody = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            partial class {{Tokens.ClassName}}
+            {
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId TypeId
+                    => {{Tokens.DataTypeIdConstant}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId BinaryEncodingId
+                    => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId XmlEncodingId
+                    => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId
+                    => {{Tokens.JsonEncodingId}};
+
+                /// <inheritdoc/>
+                public override void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    base.Encode(encoder);
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public override void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    base.Decode(decoder);
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
+                {
+                    return Equals(encodeable as {{Tokens.ClassName}});
+                }
+            }
+            """);
+
+        /// <summary>
         /// Activator registration for a source-annotated structure type.
         /// Uses inline ExpandedNodeId literals instead of DataTypeIds constants.
         /// </summary>
