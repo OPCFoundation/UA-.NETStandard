@@ -509,8 +509,15 @@ namespace Opc.Ua
 
                 if (updateStore)
                 {
-                    // update the rejected store
-                    _ = Task.Run(async () => await SaveCertificatesAsync([]).ConfigureAwait(false));
+                    // update the rejected store; use LongRunning so the task gets a dedicated
+                    // thread immediately instead of waiting for a thread-pool thread to become
+                    // free.  isMaintenance=true ensures the semaphore wait never times out so
+                    // that configuration-driven changes are always honoured.
+                    _ = Task.Factory.StartNew(
+                        async () => await SaveCertificatesAsync([], isMaintenance: true).ConfigureAwait(false),
+                        CancellationToken.None,
+                        TaskCreationOptions.LongRunning,
+                        TaskScheduler.Default);
                 }
             }
         }
@@ -893,19 +900,23 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             CancellationToken ct = default)
         {
-            return SaveCertificatesAsync([certificate], ct);
+            return SaveCertificatesAsync([certificate], ct: ct);
         }
 
         /// <summary>
         /// Saves the certificate chain in the rejected certificate store.
-        /// Times out after 5 seconds waiting to gracefully reduce high CPU load.
+        /// Times out after 5 seconds waiting to gracefully reduce high CPU load,
+        /// unless <paramref name="isMaintenance"/> is <c>true</c> in which case it
+        /// waits indefinitely so that configuration-driven changes are always honoured.
         /// </summary>
         private async Task SaveCertificatesAsync(
             X509Certificate2Collection certificateChain,
+            bool isMaintenance = false,
             CancellationToken ct = default)
         {
-            // max time to wait for semaphore
+            // max time to wait for semaphore; -1 means wait indefinitely
             const int kSaveCertificatesTimeout = 5000;
+            int semaphoreTimeout = isMaintenance ? Timeout.Infinite : kSaveCertificatesTimeout;
 
             CertificateStoreIdentifier rejectedCertificateStore = m_rejectedCertificateStore;
             if (rejectedCertificateStore == null)
@@ -915,7 +926,7 @@ namespace Opc.Ua
 
             try
             {
-                if (!await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct)
+                if (!await m_semaphore.WaitAsync(semaphoreTimeout, ct)
                     .ConfigureAwait(false))
                 {
                     m_logger.LogTrace(
