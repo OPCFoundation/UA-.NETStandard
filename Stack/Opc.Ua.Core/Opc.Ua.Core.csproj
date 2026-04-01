@@ -9,6 +9,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <!-- Suppress MODELGEN002 warnings for collection-type properties that are intentionally
+         excluded from [DataTypeField] annotations (they use List<T> subclasses, not ArrayOf<T>) -->
+    <NoWarn>$(NoWarn);MODELGEN002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
