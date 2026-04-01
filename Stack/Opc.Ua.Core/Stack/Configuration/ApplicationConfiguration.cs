@@ -583,7 +583,7 @@ namespace Opc.Ua
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
-            AppConfigEncoding.EncodeContents(encoder, this);
+            this.Encode(encoder);
             encoder.Close();
         }
 
