@@ -199,14 +199,15 @@ namespace Opc.Ua.SourceGeneration
 
             if (ctx.IsDerived)
             {
-                return ctx.IsSealed
-                    ? TypeSourceTemplates.DerivedSealedPartialClassBody
-                    : TypeSourceTemplates.DerivedPartialClassBody;
+                return TypeSourceTemplates.DerivedPartialClassBody;
             }
 
-            return ctx.IsSealed
-                ? TypeSourceTemplates.SealedPartialClassBody
-                : TypeSourceTemplates.PartialClassBody;
+            if (ctx.IsSealed)
+            {
+                return TypeSourceTemplates.SealedPartialClassBody;
+            }
+
+            return TypeSourceTemplates.PartialClassBody;
         }
 
         private static bool WriteTemplate_ListOfPartialClasses(IWriteContext context)
