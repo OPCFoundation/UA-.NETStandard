@@ -285,6 +285,10 @@ namespace Opc.Ua.SourceGeneration
                     symbol.DeclaredAccessibility == Accessibility.Internal ||
                     symbol.DeclaredAccessibility == Accessibility.NotApplicable,
                 BaseTypeIsEncodeable = baseTypeIsEncodeable,
+                HasManualClone = symbol.GetMembers()
+                    .OfType<IMethodSymbol>()
+                    .Any(m => m.Name is "Clone" or "MemberwiseClone" &&
+                        !m.IsImplicitlyDeclared),
                 Fields = CollectFields(symbol, ct),
                 BaseClassName = symbol.BaseType?.Name == "Object"
                     ? null : symbol.BaseType?.Name
@@ -334,14 +338,15 @@ namespace Opc.Ua.SourceGeneration
         private static List<TypeFieldModel> CollectFields(
             INamedTypeSymbol symbol, CancellationToken ct)
         {
+            // Get ALL non-abstract, non-static properties regardless of
+            // accessibility for [DataTypeField] scanning.
             IPropertySymbol[] allProperties =
             [
                 .. symbol.GetMembers()
                     .OfType<IPropertySymbol>()
                     .Where(p => !p.IsAbstract &&
                         !p.IsStatic &&
-                        !p.IsReadOnly &&
-                        p.DeclaredAccessibility == Accessibility.Public)
+                        !p.IsReadOnly)
             ];
             // Check if any property has [DataTypeField] — if so, use only those
             Tuple<IPropertySymbol, AttributeData>[] selectedPropsWithAttribute =
@@ -356,16 +361,20 @@ namespace Opc.Ua.SourceGeneration
             int orderIndex = 0;
             if (selectedPropsWithAttribute.Length == 0)
             {
-                // None annotated - use all unnotated
+                // None annotated — auto-discover PUBLIC properties only
                 foreach (IPropertySymbol prop in allProperties)
                 {
+                    if (prop.DeclaredAccessibility != Accessibility.Public)
+                    {
+                        continue;
+                    }
                     ct.ThrowIfCancellationRequested();
                     fields.Add(CreateField(prop, prop.Name, orderIndex++, false));
                 }
             }
             else
             {
-                // Use annotations
+                // Use only annotated properties (any accessibility)
                 foreach (Tuple<IPropertySymbol, AttributeData> propWithAttribute
                     in selectedPropsWithAttribute)
                 {
@@ -394,10 +403,10 @@ namespace Opc.Ua.SourceGeneration
             string shortName = type.Name;
             bool isNullable =
                 prop.NullableAnnotation == NullableAnnotation.Annotated;
-            bool isEncodeable =
-                type.ImplementsInterface(nameof(IEncodeable)) ||
-                type.HasAttribute(nameof(DataTypeAttribute));
             bool isEnum = type.TypeKind == TypeKind.Enum;
+            bool isEncodeable = !isEnum &&
+                (type.ImplementsInterface(nameof(IEncodeable)) ||
+                 type.HasAttribute(nameof(DataTypeAttribute)));
             bool isArray = false;
             bool isMatrix = false;
             string elementShortTypeName = null;
@@ -413,10 +422,10 @@ namespace Opc.Ua.SourceGeneration
                 ITypeSymbol elem = arrayType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
-                isEncodeable =
-                    elem.ImplementsInterface(nameof(IEncodeable)) ||
-                    elem.HasAttribute(nameof(DataTypeAttribute));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                     elem.HasAttribute(nameof(DataTypeAttribute)));
                 encodeableType = elem;
             }
             else if (shortName == "MatrixOf" &&
@@ -428,10 +437,10 @@ namespace Opc.Ua.SourceGeneration
                 ITypeSymbol elem = matrixType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
-                isEncodeable =
-                    elem.ImplementsInterface(nameof(IEncodeable)) ||
-                    elem.HasAttribute(nameof(DataTypeAttribute));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                     elem.HasAttribute(nameof(DataTypeAttribute)));
                 encodeableType = elem;
             }
 

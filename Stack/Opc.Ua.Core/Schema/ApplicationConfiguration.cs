@@ -40,7 +40,6 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
-    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ApplicationConfiguration
     {

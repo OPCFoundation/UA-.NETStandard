@@ -257,7 +257,56 @@ namespace Opc.Ua.SourceGeneration
                 model.Fields,
                 LoadTemplate_ListOfClonedFields);
 
+            // Generate Clone/MemberwiseClone unless the user already has them
+            if (model.HasManualClone)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ListOfChildCopies, (string)null);
+            }
+            else
+            {
+                string cloneModifier = model.IsDerived ? "override" :
+                    (model.IsSealed ? "" : "virtual");
+                string cloneBlock = GenerateCloneBlock(
+                    model.ClassName, cloneModifier, model.Fields);
+                context.Template.AddReplacement(
+                    Tokens.ListOfChildCopies, cloneBlock);
+            }
+
             return context.Template.Render();
+        }
+
+        private static string GenerateCloneBlock(
+            string className,
+            string modifier,
+            IReadOnlyList<TypeFieldModel> fields)
+        {
+            string mod = string.IsNullOrEmpty(modifier)
+                ? "public"
+                : $"public {modifier}";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"/// <inheritdoc/>");
+            sb.AppendLine($"{mod} object Clone()");
+            sb.AppendLine("{");
+            sb.AppendLine($"    return ({className})this.MemberwiseClone();");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine("/// <inheritdoc/>");
+            sb.AppendLine($"public new object MemberwiseClone()");
+            sb.AppendLine("{");
+            sb.AppendLine($"    {className} clone = ({className})base.MemberwiseClone();");
+            foreach (TypeFieldModel field in fields)
+            {
+                if (field.IsEncodeable && !field.IsArray && !field.IsMatrix)
+                {
+                    sb.AppendLine(
+                        $"    clone.{field.PropertyName} = ({field.TypeName})" +
+                        $"((global::Opc.Ua.IEncodeable)this.{field.PropertyName})?.Clone();");
+                }
+            }
+            sb.AppendLine("    return clone;");
+            sb.Append("}");
+            return sb.ToString();
         }
 
         private static TemplateString LoadTemplate_ListOfEncodedFields(ILoadContext context)

@@ -126,6 +126,13 @@ namespace Opc.Ua.SourceGeneration
         public bool IsInternal { get; set; }
 
         /// <summary>
+        /// True if the user's partial class already defines a
+        /// Clone() or MemberwiseClone() method (the generator
+        /// should skip emitting these).
+        /// </summary>
+        public bool HasManualClone { get; set; }
+
+        /// <summary>
         /// If true, the generated extension methods are public.
         /// If false (default), they are internal.
         /// </summary>

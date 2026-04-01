@@ -130,19 +130,7 @@ namespace Opc.Ua.SourceGeneration
                     return true;
                 }
 
-                /// <inheritdoc/>
-                public virtual object Clone()
-                {
-                    return ({{Tokens.ClassName}})this.MemberwiseClone();
-                }
-
-                /// <inheritdoc/>
-                public new object MemberwiseClone()
-                {
-                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
-                    {{Tokens.ListOfClonedFields}}
-                    return clone;
-                }
+                {{Tokens.ListOfChildCopies}}
             }
             """);
 
@@ -203,19 +191,7 @@ namespace Opc.Ua.SourceGeneration
                     return true;
                 }
 
-                /// <inheritdoc/>
-                public object Clone()
-                {
-                    return ({{Tokens.ClassName}})this.MemberwiseClone();
-                }
-
-                /// <inheritdoc/>
-                public new object MemberwiseClone()
-                {
-                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
-                    {{Tokens.ListOfClonedFields}}
-                    return clone;
-                }
+                {{Tokens.ListOfChildCopies}}
             }
             """);
 
@@ -277,19 +253,7 @@ namespace Opc.Ua.SourceGeneration
                     return base.IsEqual(encodeable);
                 }
 
-                /// <inheritdoc/>
-                public override object Clone()
-                {
-                    return ({{Tokens.ClassName}})this.MemberwiseClone();
-                }
-
-                /// <inheritdoc/>
-                public new object MemberwiseClone()
-                {
-                    {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
-                    {{Tokens.ListOfClonedFields}}
-                    return clone;
-                }
+                {{Tokens.ListOfChildCopies}}
             }
             """);
 
