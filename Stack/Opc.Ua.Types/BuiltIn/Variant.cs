@@ -68,7 +68,7 @@ namespace Opc.Ua
         IEquatable<short>,
         IEquatable<ushort>,
         IEquatable<int>,
-        IEquatable<Enum>,
+        IEquatable<EnumValue>,
         IEquatable<uint>,
         IEquatable<long>,
         IEquatable<ulong>,
@@ -92,7 +92,7 @@ namespace Opc.Ua
         IEquatable<ArrayOf<short>>,
         IEquatable<ArrayOf<ushort>>,
         IEquatable<ArrayOf<int>>,
-        IEquatable<ArrayOf<Enum>>,
+        IEquatable<ArrayOf<EnumValue>>,
         IEquatable<ArrayOf<uint>>,
         IEquatable<ArrayOf<long>>,
         IEquatable<ArrayOf<ulong>>,
@@ -117,7 +117,7 @@ namespace Opc.Ua
         IEquatable<MatrixOf<short>>,
         IEquatable<MatrixOf<ushort>>,
         IEquatable<MatrixOf<int>>,
-        IEquatable<MatrixOf<Enum>>,
+        IEquatable<MatrixOf<EnumValue>>,
         IEquatable<MatrixOf<uint>>,
         IEquatable<MatrixOf<long>>,
         IEquatable<MatrixOf<ulong>>,
@@ -195,6 +195,17 @@ namespace Opc.Ua
         {
             m_union.Int32 = value;
             m_typeInfo = TypeInfo.Scalars.Int32;
+        }
+
+        /// <summary>
+        /// Creates a new variant with a <see cref="EnumValue"/> value
+        /// </summary>
+        /// <param name="value">The <see cref="EnumValue"/> value of the Variant</param>
+        public Variant(EnumValue value)
+        {
+            m_union.Int32 = value.Value;
+            m_value = value.Source;
+            m_typeInfo = TypeInfo.Arrays.Enumeration;
         }
 
         /// <summary>
@@ -429,11 +440,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="Enum"/>-array value
+        /// Creates a new variant with a <see cref="EnumValue"/>-array value
         /// </summary>
-        /// <param name="value">The <see cref="Enum"/>-array value of the Variant</param>
-        [OverloadResolutionPriority(1)]
-        public Variant(ArrayOf<Enum> value)
+        /// <param name="value">The <see cref="EnumValue"/>-array value of the Variant</param>
+        public Variant(ArrayOf<EnumValue> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Enumeration;
@@ -692,11 +702,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="Enum"/>-matrix value
+        /// Creates a new variant with a <see cref="EnumValue"/>-matrix value
         /// </summary>
-        /// <param name="value">The <see cref="Enum"/>-matrix value of the Variant</param>
+        /// <param name="value">The <see cref="EnumValue"/>-matrix value of the Variant</param>
         [OverloadResolutionPriority(1)]
-        public Variant(MatrixOf<Enum> value)
+        public Variant(MatrixOf<EnumValue> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Create(
@@ -1156,6 +1166,14 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a enum value or returns the default.
         /// </summary>
+        public EnumValue GetEnumeration(EnumValue defaultValue = default)
+        {
+            return TryGet(out EnumValue v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Converts the variant to a enum value or returns the default.
+        /// </summary>
         /// <typeparam name="T"></typeparam>
         public T GetEnumeration<T>(T defaultValue = default) where T : struct, Enum
         {
@@ -1363,6 +1381,14 @@ namespace Opc.Ua
         public ArrayOf<int> GetInt32Array(ArrayOf<int> defaultValue = default)
         {
             return TryGet(out ArrayOf<int> v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Converts the variant to a enum array value or returns the default.
+        /// </summary>
+        public ArrayOf<EnumValue> GetEnumerationArray(ArrayOf<EnumValue> defaultValue = default)
+        {
+            return TryGet(out ArrayOf<EnumValue> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1581,8 +1607,17 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a enum array value or returns the default.
         /// </summary>
+        public MatrixOf<EnumValue> GetEnumerationMatrix(MatrixOf<EnumValue> defaultValue = default)
+        {
+            return TryGet(out MatrixOf<EnumValue> v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Converts the variant to a enum array value or returns the default.
+        /// </summary>
         /// <typeparam name="T"></typeparam>
-        public MatrixOf<T> GetEnumerationMatrix<T>(MatrixOf<T> defaultValue = default) where T : struct, Enum
+        public MatrixOf<T> GetEnumerationMatrix<T>(MatrixOf<T> defaultValue = default)
+            where T : struct, Enum
         {
             return TryGet(out MatrixOf<T> v) ? v : defaultValue;
         }
@@ -1839,6 +1874,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Try convert the variant to a <see cref="EnumValue"/> value.
+        /// </summary>
+        /// <param name="value">The <see cref="EnumValue"/> value to get
+        /// </param>
+        public bool TryGet(out EnumValue value)
+        {
+            if (TypeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration)
+            {
+                value = new EnumValue(m_union.Int32, m_value);
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
         /// Get a enumeration value from the Variant.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -1846,64 +1897,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet<T>(out T value) where T : struct, Enum
         {
-#if NET8_0_OR_GREATER
-            // On .net core we convert between the base type of the
-            // enum and the enum type using reinterpret casting
-            if (TypeInfo.IsScalar &&
-                TypeInfo.BuiltInType is
-                BuiltInType.Enumeration or
-                BuiltInType.Int32)
+            if (TryGet(out EnumValue enumValue))
             {
-                switch (Unsafe.SizeOf<T>())
-                {
-                    case sizeof(byte):
-                        byte b = m_union.Byte;
-                        value = Unsafe.As<byte, T>(ref b);
-                        return true;
-                    case sizeof(ushort):
-                        ushort u16 = m_union.UInt16;
-                        value = Unsafe.As<ushort, T>(ref u16);
-                        return true;
-                    case sizeof(ulong):
-                        ulong u64 = m_union.UInt64;
-                        value = Unsafe.As<ulong, T>(ref u64);
-                        return true;
-                    case sizeof(uint):
-                        uint u32 = m_union.UInt32;
-                        value = Unsafe.As<uint, T>(ref u32);
-                        return true;
-                }
+                value = enumValue.To<T>();
+                return true;
             }
-#else
-            // On net framework we cast via boxing
-            switch (typeof(T).GetEnumUnderlyingType())
-            {
-                case Type t when t == typeof(byte):
-                    value = (T)(object)unchecked(m_union.Byte);
-                    return true;
-                case Type t when t == typeof(sbyte):
-                    value = (T)(object)unchecked(m_union.SByte);
-                    return true;
-                case Type t when t == typeof(short):
-                    value = (T)(object)unchecked(m_union.Int16);
-                    return true;
-                case Type t when t == typeof(ushort):
-                    value = (T)(object)unchecked(m_union.UInt16);
-                    return true;
-                case Type t when t == typeof(int):
-                    value = (T)(object)unchecked(m_union.Int32);
-                    return true;
-                case Type t when t == typeof(uint):
-                    value = (T)(object)unchecked(m_union.UInt32);
-                    return true;
-                case Type t when t == typeof(long):
-                    value = (T)(object)unchecked(m_union.Int64);
-                    return true;
-                case Type t when t == typeof(ulong):
-                    value = (T)(object)unchecked(m_union.UInt64);
-                    return true;
-            }
-#endif
             value = default;
             return false;
         }
@@ -2290,11 +2288,29 @@ namespace Opc.Ua
         /// <param name="value">The value to get</param>
         public bool TryGet<T>(out ArrayOf<T> value) where T : struct, Enum
         {
-            // All enum values are stored as integer arrays with type lost
-            if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Enumeration) ||
-                TryGetArray(out int32Values, BuiltInType.Int32))
+            if (TryGet(out ArrayOf<EnumValue> enumValues))
             {
-                value = int32Values.ConvertAll(EnumHelper.Int32ToEnum<T>);
+                value = enumValues.ConvertAll(e => e.To<T>());
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Get a enumeration value from the Variant.
+        /// </summary>
+        /// <param name="value">The value to get</param>
+        public bool TryGet(out ArrayOf<EnumValue> value)
+        {
+            // All enum values are stored as integer arrays with type lost
+            if (TryGetArray(out value, BuiltInType.Enumeration))
+            {
+                return true;
+            }
+            if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Int32))
+            {
+                value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
             }
             value = default;
@@ -2617,10 +2633,29 @@ namespace Opc.Ua
         public bool TryGet<T>(out MatrixOf<T> value) where T : struct, Enum
         {
             // All enum values are stored as integer matrices with type lost
-            if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Enumeration) ||
-                TryGetMatrix(out int32Values, BuiltInType.Int32))
+            if (TryGet(out MatrixOf<EnumValue> enumValues))
             {
-                value = int32Values.ConvertAll(EnumHelper.Int32ToEnum<T>);
+                value = enumValues.ConvertAll(e => e.To<T>());
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Get a enumeration value from the Variant.
+        /// </summary>
+        /// <param name="value">The value to get</param>
+        public bool TryGet(out MatrixOf<EnumValue> value)
+        {
+            // All enum values are stored as integer arrays with type lost
+            if (TryGetMatrix(out value, BuiltInType.Enumeration))
+            {
+                return true;
+            }
+            if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Int32))
+            {
+                value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
             }
             value = default;
@@ -2939,6 +2974,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a Variant from a <see cref="EnumValue"/> value.
+        /// </summary>
+        /// <param name="value">The <see cref="EnumValue"/> value to set
+        /// this Variant to</param>
+        public static Variant From(EnumValue value)
+        {
+            return new Variant(value);
+        }
+
+        /// <summary>
         /// Create a Variant from a Enum value.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -2947,61 +2992,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static Variant From<T>(T value) where T : struct, Enum
         {
-            Union data = default;
-#if NET8_0_OR_GREATER
-            switch (Unsafe.SizeOf<T>())
-            {
-                case sizeof(byte):
-                    data.Byte = Unsafe.As<T, byte>(ref value);
-                    break;
-                case sizeof(ushort):
-                    data.UInt16 = Unsafe.As<T, ushort>(ref value);
-                    break;
-                case sizeof(ulong):
-                    data.UInt64 = Unsafe.As<T, ulong>(ref value);
-                    break;
-                case sizeof(uint):
-                    data.UInt32 = Unsafe.As<T, uint>(ref value);
-                    break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        "Bad enum type {0} with size: {1}",
-                        typeof(T).Name, Unsafe.SizeOf<T>());
-            }
-#else
-            switch (Enum.GetUnderlyingType(typeof(T)))
-            {
-                case Type t when t == typeof(int):
-                    data.Int32 = (int)(object)value;
-                    break;
-                case Type t when t == typeof(sbyte):
-                    data.SByte = (sbyte)(object)value;
-                    break;
-                case Type t when t == typeof(short):
-                    data.Int16 = (short)(object)value;
-                    break;
-                case Type t when t == typeof(long):
-                    data.Int64 = (long)(object)value;
-                    break;
-                case Type t when t == typeof(byte):
-                    data.Byte = (byte)(object)value;
-                    break;
-                case Type t when t == typeof(ushort):
-                    data.UInt16 = (ushort)(object)value;
-                    break;
-                case Type t when t == typeof(ulong):
-                    data.UInt64 = (ulong)(object)value;
-                    break;
-                case Type t when t == typeof(uint):
-                    data.UInt32 = (uint)(object)value;
-                    break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        "Bad enum type {0}",
-                        typeof(T).Name);
-            }
-#endif
-            return new Variant(data, TypeInfo.Scalars.Enumeration, typeof(T));
+            return From(EnumValue.From(value));
         }
 
         /// <summary>
@@ -3260,6 +3251,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a Variant from a <see cref="EnumValue"/>-array value.
+        /// </summary>
+        /// <param name="value">The <see cref="EnumValue"/>-array value to set
+        /// this Variant to</param>
+        public static Variant From(ArrayOf<EnumValue> value)
+        {
+            return new Variant(value);
+        }
+
+        /// <summary>
         /// Create a Variant from a Enum-array value.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -3267,12 +3268,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From<T>(ArrayOf<T> value) where T : struct, Enum
         {
-            // All enum arrays are stored as int32 arrays, so we
-            // need to convert them to int32 if needed.
-            return new Variant(
-                default,
-                TypeInfo.Arrays.Enumeration,
-                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
+            return From(value.ConvertAll(e => EnumValue.From(e)));
         }
 
         /// <summary>
@@ -3541,6 +3537,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a Variant from a <see cref="EnumValue"/>-matrix value.
+        /// </summary>
+        /// <param name="value">The <see cref="EnumValue"/>-matrix value to set
+        /// this Variant to</param>
+        public static Variant From(MatrixOf<EnumValue> value)
+        {
+            return new Variant(value);
+        }
+
+        /// <summary>
         /// Create a Variant from a Enum-matrix value.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -3548,12 +3554,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From<T>(MatrixOf<T> value) where T : struct, Enum
         {
-            // All enum matrices are stored as int32 matrices, so we
-            // need to convert them to int32
-            return new Variant(
-                default,
-                TypeInfo.Create(BuiltInType.Enumeration, value.Dimensions.Length),
-                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
+            return From(value.ConvertAll(e => EnumValue.From(e)));
         }
 
         /// <summary>
@@ -3799,6 +3800,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Converts a EnumValue value to a Variant object.
+        /// </summary>
+        public static implicit operator Variant(EnumValue value)
+        {
+            return From(value);
+        }
+
+        /// <summary>
         /// Converts a uint value to a Variant object.
         /// </summary>
         public static implicit operator Variant(uint value)
@@ -3978,6 +3987,14 @@ namespace Opc.Ua
         /// Converts a int-array value to a Variant object.
         /// </summary>
         public static implicit operator Variant(ArrayOf<int> value)
+        {
+            return From(value);
+        }
+
+        /// <summary>
+        /// Converts a EnumValue-array value to a Variant object.
+        /// </summary>
+        public static implicit operator Variant(ArrayOf<EnumValue> value)
         {
             return From(value);
         }
@@ -4170,6 +4187,14 @@ namespace Opc.Ua
         /// Converts a int-matrix value to a Variant object.
         /// </summary>
         public static implicit operator Variant(MatrixOf<int> value)
+        {
+            return From(value);
+        }
+
+        /// <summary>
+        /// Converts a EnumValue-matrix value to a Variant object.
+        /// </summary>
+        public static implicit operator Variant(MatrixOf<EnumValue> value)
         {
             return From(value);
         }
@@ -5784,10 +5809,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(Enum value)
+        public bool Equals(EnumValue value)
         {
-            return TryGet(out int v) &&
-                v == Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            return TryGet(out EnumValue v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -5932,10 +5956,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(ArrayOf<Enum> value)
+        public bool Equals(ArrayOf<EnumValue> value)
         {
-            return TryGet(out ArrayOf<int> v) &&
-                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)) == v;
+            return TryGet(out ArrayOf<EnumValue> v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -6083,10 +6106,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(MatrixOf<Enum> value)
+        public bool Equals(MatrixOf<EnumValue> value)
         {
-            return TryGet(out MatrixOf<int> v) &&
-                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)) == v;
+            return TryGet(out MatrixOf<EnumValue> v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -6282,13 +6304,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, Enum value)
+        public static bool operator ==(Variant a, EnumValue value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, Enum value)
+        public static bool operator !=(Variant a, EnumValue value)
         {
             return !a.Equals(value);
         }
@@ -6570,13 +6592,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ArrayOf<Enum> value)
+        public static bool operator ==(Variant a, ArrayOf<EnumValue> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ArrayOf<Enum> value)
+        public static bool operator !=(Variant a, ArrayOf<EnumValue> value)
         {
             return !a.Equals(value);
         }
@@ -6870,13 +6892,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, MatrixOf<Enum> value)
+        public static bool operator ==(Variant a, MatrixOf<EnumValue> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, MatrixOf<Enum> value)
+        public static bool operator !=(Variant a, MatrixOf<EnumValue> value)
         {
             return !a.Equals(value);
         }
@@ -7118,7 +7140,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 & rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return FromEnumeration(lhs.m_union.Int32 & rhs.m_union.Int32);
+                    return new EnumValue(lhs.m_union.Int32 & rhs.m_union.Int32, lhs.m_value);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 & rhs.m_union.Int32;
                 case BuiltInType.UInt32:
@@ -7152,7 +7174,7 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return lhs.m_union.UInt16 | rhs.m_union.UInt16;
                 case BuiltInType.Enumeration:
-                    return FromEnumeration(lhs.m_union.Int32 | rhs.m_union.Int32);
+                    return new EnumValue(lhs.m_union.Int32 | rhs.m_union.Int32, lhs.m_value);
                 case BuiltInType.Int32:
                     return lhs.m_union.Int32 | rhs.m_union.Int32;
                 case BuiltInType.UInt32:
@@ -7487,7 +7509,7 @@ namespace Opc.Ua
                 float v => Equals(v),
                 double v => Equals(v),
                 string v => Equals(v),
-                Enum v => Equals(v),
+                EnumValue v => Equals(v),
                 ByteString v => Equals(v),
                 DateTimeUtc v => Equals(v),
                 Uuid v => Equals(v),
@@ -7511,7 +7533,7 @@ namespace Opc.Ua
                 ArrayOf<float> v => Equals(v),
                 ArrayOf<double> v => Equals(v),
                 ArrayOf<string> v => Equals(v),
-                ArrayOf<Enum> v => Equals(v),
+                ArrayOf<EnumValue> v => Equals(v),
                 ArrayOf<DateTimeUtc> v => Equals(v),
                 ArrayOf<Uuid> v => Equals(v),
                 ArrayOf<ByteString> v => Equals(v),
@@ -7536,7 +7558,7 @@ namespace Opc.Ua
                 MatrixOf<float> v => Equals(v),
                 MatrixOf<double> v => Equals(v),
                 MatrixOf<string> v => Equals(v),
-                MatrixOf<Enum> v => Equals(v),
+                MatrixOf<EnumValue> v => Equals(v),
                 MatrixOf<DateTimeUtc> v => Equals(v),
                 MatrixOf<Uuid> v => Equals(v),
                 MatrixOf<ByteString> v => Equals(v),
@@ -7982,39 +8004,7 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(object value, Type enumType)
         {
-            Union data = default;
-            switch (enumType.IsEnum ? Enum.GetUnderlyingType(enumType) : enumType)
-            {
-                case Type t when t == typeof(int):
-                    data.Int32 = (int)value;
-                    break;
-                case Type t when t == typeof(sbyte):
-                    data.SByte = (sbyte)value;
-                    break;
-                case Type t when t == typeof(short):
-                    data.Int16 = (short)value;
-                    break;
-                case Type t when t == typeof(long):
-                    data.Int64 = (long)value;
-                    break;
-                case Type t when t == typeof(byte):
-                    data.Byte = (byte)value;
-                    break;
-                case Type t when t == typeof(ushort):
-                    data.UInt16 = (ushort)value;
-                    break;
-                case Type t when t == typeof(ulong):
-                    data.UInt64 = (ulong)value;
-                    break;
-                case Type t when t == typeof(uint):
-                    data.UInt32 = (uint)value;
-                    break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        "Bad enum type {0}",
-                        enumType.Name);
-            }
-            return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
+            return From(EnumValue.From(value, enumType));
         }
 
         /// <summary>
@@ -8023,9 +8013,7 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(int value, Type enumType = null)
         {
-            Union data = default;
-            data.Int32 = value;
-            return new Variant(data, TypeInfo.Scalars.Enumeration, enumType);
+            return From(EnumValue.From(value, enumType));
         }
 
         /// <summary>
@@ -8034,11 +8022,7 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(ArrayOf<int> value, Type enumType = null)
         {
-            if (value.IsNull)
-            {
-                return default;
-            }
-            return new Variant(default, TypeInfo.Arrays.Enumeration, value);
+            return From(EnumValue.From(value, enumType));
         }
 
         /// <summary>
@@ -8047,14 +8031,7 @@ namespace Opc.Ua
         [Experimental("UA_NETStandard_1")]
         public static Variant FromEnumeration(MatrixOf<int> value, Type enumType = null)
         {
-            if (value.IsNull)
-            {
-                return default;
-            }
-            return new Variant(
-                default,
-                TypeInfo.Create(BuiltInType.Enumeration, value.Dimensions.Length),
-                value);
+            return From(EnumValue.From(value, enumType));
         }
 
         /// <summary>
@@ -8111,40 +8088,37 @@ namespace Opc.Ua
                             new StatusCode(m_union.UInt32, s) :
                             new StatusCode(m_union.UInt32);
                     case BuiltInType.Enumeration:
-                        if (m_value is Type enumType)
-                        {
-                            Type type = enumType.GetEnumUnderlyingType();
-                            if (type == typeof(int) || type == typeof(uint))
-                            {
-                                return Enum.ToObject(enumType, m_union.Int32);
-                            }
-                            if (type == typeof(byte) || type == typeof(sbyte))
-                            {
-                                return Enum.ToObject(enumType, m_union.Byte);
-                            }
-                            if (type == typeof(short) || type == typeof(ushort))
-                            {
-                                return Enum.ToObject(enumType, m_union.Int16);
-                            }
-                            if (type == typeof(long) || type == typeof(ulong))
-                            {
-                                return Enum.ToObject(enumType, m_union.Int64);
-                            }
-                        }
-                        return m_union.Int32;
+                        return GetEnumeration().ToObject();
                 }
             }
+
+            var value = m_value;
+
+            // Convert the enum values to ints for back-compatibility
+            if (boxingBehavior != BoxingBehavior.None &&
+                TypeInfo.BuiltInType == BuiltInType.Enumeration)
+            {
+                if (TypeInfo.IsArray)
+                {
+                    value = GetInt32Array();
+                }
+                else // Scalar already handled above.
+                {
+                    value = GetInt32Matrix();
+                }
+            }
+
             if (boxingBehavior == BoxingBehavior.LegacyWithMatrix &&
-                m_value is IConvertableToMatrix convertibleToMatrix)
+                value is IConvertableToMatrix convertibleToMatrix)
             {
                 return convertibleToMatrix.ToMatrix(TypeInfo.BuiltInType);
             }
             if (boxingBehavior == BoxingBehavior.Legacy &&
-                m_value is IConvertableToArray convertible)
+                value is IConvertableToArray convertible)
             {
                 return convertible.ToArray();
             }
-            return m_value;
+            return value;
         }
 
         /// <summary>

@@ -993,14 +993,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 """ },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(1),
+                Variant.From(new EnumValue(1)),
                 "1",
                 """
                 "1"
                 """ },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Two),
+                Variant.From(EnumValue.From((int)TestEnumType.Two)),
                 TestEnumType.Two.ToString("d"),
                 $"""
                 "{TestEnumType.Two:d}"
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Hundred),
+                Variant.From(EnumValue.From((int)TestEnumType.Hundred)),
                 $"{TestEnumType.Hundred:d}",
                 $"""
                 "{TestEnumType.Hundred:d}"
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(22),
+                Variant.From(EnumValue.From(22)),
                 "22",
                 """
                 "22"
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(s_testInt32Array),
+                Variant.From(EnumValue.From(s_testInt32Array)),
                 "[2,3,10]",
                 """["2","3","10"]"""
             },

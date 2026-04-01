@@ -36,6 +36,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml;
@@ -628,7 +629,9 @@ namespace Opc.Ua
         /// Create type wrapper from system type.
         /// </summary>
         public static IType? From(
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type? systemType,
             ExpandedNodeId typeId = default)
         {
             if (systemType == null)
@@ -705,10 +708,44 @@ namespace Opc.Ua
             /// </summary>
             internal ReflectionBasedEnumeratedType(
                 [DynamicallyAccessedMembers(
-                DynamicallyAccessedMemberTypes.PublicConstructors)]
-            Type type)
+                    DynamicallyAccessedMemberTypes.PublicConstructors)]
+                Type type)
                 : base(type)
             {
+            }
+
+            /// <inheritdoc/>
+            [UnconditionalSuppressMessage("AOT", "IL3050", Justification =
+                "On platforms without dynamic code support this method returns 0.")]
+            public EnumValue Default =>
+#if NET8_0_OR_GREATER
+                !RuntimeFeature.IsDynamicCodeSupported ?
+                    new EnumValue(0, Type) :
+#endif
+                    EnumValue.GetDefault(Type);
+
+            /// <inheritdoc/>
+            public bool TryGetSymbol(int value, out string? symbol)
+            {
+                object enumValue = EnumHelper.Int32ToEnum(value, Type);
+                symbol = Enum.GetName(Type, enumValue);
+                return symbol != null;
+            }
+
+            /// <inheritdoc/>
+            public bool TryGetValue(string symbol, out int value)
+            {
+                try
+                {
+                    object enumValue = Enum.Parse(Type, symbol);
+                    value = EnumHelper.EnumToInt32(enumValue, Type);
+                    return true;
+                }
+                catch
+                {
+                    value = default;
+                    return false;
+                }
             }
         }
 

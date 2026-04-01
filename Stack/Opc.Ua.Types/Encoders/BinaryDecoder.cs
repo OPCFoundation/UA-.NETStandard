@@ -950,6 +950,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            return EnumValue.From(SafeReadInt32());
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<bool> ReadBooleanArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1544,6 +1550,26 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            int length = ReadArrayLength();
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            var values = new EnumValue[length];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                values[ii] = ReadEnumerated(null);
+            }
+
+            return values;
+        }
+
+        /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             return ReadVariantValue(typeInfo, true);
@@ -1592,8 +1618,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(SafeReadUInt16());
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(SafeReadInt32());
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumerated(null));
                     case BuiltInType.UInt32:
                         return Variant.From(SafeReadUInt32());
                     case BuiltInType.Int64:
@@ -1661,8 +1688,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(ReadUInt16Array(null));
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(ReadInt32Array(null));
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumeratedArray(null));
                     case BuiltInType.UInt32:
                         return Variant.From(ReadUInt32Array(null));
                     case BuiltInType.Int64:
@@ -1741,8 +1769,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(ReadUInt16Array(null).ToMatrix(ReadDims()));
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(ReadInt32Array(null).ToMatrix(ReadDims()));
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumeratedArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.UInt32:
                         return Variant.From(ReadUInt32Array(null).ToMatrix(ReadDims()));
                     case BuiltInType.Int64:

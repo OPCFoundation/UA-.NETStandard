@@ -47,13 +47,15 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            StructureDefinition structureDefinition)
+            StructureDefinition structureDefinition,
+            Dictionary<string, BuiltInType> fieldTypes)
             : base(
                   xmlName,
                   typeId,
                   binaryEncodingId,
                   xmlEncodingId,
-                  structureDefinition)
+                  structureDefinition,
+                  fieldTypes)
         {
             EncodingMask = 0;
 
@@ -79,7 +81,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public override IEncodeable CreateInstance()
         {
-            return new StructureWithOptionalFields(XmlName, TypeId, BinaryEncodingId, XmlEncodingId, m_definition);
+            return new StructureWithOptionalFields(
+                XmlName,
+                TypeId,
+                BinaryEncodingId,
+                XmlEncodingId,
+                Definition,
+                FieldTypes);
         }
 
         /// <inheritdoc/>
@@ -162,20 +170,20 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            if (valueBaseType.m_propertyList.Count != m_propertyList.Count)
+            if (valueBaseType.PropertyList.Count != PropertyList.Count)
             {
                 return false;
             }
 
-            for (int ii = 0; ii < m_propertyList.Count; ii++)
+            for (int ii = 0; ii < PropertyList.Count; ii++)
             {
-                if (m_propertyList[ii].IsOptional &&
-                    (m_propertyList[ii].OptionalFieldMask & EncodingMask) == 0)
+                if (PropertyList[ii].IsOptional &&
+                    (PropertyList[ii].OptionalFieldMask & EncodingMask) == 0)
                 {
                     continue;
                 }
 
-                if (m_propertyList[ii].Value != valueBaseType.m_propertyList[ii].Value)
+                if (PropertyList[ii].Value != valueBaseType.PropertyList[ii].Value)
                 {
                     return false;
                 }
@@ -224,7 +232,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                Field property = m_propertyList[index];
+                Field property = PropertyList[index];
                 if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
                     return default;
@@ -233,7 +241,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                Field property = m_propertyList[index];
+                Field property = PropertyList[index];
                 property.Value = value;
                 if (property.IsOptional)
                 {
@@ -254,7 +262,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                if (m_propertyDict.TryGetValue(name, out Field? property))
+                if (PropertyDict.TryGetValue(name, out Field? property))
                 {
                     if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
@@ -266,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                if (m_propertyDict.TryGetValue(name, out Field? property))
+                if (PropertyDict.TryGetValue(name, out Field? property))
                 {
                     property.Value = value;
                     if (value.IsNull)

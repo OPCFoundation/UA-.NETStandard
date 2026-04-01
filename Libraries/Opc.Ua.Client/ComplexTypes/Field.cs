@@ -37,12 +37,19 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create the property state of the structure field
         /// </summary>
-        public Field(int order, StructureField fieldAttribute)
+        public Field(int order, StructureField fieldAttribute, BuiltInType builtInType)
         {
             Definition = fieldAttribute;
             Order = order;
+            BuiltInType = builtInType;
             OptionalFieldMask = 0;
+            Value = Variant.CreateDefault(TypeInfo);
         }
+
+        /// <summary>
+        /// Order in the list of properties for the complex type.
+        /// </summary>
+        public BuiltInType BuiltInType { get; }
 
         /// <summary>
         /// Order in the list of properties for the complex type.
@@ -62,7 +69,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Type information object for the complex type property.
         /// </summary>
-        public TypeInfo TypeInfo => new(Definition.BuiltInType, Definition.ValueRank);
+        public TypeInfo TypeInfo => new(BuiltInType, Definition.ValueRank);
 
         /// <summary>
         /// Get the name of the complex type.

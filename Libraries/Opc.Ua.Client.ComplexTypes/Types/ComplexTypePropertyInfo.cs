@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Int32:
                         return Variant.From((int)value);
                     case BuiltInType.Enumeration:
-                        return Variant.FromEnumeration(value, PropertyInfo.PropertyType);
+                        return Variant.From(EnumValue.From(value, PropertyInfo.PropertyType));
                     case BuiltInType.UInt32:
                         return Variant.From((uint)value);
                     case BuiltInType.Int64:
@@ -169,9 +169,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Int32:
                         return Variant.From((int[])value);
                     case BuiltInType.Enumeration:
-                        return Variant.FromEnumeration(
-                            EnumHelper.EnumArrayToInt32Array((Array)value),
-                            PropertyInfo.PropertyType);
+                        return Variant.From(EnumValue.FromArray(
+                            (Array)value,
+                            PropertyInfo.PropertyType));
                     case BuiltInType.UInt32:
                         return Variant.From((uint[])value);
                     case BuiltInType.Int64:
@@ -235,9 +235,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Int32:
                         return Variant.From(MatrixOf.From<int>((Array)value));
                     case BuiltInType.Enumeration:
-                        return Variant.FromEnumeration(
-                            EnumHelper.EnumArrayToInt32Matrix((Array)value),
-                            PropertyInfo.PropertyType);
+                        return Variant.From(EnumValue.FromMatrix(
+                            (Array)value,
+                            PropertyInfo.PropertyType));
                     case BuiltInType.UInt32:
                         return Variant.From(MatrixOf.From<uint>((Array)value));
                     case BuiltInType.Int64:

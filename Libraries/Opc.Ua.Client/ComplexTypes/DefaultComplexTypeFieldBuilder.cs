@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Xml;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -59,7 +60,12 @@ namespace Opc.Ua.Client.ComplexTypes
             int order,
             bool allowSubTypes)
         {
-            // Nothing to do
+            m_fieldTypes[field.Name] = fieldType switch
+            {
+                IEnumeratedType => BuiltInType.Enumeration,
+                IBuiltInType builtIn => builtIn.BuiltInType,
+                _ => BuiltInType.ExtensionObject
+            };
         }
 
         /// <inheritdoc/>
@@ -88,7 +94,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_typeId,
                         m_binaryEncodingId,
                         m_xmlEncodingId,
-                        m_structureDefinition);
+                        m_structureDefinition,
+                        m_fieldTypes);
                     break;
                 case StructureType.StructureWithOptionalFields:
                     m_structureToBuild = new StructureWithOptionalFields(
@@ -96,7 +103,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_typeId,
                         m_binaryEncodingId,
                         m_xmlEncodingId,
-                        m_structureDefinition);
+                        m_structureDefinition,
+                        m_fieldTypes);
                     break;
                 case StructureType.Union:
                 case StructureType.UnionWithSubtypedValues:
@@ -106,6 +114,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_binaryEncodingId,
                         m_xmlEncodingId,
                         m_structureDefinition,
+                        m_fieldTypes,
                         0);  // TODO: switch field?
                     break;
             }
@@ -118,6 +127,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return CreateType();
         }
 
+        private readonly Dictionary<string, BuiltInType> m_fieldTypes = [];
         private Structure? m_structureToBuild;
         private ExpandedNodeId m_typeId;
         private ExpandedNodeId m_binaryEncodingId;

@@ -54,27 +54,42 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            StructureDefinition structureDefinition)
+            StructureDefinition structureDefinition,
+            Dictionary<string, BuiltInType> fieldTypes)
         {
-            m_definition = structureDefinition;
-            m_xmlName = xmlName;
+            Definition = structureDefinition;
+            XmlName = xmlName;
             TypeId = typeId;
             XmlEncodingId = xmlEncodingId;
             BinaryEncodingId = binaryEncodingId;
-            for (int ii = 0; ii < m_definition.Fields.Count; ii++)
+            FieldTypes = fieldTypes;
+
+            for (int i = 0; i < Definition.Fields.Count; i++)
             {
-                var newProperty = new Field(ii + 1, m_definition.Fields[ii]);
-                m_propertyList.Add(newProperty);
+                // The field itself does not specify its built in type
+                // we need to look it up in the provided lookup table.
+                if (!fieldTypes.TryGetValue(
+                    Definition.Fields[i].Name,
+                    out BuiltInType fieldType))
+                {
+                    fieldType = BuiltInType.Null;
+                }
+
+                var newProperty = new Field(
+                    i + 1,
+                    Definition.Fields[i],
+                    fieldType);
+                PropertyList.Add(newProperty);
             }
-            m_propertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
-            m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
+            PropertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
+            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
         }
 
         /// <inheritdoc/>
         public Type Type => typeof(Structure);
 
         /// <inheritdoc/>
-        public XmlQualifiedName XmlName => m_xmlName;
+        public XmlQualifiedName XmlName { get; }
 
         /// <inheritdoc/>
         public ExpandedNodeId TypeId { get; }
@@ -127,14 +142,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            if (valueBaseType.m_propertyList.Count != m_propertyList.Count)
+            if (valueBaseType.PropertyList.Count != PropertyList.Count)
             {
                 return false;
             }
 
-            for (int ii = 0; ii < m_propertyList.Count; ii++)
+            for (int i = 0; i < PropertyList.Count; i++)
             {
-                if (m_propertyList[ii].Value != valueBaseType.m_propertyList[ii].Value)
+                if (PropertyList[i].Value != valueBaseType.PropertyList[i].Value)
                 {
                     return false;
                 }
@@ -148,19 +163,10 @@ namespace Opc.Ua.Client.ComplexTypes
             return ToString(null, null);
         }
 
-        /// <summary>
-        /// Returns the string representation of the complex type.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for
-        /// retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="string"/> containing the value of the current
-        /// embedded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i>
-        /// parameter is not null</exception>
-        public virtual string ToString(string? format, IFormatProvider? formatProvider)
+        /// <inheritdoc/>
+        public virtual string ToString(
+            string? format,
+            IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -186,39 +192,40 @@ namespace Opc.Ua.Client.ComplexTypes
                 return "(null)";
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(
+                CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
         public virtual int GetPropertyCount()
         {
-            return m_propertyList.Count;
+            return PropertyList.Count;
         }
 
         /// <inheritdoc/>
         public virtual IReadOnlyList<string> GetPropertyNames()
         {
-            return [.. m_propertyList.Select(p => p.Name)];
+            return [.. PropertyList.Select(p => p.Name)];
         }
 
         /// <inheritdoc/>
         public virtual Variant this[int index]
         {
-            get => m_propertyList[index].Value;
-            set => m_propertyList[index].Value = value;
+            get => PropertyList[index].Value;
+            set => PropertyList[index].Value = value;
         }
 
         /// <inheritdoc/>
         public virtual Variant this[string name]
         {
-            get => m_propertyDict[name].Value;
-            set => m_propertyDict[name].Value = value;
+            get => PropertyDict[name].Value;
+            set => PropertyDict[name].Value = value;
         }
 
         /// <inheritdoc/>
         public virtual IEnumerable<Field> GetPropertyEnumerator()
         {
-            return m_propertyList;
+            return PropertyList;
         }
 
         /// <inheritdoc/>
@@ -277,6 +284,7 @@ namespace Opc.Ua.Client.ComplexTypes
             switch (property.TypeInfo.BuiltInType)
             {
                 // IEncodeable types are handled by type property as BuiltInType.Null
+                // vs ExtensionObject which allow optional and subtyped fields in structures
                 case BuiltInType.Null:
                     ExpandedNodeId dataTypeId = TypeInfo.GetDataTypeId(
                         property.Definition.DataType,
@@ -361,32 +369,39 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual IEncodeable CreateInstance()
         {
-            return new Structure(m_xmlName, TypeId, BinaryEncodingId, XmlEncodingId, m_definition);
+            return new Structure(
+                XmlName,
+                TypeId,
+                BinaryEncodingId,
+                XmlEncodingId,
+                Definition,
+                FieldTypes);
         }
 
         /// <summary>
         /// Provide XmlNamespace based on systemType
         /// </summary>
-        protected string XmlNamespace => m_xmlName != null ? m_xmlName.Namespace : string.Empty;
+        protected string XmlNamespace =>
+            XmlName != null ? XmlName.Namespace : string.Empty;
 
         /// <summary>
         /// The list of properties as dictionary.
         /// </summary>
-        protected Dictionary<string, Field> m_propertyDict;
+        protected Dictionary<string, Field> PropertyDict { get; }
 
         /// <summary>
         /// The list of properties of this complex type.
         /// </summary>
-        protected List<Field> m_propertyList = [];
-
-        /// <summary>
-        /// Xml name
-        /// </summary>
-        protected XmlQualifiedName m_xmlName;
+        protected List<Field> PropertyList { get; } = [];
 
         /// <summary>
         /// Definition
         /// </summary>
-        protected readonly StructureDefinition m_definition;
+        protected StructureDefinition Definition { get; }
+
+        /// <summary>
+        /// Field types flow cloning
+        /// </summary>
+        protected Dictionary<string, BuiltInType> FieldTypes { get; }
     }
 }

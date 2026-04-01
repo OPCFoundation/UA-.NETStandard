@@ -80,7 +80,23 @@ namespace Opc.Ua
     /// Enumeration type (Built-in type Enumeration)
     /// </summary>
     [Experimental("UA_NETStandard_1")]
-    public interface IEnumeratedType : IType;
+    public interface IEnumeratedType : IType
+    {
+        /// <summary>
+        /// Get the default value
+        /// </summary>
+        EnumValue Default { get; }
+
+        /// <summary>
+        /// Get symbol for the value
+        /// </summary>
+        bool TryGetSymbol(int value, out string symbol);
+
+        /// <summary>
+        /// Get value for the symbol
+        /// </summary>
+        bool TryGetValue(string symbol, out int value);
+    }
 
     /// <summary>
     /// Structure type (Built-in type UserDefinedType)

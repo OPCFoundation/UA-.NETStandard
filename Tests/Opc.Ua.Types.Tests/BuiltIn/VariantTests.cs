@@ -49,13 +49,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantTests
     {
-        private enum EnumValue
-        {
-            Zero = 0,
-            One = 1,
-            Two = 2
-        }
-
         public sealed record VariantDescriptor(
             string Name,
             Func<object> ValueFactory,
@@ -585,11 +578,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationArray_ReturnsEnumerationArray()
         {
-            EnumValue[] values = [EnumValue.Zero, EnumValue.One];
+            TestEnum[] values = [TestEnum.Zero, TestEnum.One];
             var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
         }
@@ -597,35 +590,35 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromIntArray_ReturnsEnumerationArray()
         {
-            ArrayOf<EnumValue> values = [EnumValue.Zero, EnumValue.One];
+            ArrayOf<TestEnum> values = [TestEnum.Zero, TestEnum.One];
             var asInt32 = ArrayOf.Wrapped(0, 1);
             var variant = Variant.From(asInt32);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(asInt32));
         }
 
         [Test]
         public void FromEnumeration_CoercesInt32Value()
         {
-            const EnumValue value = EnumValue.Two;
+            const TestEnum value = TestEnum.Two;
             var variant = Variant.From(value);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(variant.GetInt32(), Is.EqualTo(Convert.ToInt32(value, CultureInfo.InvariantCulture)));
-            Assert.That(variant.GetEnumeration<EnumValue>(), Is.EqualTo(value));
+            Assert.That(variant.GetEnumeration<TestEnum>(), Is.EqualTo(value));
             Assert.That(variant.Value, Is.EqualTo(value));
         }
 
         [Test]
         public void EnumArrayConstructorWithTypeInfo_CoercesEnumerationArray()
         {
-            EnumValue[] values = [EnumValue.Zero, EnumValue.One];
+            TestEnum[] values = [TestEnum.Zero, TestEnum.One];
             var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
         }
@@ -2384,8 +2377,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualityOperatorWithEnumValue()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
-            Assert.That(v, Is.EqualTo((Enum)TestEnum.One));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
+            Assert.That(v, Is.EqualTo(EnumValue.From(TestEnum.One)));
         }
 
         [Test]
@@ -3534,7 +3527,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringForScalarEnumeration()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             string s = v.ToString();
             Assert.That(s, Is.Not.Null.And.Not.Empty);
         }
@@ -3542,7 +3535,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationWithIntEnumType()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.IsScalar, Is.True);
         }
@@ -3550,63 +3543,63 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationWithByteEnumType()
         {
-            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            var v = Variant.From(EnumValue.From(ByteEnum.One, typeof(ByteEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithShortEnumType()
         {
-            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            var v = Variant.From(EnumValue.From(ShortEnum.One, typeof(ShortEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithLongEnumType()
         {
-            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            var v = Variant.From(EnumValue.From(LongEnum.One, typeof(LongEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithUShortEnumType()
         {
-            var v = Variant.FromEnumeration(UShortEnum.One, typeof(UShortEnum));
+            var v = Variant.From(EnumValue.From(UShortEnum.One, typeof(UShortEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithUIntEnumType()
         {
-            var v = Variant.FromEnumeration(UIntEnum.One, typeof(UIntEnum));
+            var v = Variant.From(EnumValue.From(UIntEnum.One, typeof(UIntEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithULongEnumType()
         {
-            var v = Variant.FromEnumeration(ULongEnum.One, typeof(ULongEnum));
+            var v = Variant.From(EnumValue.From(ULongEnum.One, typeof(ULongEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithSByteEnumType()
         {
-            var v = Variant.FromEnumeration(SByteEnum.One, typeof(SByteEnum));
+            var v = Variant.From(EnumValue.From(SByteEnum.One, typeof(SByteEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithIntValue()
         {
-            var v = Variant.FromEnumeration(42, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(42, typeof(TestEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithIntValueNoType()
         {
-            var v = Variant.FromEnumeration(42);
+            var v = Variant.From(EnumValue.From(42));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
@@ -3614,7 +3607,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithIntArrayValue()
         {
             ArrayOf<int> arr = [1, 2, 3];
-            var v = Variant.FromEnumeration(arr);
+            var v = Variant.From(EnumValue.From(arr));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.IsArray, Is.True);
         }
@@ -3623,7 +3616,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithNullIntArrayReturnsDefault()
         {
             ArrayOf<int> arr = default;
-            var v = Variant.FromEnumeration(arr);
+            var v = Variant.From(EnumValue.From(arr));
             Assert.That(v.IsNull, Is.True);
         }
 
@@ -3631,7 +3624,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithIntMatrixValue()
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
-            var v = Variant.FromEnumeration(matrix);
+            var v = Variant.From(EnumValue.From(matrix));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
         }
@@ -3640,7 +3633,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithNullMatrixReturnsDefault()
         {
             MatrixOf<int> matrix = default;
-            var v = Variant.FromEnumeration(matrix);
+            var v = Variant.From(EnumValue.From(matrix));
             Assert.That(v.IsNull, Is.True);
         }
 
@@ -3747,7 +3740,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3755,7 +3748,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForByteEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            var v = Variant.From(EnumValue.From(ByteEnum.One, typeof(ByteEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3763,7 +3756,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForShortEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            var v = Variant.From(EnumValue.From(ShortEnum.One, typeof(ShortEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3771,7 +3764,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForLongEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            var v = Variant.From(EnumValue.From(LongEnum.One, typeof(LongEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
