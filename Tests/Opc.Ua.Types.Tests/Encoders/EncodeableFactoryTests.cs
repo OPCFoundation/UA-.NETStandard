@@ -954,16 +954,17 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void Builder_AddEncodeableType_WithNullExpandedNodeIdAndIEncodeableType_ThrowsArgumentNullException()
+        public void Builder_AddEncodeableType_WithNullExpandedNodeIdAndIEncodeableType_DoesNotThrow()
         {
             // Arrange
-            EncodeableFactory factory = Create();
+            EncodeableFactory factory = new EncodeableFactory();
             IEncodeableFactoryBuilder builder = factory.Builder;
             var encodeableType = new TestEncodeableType(typeof(TestEncodeable));
 
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(
-                () => builder.AddEncodeableType(default, encodeableType));
+            // Act
+            builder.AddEncodeableType(default, encodeableType).Commit();
+            // Assert
+            Assert.That(factory.KnownTypeIds, Is.Empty);
         }
 
         [Test]

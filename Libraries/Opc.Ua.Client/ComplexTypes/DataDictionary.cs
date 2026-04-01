@@ -46,20 +46,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         internal DataDictionary()
         {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
             DataTypes = [];
-            m_validator = null;
-            TypeSystemId = default;
-            TypeSystemName = null;
-            DictionaryId = default;
-            Name = null;
         }
 
         /// <summary>
@@ -70,7 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The display name for the dictionary.
         /// </summary>
-        public string Name { get; internal set; }
+        public string? Name { get; internal set; }
 
         /// <summary>
         /// The node id for the type system.
@@ -80,12 +67,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The display name for the type system.
         /// </summary>
-        public string TypeSystemName { get; internal set; }
+        public string? TypeSystemName { get; internal set; }
 
         /// <summary>
         /// The type dictionary.
         /// </summary>
-        public Schema.Binary.TypeDictionary TypeDictionary { get; internal set; }
+        public Schema.Binary.TypeDictionary? TypeDictionary { get; internal set; }
 
         /// <summary>
         /// The data type dictionary DataTypes
@@ -97,25 +84,26 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public bool Contains(NodeId descriptionId)
         {
-            return DataTypes.ContainsKey(descriptionId);
+            return DataTypes?.ContainsKey(descriptionId) ?? false;
         }
 
         /// <summary>
         /// Returns the schema for the specified type (returns the entire dictionary if null).
         /// </summary>
-        public string GetSchema(NodeId descriptionId)
+        public string? GetSchema(NodeId descriptionId)
         {
             if (!descriptionId.IsNull)
             {
-                if (!DataTypes.TryGetValue(descriptionId, out QualifiedName browseName))
+                if (DataTypes == null ||
+                    !DataTypes.TryGetValue(descriptionId, out QualifiedName browseName))
                 {
                     return null;
                 }
 
-                return m_validator.GetSchema(browseName.Name);
+                return m_validator?.GetSchema(browseName.Name);
             }
 
-            return m_validator.GetSchema(null);
+            return m_validator?.GetSchema(null);
         }
 
         /// <summary>
@@ -143,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
         internal void Validate(
             byte[] dictionary,
             ILogger logger,
-            Dictionary<string, byte[]> imports = null,
+            Dictionary<string, byte[]>? imports = null,
             bool throwOnError = false)
         {
             var istrm = new MemoryStream(dictionary);
@@ -193,6 +181,6 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-        private SchemaValidator m_validator;
+        private SchemaValidator? m_validator;
     }
 }

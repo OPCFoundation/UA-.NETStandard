@@ -1110,7 +1110,7 @@ namespace Quickstarts
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
+            var complexTypeSystem = ComplexTypeSystem.Create(session, m_telemetry);
             await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();

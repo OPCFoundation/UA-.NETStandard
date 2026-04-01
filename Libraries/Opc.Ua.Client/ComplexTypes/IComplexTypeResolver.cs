@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.ComplexTypes
         Task<(
             ExpandedNodeId typeId,
             ExpandedNodeId encodingId,
-            DataTypeNode dataTypeNode
+            DataTypeNode? dataTypeNode
         )> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);

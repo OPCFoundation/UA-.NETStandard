@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
+            var typeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
             Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;

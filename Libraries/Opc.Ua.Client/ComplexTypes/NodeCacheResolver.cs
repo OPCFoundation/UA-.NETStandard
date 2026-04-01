@@ -177,8 +177,7 @@ namespace Opc.Ua.Client.ComplexTypes
             // read all schema definitions
             var referenceExpandedNodeIds = references
                 .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris))
-                .Filter(n => n.NamespaceIndex != 0)
-                .ToList();
+                .Filter(n => n.NamespaceIndex != 0);
 
             IDictionary<NodeId, byte[]> schemas = await ReadDictionariesAsync(
                 referenceExpandedNodeIds,
@@ -220,8 +219,8 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (INode r in references)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (schemas.TryGetValue(nodeId, out byte[] schema) &&
-                    namespaces.TryGetValue(nodeId, out string ns))
+                if (schemas.TryGetValue(nodeId, out byte[]? schema) &&
+                    namespaces.TryGetValue(nodeId, out string? ns))
                 {
                     imports[ns] = schema;
                 }
@@ -232,12 +231,12 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
                 if (dictionaryId.NamespaceIndex != 0 &&
-                    !DataTypeSystem.TryGetValue(dictionaryId, out DataDictionary dictionaryToLoad))
+                    !DataTypeSystem.TryGetValue(dictionaryId, out DataDictionary? dictionaryToLoad))
                 {
                     try
                     {
                         dictionaryToLoad = new DataDictionary();
-                        if (schemas.TryGetValue(dictionaryId, out byte[] schema))
+                        if (schemas.TryGetValue(dictionaryId, out byte[]? schema))
                         {
                             await LoadDictionaryAsync(
                                     dictionaryToLoad,
@@ -344,13 +343,13 @@ namespace Opc.Ua.Client.ComplexTypes
         public async Task<(
             ExpandedNodeId typeId,
             ExpandedNodeId encodingId,
-            DataTypeNode dataTypeNode
+            DataTypeNode? dataTypeNode
         )> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
             ExpandedNodeId encodingId;
-            DataTypeNode dataTypeNode;
+            DataTypeNode? dataTypeNode;
 
 #pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
@@ -400,7 +399,7 @@ namespace Opc.Ua.Client.ComplexTypes
 #endif
             if (addRootNode)
             {
-                INode rootNode = await GetNodeAsync(dataType, ct).ConfigureAwait(false);
+                INode? rootNode = await GetNodeAsync(dataType, ct).ConfigureAwait(false);
                 if (rootNode is not DataTypeNode)
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
@@ -460,7 +459,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct)
                 .ConfigureAwait(false);
 #pragma warning restore IDE0008 // Use explicit type
-            INode property = references.Count > 0 ? references[0] : null;
+            INode? property = references.Count > 0 ? references[0] : null;
             if (property != null)
             {
                 // read the enum type array
@@ -639,8 +638,8 @@ namespace Opc.Ua.Client.ComplexTypes
             DataDictionary dictionaryToLoad,
             NodeId dictionaryId,
             string name,
-            byte[] schema = null,
-            Dictionary<string, byte[]> imports = null,
+            byte[]? schema = null,
+            Dictionary<string, byte[]>? imports = null,
             CancellationToken ct = default)
         {
             if (dictionaryId.IsNull)
@@ -838,7 +837,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            return m_session.NodeCache.FindAsync(nodeId, ct);
+            return m_session.NodeCache.FindAsync(nodeId, ct)!;
         }
 
         /// <summary>
