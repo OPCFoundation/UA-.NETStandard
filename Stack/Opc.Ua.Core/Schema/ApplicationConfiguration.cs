@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,6 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ApplicationConfiguration
     {
@@ -150,6 +151,7 @@ namespace Opc.Ua
         /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
         public string ApplicationName { get; set; }
 
@@ -157,6 +159,7 @@ namespace Opc.Ua
         /// A unique identifier for the application instance.
         /// </summary>
         /// <value>The application URI.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
         public string ApplicationUri { get; set; }
 
@@ -164,6 +167,7 @@ namespace Opc.Ua
         /// A unique identifier for the product.
         /// </summary>
         /// <value>The product URI.</value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 2)]
         public string ProductUri { get; set; }
 
@@ -171,6 +175,7 @@ namespace Opc.Ua
         /// The type of application.
         /// </summary>
         /// <value>The type of the application.</value>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = true, Order = 3)]
         public ApplicationType ApplicationType { get; set; }
 
@@ -178,6 +183,7 @@ namespace Opc.Ua
         /// The security configuration for the application.
         /// </summary>
         /// <value>The security configuration.</value>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 4)]
         public SecurityConfiguration SecurityConfiguration
         {
@@ -200,6 +206,7 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         /// <value>The transport quotas.</value>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
         public TransportQuotas TransportQuotas { get; set; }
 
@@ -207,6 +214,7 @@ namespace Opc.Ua
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
+        [DataTypeField(Order = 6)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
@@ -214,6 +222,7 @@ namespace Opc.Ua
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
+        [DataTypeField(Order = 7)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
@@ -221,6 +230,7 @@ namespace Opc.Ua
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
+        [DataTypeField(Order = 8)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
@@ -228,6 +238,7 @@ namespace Opc.Ua
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         /// <value>The extensions.</value>
+        [DataTypeField(Order = 9)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public ArrayOf<XmlElement> Extensions
         {
@@ -239,6 +250,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         /// <value>The trace configuration.</value>
+        [DataTypeField(Order = 10)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
@@ -246,6 +258,7 @@ namespace Opc.Ua
         /// Disabling / enabling high resolution clock
         /// </summary>
         /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 11)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock { get; set; }
 
@@ -2396,6 +2409,7 @@ namespace Opc.Ua
         private string m_storePath;
     }
 
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
@@ -2934,6 +2948,7 @@ namespace Opc.Ua
     /// <summary>
     /// The type of binary encoding support allowed by a channel.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public enum BinaryEncodingSupport
     {
