@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -53,6 +54,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static Role AuthenticatedUser { get; } =
             new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
+
+        /// <summary>
+        /// The Role is allowed to browse and read non-security related Nodes.
+        /// </summary>
+        public static Role TrustedApplication { get; } =
+            new Role(ObjectIds.WellKnownRole_TrustedApplication, BrowseNames.WellKnownRole_TrustedApplication);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
@@ -191,10 +198,17 @@ namespace Opc.Ua.Server
         {
             m_identity = identity;
             Roles = roles;
+
+            if (identity is RoleBasedIdentity roleBasedIdentity)
+            {
+                Roles = roleBasedIdentity.Roles.Concat(roles);
+            }
+
             GrantedRoleIds = identity.GrantedRoleIds
                 .AddItems(roles
-                .Where(role => role != null)
+                .Where(role => role != null && !role.RoleId.IsNull)
                 .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
+                .Where(roleID => !identity.GrantedRoleIds.Contains(roleID))
                 .ToArrayOf());
         }
 
