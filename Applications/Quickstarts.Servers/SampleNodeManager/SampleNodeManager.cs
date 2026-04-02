@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -259,18 +260,6 @@ namespace Opc.Ua.Sample
             }
 
             return found;
-        }
-
-        /// <summary>
-        /// Adds all encodeable types defined in a node manager to the server factory.
-        /// </summary>
-        /// <param name="assembly">The assembly which contains the encodeable types.</param>
-        /// <param name="filter">A filter with which the FullName of the type must start.</param>
-        protected void AddEncodeableNodeManagerTypes(Assembly assembly, string filter)
-        {
-            Server.Factory.AddEncodeableTypes(assembly
-                .GetExportedTypes()
-                .Where(t => t.FullName.StartsWith(filter, StringComparison.Ordinal)));
         }
 
         /// <summary>

@@ -940,6 +940,8 @@ namespace Opc.Ua
         /// <param name="value">The value to encode within the variant</param>
         [OverloadResolutionPriority(0)]
         [Obsolete("Use Variant.From or concrete typed constructor.")]
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public Variant(object value)
         {
             VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant);
@@ -1052,16 +1054,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Copy and while cloneing the inner value
+        /// Copy the variant and if needed the inner value(s). Not using clone to
+        /// prevent boxing, see <see cref="CoreUtils.Clone(Variant)"/>.
         /// </summary>
-        /// <returns></returns>
         public Variant Copy()
         {
-            if (m_value is null)
+            if (m_value is not null)
             {
-                return this;
+                if (TypeInfo.IsScalar)
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObject()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValue()));
+                    }
+                }
+                else if (TypeInfo.IsArray)
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValueArray()));
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                        case BuiltInType.Variant:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                    }
+                }
+                else
+                {
+                    switch (TypeInfo.BuiltInType)
+                    {
+                        case BuiltInType.ExtensionObject:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectMatrix()));
+                        case BuiltInType.DataValue:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValueMatrix()));
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                        case BuiltInType.Variant:
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                    }
+                }
             }
-            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(m_value));
+            return this; // Just copy the value type as-is
         }
 
         /// <summary>
@@ -7646,6 +7687,8 @@ namespace Opc.Ua
             {
                 return [this];
             }
+
+            // Enumerate all elements in an array
             if (TypeInfo.IsArray)
             {
                 switch (TypeInfo.BuiltInType)
@@ -7703,10 +7746,71 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                     case BuiltInType.Enumeration:
                     case BuiltInType.Variant:
-                        return GetVariantArray();
+                        return GetVariantArray(); // TODO: Variant arrays with variant matrix/arrays
                 }
             }
-            // TODO: Enumerate matrix
+
+            if (TypeInfo.IsMatrix)
+            {
+                // Enumerate all elements in a matrix
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                        return GetBooleanMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.SByte:
+                        return GetSByteMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Byte:
+                        return GetByteMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Int16:
+                        return GetInt16Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.UInt16:
+                        return GetUInt16Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Int32:
+                        return GetInt32Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.UInt32:
+                        return GetUInt32Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Int64:
+                        return GetInt64Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.UInt64:
+                        return GetUInt64Matrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Float:
+                        return GetFloatMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Double:
+                        return GetDoubleMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.String:
+                        return GetStringMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.DateTime:
+                        return GetDateTimeMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.Guid:
+                        return GetGuidMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.ByteString:
+                        return GetByteStringMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.XmlElement:
+                        return GetXmlElementMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.NodeId:
+                        return GetNodeIdMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.ExpandedNodeId:
+                        return GetExpandedNodeIdMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.StatusCode:
+                        return GetStatusCodeMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.QualifiedName:
+                        return GetQualifiedNameMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.LocalizedText:
+                        return GetLocalizedTextMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.ExtensionObject:
+                        return GetExtensionObjectMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.DataValue:
+                        return GetDataValueMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
+                    case BuiltInType.DiagnosticInfo:
+                        return [];
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.Variant:
+                        return GetVariantMatrix().ToArrayOf(); // TODO: Variant matrices with variant matrix/arrays
+                }
+            }
             return [];
         }
 

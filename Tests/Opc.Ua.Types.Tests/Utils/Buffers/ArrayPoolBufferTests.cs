@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Buffers.Tests
                     buffer = sequence.ToArray();
 
                     // Assert
-                    Assert.That(buffer.Length, Is.EqualTo(length));
+                    Assert.That(buffer, Has.Length.EqualTo(length));
                     Assert.That(sequence.Length, Is.EqualTo(length));
                 }
             }
@@ -150,7 +150,7 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             // Assert
             Assert.That(sequence.Length, Is.EqualTo(length));
-            Assert.That(buffer.Length, Is.EqualTo(length));
+            Assert.That(buffer, Has.Length.EqualTo(length));
 
             for (int i = 0; i < buffer.Length; i++)
             {

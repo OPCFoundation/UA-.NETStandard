@@ -50,7 +50,7 @@ namespace Opc.Ua.UnitTests
         public void WriteBadVariantThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 #pragma warning disable CS0618 // Type or member is obsolete
             var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -72,7 +72,7 @@ namespace Opc.Ua.UnitTests
         public void WriteBadVariantValuesThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var badVariant = new Variant(
                 default,
                 TypeInfo.Arrays.DiagnosticInfo,
@@ -95,7 +95,7 @@ namespace Opc.Ua.UnitTests
         public void WriteBooleanValuesWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxArrayLength = 4
             };
@@ -118,7 +118,7 @@ namespace Opc.Ua.UnitTests
         public void WriteByteStringWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxByteStringLength = 4
             };
@@ -142,7 +142,7 @@ namespace Opc.Ua.UnitTests
         public void WriteByteValuesWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxArrayLength = 4
             };
@@ -166,7 +166,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfosWithNestingLevelsExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };
@@ -198,7 +198,7 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalDateTime()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             DateTime expected = (DateTime)DateTime.UtcNow;
             var buffers = new PooledBufferWriter();
 
@@ -217,7 +217,7 @@ namespace Opc.Ua.UnitTests
         public void WriteStringWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxStringLength = 4
             };
@@ -240,7 +240,7 @@ namespace Opc.Ua.UnitTests
         public void WriteStructureThrowsIfNestingLimitsExceeded()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };
@@ -263,7 +263,7 @@ namespace Opc.Ua.UnitTests
         public void WriteVariantThrowsIfNestingLimitsExceeded()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };

@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Attribute write mask
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AttributeWriteMask : uint
     {

@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Enum value
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class EnumValueType : IEncodeable, IJsonEncodeable, IEquatable<EnumValueType>
     {
         /// <summary>

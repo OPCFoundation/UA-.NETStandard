@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -703,6 +703,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use UpdateExtension with telemetry context.")]
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
@@ -716,6 +718,10 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use ParseExtension with telemetry context.")]
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName)
@@ -812,6 +818,10 @@ namespace Opc.Ua
         /// Returns the public static field names for a class.
         /// </summary>
         [Obsolete("Unused and will be removed in future versions.")]
+        [RequiresUnreferencedCode(
+            "Uses reflection to access public fields.")]
+        [RequiresDynamicCode(
+            "Uses reflection to access public fields.")]
         public static string[] GetFieldNames(Type systemType)
         {
             FieldInfo[] fields = systemType.GetFields(BindingFlags.Public | BindingFlags.Static);
@@ -861,6 +871,10 @@ namespace Opc.Ua
         /// Returns the numeric constant associated with a name.
         /// </summary>
         [Obsolete("Unused and will be removed in future versions.")]
+        [RequiresUnreferencedCode(
+            "Uses reflection to access public fields.")]
+        [RequiresDynamicCode(
+            "Uses reflection to access public fields.")]
         public static uint GetIdentifier(string name, Type constants)
         {
             foreach (FieldInfo field in constants.GetFields(

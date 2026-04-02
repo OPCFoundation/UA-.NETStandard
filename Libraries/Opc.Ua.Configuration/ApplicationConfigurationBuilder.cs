@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -1100,11 +1101,26 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value)
         {
             ApplicationConfiguration.UpdateExtension<T>(elementName, value);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        [Experimental("UA_NETStandard_1")]
+        public IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value,
+            Action<IEncoder, T> encoderFunc)
+        {
+            ApplicationConfiguration.UpdateExtension<T>(elementName, value, encoderFunc);
             return this;
         }
 
@@ -1366,8 +1382,12 @@ namespace Opc.Ua.Configuration
                 defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
             }
 
+#if NET5_0_OR_GREATER
+            foreach (MessageSecurityMode securityMode in Enum.GetValues<MessageSecurityMode>())
+#else
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode)
                 .GetEnumValues())
+#endif
             {
                 ServerSecurityPolicyCollection policies = ApplicationConfiguration
                     .ServerConfiguration

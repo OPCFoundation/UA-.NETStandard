@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Security
 {
@@ -41,6 +42,10 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <returns>The security configuration.</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         SecuredApplication ReadConfiguration(string filePath);
 
         /// <summary>
@@ -48,6 +53,8 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <param name="configuration">The configuration.</param>
+        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
+        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         void WriteConfiguration(string filePath, SecuredApplication configuration);
     }
 
@@ -63,6 +70,10 @@ namespace Opc.Ua.Security
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The new instance.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses Type.GetType to load types by name.")]
+        [RequiresDynamicCode(
+            "Uses Type.GetType to load types by name.")]
         public static ISecurityConfigurationManager CreateInstance(string typeName, ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(typeName))

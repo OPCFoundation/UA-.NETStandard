@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -62,16 +64,28 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public void AddField(StructureField field, Type fieldType, int order, bool allowSubTypes, bool isEnum)
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Complex types are dynamically built via Reflection.Emit.")]
+        public void AddField(StructureField field, IType fieldType, int order, bool allowSubTypes)
         {
+            Type typeOfField = fieldType.Type;
+            bool isEnum = fieldType is IEnumeratedType || typeOfField.IsEnum;
+            if (field.ValueRank == ValueRanks.OneDimension)
+            {
+                typeOfField = typeOfField.MakeArrayType();
+            }
+            else if (field.ValueRank >= ValueRanks.TwoDimensions)
+            {
+                typeOfField = typeOfField.MakeArrayType(field.ValueRank);
+            }
             FieldBuilder fieldBuilder = m_structureBuilder.DefineField(
                 "_" + field.Name,
-                fieldType,
+                typeOfField,
                 FieldAttributes.Private);
             PropertyBuilder propertyBuilder = m_structureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
-                fieldType,
+                typeOfField,
                 null);
             const System.Reflection.MethodAttributes methodAttributes =
                 System.Reflection.MethodAttributes.Public |
@@ -82,7 +96,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 "set_" + field.Name,
                 methodAttributes,
                 null,
-                [fieldType]);
+                [typeOfField]);
             ILGenerator setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
@@ -102,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
             MethodBuilder getBuilder = m_structureBuilder.DefineMethod(
                 "get_" + field.Name,
                 methodAttributes,
-                fieldType,
+                typeOfField,
                 Type.EmptyTypes);
             ILGenerator getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
@@ -116,28 +130,32 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public Type CreateType()
+        public IEncodeableType CreateType()
         {
             Type complexType = m_structureBuilder.CreateType();
             m_structureBuilder = null;
-            return complexType;
+            return ReflectionBasedType.From(complexType) as IEncodeableType;
         }
 
         /// <inheritdoc/>
-        public Type GetStructureType(int valueRank)
+        public IEncodeableType GetStructureType()
         {
-            if (valueRank == ValueRanks.Scalar)
+            return new Stub(m_structureBuilder);
+        }
+
+        /// <summary>
+        /// Stub for not fully built encodeable types
+        /// </summary>
+        private record class Stub(Type Type) : IEncodeableType
+        {
+            /// <inheritdoc/>
+            public XmlQualifiedName XmlName
+                => throw new NotImplementedException();
+
+            /// <inheritdoc/>
+            public IEncodeable CreateInstance()
             {
-                return m_structureBuilder;
-            }
-            else if (valueRank >= ValueRanks.OneDimension)
-            {
-                return m_structureBuilder.MakeArrayType(valueRank);
-            }
-            else
-            {
-                // invalid
-                return null;
+                throw new NotImplementedException();
             }
         }
 

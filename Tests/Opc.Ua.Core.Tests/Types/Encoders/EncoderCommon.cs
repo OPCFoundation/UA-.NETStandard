@@ -38,8 +38,8 @@ using System.Text;
 using System.Threading;
 using System.Xml;
 using Microsoft.IO;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
@@ -71,6 +71,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kMaxArrayLength = 1024 * 64;
         protected const int kTestBlockSize = 0x1000;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
+
+        private static readonly JsonSerializerOptions s_prettifyOptions = new()
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            AllowTrailingCommas = true
+        };
+
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected IServiceMessageContext Context { get; private set; }
@@ -84,7 +92,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            Context = new ServiceMessageContext(Telemetry) { MaxArrayLength = kMaxArrayLength };
+            Context = new ServiceMessageContext(Telemetry, EncodeableFactory.Create())
+            {
+                MaxArrayLength = kMaxArrayLength
+            };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
@@ -201,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType} Encoding:{encoding}";
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
-            DataValue expected = CreateDataValue(builtInType, data);
+            DataValue expected = CreateDataValue(data);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
@@ -234,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
-            DataValue expected = CreateDataValue(builtInType, data);
+            DataValue expected = CreateDataValue(data);
             Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
 
             string formatted = null;
@@ -319,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             try
             {
                 string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-                Type type = TypeInfo.GetSystemType(builtInType, -1);
+                IBuiltInType type = TypeInfo.GetSystemType(builtInType);
                 TestContext.Out.WriteLine(encodeInfo);
 
                 byte[] buffer;
@@ -330,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             encoderType,
                             Context,
                             encoderStream,
-                            type,
+                            type?.Type,
                             jsonEncodingType))
                     {
                         encoder.WriteVariantValue(builtInType.ToString(), expected);
@@ -352,9 +363,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+                using (IDecoder decoder = CreateDecoder(
+                    encoderType,
+                    useXmlParser,
+                    Context,
+                    decoderStream,
+                    type?.Type))
                 {
-                    result = decoder.ReadVariantValue(builtInType.ToString(), expected.TypeInfo);
+                    result = decoder.ReadVariantValue(
+                        builtInType.ToString(),
+                        expected.TypeInfo);
                 }
 
                 Assert.That(result, Is.EqualTo(expected), encodeInfo);
@@ -426,14 +444,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Result:");
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings
-                {
-                    CommentHandling = CommentHandling.Ignore,
-                    LineInfoHandling = LineInfoHandling.Ignore
-                };
-                var resultParsed = JObject.Parse(result, jsonLoadSettings);
-                var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                var resultParsed = JsonNode.Parse(result,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                var expectedParsed = JsonNode.Parse(expected,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
                 Assert.That(areEqual, Is.True, encodeInfo);
             }
             catch
@@ -518,18 +533,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             try
             {
-                using var stringWriter = new StringWriter();
-                using var stringReader = new StringReader(json);
-                using var jsonReader = new JsonTextReader(stringReader);
-                using var jsonWriter = new JsonTextWriter(stringWriter)
-                {
-                    FloatFormatHandling = FloatFormatHandling.String,
-                    StringEscapeHandling = StringEscapeHandling.EscapeHtml,
-                    Formatting = Newtonsoft.Json.Formatting.Indented,
-                    Culture = System.Globalization.CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
-                string formattedJson = stringWriter.ToString();
+                var jsonDocument = JsonDocument.Parse(json,
+                    new JsonDocumentOptions { AllowTrailingCommas = true });
+                string formattedJson = JsonSerializer.Serialize(jsonDocument, s_prettifyOptions);
                 if (outputFormatted)
                 {
                     TestContext.Out.WriteLine(formattedJson);
@@ -627,10 +633,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Wrap Variant in a DataValue.
         /// </summary>
-        protected DataValue CreateDataValue(BuiltInType builtInType, Variant variant)
+        protected DataValue CreateDataValue(Variant variant)
         {
-            var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            var sourceTimeStamp = (DateTimeUtc)DataGenerator.GetRandom(BuiltInType.DateTime);
+            StatusCode statusCode = DataGenerator.GetRandomStatusCode();
+            DateTimeUtc sourceTimeStamp = DataGenerator.GetRandomDateTime();
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
@@ -1069,9 +1075,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return m_inner.TryGetEncodeableType(typeId, out encodeableType);
             }
 
-            public bool TryGetEncodeableType<T>([NotNullWhen(true)] out IEncodeableType encodeableType)
+            public bool TryGetEnumeratedType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEnumeratedType enumeratedType)
             {
-                return m_inner.TryGetEncodeableType<T>(out encodeableType);
+                return m_inner.TryGetEnumeratedType(typeId, out enumeratedType);
+            }
+
+            public bool TryGetType(XmlQualifiedName xmlName, [NotNullWhen(true)] out IType type)
+            {
+                return m_inner.TryGetType(xmlName, out type);
             }
 
             private readonly IEncodeableFactory m_inner;

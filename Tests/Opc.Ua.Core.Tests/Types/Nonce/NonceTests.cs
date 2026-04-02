@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 Assert.That(nonce, Is.Not.Null);
                 Assert.That(nonce.Data, Is.Not.Null);
-                Assert.That(nonce.Data.Length, Is.EqualTo(nonceLength));
+                Assert.That(nonce.Data, Has.Length.EqualTo(nonceLength));
             }
         }
 
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 Assert.That(nonceByData, Is.Not.Null);
                 Assert.That(nonceByData.Data, Is.Not.Null);
-                Assert.That(nonceByData.Data.Length, Is.EqualTo(nonceLength));
+                Assert.That(nonceByData.Data, Has.Length.EqualTo(nonceLength));
                 Assert.That(nonceByLen.Data, Is.EqualTo(nonceByData.Data));
             }
         }

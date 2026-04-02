@@ -271,7 +271,7 @@ namespace Opc.Ua.Gds.Tests
                         validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                 }
                 long validSize = GetEncodedSize(validTrustList);
-                Assert.That(validSize < customMaxTrustListSize, Is.True);
+                Assert.That(validSize, Is.LessThan(customMaxTrustListSize));
                 TestContext.Out.WriteLine($"Valid trust list created with size {validSize}");
 
                 bool reboot = await m_pushClient.PushClient.UpdateTrustListAsync(validTrustList).ConfigureAwait(false);

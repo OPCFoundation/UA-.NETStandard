@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Tests
         public static readonly object[] CPFixtureArgs = [new object[] { Utils.UriSchemeOpcTcp }];
 
         [DatapointSource]
-        private IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
+        public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
         {
             yield return new ManagedBrowseTestDataProvider
             {

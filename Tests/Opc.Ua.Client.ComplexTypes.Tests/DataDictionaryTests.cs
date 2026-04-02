@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
                 if (dataDictionaryId == dictionaryIds[0])
                 {
-                    Assert.That(dictionary.DataTypes.Count, Is.GreaterThan(160));
+                    Assert.That(dictionary.DataTypes, Has.Count.GreaterThan(160));
                     Assert.That(
                         dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union),
                         Is.True);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
-                    Assert.That(dictionary.DataTypes.Count >= 10, Is.True);
+                    Assert.That(dictionary.DataTypes, Has.Count.GreaterThanOrEqualTo(10));
                     Assert.That(
                         dictionary.TypeDictionary.TargetNamespace,
                         Is.EqualTo("http://test.org/UA/Data/"));

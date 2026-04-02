@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            Context = new ServiceMessageContext(Telemetry);
+            Context = ServiceMessageContext.CreateEmpty(Telemetry);
             NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);

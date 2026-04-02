@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
-using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -231,6 +231,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum array
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
         {
             if (values.IsNull)
@@ -253,6 +257,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum matrix
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
         {
             if (values.IsNull)

@@ -27,36 +27,55 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines well-known namespaces.
+    /// Data type field defines the fields of the data type.
     /// </summary>
-    internal static class Namespaces
+    [AttributeUsage(
+        AttributeTargets.Property,
+        AllowMultiple = false,
+        Inherited = false)]
+    public sealed class DataTypeFieldAttribute : Attribute
     {
         /// <summary>
-        /// The XML Schema Instance namespace.
+        /// Order during encoding or decoding.
         /// </summary>
-        public const string XmlSchemaInstance = "http://www.w3.org/2001/XMLSchema-instance";
+        public int Order { get; set; }
 
         /// <summary>
-        /// The URI for the built-in types namespace.
+        /// The name of the field in the structure if
+        /// different from the name of the property. Used
+        /// during serialization and deserialization.
         /// </summary>
-        public const string OpcUaBuiltInTypes = OpcUa + "BuiltInTypes/";
+        public string? Name { get; set; }
 
         /// <summary>
-        /// The URI for the OPC Binary Schema.
+        /// If explicitly set to <c>true</c>, the field is encoded using
+        /// <c>WriteEncodeable</c>/<c>ReadEncodeable</c> (exact type).
+        /// If explicitly set to <c>false</c>, the field is encoded using
+        /// <c>WriteEncodeableAsExtensionObject</c>/<c>ReadEncodeableAsExtensionObject</c>
+        /// (allows subtyping).
+        /// If not set (null), the generator decides automatically:
+        /// <c>WriteEncodeable</c> is used if the field type is sealed
+        /// and does not derive from another IEncodeable base type;
+        /// otherwise <c>WriteEncodeableAsExtensionObject</c> is used.
         /// </summary>
-        public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
+        /// <remarks>
+        /// Only applicable to fields whose type implements
+        /// <see cref="IEncodeable"/>. Ignored for built-in types,
+        /// enums, and arrays.
+        /// </remarks>
+        public object? ForceEncodeable { get; set; }
 
         /// <summary>
-        /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
+        /// Indicates whether the field is required.
+        /// Reserved for future use in optional-field structures.
         /// </summary>
-        public const string OpcUa = "http://opcfoundation.org/UA/";
-
-        /// <summary>
-        /// The URI for the OpcUaXsd namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
+        public bool IsRequired { get; set; }
     }
 }

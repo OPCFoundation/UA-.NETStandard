@@ -28,18 +28,20 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// Factory class for the complex type builder.
     /// </summary>
-    public abstract class IComplexTypeFactory
+    public interface IComplexTypeFactory
     {
         /// <summary>
         /// Create a new type builder instance for this factory.
         /// </summary>
-        public abstract IComplexTypeBuilder Create(
+        IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
             string moduleName = null);
@@ -47,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Types defined in the factory.
         /// </summary>
-        public abstract Type[] GetTypes();
+        IReadOnlyList<IType> GetTypes();
     }
 
     /// <summary>
@@ -70,7 +72,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition);
+        IEnumeratedType AddEnumType(
+            QualifiedName typeName,
+            EnumDefinition enumDefinition);
 
         /// <summary>
         /// Create a complex type from a StructureDefinition.
@@ -95,23 +99,22 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId xmlEncodingId);
 
         /// <summary>
-        /// Create a property field of a class with get and set.
+        /// Add a field of a class with get and set.
         /// </summary>
         void AddField(
             StructureField field,
-            Type fieldType,
+            IType fieldType,
             int order,
-            bool allowSubTypes,
-            bool isEnum = false);
+            bool allowSubTypes);
 
         /// <summary>
         /// The type of the structure of the field.
         /// </summary>
-        Type GetStructureType(int valueRank);
+        IEncodeableType GetStructureType();
 
         /// <summary>
         /// Finish the type creation and returns the new type.
         /// </summary>
-        Type CreateType();
+        IEncodeableType CreateType();
     }
 }

@@ -274,11 +274,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(carType, Is.Not.Null);
+            Assert.That(carType.Type, Is.Not.Null);
+            var carTypeActivator = carType as IEncodeableType;
+            Assert.That(carTypeActivator, Is.Not.Null);
 
-            var car = (BaseComplexType)Activator.CreateInstance(carType);
+            var car = (BaseComplexType)carTypeActivator.CreateInstance();
 
             TestContext.Out.WriteLine(car.ToString());
 
@@ -289,9 +292,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -302,7 +304,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    carType))
+                    carType.Type))
                 {
                     encoder.WriteEncodeable("Car", car);
                 }
@@ -328,7 +330,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
@@ -471,11 +473,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);
+            Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -530,9 +533,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -543,7 +545,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    arraysTypes))
+                    arraysTypes.Type))
                 {
                     encoder.WriteEncodeable("Arrays", arrays);
                 }
@@ -569,7 +571,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
@@ -662,17 +664,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, telemetry);
-            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);
+            Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
             Assert.That(testType, Is.Not.Null);
 
             TestContext.Out.WriteLine(testType.ToString());
 
             Variant value;
-            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
+            IType valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -697,7 +700,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType)));
+                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType.Type)));
                 }
             }
             else
@@ -713,7 +716,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     int[] indices = new int[valueRank];
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        object rndValue = DataGenerator.GetRandom(builtInType);
+                        object rndValue = GetRandom(builtInType);
                         array.SetValue(rndValue, indices);
                         Iterate(dimensions, indices);
                     }
@@ -721,7 +724,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    var array = Array.CreateInstance(valueType, dimensions);
+                    var array = Array.CreateInstance(valueType.Type, dimensions);
                     int[] indices = new int[valueRank];
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -729,16 +732,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         Iterate(dimensions, indices);
                     }
                     // Create a matrix of valueType from array and initialize the variant using Variant.FromStructure
-                    value = CreateVariantForStructureMatrix(valueType, array);
+                    value = CreateVariantForStructureMatrix(valueType.Type, array);
                 }
             }
             testType[field.Name] = value;
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderContext = new ServiceMessageContext(telemetry)
+            var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
-                Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris
             };
 
@@ -749,7 +751,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json,
                     encoderContext,
                     encoderStream,
-                    arraysTypes))
+                    arraysTypes.Type))
                 {
                     encoder.WriteEncodeable("TestType", testType);
                 }
@@ -775,7 +777,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetDataTypeDefinitionsForDataType(
                     dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
-            Assert.That(definitions.Count, Is.EqualTo(1));
+            Assert.That(definitions, Has.Count.EqualTo(1));
             Assert.That(definitions[dataTypeNode.NodeId], Is.EqualTo(structure));
         }
 
@@ -869,7 +871,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
             if (builtInType != BuiltInType.Null)
             {
-                return DataGenerator.GetRandom(builtInType);
+                return GetRandom(builtInType);
             }
             if (valueType == DataTypeIds.BuildInfo)
             {
@@ -886,6 +888,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             Assert.Fail($"Unexpected ValueType {valueType}");
             return null;
+        }
+
+        private object GetRandom(BuiltInType expectedType)
+        {
+            switch (expectedType)
+            {
+                case BuiltInType.DiagnosticInfo:
+                    return DataGenerator.GetRandomDiagnosticInfo();
+                case BuiltInType.Null:
+                    return null;
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return DataGenerator.GetRandomScalar(expectedType);
+                default:
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+            }
         }
 
         private static void Iterate(int[] dimensions, int[] indices)
@@ -913,7 +933,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
             TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
-            factory.AddEncodeableType(internalNodeId, enumType);
+            factory.AddType(internalNodeId, enumType);
         }
 
         private static ExpandedNodeId NormalizeExpandedNodeId(

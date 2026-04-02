@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -74,6 +75,7 @@ namespace Opc.Ua.Configuration
         /// Gets or sets the type of configuration file.
         /// </summary>
         /// <value>The type of configuration file.</value>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
         Type ConfigurationType { get; set; }
 
         /// <summary>

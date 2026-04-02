@@ -248,7 +248,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(longString.Length + 1 + 5 + 1 + longString.Length));
+            Assert.That(result, Has.Length.EqualTo(longString.Length + 1 + 5 + 1 + longString.Length));
             Assert.That(result, Does.StartWith(longString));
             Assert.That(result, Does.EndWith(longString));
         }

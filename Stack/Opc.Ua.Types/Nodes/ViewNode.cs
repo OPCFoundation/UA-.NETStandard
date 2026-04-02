@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// View node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ViewNode : InstanceNode, IView
     {
         /// <summary>

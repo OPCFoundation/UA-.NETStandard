@@ -343,7 +343,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(5));
+            Assert.That(array!, Has.Length.EqualTo(5));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
@@ -358,7 +358,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(6));
+            Assert.That(array!, Has.Length.EqualTo(6));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int[,,,,,,]? array = (int[,,,,,,]?)matrix;
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(7));
+            Assert.That(array!, Has.Length.EqualTo(7));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
@@ -387,7 +387,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(8));
+            Assert.That(array!, Has.Length.EqualTo(8));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
@@ -402,7 +402,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(9));
+            Assert.That(array!, Has.Length.EqualTo(9));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
 
@@ -417,7 +417,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(array, Is.Not.Null);
             MatrixOf<int> matrix2 = array;
 
-            Assert.That(array!.Length, Is.EqualTo(10));
+            Assert.That(array!, Has.Length.EqualTo(10));
             Assert.That(matrix2.ToArrayOf().Span.ToArray(), Is.EqualTo(expected));
         }
     }

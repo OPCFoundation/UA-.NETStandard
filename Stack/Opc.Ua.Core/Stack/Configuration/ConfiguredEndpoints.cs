@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -204,17 +204,16 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
-                using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
-                var endpoints = serializer.ReadObject(reader) as ConfiguredEndpointCollection;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
+                var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
+                var endpoints = new ConfiguredEndpointCollection();
+                endpoints.Decode(parser);
 
-                if (endpoints != null)
+                foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
-                    foreach (ConfiguredEndpoint endpoint in endpoints)
-                    {
-                        endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
-                                endpoint.Description.TransportProfileUri);
-                    }
+                    endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
+                            endpoint.Description.TransportProfileUri);
                 }
 
                 return endpoints;
@@ -254,38 +253,12 @@ namespace Opc.Ua
         /// </summary>
         public void Save(Stream ostrm)
         {
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, this);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new ConfiguredEndpointCollection
-            {
-                m_filepath = m_filepath,
-                m_knownHosts = [.. m_knownHosts],
-                DefaultConfiguration = (EndpointConfiguration)DefaultConfiguration.MemberwiseClone()
-            };
-
-            foreach (ConfiguredEndpoint endpoint in m_endpoints)
-            {
-                var clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
-                clonedEndpoint.Collection = clone;
-                clone.m_endpoints.Add(clonedEndpoint);
-            }
-
-            return clone;
+            var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
+            this.Encode(encoder);
+            encoder.Close();
         }
 
         /// <summary>
@@ -578,7 +551,7 @@ namespace Opc.Ua
                 if (endpointUrl != null)
                 {
                     ConfiguredEndpoint endpoint = Create(endpointUrl);
-                    endpoint.Description.Server = (ApplicationDescription)server.MemberwiseClone();
+                    endpoint.Description.Server = CoreUtils.Clone(server);
                     Add(endpoint);
                 }
             }
@@ -587,8 +560,7 @@ namespace Opc.Ua
             {
                 foreach (ConfiguredEndpoint endpointToUpdate in GetEndpoints(serverUri))
                 {
-                    endpointToUpdate.Description.Server = (ApplicationDescription)server
-                        .MemberwiseClone();
+                    endpointToUpdate.Description.Server = CoreUtils.Clone(server);
                 }
             }
         }
@@ -905,22 +877,6 @@ namespace Opc.Ua
             Update(configuration);
         }
 
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the endpoint.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new ConfiguredEndpoint { Collection = Collection };
-            clone.Update(this);
-            return clone;
-        }
-
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -977,8 +933,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            m_description = (EndpointDescription)endpoint.Description.MemberwiseClone();
-            m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
+            m_description = CoreUtils.Clone(endpoint.Description);
+            m_configuration = CoreUtils.Clone(endpoint.Configuration);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -993,7 +949,7 @@ namespace Opc.Ua
 
             if (endpoint.UserIdentity != null)
             {
-                UserIdentity = (UserIdentityToken)endpoint.UserIdentity.MemberwiseClone();
+                UserIdentity = CoreUtils.Clone(endpoint.UserIdentity);
             }
         }
 
@@ -1008,7 +964,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(description));
             }
 
-            m_description = (EndpointDescription)description.MemberwiseClone();
+            m_description = CoreUtils.Clone(description);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -1038,7 +994,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
+            m_configuration = CoreUtils.Clone(configuration);
 
             BinaryEncodingSupport binaryEncodingSupport = m_description.EncodingSupport;
 
@@ -1288,6 +1244,8 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Null otherwise.</returns>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
@@ -1300,6 +1258,8 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
         /// <param name="telemetry">The telemetry context.</param>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);

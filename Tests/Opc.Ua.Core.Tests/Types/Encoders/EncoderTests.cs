@@ -35,9 +35,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Xml;
-using Newtonsoft.Json;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -259,7 +257,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             // ensure different sized arrays contain different data set
             SetRandomSeed(arrayLength);
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayLength,
                 useBoundaryValues,
@@ -287,7 +285,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0, false, true);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0, false, true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -368,7 +366,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToCompactJson(
             BuiltInType builtInType)
         {
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -390,7 +388,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int arrayLength)
         {
             SetRandomSeed(arrayLength);
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayLength,
                 useBoundaryValues);
@@ -412,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToVerboseJson(
             BuiltInType builtInType)
         {
-            Variant randomData = DataGenerator.GetRandomArrayVariant(builtInType, 0);
+            Variant randomData = DataGenerator.GetRandomArray(builtInType, 0);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -458,8 +456,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             encoder.WriteByteString("ByteString1", ByteString.From([0, 1, 2, 3, 4, 5]).Slice(1, 3));
             encoder.WriteByteString("ByteString2", ByteString.Empty);
+#if !SPAN_SUPPORT
+            encoder.WriteByteString("ByteString3", default);
+#else
             encoder.WriteByteString("ByteString3", default(ByteString));
-#if SPAN_SUPPORT
             var span = new ReadOnlySpan<byte>([0, 1, 2, 3, 4, 5], 1, 3);
             encoder.WriteByteString("ByteString4", span);
 
@@ -509,12 +509,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using var stream = new MemoryStream();
             string text;
-            using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(Telemetry), true))
+            using (var encoder = new BinaryEncoder(stream, ServiceMessageContext.Create(Telemetry), true))
             {
                 text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
-            using var decoder = new BinaryDecoder(stream, new ServiceMessageContext(Telemetry));
+            using var decoder = new BinaryDecoder(stream, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -529,13 +529,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var encoder = new XmlEncoder(
                     new XmlQualifiedName("ByteStrings", Ua.Types.Namespaces.OpcUaXsd),
                     writer,
-                    new ServiceMessageContext(Telemetry)))
+                    ServiceMessageContext.Create(Telemetry)))
             {
                 string text = WriteByteStringData(encoder);
             }
             stream.Position = 0;
             using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null, reader, new ServiceMessageContext(Telemetry));
+            using var decoder = new XmlDecoder(null, reader, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -547,13 +547,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string text;
             using (var encoder = new JsonEncoder(
                 stream,
-                new ServiceMessageContext(Telemetry)))
+                ServiceMessageContext.Create(Telemetry)))
             {
                 text = WriteByteStringData(encoder);
             }
 
             stream.Position = 0;
-            using var decoder = new JsonDecoder(stream, new ServiceMessageContext(Telemetry));
+            using var decoder = new JsonDecoder(stream, ServiceMessageContext.Create(Telemetry));
             ReadByteStringData(decoder);
         }
 
@@ -574,14 +574,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-#pragma warning disable CS0618 // Type or member is obsolete
-            Array randomData = DataGenerator.GetRandomArray(
-                builtInType,
-                false,
-                arrayDimension,
-                true);
-            var variant = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.OneDimension));
-#pragma warning restore CS0618 // Type or member is obsolete
+            Variant variant = DataGenerator.GetRandomArray(builtInType, arrayDimension, false, true);
+
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -607,12 +601,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-            Variant randomData = DataGenerator.GetRandomArrayVariant(
+            Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
                 arrayDimension);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            IBuiltInType type = TypeInfo.GetSystemType(builtInType);
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(randomData);
@@ -626,7 +620,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoderType,
                         Context,
                         encoderStream,
-                        type,
+                        type?.Type,
                         jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -643,9 +637,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                useXmlParser,
+                Context,
+                decoderStream,
+                type?.Type))
             {
-                result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
+                result = decoder.ReadVariantValue(
+                    builtInType.ToString(),
+                    randomData.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -681,7 +682,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false, true);
+            Variant variant = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions, false, true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -710,7 +711,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant variant = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions, false);
+            Variant variant = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions, false);
             string json = EncodeDataValue(
                 encoderType,
                 BuiltInType.Variant,
@@ -739,10 +740,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
-            Variant randomData = DataGenerator.GetRandomMatrixVariant(builtInType, elements, dimensions);
+            Variant randomData = DataGenerator.GetRandomMatrix(builtInType, elements, dimensions);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            IBuiltInType type = TypeInfo.GetSystemType(builtInType);
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(randomData);
@@ -755,7 +756,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     encoderType,
                     Context,
                     encoderStream,
-                    type,
+                    type?.Type,
                     jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -772,9 +773,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Variant result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, useXmlParser, Context, decoderStream, type))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                useXmlParser,
+                Context,
+                decoderStream,
+                type?.Type))
             {
-                result = decoder.ReadVariantValue(builtInType.ToString(), randomData.TypeInfo);
+                result = decoder.ReadVariantValue(
+                    builtInType.ToString(),
+                    randomData.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");

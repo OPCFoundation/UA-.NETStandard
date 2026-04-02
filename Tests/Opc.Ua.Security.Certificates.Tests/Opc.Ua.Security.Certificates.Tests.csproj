@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Console" />
     <PackageReference Include="NUnit.Analyzers">

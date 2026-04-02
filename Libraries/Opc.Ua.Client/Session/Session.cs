@@ -33,11 +33,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
@@ -951,11 +949,15 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                DataContractSerializer serializer =
-                    CoreUtils.CreateDataContractSerializer<SessionConfiguration>(MessageContext);
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-                using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-                serializer.WriteObject(writer, sessionConfiguration);
+                IServiceMessageContext context = MessageContext!;
+                using var encoder = new BinaryEncoder(
+                    stream, context, true);
+                encoder.WriteStringArray(
+                    null, context.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(
+                    null, context.ServerUris.ToArrayOf());
+                SessionStateEncoder.EncodeSessionConfiguration(
+                    encoder, sessionConfiguration);
             }
             return sessionConfiguration;
         }
@@ -975,13 +977,18 @@ namespace Opc.Ua.Client
                 subscriptionStateCollection.Add(state);
             }
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, subscriptionStateCollection);
+            IServiceMessageContext context = MessageContext!;
+            using var encoder = new BinaryEncoder(
+                stream, context, true);
+            encoder.WriteStringArray(
+                null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(
+                null, context.ServerUris.ToArrayOf());
+            encoder.WriteInt32(null, subscriptionStateCollection.Count);
+            foreach (SubscriptionState state in subscriptionStateCollection)
+            {
+                SessionStateEncoder.EncodeSubscriptionState(encoder, state);
+            }
         }
 
         /// <inheritdoc/>
@@ -991,24 +998,27 @@ namespace Opc.Ua.Client
             IEnumerable<Type>? knownTypes = null)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            // secure settings
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            settings.CloseInput = true;
-            using var reader = XmlReader.Create(stream, settings);
-            var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
-            if (stateCollection == null)
+            IServiceMessageContext context = MessageContext!;
+            using var decoder = new BinaryDecoder(
+                stream, context, true);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            decoder.SetMappingTables(
+                new NamespaceTable(nsUris.Memory.ToArray()),
+                new StringTable(serverUris.Memory.ToArray()));
+
+            int count = decoder.ReadInt32(null);
+            if (count <= 0)
             {
                 return [];
             }
-            var subscriptions = new SubscriptionCollection(stateCollection.Count);
-            foreach (SubscriptionState state in stateCollection)
+
+            var subscriptions = new SubscriptionCollection(count);
+            for (int i = 0; i < count; i++)
             {
+                SubscriptionState state =
+                    SessionStateEncoder.DecodeSubscriptionState(decoder);
                 // Restore subscription from state
                 Subscription subscription = CreateSubscription(state);
                 subscription.Restore(state);
@@ -2002,8 +2012,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
@@ -2058,8 +2067,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(

@@ -330,7 +330,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
             Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
-            Assert.That(cert1.GetSerialNumber().Length, Is.EqualTo(X509Defaults.SerialNumberLengthMax));
+            Assert.That(cert1.GetSerialNumber(), Has.Length.EqualTo(X509Defaults.SerialNumberLengthMax));
 
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);

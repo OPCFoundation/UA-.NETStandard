@@ -65,33 +65,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Represents a real encodeable object factory managed
-    /// by the encodeable factory registry.
-    /// </summary>
-    [Experimental("UA_NETStandard_1")]
-    public interface IEncodeableType
-    {
-        /// <summary>
-        /// System type (either enum or reference type)
-        /// Used when using reflection emit to emit other
-        /// encodeable types.
-        /// </summary>
-        Type Type { get; }
-
-        /// <summary>
-        /// Get the xml qualified name for the type.
-        /// </summary>
-        XmlQualifiedName XmlName { get; }
-
-        /// <summary>
-        /// Create instance of structure type during
-        /// decoding. Will change in future iterations.
-        /// </summary>
-        /// <returns></returns>
-        IEncodeable CreateInstance();
-    }
-
-    /// <summary>
     /// Encodeable activator
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -109,12 +82,26 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Enumerated type activator
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public abstract class EnumeratedType<T> : IEnumeratedType
+        where T : struct, Enum
+    {
+        /// <inheritdoc/>
+        public Type Type => typeof(T);
+
+        /// <inheritdoc/>
+        public abstract XmlQualifiedName XmlName { get; }
+    }
+
+    /// <summary>
     /// Lookup encodeable types by type or encoding id.
     /// </summary>
     public interface IEncodeableTypeLookup
     {
         /// <summary>
-        /// Returns the activator for the specified type id.
+        /// Returns the encodeable type for the specified type id.
         /// </summary>
         /// <param name="typeId">The type id to return the type of</param>
         /// <param name="encodeableType">The encodeable type found</param>
@@ -124,13 +111,24 @@ namespace Opc.Ua
             [NotNullWhen(true)] out IEncodeableType? encodeableType);
 
         /// <summary>
-        /// Returns the activator for the specified type.
+        /// Returns the enumerated type for the specified type id.
         /// </summary>
-        /// <param name="encodeableType">The encodeable type found</param>
+        /// <param name="typeId">The type id to return the type of</param>
+        /// <param name="enumeratedType">The enumerated type found</param>
         /// <returns><c>True</c> if found.</returns>
-        /// <typeparam name="T">The type to look up</typeparam>
-        bool TryGetEncodeableType<T>(
-            [NotNullWhen(true)] out IEncodeableType? encodeableType);
+        bool TryGetEnumeratedType(
+            ExpandedNodeId typeId,
+            [NotNullWhen(true)] out IEnumeratedType? enumeratedType);
+
+        /// <summary>
+        /// Returns the type with the specified xml name.
+        /// </summary>
+        /// <param name="xmlName">The xml name to return the type of</param>
+        /// <param name="type">The type found</param>
+        /// <returns><c>True</c> if found.</returns>
+        bool TryGetType(
+            XmlQualifiedName xmlName,
+            [NotNullWhen(true)] out IType? type);
     }
 
     /// <summary>
@@ -147,9 +145,10 @@ namespace Opc.Ua
     public interface IEncodeableFactoryBuilder : IEncodeableTypeLookup
     {
         /// <summary>
-        /// Adds a encodeable type to the factory builder. The factory
-        /// builder will call <see cref="IEncodeableType.CreateInstance"/>
-        /// to obtain an instance from which to obtain the type and
+        /// Adds a encodeable type to the factory builder.
+        /// The factory builder will call
+        /// <see cref="IEncodeableType.CreateInstance"/> to
+        /// obtain an instance from which to obtain the type and
         /// encoding ids. All exceptions during this process are
         /// propagated to the caller.
         /// </summary>
@@ -158,17 +157,37 @@ namespace Opc.Ua
             IEncodeableType type);
 
         /// <summary>
-        /// Associates an encodeable type with an encoding id. The builder
-        /// does not check the <see cref="IEncodeableType.CreateInstance"/>
-        /// method works when adding.
+        /// Associates an encodeable type with an encoding id.
+        /// The builder does not check the
+        /// <see cref="IEncodeableType.CreateInstance"/> method
+        /// works when adding.
         /// </summary>
-        /// <param name="encodingId">A NodeId for a Data Type Encoding
-        /// node</param>
+        /// <param name="encodingId">A NodeId for a Data Type
+        /// Encoding node</param>
         /// <param name="type">The encodeable type to use for the
         /// specified encoding.</param>
         IEncodeableFactoryBuilder AddEncodeableType(
             ExpandedNodeId encodingId,
             IEncodeableType type);
+
+        /// <summary>
+        /// Adds a enumerated type to the factory builder. An
+        /// enumerated type is an Enum type in .net.
+        /// </summary>
+        /// <param name="type">A enumerated type to add.</param>
+        IEncodeableFactoryBuilder AddEnumeratedType(
+            IEnumeratedType type);
+
+        /// <summary>
+        /// Associates an enumerated type with an encoding id.
+        /// </summary>
+        /// <param name="encodingId">A NodeId for a Data Type
+        /// Encoding node</param>
+        /// <param name="type">The enumerated type to use for
+        /// the specified encoding.</param>
+        IEncodeableFactoryBuilder AddEnumeratedType(
+            ExpandedNodeId encodingId,
+            IEnumeratedType type);
 
         /// <summary>
         /// Adds a .net type to the factory builder. The factory
@@ -182,7 +201,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The underlying system type to add to
         /// the factory builder</param>
-        IEncodeableFactoryBuilder AddEncodeableType(Type systemType);
+        IEncodeableFactoryBuilder AddEncodeableType(
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
+            Type systemType);
 
         /// <summary>
         /// Associates an .net system type with an encoding id. The
@@ -197,8 +219,10 @@ namespace Opc.Ua
         /// node</param>
         /// <param name="systemType">The system type to use for the
         /// specified encoding.</param>
-        IEncodeableFactoryBuilder AddEncodeableType(
+        IEncodeableFactoryBuilder AddType(
             ExpandedNodeId encodingId,
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
             Type systemType);
 
         /// <summary>
@@ -215,6 +239,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="assembly">The assembly containing the types
         /// to add to the factory</param>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         IEncodeableFactoryBuilder AddEncodeableTypes(Assembly assembly);
 
         /// <summary>
@@ -234,7 +260,9 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The underlying system type to add to
         /// the factory builder</typeparam>
-        public static IEncodeableFactoryBuilder AddEncodeableType<T>(
+        public static IEncodeableFactoryBuilder AddEncodeableType<
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
             this IEncodeableFactoryBuilder builder)
             where T : IEncodeable
         {
@@ -251,9 +279,74 @@ namespace Opc.Ua
             this IEncodeableTypeLookup lookup,
             ExpandedNodeId typeId)
         {
-            return lookup.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) ?
-                encodeableType.Type :
+            return lookup.TryGetType(typeId, out IType? type) ?
+                type.Type :
                 null;
+        }
+
+        /// <summary>
+        /// Try get the type for the specified type id. The method
+        /// first tries to find an encodeable type and then an
+        /// enumerated type. If neither is found, it returns false.
+        /// </summary>
+        /// <param name="lookup">The lookup capability.</param>
+        /// <param name="typeId">The type id.</param>
+        /// <param name="type">The type associated with the type id.</param>
+        /// <returns>True if a type is found; otherwise, false.</returns>
+        public static bool TryGetType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId,
+            [NotNullWhen(true)] out IType? type)
+        {
+            if (lookup.TryGetEncodeableType(
+                typeId,
+                out IEncodeableType? encodeableType))
+            {
+                type = encodeableType;
+                return true;
+            }
+            if (lookup.TryGetEnumeratedType(
+                typeId,
+                out IEnumeratedType? enumeratedType))
+            {
+                type = enumeratedType;
+                return true;
+            }
+            type = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether the type exists in the factory lookup
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetType(typeId, out _);
+        }
+
+        /// <summary>
+        /// Checks whether the enumerated type exists
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsEnumeratedType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetEnumeratedType(typeId, out _);
+        }
+
+        /// <summary>
+        /// Checks whether the encodeable type exists
+        /// </summary>
+        /// <returns>True if the type was found</returns>
+        public static bool ContainsEncodeableType(
+            this IEncodeableTypeLookup lookup,
+            ExpandedNodeId typeId)
+        {
+            return lookup.TryGetEncodeableType(typeId, out _);
         }
 
         /// <summary>
@@ -261,6 +354,8 @@ namespace Opc.Ua
         /// </summary>
         public static void AddEncodeableType(
             this IEncodeableFactory factory,
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
             Type systemType)
         {
             factory.Builder.AddEncodeableType(systemType).Commit();
@@ -272,15 +367,18 @@ namespace Opc.Ua
         public static void AddEncodeableType(
             this IEncodeableFactory factory,
             ExpandedNodeId encodingId,
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)]
             Type systemType)
         {
-            factory.Builder.AddEncodeableType(encodingId, systemType).Commit();
+            factory.Builder.AddType(encodingId, systemType).Commit();
         }
 
         /// <summary>
         /// Adds all encodeable types exported from an assembly
         /// to the factory builder.
         /// </summary>
+        [RequiresUnreferencedCode("Scans assembly types via reflection.")]
         public static void AddEncodeableTypes(
             this IEncodeableFactory factory,
             Assembly assembly)
@@ -292,6 +390,8 @@ namespace Opc.Ua
         /// Adds an enumerable of extension types to the factory builder.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Types from IEnumerable<Type> are expected to have constructors preserved by the caller.")]
         public static void AddEncodeableTypes(
             this IEncodeableFactory factory,
             IEnumerable<Type> systemTypes)

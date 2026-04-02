@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Browse description
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class BrowseDescription : IEncodeable, IJsonEncodeable, IEquatable<BrowseDescription>
     {
         /// <inheritdoc/>

@@ -203,7 +203,8 @@ namespace Opc.Ua
             var securityPolicies = new List<string> { SecurityPolicies.None };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                if (applicationCertificate.CertificateType.IsNull)
+                NodeId certType = applicationCertificate.CertificateType;
+                if (certType == null || certType.IsNull)
                 {
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);

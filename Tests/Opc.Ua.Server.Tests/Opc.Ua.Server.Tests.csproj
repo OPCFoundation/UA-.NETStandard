@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -12,7 +12,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" />
     <PackageReference Include="Moq" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Console" />
     <PackageReference Include="NUnit.Analyzers">

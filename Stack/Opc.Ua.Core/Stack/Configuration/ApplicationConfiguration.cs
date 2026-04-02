@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -66,11 +67,11 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfigurationLocation>();
-            using var reader = XmlReader.Create(
-                new StringReader(element.OuterXml),
-                Utils.DefaultXmlReaderSettings());
-            return serializer.ReadObject(reader) as ConfigurationLocation;
+            var parser = new XmlParser(
+                typeof(ConfigurationLocation),
+                element.OuterXml,
+                ServiceMessageContext.CreateEmpty(null));
+            return new ConfigurationLocation { FilePath = parser.ReadString("FilePath") };
         }
     }
 
@@ -195,7 +196,9 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(IEncodeableFactory factory)
         {
-            var messageContext = new ServiceMessageContext(m_telemetry, factory);
+            var messageContext = new ServiceMessageContext(
+                m_telemetry,
+                factory ?? EncodeableFactory.Create());
 
             if (TransportQuotas != null)
             {
@@ -263,7 +266,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
         {
             return LoadAsync(sectionName, applicationType, systemType, LoggerUtils.Null.Logger, null);
         }
@@ -283,7 +286,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ILogger logger,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
@@ -314,22 +317,25 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static ApplicationConfiguration LoadWithNoValidation(
             FileInfo file,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ITelemetryContext telemetry)
         {
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
-                    systemType);
-
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                var configuration = serializer.ReadObject(reader) as ApplicationConfiguration;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
+                var parser = new XmlParser((Type)null, stream, context);
+                ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
+                    ? new ApplicationConfiguration()
+                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
                 configuration.Initialize(telemetry);
-
-                configuration?.SourceFilePath = file.FullName;
-
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
+                configuration.Initialize(telemetry);
+                configuration.SourceFilePath = file.FullName;
                 return configuration;
             }
             catch (Exception e)
@@ -353,7 +359,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
         {
             return LoadAsync(file, applicationType, systemType, null);
         }
@@ -370,7 +376,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
@@ -390,7 +396,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -418,7 +424,7 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -465,7 +471,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -493,7 +499,7 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
-            Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -505,10 +511,16 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
-                    systemType);
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                configuration = (ApplicationConfiguration)serializer.ReadObject(reader);
+                IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
+                var parser = new XmlParser((Type)null, stream, ctx);
+                configuration = systemType == typeof(ApplicationConfiguration)
+                    ? new ApplicationConfiguration()
+                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                configuration.Initialize(telemetry);
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                 configuration.Initialize(telemetry);
             }
             catch (Exception e)
@@ -567,16 +579,18 @@ namespace Opc.Ua
         /// Saves the configuration file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
             using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(GetType());
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext
+                ?? ServiceMessageContext.CreateEmpty(m_telemetry);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            serializer.WriteObject(writer, this);
+            var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
+            this.Encode(encoder);
+            encoder.Close();
         }
 
         /// <summary>
@@ -807,6 +821,10 @@ namespace Opc.Ua
         /// <remarks>
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>()
         {
             return ParseExtension<T>(null);
@@ -818,6 +836,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <returns>The extension if found. Null otherwise.</returns>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName)
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
@@ -829,9 +851,63 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        [Experimental("UA_NETStandard_1")]
+        public T ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
+        {
+            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry, decoderFunc);
+        }
+
+        /// <summary>
+        /// Updates the extension using the supplied encoder function.
+        /// </summary>
+        /// <typeparam name="T">The type of extension.</typeparam>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="value">The value.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        [Experimental("UA_NETStandard_1")]
+        public void UpdateExtension<T>(XmlQualifiedName elementName, T value, Action<IEncoder, T> encoderFunc)
+        {
+            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry, encoderFunc);
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified IEncodeable type and decodes it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">Name of the element (null to derive from type).</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        public T ParseEncodeable<T>(XmlQualifiedName elementName = null)
+            where T : IEncodeable, new()
+        {
+            return Utils.ParseEncodeable<T>(m_extensions, elementName, m_telemetry);
+        }
+
+        /// <summary>
+        /// Updates or adds an extension using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">Name of the element (null to derive from type).</param>
+        /// <param name="value">The value to encode.</param>
+        public void UpdateEncodeable<T>(XmlQualifiedName elementName, T value)
+            where T : IEncodeable
+        {
+            Utils.UpdateEncodeable<T>(ref m_extensions, elementName, value, m_telemetry);
         }
     }
 

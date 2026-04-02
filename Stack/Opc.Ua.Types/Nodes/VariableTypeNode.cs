@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Variable type node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class VariableTypeNode : TypeNode, IVariableType
     {
         /// <summary>

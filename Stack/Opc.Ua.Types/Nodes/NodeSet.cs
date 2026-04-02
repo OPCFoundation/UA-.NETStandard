@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -39,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     [KnownType(typeof(ObjectNode))]
     [KnownType(typeof(ObjectTypeNode))]
     [KnownType(typeof(VariableNode))]
@@ -65,6 +66,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static NodeSet Read(Stream istrm)
         {
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
@@ -76,6 +79,8 @@ namespace Opc.Ua
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Write(Stream istrm)
         {
             var writer = XmlWriter.Create(istrm, CoreUtils.DefaultXmlWriterSettings());
@@ -144,72 +149,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Translates all elements in an array variant.
-        /// </summary>
-        /// <param name="value">The array variant.</param>
-        /// <param name="elementType">Type of the element.</param>
-        /// <param name="namespaceUris">The namespace URIs.</param>
-        /// <param name="serverUris">The server URIs.</param>
-        private Variant TranslateArrayValue(
-            Variant value,
-            BuiltInType elementType,
-            NamespaceTable namespaceUris,
-            StringTable serverUris)
-        {
-            if (value.AsBoxedObject() is not Array array) // TODO
-            {
-                return value;
-            }
-
-            int[] dimensions = new int[array.Rank];
-
-            for (int ii = 0; ii < dimensions.Length; ii++)
-            {
-                dimensions[ii] = array.GetLength(ii);
-            }
-
-            int length = array.Length;
-            int[] indexes = new int[dimensions.Length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                int divisor = length;
-
-                for (int jj = 0; jj < indexes.Length; jj++)
-                {
-                    divisor /= dimensions[jj];
-                    indexes[jj] = ii / divisor % dimensions[jj];
-                }
-
-                object element = array.GetValue(indexes);
-
-                if (element != null)
-                {
-                    if (elementType == BuiltInType.Variant)
-                    {
-                        element = ((Variant)element).AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                    }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                    element = TranslateValue(new Variant(element), namespaceUris, serverUris);
-#pragma warning restore CS0618 // Type or member is obsolete
-
-                    if (elementType == BuiltInType.Variant)
-                    {
-#pragma warning disable CS0618 // Type or member is obsolete
-                        element = new Variant(element);
-#pragma warning restore CS0618 // Type or member is obsolete
-                    }
-
-                    array.SetValue(element, indexes);
-                }
-            }
-#pragma warning disable CS0618 // Type or member is obsolete
-            return new Variant(array);
-#pragma warning restore CS0618 // Type or member is obsolete
-        }
-
-        /// <summary>
         /// Translates a value.
         /// </summary>
         /// <param name="value">The value.</param>
@@ -229,39 +168,78 @@ namespace Opc.Ua
                 return value;
             }
 
-            // recursively process array values.
-            if (typeInfo.ValueRank > 0)
+            if (typeInfo.IsScalar)
             {
-                return TranslateArrayValue(value, typeInfo.BuiltInType, namespaceUris, serverUris);
+                // check for values containing namespace indexes.
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.NodeId:
+                        return Translate(value.GetNodeId(), m_namespaceUris, namespaceUris);
+                    case BuiltInType.ExpandedNodeId:
+                        return Translate(
+                            value.GetExpandedNodeId(),
+                            m_namespaceUris,
+                            m_serverUris,
+                            namespaceUris,
+                            serverUris);
+                    case BuiltInType.QualifiedName:
+                        return Translate(value.GetQualifiedName(), m_namespaceUris, namespaceUris);
+                    case BuiltInType.ExtensionObject:
+                        return Translate(value.GetExtensionObject(), m_namespaceUris, namespaceUris);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return value;
+                    default:
+                        Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
+                        return value;
+                }
+            }
+
+            if (typeInfo.IsArray)
+            {
+                // check for values containing namespace indexes.
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.NodeId:
+                        return Translate(value.GetNodeIdArray(), m_namespaceUris, namespaceUris);
+                    case BuiltInType.ExpandedNodeId:
+                        return Translate(
+                            value.GetExpandedNodeIdArray(),
+                            m_namespaceUris,
+                            m_serverUris,
+                            namespaceUris,
+                            serverUris);
+                    case BuiltInType.QualifiedName:
+                        return Translate(value.GetQualifiedNameArray(), m_namespaceUris, namespaceUris);
+                    case BuiltInType.ExtensionObject:
+                        return Translate(value.GetExtensionObjectArray(), m_namespaceUris, namespaceUris);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return value;
+                    default:
+                        Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
+                        return value;
+                }
             }
 
             // check for values containing namespace indexes.
             switch (typeInfo.BuiltInType)
             {
                 case BuiltInType.NodeId:
-                    return Translate((NodeId)value, m_namespaceUris, namespaceUris);
+                    return Translate(value.GetNodeIdMatrix(), m_namespaceUris, namespaceUris);
                 case BuiltInType.ExpandedNodeId:
                     return Translate(
-                        (ExpandedNodeId)value,
+                        value.GetExpandedNodeIdMatrix(),
                         m_namespaceUris,
                         m_serverUris,
                         namespaceUris,
                         serverUris);
                 case BuiltInType.QualifiedName:
-                    return Translate((QualifiedName)value, m_namespaceUris, namespaceUris);
+                    return Translate(value.GetQualifiedNameMatrix(), m_namespaceUris, namespaceUris);
                 case BuiltInType.ExtensionObject:
-                    if (ExtensionObject.ToEncodeable((ExtensionObject)value) is Argument argument)
-                    {
-                        argument.DataType = Translate(
-                            argument.DataType,
-                            m_namespaceUris,
-                            namespaceUris);
-                    }
-                    return value;
+                    return Translate(value.GetExtensionObjectMatrix(), m_namespaceUris, namespaceUris);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     return value;
                 default:
-                    Debug.Fail("Unexpected built-in type {typeInfo.BuiltInType}");
+                    Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
                     return value;
             }
         }
@@ -389,7 +367,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <returns>
-        /// 	<c>true</c> if the node exists in the nodeset; otherwise, <c>false</c>.
+        /// <c>true</c> if the node exists in the nodeset;
+        /// otherwise, <c>false</c>.
         /// </returns>
         /// <remarks>
         /// The NodeId must reference the strings for the node set.
@@ -426,7 +405,8 @@ namespace Opc.Ua
         /// <remarks>
         /// The NodeId namespace is translated before the node is looked up.
         /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="nodeId"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeId"/> is <c>null</c>.</exception>
         public Node Find(NodeId nodeId, NamespaceTable namespaceUris)
         {
             if (nodeId.IsNull)
@@ -495,12 +475,10 @@ namespace Opc.Ua
 
                 if (!variableToImport.Value.IsNull)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    variable.Value = new Variant(ImportValue(
-                        variableToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                    variable.Value = ImportValue(
+                        variableToImport.Value,
                         namespaceUris,
-                        serverUris));
-#pragma warning restore CS0618 // Type or member is obsolete
+                        serverUris);
                 }
             }
 
@@ -515,12 +493,10 @@ namespace Opc.Ua
 
                 if (!variableTypeToImport.Value.IsNull)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    variableType.Value = new Variant(ImportValue(
-                        variableTypeToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                    variableType.Value = ImportValue(
+                        variableTypeToImport.Value,
                         namespaceUris,
-                        serverUris));
-#pragma warning restore CS0618 // Type or member is obsolete
+                        serverUris);
                 }
             }
 
@@ -554,48 +530,89 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
-        private object ImportValue(
-            object value,
+        private Variant ImportValue(
+            Variant value,
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            if (value is Array array)
+            TypeInfo typeInfo = value.TypeInfo;
+
+            // do nothing for unknown types.
+            if (typeInfo.IsUnknown)
             {
-                Type elementType = array.GetType().GetElementType();
-
-                if (elementType != typeof(NodeId) &&
-                    elementType != typeof(ExpandedNodeId) &&
-                    elementType != typeof(object) &&
-                    elementType != typeof(ExtensionObject))
-                {
-                    return array;
-                }
-
-                var copy = Array.CreateInstance(elementType, array.Length);
-
-                for (int ii = 0; ii < array.Length; ii++)
-                {
-                    copy.SetValue(ImportValue(array.GetValue(ii), namespaceUris, serverUris), ii);
-                }
-
-                return copy;
+                return value;
             }
 
-            switch (value)
+            if (typeInfo.IsScalar)
             {
-                case NodeId nodeId:
-                    if (!nodeId.IsNull)
-                    {
-                        return Import(nodeId, namespaceUris);
-                    }
-                    break;
-                case ExpandedNodeId expandedNodeId:
-                    return Import(expandedNodeId, namespaceUris, serverUris);
-                case ExtensionObject extension when ExtensionObject.ToEncodeable(extension) is Argument argument:
-                    argument.DataType = Import(argument.DataType, namespaceUris);
-                    break;
+                // check for values containing namespace indexes.
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.NodeId:
+                        return Import(value.GetNodeId(), namespaceUris);
+                    case BuiltInType.ExpandedNodeId:
+                        return Import(
+                            value.GetExpandedNodeId(),
+                            namespaceUris,
+                            serverUris);
+                    case BuiltInType.QualifiedName:
+                        return Translate(value.GetQualifiedName(), namespaceUris, m_namespaceUris);
+                    case BuiltInType.ExtensionObject:
+                        return Translate(value.GetExtensionObject(), namespaceUris, m_namespaceUris);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return value;
+                    default:
+                        Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
+                        return value;
+                }
             }
-            return value;
+            if (typeInfo.IsArray)
+            {
+                // check for values containing namespace indexes.
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.NodeId:
+                        return Translate(value.GetNodeIdArray(), namespaceUris, m_namespaceUris);
+                    case BuiltInType.ExpandedNodeId:
+                        return Translate(
+                            value.GetExpandedNodeIdArray(),
+                            namespaceUris,
+                            serverUris,
+                            m_namespaceUris,
+                            m_serverUris);
+                    case BuiltInType.QualifiedName:
+                        return Translate(value.GetQualifiedNameArray(), namespaceUris, m_namespaceUris);
+                    case BuiltInType.ExtensionObject:
+                        return Translate(value.GetExtensionObjectArray(), namespaceUris, m_namespaceUris);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return value;
+                    default:
+                        Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
+                        return value;
+                }
+            }
+
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.NodeId:
+                    return Translate(value.GetNodeIdMatrix(), namespaceUris, m_namespaceUris);
+                case BuiltInType.ExpandedNodeId:
+                    return Translate(
+                        value.GetExpandedNodeIdMatrix(),
+                        namespaceUris,
+                        serverUris,
+                        m_namespaceUris,
+                        m_serverUris);
+                case BuiltInType.QualifiedName:
+                    return Translate(value.GetQualifiedNameMatrix(), namespaceUris, m_namespaceUris);
+                case BuiltInType.ExtensionObject:
+                    return Translate(value.GetExtensionObjectMatrix(), namespaceUris, m_namespaceUris);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return value;
+                default:
+                    Debug.Fail($"Unexpected built-in type {typeInfo.BuiltInType}");
+                    return value;
+            }
         }
 
         /// <summary>
@@ -714,7 +731,8 @@ namespace Opc.Ua
         /// <param name="targetNamespaceUris">The target namespace URIs.</param>
         /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
         private static NodeId Translate(
             NodeId nodeId,
             NamespaceTable targetNamespaceUris,
@@ -755,13 +773,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Updates the nodeset string tables and returns a NodeId that references those tables.
+        /// Updates the nodeset tables and returns a NodeId that references those tables.
         /// </summary>
         /// <param name="qname">The qualified name.</param>
         /// <param name="targetNamespaceUris">The target namespace URIs.</param>
         /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
         private static QualifiedName Translate(
             QualifiedName qname,
             NamespaceTable targetNamespaceUris,
@@ -807,7 +826,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Updates the nodeset string tables and returns a NodeId that references those tables.
+        /// Updates the nodeset tables and returns a NodeId that references those tables.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="targetNamespaceUris">The target namespace URIs.</param>
@@ -815,7 +834,8 @@ namespace Opc.Ua
         /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
         /// <param name="sourceServerUris">The source server URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
         private static ExpandedNodeId Translate(
             ExpandedNodeId nodeId,
             NamespaceTable targetNamespaceUris,
@@ -895,6 +915,289 @@ namespace Opc.Ua
             }
 
             return nodeId.InnerNodeId.WithNamespaceIndex(namespaceIndex);
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables and returns an extension object that
+        /// references the updated tables
+        /// </summary>
+        /// <param name="extensionObject">The extension object.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private ExtensionObject Translate(
+            ExtensionObject extensionObject,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            if (extensionObject.TryGetEncodeable(out Argument argument))
+            {
+                argument.DataType = Translate(
+                    argument.DataType,
+                    sourceNamespaceUris,
+                    targetNamespaceUris);
+                return new ExtensionObject(argument);
+            }
+
+            return extensionObject;
+        }
+
+        /// <summary>
+        /// Update the tables from all node ids provided
+        /// </summary>
+        /// <param name="nodeIds">The node identifiers.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static ArrayOf<NodeId> Translate(
+            ArrayOf<NodeId> nodeIds,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return nodeIds.ConvertAll(nodeId => Translate(nodeId, targetNamespaceUris, sourceNamespaceUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables and returns a name that conforms to the
+        /// tables.
+        /// </summary>
+        /// <param name="qnames">The qualified names.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static ArrayOf<QualifiedName> Translate(
+            ArrayOf<QualifiedName> qnames,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return qnames.ConvertAll(qname => Translate(qname, targetNamespaceUris, sourceNamespaceUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables from the provided node ids and updates
+        /// the node ids to reflect the indices in the table.
+        /// </summary>
+        /// <param name="nodeIds">The node identifiers.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="targetServerUris">The target server URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <param name="sourceServerUris">The source server URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static ArrayOf<ExpandedNodeId> Translate(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            NamespaceTable targetNamespaceUris,
+            StringTable targetServerUris,
+            NamespaceTable sourceNamespaceUris,
+            StringTable sourceServerUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return nodeIds.ConvertAll(nodeId => Translate(
+                nodeId,
+                targetNamespaceUris,
+                targetServerUris,
+                sourceNamespaceUris,
+                sourceServerUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables and returns extension objects that
+        /// reference the updated tables
+        /// </summary>
+        /// <param name="extensionObjects">The extension objects.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private ArrayOf<ExtensionObject> Translate(
+            ArrayOf<ExtensionObject> extensionObjects,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return extensionObjects.ConvertAll(extensionObject => Translate(
+                extensionObject,
+                targetNamespaceUris,
+                sourceNamespaceUris));
+        }
+
+        /// <summary>
+        /// Update the tables from all node ids provided
+        /// </summary>
+        /// <param name="nodeIds">The node identifiers.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static MatrixOf<NodeId> Translate(
+            MatrixOf<NodeId> nodeIds,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return nodeIds.ConvertAll(nodeId => Translate(nodeId, targetNamespaceUris, sourceNamespaceUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables and returns a name that conforms to the
+        /// tables.
+        /// </summary>
+        /// <param name="qnames">The qualified names.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static MatrixOf<QualifiedName> Translate(
+            MatrixOf<QualifiedName> qnames,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return qnames.ConvertAll(qname => Translate(qname, targetNamespaceUris, sourceNamespaceUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables from the provided node ids and updates
+        /// the node ids to reflect the indices in the table.
+        /// </summary>
+        /// <param name="nodeIds">The node identifiers.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="targetServerUris">The target server URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <param name="sourceServerUris">The source server URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private static MatrixOf<ExpandedNodeId> Translate(
+            MatrixOf<ExpandedNodeId> nodeIds,
+            NamespaceTable targetNamespaceUris,
+            StringTable targetServerUris,
+            NamespaceTable sourceNamespaceUris,
+            StringTable sourceServerUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return nodeIds.ConvertAll(nodeId => Translate(
+                nodeId,
+                targetNamespaceUris,
+                targetServerUris,
+                sourceNamespaceUris,
+                sourceServerUris));
+        }
+
+        /// <summary>
+        /// Updates the nodeset tables and returns extension objects that
+        /// reference the updated tables
+        /// </summary>
+        /// <param name="extensionObjects">The extension objects.</param>
+        /// <param name="targetNamespaceUris">The target namespace URIs.</param>
+        /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
+        /// <returns>A NodeId that references those tables.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
+        private MatrixOf<ExtensionObject> Translate(
+            MatrixOf<ExtensionObject> extensionObjects,
+            NamespaceTable targetNamespaceUris,
+            NamespaceTable sourceNamespaceUris)
+        {
+            if (targetNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(targetNamespaceUris));
+            }
+
+            if (sourceNamespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(sourceNamespaceUris));
+            }
+
+            return extensionObjects.ConvertAll(extensionObject => Translate(
+                extensionObject,
+                targetNamespaceUris,
+                sourceNamespaceUris));
         }
 
         private NamespaceTable m_namespaceUris;

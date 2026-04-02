@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// View description
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ViewDescription :
         IEncodeable,
         IJsonEncodeable,

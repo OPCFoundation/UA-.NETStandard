@@ -40,6 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ApplicationConfiguration
     {
@@ -150,6 +151,7 @@ namespace Opc.Ua
         /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
         public string ApplicationName { get; set; }
 
@@ -157,6 +159,7 @@ namespace Opc.Ua
         /// A unique identifier for the application instance.
         /// </summary>
         /// <value>The application URI.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
         public string ApplicationUri { get; set; }
 
@@ -164,6 +167,7 @@ namespace Opc.Ua
         /// A unique identifier for the product.
         /// </summary>
         /// <value>The product URI.</value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 2)]
         public string ProductUri { get; set; }
 
@@ -171,6 +175,7 @@ namespace Opc.Ua
         /// The type of application.
         /// </summary>
         /// <value>The type of the application.</value>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = true, Order = 3)]
         public ApplicationType ApplicationType { get; set; }
 
@@ -178,6 +183,7 @@ namespace Opc.Ua
         /// The security configuration for the application.
         /// </summary>
         /// <value>The security configuration.</value>
+        [DataTypeField(Order = 4, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 4)]
         public SecurityConfiguration SecurityConfiguration
         {
@@ -200,6 +206,7 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         /// <value>The transport quotas.</value>
+        [DataTypeField(Order = 5, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
         public TransportQuotas TransportQuotas { get; set; }
 
@@ -207,6 +214,7 @@ namespace Opc.Ua
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
+        [DataTypeField(Order = 6, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
@@ -214,6 +222,7 @@ namespace Opc.Ua
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
+        [DataTypeField(Order = 7, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
@@ -221,6 +230,7 @@ namespace Opc.Ua
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
+        [DataTypeField(Order = 8, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
@@ -228,6 +238,7 @@ namespace Opc.Ua
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         /// <value>The extensions.</value>
+        [DataTypeField(Order = 9)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public ArrayOf<XmlElement> Extensions
         {
@@ -239,6 +250,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         /// <value>The trace configuration.</value>
+        [DataTypeField(Order = 10, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
@@ -246,6 +258,7 @@ namespace Opc.Ua
         /// Disabling / enabling high resolution clock
         /// </summary>
         /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 11)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock { get; set; }
 
@@ -261,8 +274,9 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies various limits that apply to the transport or secure channel layers.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class TransportQuotas
+    public partial class TransportQuotas
     {
         /// <summary>
         /// The default constructor.
@@ -306,6 +320,7 @@ namespace Opc.Ua
         /// The default timeout to use when sending requests (in milliseconds).
         /// </summary>
         /// <value>The operation timeout.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 0)]
         public int OperationTimeout { get; set; }
 
@@ -313,6 +328,7 @@ namespace Opc.Ua
         /// The maximum length of string encoded in a message body.
         /// </summary>
         /// <value>The max length of the string.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 1)]
         public int MaxStringLength { get; set; }
 
@@ -320,6 +336,7 @@ namespace Opc.Ua
         /// The maximum length of a byte string encoded in a message body.
         /// </summary>
         /// <value>The max length of the byte string.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 2)]
         public int MaxByteStringLength { get; set; }
 
@@ -327,6 +344,7 @@ namespace Opc.Ua
         /// The maximum length of an array encoded in a message body.
         /// </summary>
         /// <value>The max length of the array.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 3)]
         public int MaxArrayLength { get; set; }
 
@@ -334,6 +352,7 @@ namespace Opc.Ua
         /// The maximum length of a message body.
         /// </summary>
         /// <value>The max size of the message.</value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 4)]
         public int MaxMessageSize { get; set; }
 
@@ -341,12 +360,14 @@ namespace Opc.Ua
         /// The maximum size of the buffer to use when sending messages.
         /// </summary>
         /// <value>The max size of the buffer.</value>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = false, Order = 5)]
         public int MaxBufferSize { get; set; }
 
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, Order = 6)]
         public int MaxEncodingNestingLevels { get; set; }
 
@@ -354,6 +375,7 @@ namespace Opc.Ua
         /// The number of times the decoder can recover from a decoder error
         /// of an IEncodeable before throwing a decoder error.
         /// </summary>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, Order = 7)]
         public int MaxDecoderRecoveries { get; set; }
 
@@ -361,6 +383,7 @@ namespace Opc.Ua
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
+        [DataTypeField(Order = 6)]
         [DataMember(IsRequired = false, Order = 8)]
         public int ChannelLifetime { get; set; }
 
@@ -368,6 +391,7 @@ namespace Opc.Ua
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
+        [DataTypeField(Order = 7)]
         [DataMember(IsRequired = false, Order = 9)]
         public int SecurityTokenLifetime { get; set; }
     }
@@ -375,8 +399,9 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies parameters used for tracing.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class TraceConfiguration
+    public partial class TraceConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -409,6 +434,7 @@ namespace Opc.Ua
         /// The output file used to log the trace information.
         /// </summary>
         /// <value>The output file path.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 0)]
         public string OutputFilePath { get; set; }
 
@@ -416,6 +442,7 @@ namespace Opc.Ua
         /// Whether the existing log file should be deleted when the application configuration is loaded.
         /// </summary>
         /// <value><c>true</c> if existing log file should be deleted when the application configuration is loaded; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 1)]
         public bool DeleteOnLoad { get; set; }
 
@@ -435,6 +462,7 @@ namespace Opc.Ua
         /// - Output messages related to security. - Security = 0x200;
         /// </summary>
         /// <value>The trace masks.</value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 2)]
         public int TraceMasks { get; set; }
     }
@@ -445,8 +473,9 @@ namespace Opc.Ua
     /// <remarks>
     /// Each application is allows to have one transport configure per protocol type.
     /// </remarks>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class TransportConfiguration
+    public partial class TransportConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -470,6 +499,7 @@ namespace Opc.Ua
         /// The URL prefix used by the application (http, opc.tcp, net.tpc, etc.).
         /// </summary>
         /// <value>The URI scheme.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
         public string UriScheme { get; set; }
 
@@ -488,6 +518,7 @@ namespace Opc.Ua
         /// XxxBinding(EndpointConfiguration configuration)
         /// </para>
         /// </remarks>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
         public string TypeName { get; set; }
     }
@@ -500,7 +531,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "TransportConfiguration"
     )]
-    public class TransportConfigurationCollection : List<TransportConfiguration>
+    public partial class TransportConfigurationCollection : List<TransportConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -534,8 +565,9 @@ namespace Opc.Ua
     /// <summary>
     /// A class that defines a group of security policies supported by the server.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ServerSecurityPolicy
+    public partial class ServerSecurityPolicy
     {
         /// <summary>
         /// The default constructor.
@@ -592,6 +624,7 @@ namespace Opc.Ua
         /// Specifies whether the messages are signed and encrypted or simply signed
         /// </summary>
         /// <value>The security mode.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 1)]
         public MessageSecurityMode SecurityMode { get; set; }
 
@@ -599,6 +632,7 @@ namespace Opc.Ua
         /// The security policy to use.
         /// </summary>
         /// <value>The security policy URI.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 2)]
         public string SecurityPolicyUri { get; set; }
     }
@@ -611,7 +645,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "ServerSecurityPolicy"
     )]
-    public class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
+    public partial class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -645,6 +679,7 @@ namespace Opc.Ua
     /// <summary>
     /// The security configuration for the application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class SecurityConfiguration
     {
@@ -735,6 +770,7 @@ namespace Opc.Ua
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        [DataTypeField(Order = 0, Name = "ApplicationCertificate", ForceEncodeable = true)]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
@@ -819,15 +855,21 @@ namespace Opc.Ua
         /// Emit only when the configuration is not marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        private CertificateIdentifierCollection ApplicationCertificatesDataContract
+        [DataTypeField(Order = 1, Name = "ApplicationCertificates", ForceEncodeable = true)]
+        private ArrayOf<CertificateIdentifier> ApplicationCertificatesDataContract
         {
-            get => IsDeprecatedConfiguration ? null : ApplicationCertificates;
-            set => ApplicationCertificates = value;
+            get => IsDeprecatedConfiguration
+                ? default
+                : ApplicationCertificates.ToArrayOf();
+            set => ApplicationCertificates = value.IsEmpty
+                ? []
+                : new CertificateIdentifierCollection(value.ToList());
         }
 
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 12, ForceEncodeable = true)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
         {
@@ -838,6 +880,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
+        [DataTypeField(Order = 13, ForceEncodeable = true)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
         {
@@ -851,6 +894,7 @@ namespace Opc.Ua
         /// <value>
         /// The length of nonce in the CreateSession service.
         /// </value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public int NonceLength { get; set; }
 
@@ -860,6 +904,7 @@ namespace Opc.Ua
         /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
+        [DataTypeField(Order = 3, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
@@ -873,6 +918,7 @@ namespace Opc.Ua
         /// <see langword="0"/> to keep all rejected certificates.
         /// A negative number to keep no history.
         /// </remarks>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public int MaxRejectedCertificates { get; set; }
 
@@ -883,12 +929,14 @@ namespace Opc.Ua
         /// This flag can be set to by servers that allow anonymous clients or use user credentials for authentication.
         /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
         /// </remarks>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a directory which contains files representing users roles.
         /// </summary>
+        [DataTypeField(Order = 6)]
         [DataMember(Order = 10)]
         public string UserRoleDirectory { get; set; }
 
@@ -898,6 +946,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
+        [DataTypeField(Order = 7)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
         public bool RejectSHA1SignedCertificates { get; set; }
 
@@ -907,6 +956,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
         /// </remarks>
+        [DataTypeField(Order = 8)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool RejectUnknownRevocationStatus { get; set; }
 
@@ -917,6 +967,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
+        [DataTypeField(Order = 9)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
         public ushort MinimumCertificateKeySize { get; set; }
 
@@ -927,6 +978,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to true by applications.
         /// </remarks>
+        [DataTypeField(Order = 8)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
         public bool UseValidatedCertificates { get; set; }
 
@@ -936,6 +988,7 @@ namespace Opc.Ua
         /// <remarks>
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
+        [DataTypeField(Order = 9)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public bool AddAppCertToTrustedStore { get; set; }
 
@@ -945,12 +998,14 @@ namespace Opc.Ua
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
+        [DataTypeField(Order = 10)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
         public bool SendCertificateChain { get; set; }
 
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 14, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList UserIssuerCertificates
         {
@@ -961,6 +1016,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
+        [DataTypeField(Order = 15, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList TrustedUserCertificates
         {
@@ -971,6 +1027,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 16, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public CertificateTrustList HttpsIssuerCertificates
         {
@@ -981,6 +1038,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
+        [DataTypeField(Order = 17, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public CertificateTrustList TrustedHttpsCertificates
         {
@@ -996,6 +1054,7 @@ namespace Opc.Ua
         /// If set to true the server nonce validation errors are suppressed.
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
+        [DataTypeField(Order = 11)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public bool SuppressNonceValidationErrors { get; set; }
 
@@ -1016,8 +1075,9 @@ namespace Opc.Ua
     /// <summary>
     /// A class that defines a group of sampling rates supported by the server.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class SamplingRateGroup
+    public partial class SamplingRateGroup
     {
         /// <summary>
         /// The default constructor.
@@ -1096,7 +1156,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "SamplingRateGroup"
     )]
-    public class SamplingRateGroupCollection : List<SamplingRateGroup>
+    public partial class SamplingRateGroupCollection : List<SamplingRateGroup>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1130,6 +1190,7 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ServerBaseConfiguration
     {
@@ -1162,6 +1223,15 @@ namespace Opc.Ua
         public void Initialize(StreamingContext context)
         {
             Initialize();
+        }
+
+        /// <summary>
+        /// Remove unsupported security policies and expand wild cards.
+        /// Called by DCS via [OnDeserialized] and by the XmlParser-based decoder.
+        /// </summary>
+        internal void ValidateSecurityPolicies()
+        {
+            ValidateSecurityPolicyCollection(default);
         }
 
         /// <summary>
@@ -1296,6 +1366,7 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ServerConfiguration : ServerBaseConfiguration
     {
@@ -1670,8 +1741,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ReverseConnectServerConfiguration
+    public partial class ReverseConnectServerConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -1729,8 +1801,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the operation limits of a OPC UA Server.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class OperationLimits
+    public partial class OperationLimits
     {
         /// <summary>
         /// The default constructor.
@@ -1856,8 +1929,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ReverseConnectClient
+    public partial class ReverseConnectClient
     {
         /// <summary>
         /// The default constructor.
@@ -1922,7 +1996,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "ReverseConnectClient"
     )]
-    public class ReverseConnectClientCollection : List<ReverseConnectClient>
+    public partial class ReverseConnectClientCollection : List<ReverseConnectClient>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1956,6 +2030,7 @@ namespace Opc.Ua
     /// <summary>
     /// The configuration for a client application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ClientConfiguration
     {
@@ -2055,8 +2130,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ReverseConnectClientConfiguration
+    public partial class ReverseConnectClientConfiguration
     {
         /// <summary>
         /// A collection of reverse connect client endpoints.
@@ -2081,8 +2157,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ReverseConnectClientEndpoint
+    public partial class ReverseConnectClientEndpoint
     {
         /// <summary>
         /// The endpoint Url of a reverse connect client.
@@ -2099,7 +2176,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "ClientEndpoint"
     )]
-    public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
+    public partial class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -2134,8 +2211,9 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies the configuration for a discovery server application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class DiscoveryServerConfiguration : ServerBaseConfiguration
+    public partial class DiscoveryServerConfiguration : ServerBaseConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -2189,8 +2267,9 @@ namespace Opc.Ua
     /// <summary>
     /// Specifies the configuration for a discovery server application.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ServerRegistration
+    public partial class ServerRegistration
     {
         /// <summary>
         /// The default constructor.
@@ -2255,7 +2334,7 @@ namespace Opc.Ua
         Namespace = Namespaces.OpcUaConfig,
         ItemName = "ServerRegistration"
     )]
-    public class ServerRegistrationCollection : List<ServerRegistration>
+    public partial class ServerRegistrationCollection : List<ServerRegistration>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -2289,6 +2368,7 @@ namespace Opc.Ua
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateStoreIdentifier
     {
@@ -2298,6 +2378,7 @@ namespace Opc.Ua
         /// <value>
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
         public string StoreType { get; set; }
 
@@ -2309,6 +2390,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty and the StoreLocation is not empty, the Utils.Format("{1}\\{0}", m_storeName, m_storeLocation) is returned.
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string StorePath
         {
@@ -2327,6 +2409,7 @@ namespace Opc.Ua
         /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
+        [DataTypeField(Order = 2, Name = "ValidationOptions")]
         [DataMember(
             Name = "ValidationOptions",
             IsRequired = false,
@@ -2341,6 +2424,7 @@ namespace Opc.Ua
         private string m_storePath;
     }
 
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
@@ -2419,6 +2503,7 @@ namespace Opc.Ua
         }
     }
 
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateIdentifier
     {
@@ -2460,6 +2545,7 @@ namespace Opc.Ua
         /// The type of certificate store.
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public string StoreType { get; set; }
 
@@ -2467,6 +2553,7 @@ namespace Opc.Ua
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public string StorePath
         {
@@ -2533,6 +2620,7 @@ namespace Opc.Ua
         /// <seealso cref="X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
         /// <exception cref="ArgumentException"></exception>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 40)]
         public string SubjectName
         {
@@ -2565,6 +2653,7 @@ namespace Opc.Ua
         /// <value>The thumbprint of a certificate..</value>
         /// <seealso cref="X509Certificate2"/>
         /// <exception cref="ArgumentException"></exception>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 50)]
         public string Thumbprint
         {
@@ -2626,6 +2715,7 @@ namespace Opc.Ua
         /// Gets or sets the XML encoded validation options - use to serialize the validation options.
         /// </summary>
         /// <value>The XML encoded validation options.</value>
+        [DataTypeField(Order = 6, Name = "ValidationOptions")]
         [DataMember(
             Name = "ValidationOptions",
             IsRequired = false,
@@ -2641,6 +2731,7 @@ namespace Opc.Ua
         /// Gets or sets the certificate type.
         /// </summary>
         /// <value>The NodeId of the certificate type, e.g. EccNistP256ApplicationCertificateType.</value>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
         public NodeId CertificateType { get; set; }
 
@@ -2648,6 +2739,7 @@ namespace Opc.Ua
         /// The string representation of the certificate
         /// </summary>
         /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
         public string CertificateTypeString
         {
@@ -2664,6 +2756,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a list of cached endpoints.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ConfiguredEndpointCollection
     {
@@ -2698,6 +2791,7 @@ namespace Opc.Ua
         /// <summary>
         /// A list of known hosts that can be used for discovery.
         /// </summary>
+        [DataTypeField(Order = 0)]
         [DataMember(Name = "KnownHosts", IsRequired = false, Order = 1)]
         public ArrayOf<string> KnownHosts
         {
@@ -2738,6 +2832,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration information for an endpoint.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     [KnownType(typeof(UserNameIdentityToken))]
     [KnownType(typeof(X509IdentityToken))]
@@ -2779,6 +2874,7 @@ namespace Opc.Ua
         /// <summary>
         /// The description for the endpoint.
         /// </summary>
+        [DataTypeField(Order = 0, Name = "Endpoint", ForceEncodeable = true)]
         [DataMember(Name = "Endpoint", Order = 1, IsRequired = true)]
         public EndpointDescription Description
         {
@@ -2789,6 +2885,7 @@ namespace Opc.Ua
         /// <summary>
         /// The configuration to use when connecting to an endpoint.
         /// </summary>
+        [DataTypeField(Order = 1, ForceEncodeable = true)]
         [DataMember(Name = "Configuration", Order = 2, IsRequired = false)]
         public EndpointConfiguration Configuration
         {
@@ -2815,36 +2912,42 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the endpoint information should be updated before connecting to the server.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Name = "UpdateBeforeConnect", Order = 3, IsRequired = false)]
         public bool UpdateBeforeConnect { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
+        [DataTypeField(Order = 3)]
         [DataMember(Name = "BinaryEncodingSupport", Order = 4, IsRequired = false)]
         public BinaryEncodingSupport BinaryEncodingSupport { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
+        [DataTypeField(Order = 4, Name = "SelectedUserTokenPolicy")]
         [DataMember(Name = "SelectedUserTokenPolicy", Order = 5, IsRequired = false)]
         public int SelectedUserTokenPolicyIndex { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
+        [DataTypeField(Order = 5, ForceEncodeable = true)]
         [DataMember(Name = "UserIdentity", Order = 6, IsRequired = false)]
         public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
+        [DataTypeField(Order = 6, ForceEncodeable = true)]
         [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
         public ReverseConnectEndpoint ReverseConnect { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
         /// </summary>
+        [DataTypeField(Order = 7)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public ArrayOf<XmlElement> Extensions
         {
@@ -2861,6 +2964,7 @@ namespace Opc.Ua
     /// <summary>
     /// The type of binary encoding support allowed by a channel.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public enum BinaryEncodingSupport
     {
@@ -2886,8 +2990,9 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the reverse connect information for an endpoint.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public class ReverseConnectEndpoint
+    public partial class ReverseConnectEndpoint
     {
         /// <summary>
         /// The default constructor.

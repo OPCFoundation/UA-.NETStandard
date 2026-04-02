@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -67,6 +68,10 @@ namespace Opc.Ua.Security
         /// <returns>The security configuration.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer for SecuredApplication serialization.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer for SecuredApplication serialization.")]
         public SecuredApplication ReadConfiguration(string filePath)
         {
             if (filePath == null)
@@ -146,6 +151,7 @@ namespace Opc.Ua.Security
                     // find the SecuredApplication element in the file.
                     if (Encoding.UTF8.GetString(data).Contains("SecuredApplication", StringComparison.Ordinal))
                     {
+                        // TODO: Replace SecuredApplication DataContractSerializer with XmlParser/XmlEncoder.
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                         DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<SecuredApplication>();
                         using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
@@ -164,9 +170,13 @@ namespace Opc.Ua.Security
                             FileAccess.Read,
                             FileShare.Read);
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ApplicationConfiguration>();
-                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
-                        applicationConfiguration = serializer.ReadObject(reader) as ApplicationConfiguration;
+                        IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                            ServiceMessageContext.CreateEmpty(m_telemetry);
+                        var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
+                        applicationConfiguration = new ApplicationConfiguration();
+                        applicationConfiguration.Decode(parser);
+                        applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
+                        applicationConfiguration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                         applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
@@ -318,6 +328,8 @@ namespace Opc.Ua.Security
         /// <param name="configuration">The configuration.</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
+        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         public void WriteConfiguration(string filePath, SecuredApplication configuration)
         {
             if (configuration == null)
@@ -387,6 +399,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Updates the XML document with the new configuration information.
         /// </summary>
+        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
+        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         private void UpdateDocument(System.Xml.XmlElement element, SecuredApplication application)
         {
             for (XmlNode node = element.FirstChild; node != null; node = node.NextSibling)
@@ -481,24 +495,45 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         private object GetObject(Type type, XmlNode element)
         {
-            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
-            var txtReader = XmlDictionaryReader.CreateTextReader(
-                memoryStream,
-                Encoding.UTF8,
-                new XmlDictionaryReaderQuotas(),
-                null);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer(type);
-            using var reader = XmlReader.Create(txtReader, Utils.DefaultXmlReaderSettings());
-            return serializer.ReadObject(reader);
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(m_telemetry);
+            // Use element.OuterXml so the XmlParser sees the root element (e.g. <SecurityConfiguration>).
+            if (type == typeof(SecurityConfiguration))
+            {
+                var parser = new XmlParser(type, element.OuterXml, context);
+                var sec = new SecurityConfiguration();
+                sec.Decode(parser);
+                return sec;
+            }
+
+            if (type == typeof(ServerConfiguration))
+            {
+                var parser = new XmlParser(type, element.OuterXml, context);
+                var srv = new ServerConfiguration();
+                srv.Decode(parser);
+                srv.ValidateSecurityPolicies();
+                return srv;
+            }
+
+            if (type == typeof(DiscoveryServerConfiguration))
+            {
+                var parser = new XmlParser(type, element.OuterXml, context);
+                var disc = new DiscoveryServerConfiguration();
+                disc.Decode(parser);
+                disc.ValidateSecurityPolicies();
+                return disc;
+            }
+
+            throw new NotSupportedException(Utils.Format("Unsupported type for GetObject: {0}", type.FullName));
         }
 
-        /// <summary>
-        /// Reads an object from the body of an XML element.
-        /// </summary>
+        // TODO: Replace DataContractSerializer with XmlEncoder for known OPC UA config types.
+        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
+        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         private string SetObject(Type type, object value)
         {
             using var memoryStream = new MemoryStream();

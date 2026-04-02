@@ -989,7 +989,7 @@ namespace Opc.Ua.Client.Tests
             {
                 NUnit.Framework.Assert.Fail(
                     $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}" +
-                    $"Please fix Test parameters or Test server configuration");
+                    "Please fix Test parameters or Test server configuration");
             }
             userIdentity.PolicyId = identityPolicy.PolicyId;
 
@@ -1783,7 +1783,7 @@ namespace Opc.Ua.Client.Tests
 
                     // Mock the channel and session
                     var channelMock = new Mock<ITransportChannel>();
-                    var messageContext = new ServiceMessageContext(telemetry);
+                    var messageContext = ServiceMessageContext.Create(telemetry);
                     channelMock.Setup(mock => mock.MessageContext).Returns(messageContext);
 
                     var testableTraceableRequestHeaderClientSession

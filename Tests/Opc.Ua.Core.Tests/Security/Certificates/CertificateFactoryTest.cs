@@ -508,7 +508,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase), Is.True);
             }
-            Assert.That(subjectAlternateName.Uris.Count, Is.EqualTo(1));
+            Assert.That(subjectAlternateName.Uris, Has.Count.EqualTo(1));
             IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
             string applicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
             TestContext.Out.WriteLine("ApplicationUris: ");

@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference type node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ReferenceTypeNode : TypeNode, IReferenceType
     {
         /// <summary>

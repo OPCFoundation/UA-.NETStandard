@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             await Task.WhenAll(timerTasks).ConfigureAwait(false);
 
             // Wait for consumers to get their subscriptions
-            var resultsTask = Task.WhenAll(publishTasks);
+            Task<ISubscription[]> resultsTask = Task.WhenAll(publishTasks);
             await Task.WhenAny(resultsTask, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
 
             queue.Close();

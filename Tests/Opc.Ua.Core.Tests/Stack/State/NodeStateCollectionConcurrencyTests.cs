@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var testNodeState = new AnalogUnitRangeState(null);
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             references.Clear();
             testNodeState.GetReferences(systemContext, references);
 
-            Assert.That(references.Count, Is.EqualTo(originalReferenceCount));
+            Assert.That(references, Has.Count.EqualTo(originalReferenceCount));
         }
 
         [Test]
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             notifiers.Clear();
             testNodeState.GetNotifiers(systemContext, notifiers);
 
-            Assert.That(notifiers.Count, Is.EqualTo(originalNotifierCount));
+            Assert.That(notifiers, Has.Count.EqualTo(originalNotifierCount));
         }
 
         [Test]
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             children.Clear();
             testNodeState.GetChildren(systemContext, children);
 
-            Assert.That(children.Count, Is.EqualTo(originalNotifierCount));
+            Assert.That(children, Has.Count.EqualTo(originalNotifierCount));
         }
     }
 }

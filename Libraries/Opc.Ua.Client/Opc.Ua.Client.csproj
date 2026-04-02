@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
@@ -8,6 +8,7 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
@@ -21,6 +22,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

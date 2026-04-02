@@ -7351,7 +7351,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
-            Assert.That(result.Length, Is.EqualTo(1003));
+            Assert.That(result, Has.Length.EqualTo(1003));
         }
 
         /// <summary>

@@ -71,7 +71,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="enumDefinition"/> is <c>null</c>.</exception>
-        public Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition)
+        public IEnumeratedType AddEnumType(
+            QualifiedName typeName,
+            EnumDefinition enumDefinition)
         {
             if (enumDefinition == null)
             {
@@ -113,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
                 }
             }
-            return enumBuilder.CreateTypeInfo();
+            return ReflectionBasedType.From(enumBuilder.CreateTypeInfo()) as IEnumeratedType;
         }
 
         /// <summary>

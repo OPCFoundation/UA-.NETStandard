@@ -40,13 +40,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantHelperTests
     {
-        private enum TestEnum
-        {
-            Zero = 0,
-            One = 1,
-            Two = 2
-        }
-
         [Test]
         public void TryCastToIntFromNullVariantReturnsDefault()
         {
@@ -191,10 +184,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(dt));
         }
-
-        // Note: TryCastTo<Guid> uses AsT<Uuid> which relies on Unsafe.As
-        // and has a Debug.Assert that fires in debug builds (Uuid vs Guid).
-        // This path is covered by release-mode CI runs.
 
         [Test]
         public void TryCastToUuidReturnsUuid()
@@ -1195,7 +1184,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromWithReflectionFallbackNonArrayNonCastableReturnsFalse()
         {
             bool result = VariantHelper.TryCastFromWithReflectionFallback(
-                new TimeSpan(100), out Variant variant);
+                new TimeSpan(100), out _);
             Assert.That(result, Is.False);
         }
 
@@ -1265,7 +1254,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfSByteReturnsVariant()
         {
             MatrixOf<sbyte> matrix = new sbyte[,] { { -1, 0 }, { 1, 2 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1273,7 +1263,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfByteReturnsVariant()
         {
             MatrixOf<byte> matrix = new byte[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1281,7 +1272,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfInt16ReturnsVariant()
         {
             MatrixOf<short> matrix = new short[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1289,7 +1281,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfUInt16ReturnsVariant()
         {
             MatrixOf<ushort> matrix = new ushort[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1297,7 +1290,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfInt32ReturnsVariant()
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1305,7 +1299,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfUInt32ReturnsVariant()
         {
             MatrixOf<uint> matrix = new uint[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1313,7 +1308,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfInt64ReturnsVariant()
         {
             MatrixOf<long> matrix = new long[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1321,7 +1317,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfUInt64ReturnsVariant()
         {
             MatrixOf<ulong> matrix = new ulong[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1329,7 +1326,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfFloatReturnsVariant()
         {
             MatrixOf<float> matrix = new float[,] { { 1f, 2f }, { 3f, 4f } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1337,7 +1335,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfDoubleReturnsVariant()
         {
             MatrixOf<double> matrix = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1345,7 +1344,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromMatrixOfStringReturnsVariant()
         {
             MatrixOf<string> matrix = new string[,] { { "a", "b" }, { "c", "d" } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1354,7 +1354,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.UtcNow;
             MatrixOf<DateTimeUtc> matrix = new DateTimeUtc[,] { { dt, dt }, { dt, dt } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1363,7 +1364,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var g = Guid.NewGuid();
             MatrixOf<Guid> matrix = new Guid[,] { { g, g }, { g, g } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1372,7 +1374,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var uuid = new Uuid(Guid.NewGuid());
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1381,7 +1384,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bs = new ByteString(new byte[] { 1 });
             MatrixOf<ByteString> matrix = new ByteString[,] { { bs, bs }, { bs, bs } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1390,7 +1394,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var xml = new XmlElement("<a/>");
             MatrixOf<XmlElement> matrix = new XmlElement[,] { { xml, xml }, { xml, xml } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1399,7 +1404,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nid = new NodeId(1);
             MatrixOf<NodeId> matrix = new NodeId[,] { { nid, nid }, { nid, nid } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1408,7 +1414,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var enid = new ExpandedNodeId(1);
             MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,] { { enid, enid }, { enid, enid } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1417,7 +1424,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en-US", "Hi");
             MatrixOf<LocalizedText> matrix = new LocalizedText[,] { { lt, lt }, { lt, lt } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1426,7 +1434,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Test");
             MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { qn, qn }, { qn, qn } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1435,7 +1444,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             StatusCode sc = StatusCodes.Good;
             MatrixOf<StatusCode> matrix = new StatusCode[,] { { sc, sc }, { sc, sc } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1444,7 +1454,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(Variant.From(1));
             MatrixOf<DataValue> matrix = new DataValue[,] { { dv, dv }, { dv, dv } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1453,7 +1464,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var inner = Variant.From(1);
             MatrixOf<Variant> matrix = new Variant[,] { { inner, inner }, { inner, inner } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1463,7 +1475,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arg = new Argument("P", new NodeId(1), 0, "D");
             var eo = new ExtensionObject(arg, true);
             MatrixOf<ExtensionObject> matrix = new ExtensionObject[,] { { eo, eo }, { eo, eo } }.ToMatrixOf();
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1509,7 +1522,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableEnumReturnsVariant()
         {
             IEnumerable<Enum> enums = [TestEnum.One, TestEnum.Two];
-            bool result = VariantHelper.TryCastFrom(enums, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(enums, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1517,7 +1531,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableBoolReturnsVariant()
         {
             IEnumerable<bool> list = [true, false];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1525,7 +1540,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableByteReturnsVariant()
         {
             IEnumerable<byte> list = [1, 2, 3];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1533,7 +1549,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableSByteReturnsVariant()
         {
             IEnumerable<sbyte> list = [-1, 0, 1];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1541,7 +1558,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableUInt16ReturnsVariant()
         {
             IEnumerable<ushort> list = [100, 200];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1549,7 +1567,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableInt16ReturnsVariant()
         {
             IEnumerable<short> list = [-10, 10];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1557,7 +1576,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableUInt32ReturnsVariant()
         {
             IEnumerable<uint> list = [10, 20];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1565,7 +1585,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableInt32ReturnsVariant()
         {
             IEnumerable<int> list = [1, 2, 3];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1573,7 +1594,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableUInt64ReturnsVariant()
         {
             IEnumerable<ulong> list = [100, 200];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1581,7 +1603,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableInt64ReturnsVariant()
         {
             IEnumerable<long> list = [-100, 200];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1589,7 +1612,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableDoubleReturnsVariant()
         {
             IEnumerable<double> list = [1.1, 2.2];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1597,7 +1621,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableFloatReturnsVariant()
         {
             IEnumerable<float> list = [1.1f, 2.2f];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1605,7 +1630,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableStringReturnsVariant()
         {
             IEnumerable<string> list = ["a", "b"];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1614,7 +1640,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.UtcNow;
             IEnumerable<DateTimeUtc> list = [dt];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1622,7 +1649,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableGuidReturnsVariant()
         {
             IEnumerable<Guid> list = [Guid.NewGuid()];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1630,7 +1658,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableUuidReturnsVariant()
         {
             IEnumerable<Uuid> list = [new(Guid.NewGuid())];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1638,7 +1667,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableByteStringReturnsVariant()
         {
             IEnumerable<ByteString> list = [new(new byte[] { 1 })];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1646,7 +1676,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableXmlElementReturnsVariant()
         {
             IEnumerable<XmlElement> list = [new("<a/>")];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1654,7 +1685,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableNodeIdReturnsVariant()
         {
             IEnumerable<NodeId> list = [new(1)];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1662,7 +1694,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableExpandedNodeIdReturnsVariant()
         {
             IEnumerable<ExpandedNodeId> list = [new(1)];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1670,7 +1703,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableLocalizedTextReturnsVariant()
         {
             IEnumerable<LocalizedText> list = [new("en-US", "Hi")];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1678,7 +1712,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableQualifiedNameReturnsVariant()
         {
             IEnumerable<QualifiedName> list = [new("Test")];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1686,7 +1721,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableStatusCodeReturnsVariant()
         {
             IEnumerable<StatusCode> list = [StatusCodes.Good];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1694,7 +1730,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableDataValueReturnsVariant()
         {
             IEnumerable<DataValue> list = [new(Variant.From(1))];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1702,7 +1739,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableVariantReturnsVariant()
         {
             IEnumerable<Variant> list = [Variant.From(1)];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1711,7 +1749,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arg = new Argument("P", new NodeId(1), 0, "D");
             IEnumerable<ExtensionObject> list = [new(arg, true)];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1720,7 +1759,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arg = new Argument("P", new NodeId(1), 0, "D");
             IEnumerable<IEncodeable> list = [arg];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
         }
 
@@ -1728,246 +1768,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryCastFromIEnumerableObjectReturnsVariant()
         {
             IEnumerable<object> list = [1, "text", true];
-            bool result = VariantHelper.TryCastFrom(list, out Variant variant);
+
+            bool result = VariantHelper.TryCastFrom(list, out _);
             Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixBooleanReturnsVariant()
-        {
-            bool[] values = [true, false, true, false];
-            var matrix = new Matrix(values, BuiltInType.Boolean, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-            Assert.That(variant.IsNull, Is.False);
-        }
-
-        [Test]
-        public void TryCastFromMatrixSByteReturnsVariant()
-        {
-            var matrix = new Matrix(new sbyte[] { -1, 0, 1, 2 }, BuiltInType.SByte, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixByteReturnsVariant()
-        {
-            var matrix = new Matrix(new byte[] { 1, 2, 3, 4 }, BuiltInType.Byte, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixInt16ReturnsVariant()
-        {
-            var matrix = new Matrix(new short[] { 1, 2, 3, 4 }, BuiltInType.Int16, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixUInt16ReturnsVariant()
-        {
-            var matrix = new Matrix(new ushort[] { 1, 2, 3, 4 }, BuiltInType.UInt16, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixInt32ReturnsVariant()
-        {
-            int[] values = [1, 2, 3, 4];
-            var matrix = new Matrix(values, BuiltInType.Int32, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixEnumerationReturnsVariant()
-        {
-            int[] values = [0, 1, 2, 0];
-            var matrix = new Matrix(values, BuiltInType.Enumeration, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixUInt32ReturnsVariant()
-        {
-            var matrix = new Matrix(new uint[] { 1, 2, 3, 4 }, BuiltInType.UInt32, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixInt64ReturnsVariant()
-        {
-            var matrix = new Matrix(new long[] { 1, 2, 3, 4 }, BuiltInType.Int64, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixUInt64ReturnsVariant()
-        {
-            var matrix = new Matrix(new ulong[] { 1, 2, 3, 4 }, BuiltInType.UInt64, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixFloatReturnsVariant()
-        {
-            float[] values = [1f, 2f, 3f, 4f];
-            var matrix = new Matrix(values, BuiltInType.Float, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixDoubleReturnsVariant()
-        {
-            double[] values = [1.0, 2.0, 3.0, 4.0];
-            var matrix = new Matrix(values, BuiltInType.Double, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixStringReturnsVariant()
-        {
-            string[] values = ["a", "b", "c", "d"];
-            var matrix = new Matrix(values, BuiltInType.String, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        // Note: Matrix DateTime test omitted - the old Matrix class stores DateTime[]
-        // but TryCastFrom(Matrix) casts to DateTimeUtc[], causing InvalidCastException.
-        // This code path requires Matrix objects created through internal encoding paths.
-
-        [Test]
-        public void TryCastFromMatrixGuidReturnsVariant()
-        {
-            var uuid = new Uuid(Guid.NewGuid());
-            var matrix = new Matrix(new Uuid[] { uuid, uuid, uuid, uuid }, BuiltInType.Guid, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixByteStringReturnsVariant()
-        {
-            var bs = new ByteString(new byte[] { 1 });
-            var matrix = new Matrix(new ByteString[] { bs, bs, bs, bs }, BuiltInType.ByteString, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixXmlElementReturnsVariant()
-        {
-            var xml = new XmlElement("<a/>");
-            var matrix = new Matrix(new XmlElement[] { xml, xml, xml, xml }, BuiltInType.XmlElement, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixNodeIdReturnsVariant()
-        {
-            var nid = new NodeId(1);
-            var matrix = new Matrix(new NodeId[] { nid, nid, nid, nid }, BuiltInType.NodeId, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixExpandedNodeIdReturnsVariant()
-        {
-            var enid = new ExpandedNodeId(1);
-            var matrix = new Matrix(new ExpandedNodeId[] { enid, enid, enid, enid }, BuiltInType.ExpandedNodeId, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixStatusCodeReturnsVariant()
-        {
-            StatusCode sc = StatusCodes.Good;
-            var matrix = new Matrix(new StatusCode[] { sc, sc, sc, sc }, BuiltInType.StatusCode, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixQualifiedNameReturnsVariant()
-        {
-            var qn = new QualifiedName("Test");
-            var matrix = new Matrix(new QualifiedName[] { qn, qn, qn, qn }, BuiltInType.QualifiedName, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixLocalizedTextReturnsVariant()
-        {
-            var lt = new LocalizedText("en-US", "Hi");
-            var matrix = new Matrix(new LocalizedText[] { lt, lt, lt, lt }, BuiltInType.LocalizedText, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixExtensionObjectReturnsVariant()
-        {
-            var arg = new Argument("P", new NodeId(1), 0, "D");
-            var eo = new ExtensionObject(arg, true);
-            var matrix = new Matrix(new ExtensionObject[] { eo, eo, eo, eo }, BuiltInType.ExtensionObject, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void TryCastFromMatrixDataValueReturnsVariant()
-        {
-            var dv = new DataValue(Variant.From(1));
-            var matrix = new Matrix(new DataValue[] { dv, dv, dv, dv }, BuiltInType.DataValue, 2, 2);
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-        }
-
-        // Note: BuiltInType.Number, Integer, UInteger are abstract types that
-        // share the same code path as Variant in TryCastFrom(Matrix).
-        // They cannot be tested with the Matrix constructor in debug mode due to
-        // SanityCheckArrayElements assertions.
-
-        [Test]
-        public void TryCastFromMatrixNullTypeReturnsNullVariant()
-        {
-            // Use the BuiltInType.Null branch by passing a valid but empty matrix
-            // The Null case returns Variant.Null regardless of elements.
-            bool[] values = [true, false, true, false];
-            var matrix = new Matrix(values, BuiltInType.Boolean, 2, 2);
-            // We test the Null branch separately is covered via other paths
-            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-            Assert.That(variant.IsNull, Is.False);
-        }
-
-        // Note: The default branch (line 1009) and BuiltInType.Null branch (line 930)
-        // cannot be tested via the public Matrix constructor in debug builds because
-        // the constructor's SanityCheckArrayElements fires Debug.Assert for mismatched types.
-
-        [Test]
-        public void TryCastFromMatrixViaGenericPathReturnsVariant()
-        {
-            int[] values = [1, 2, 3, 4];
-            var matrix = new Matrix(values, BuiltInType.Int32, 2, 2);
-            bool result = VariantHelper.TryCastFrom<object>(matrix, out Variant variant);
-            Assert.That(result, Is.True);
-            Assert.That(variant.IsNull, Is.False);
         }
 
         [Test]
@@ -1995,6 +1798,261 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             VariantHelper.TryCastFrom(original, out Variant variant);
             variant.TryCastTo(out string result);
             Assert.That(result, Is.EqualTo(original));
+        }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        [Test]
+        public void TryCastFromMatrixBooleanReturnsVariant()
+        {
+            bool[] values = [true, false, true, false];
+            var matrix = new Matrix(values, BuiltInType.Boolean, 2, 2);
+            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+            Assert.That(result, Is.True);
+            Assert.That(variant.IsNull, Is.False);
+        }
+
+        [Test]
+        public void TryCastFromMatrixSByteReturnsVariant()
+        {
+            var matrix = new Matrix(new sbyte[] { -1, 0, 1, 2 }, BuiltInType.SByte, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixByteReturnsVariant()
+        {
+            var matrix = new Matrix(new byte[] { 1, 2, 3, 4 }, BuiltInType.Byte, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixInt16ReturnsVariant()
+        {
+            var matrix = new Matrix(new short[] { 1, 2, 3, 4 }, BuiltInType.Int16, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixUInt16ReturnsVariant()
+        {
+            var matrix = new Matrix(new ushort[] { 1, 2, 3, 4 }, BuiltInType.UInt16, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixInt32ReturnsVariant()
+        {
+            int[] values = [1, 2, 3, 4];
+            var matrix = new Matrix(values, BuiltInType.Int32, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixEnumerationReturnsVariant()
+        {
+            int[] values = [0, 1, 2, 0];
+            var matrix = new Matrix(values, BuiltInType.Enumeration, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixUInt32ReturnsVariant()
+        {
+            var matrix = new Matrix(new uint[] { 1, 2, 3, 4 }, BuiltInType.UInt32, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixInt64ReturnsVariant()
+        {
+            var matrix = new Matrix(new long[] { 1, 2, 3, 4 }, BuiltInType.Int64, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixUInt64ReturnsVariant()
+        {
+            var matrix = new Matrix(new ulong[] { 1, 2, 3, 4 }, BuiltInType.UInt64, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixFloatReturnsVariant()
+        {
+            float[] values = [1f, 2f, 3f, 4f];
+            var matrix = new Matrix(values, BuiltInType.Float, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixDoubleReturnsVariant()
+        {
+            double[] values = [1.0, 2.0, 3.0, 4.0];
+            var matrix = new Matrix(values, BuiltInType.Double, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixStringReturnsVariant()
+        {
+            string[] values = ["a", "b", "c", "d"];
+            var matrix = new Matrix(values, BuiltInType.String, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixGuidReturnsVariant()
+        {
+            var uuid = new Uuid(Guid.NewGuid());
+            var matrix = new Matrix(new Uuid[] { uuid, uuid, uuid, uuid }, BuiltInType.Guid, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixByteStringReturnsVariant()
+        {
+            var bs = new ByteString(new byte[] { 1 });
+            var matrix = new Matrix(new ByteString[] { bs, bs, bs, bs }, BuiltInType.ByteString, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixXmlElementReturnsVariant()
+        {
+            var xml = new XmlElement("<a/>");
+            var matrix = new Matrix(new XmlElement[] { xml, xml, xml, xml }, BuiltInType.XmlElement, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixNodeIdReturnsVariant()
+        {
+            var nid = new NodeId(1);
+            var matrix = new Matrix(new NodeId[] { nid, nid, nid, nid }, BuiltInType.NodeId, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixExpandedNodeIdReturnsVariant()
+        {
+            var enid = new ExpandedNodeId(1);
+            var matrix = new Matrix(new ExpandedNodeId[] { enid, enid, enid, enid }, BuiltInType.ExpandedNodeId, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixStatusCodeReturnsVariant()
+        {
+            StatusCode sc = StatusCodes.Good;
+            var matrix = new Matrix(new StatusCode[] { sc, sc, sc, sc }, BuiltInType.StatusCode, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixQualifiedNameReturnsVariant()
+        {
+            var qn = new QualifiedName("Test");
+            var matrix = new Matrix(new QualifiedName[] { qn, qn, qn, qn }, BuiltInType.QualifiedName, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixLocalizedTextReturnsVariant()
+        {
+            var lt = new LocalizedText("en-US", "Hi");
+            var matrix = new Matrix(new LocalizedText[] { lt, lt, lt, lt }, BuiltInType.LocalizedText, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixExtensionObjectReturnsVariant()
+        {
+            var arg = new Argument("P", new NodeId(1), 0, "D");
+            var eo = new ExtensionObject(arg, true);
+            var matrix = new Matrix(new ExtensionObject[] { eo, eo, eo, eo }, BuiltInType.ExtensionObject, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixDataValueReturnsVariant()
+        {
+            var dv = new DataValue(Variant.From(1));
+            var matrix = new Matrix(new DataValue[] { dv, dv, dv, dv }, BuiltInType.DataValue, 2, 2);
+
+            bool result = VariantHelper.TryCastFrom(matrix, out _);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TryCastFromMatrixNullTypeReturnsNullVariant()
+        {
+            // Use the BuiltInType.Null branch by passing a valid but empty matrix
+            // The Null case returns Variant.Null regardless of elements.
+            bool[] values = [true, false, true, false];
+            var matrix = new Matrix(values, BuiltInType.Boolean, 2, 2);
+            // We test the Null branch separately is covered via other paths
+            bool result = VariantHelper.TryCastFrom(matrix, out Variant variant);
+            Assert.That(result, Is.True);
+            Assert.That(variant.IsNull, Is.False);
+        }
+
+        [Test]
+        public void TryCastFromMatrixViaGenericPathReturnsVariant()
+        {
+            int[] values = [1, 2, 3, 4];
+            var matrix = new Matrix(values, BuiltInType.Int32, 2, 2);
+            bool result = VariantHelper.TryCastFrom<object>(matrix, out Variant variant);
+            Assert.That(result, Is.True);
+            Assert.That(variant.IsNull, Is.False);
+        }
+#pragma warning restore CS0618 // Type or member is obsolete
+        private enum TestEnum
+        {
+            Zero = 0,
+            One = 1,
+            Two = 2
         }
     }
 }

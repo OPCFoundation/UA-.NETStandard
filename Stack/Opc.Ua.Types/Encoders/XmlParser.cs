@@ -333,7 +333,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
+            XmlQualifiedName typeName = Peek(XmlNodeType.Element);
+            if (!Context.Factory.TryGetType(typeName, out IType type) ||
+                type is not IEncodeableType activator)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -341,18 +343,14 @@ namespace Opc.Ua
                     typeof(T));
             }
 
-            XmlQualifiedName typeName = activator.XmlName;
-            string ns = typeName.Namespace;
             string name = typeName.Name;
-
             int index = name.IndexOf(':', StringComparison.Ordinal);
-
             if (index != -1)
             {
                 name = name[(index + 1)..];
             }
 
-            PushNamespace(ns);
+            PushNamespace(typeName.Namespace);
 
             // read the message.
             T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
@@ -2457,13 +2455,14 @@ namespace Opc.Ua
                     // unread children simply remain unconsumed.
 
                     EndField(fieldName);
+                    return value;
                 }
             }
             finally
             {
                 m_nestingLevel--;
             }
-            return value;
+            return default;
         }
 
         /// <summary>

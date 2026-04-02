@@ -174,5 +174,98 @@ namespace Opc.Ua.SourceGeneration
                     .Where(s => !string.IsNullOrEmpty(s))];
             }
         }
+
+        /// <summary>
+        /// Get namespace information
+        /// </summary>
+        public static string GetFullNamespace(this INamedTypeSymbol symbol)
+        {
+            var parts = new List<string>();
+            INamespaceSymbol ns = symbol.ContainingNamespace;
+            while (ns != null && !ns.IsGlobalNamespace)
+            {
+                parts.Insert(0, ns.Name);
+                ns = ns.ContainingNamespace;
+            }
+            return string.Join(".", parts);
+        }
+
+        /// <summary>
+        /// Get fully qualified type name string with global::
+        /// prefix and no global namespace
+        /// </summary>
+        public static string GetFullyQualifiedTypeName(this ITypeSymbol type)
+        {
+            return "global::" +
+                type.ToDisplayString(
+                    SymbolDisplayFormat.FullyQualifiedFormat
+                        .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
+        }
+
+        /// <summary>
+        /// Check whether the type implements an interface with the
+        /// given name, regardless of namespace. This is used to check for
+        /// specific interfaces without needing the full namespace.
+        /// </summary>
+        public static bool ImplementsInterface(
+            this ITypeSymbol type,
+            string interfaceName)
+        {
+            return type.AllInterfaces.Any(i => i.Name == interfaceName);
+        }
+
+        /// <summary>
+        /// Check if a type symbol has a specific attribute by name.
+        /// </summary>
+        public static bool HasAttribute(
+            this ITypeSymbol type,
+            string attributeName)
+        {
+            return type.GetAttributes().Any(a =>
+                a.AttributeClass?.Name == attributeName);
+        }
+
+        /// <summary>
+        /// Get a named argument from the attribute
+        /// </summary>
+        public static string GetValue(
+            this AttributeData attr,
+            string name)
+        {
+            if (attr == null)
+            {
+                return null;
+            }
+            foreach (KeyValuePair<string, TypedConstant> kvp in attr.NamedArguments)
+            {
+                if (kvp.Key == name && kvp.Value.Value is string s)
+                {
+                    return s;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get a named argument from the attribute
+        /// </summary>
+        public static int GetInteger(
+            this AttributeData attr,
+            string name,
+            int defaultValue = default)
+        {
+            if (attr == null)
+            {
+                return defaultValue;
+            }
+            foreach (KeyValuePair<string, TypedConstant> kvp in attr.NamedArguments)
+            {
+                if (kvp.Key == name && kvp.Value.Value is int i)
+                {
+                    return i;
+                }
+            }
+            return defaultValue;
+        }
     }
 }

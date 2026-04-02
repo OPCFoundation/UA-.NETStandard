@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using static Opc.Ua.LoggerUtils;
 
 namespace Opc.Ua.Types.Tests.Utils
 {
@@ -464,7 +463,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("1:3,4:6", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
             Assert.That(range.SubRanges[0].Begin, Is.EqualTo(1));
             Assert.That(range.SubRanges[0].End, Is.EqualTo(3));
             Assert.That(range.SubRanges[1].Begin, Is.EqualTo(4));
@@ -477,7 +476,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("0:1,2:3,4:5", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(3));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -486,7 +485,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("1,2", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
             Assert.That(range.SubRanges[0].Begin, Is.EqualTo(1));
             Assert.That(range.SubRanges[0].End, Is.EqualTo(-1));
             Assert.That(range.SubRanges[1].Begin, Is.EqualTo(2));
@@ -571,7 +570,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range = NumericRange.Parse("0:2,3:5");
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
         }
 
         [Test]

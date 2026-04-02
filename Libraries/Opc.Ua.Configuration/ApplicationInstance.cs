@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -94,6 +95,7 @@ namespace Opc.Ua.Configuration
         public string ConfigSectionName { get; set; }
 
         /// <inheritdoc/>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
         public Type ConfigurationType { get; set; }
 
         /// <inheritdoc/>
@@ -493,7 +495,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
@@ -541,7 +543,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)

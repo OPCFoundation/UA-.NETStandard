@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static string GetSerializedData<T>(T instance)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
             using var stream = new MemoryStream();
@@ -119,7 +119,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static T Roundtrip<T>(T value)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
 
@@ -498,8 +498,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             AssertMatrixOfContractEqual(expected.Matrices, actual.Matrices);
 
             Assert.That(
-                actual.AdditionalScalars.Length,
-                Is.EqualTo(expected.AdditionalScalars.Length),
+                actual.AdditionalScalars,
+                Has.Length.EqualTo(expected.AdditionalScalars.Length),
                 "AdditionalScalars length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalScalars.Length; ii++)
@@ -508,8 +508,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             Assert.That(
-                actual.AdditionalArrays.Length,
-                Is.EqualTo(expected.AdditionalArrays.Length),
+                actual.AdditionalArrays,
+                Has.Length.EqualTo(expected.AdditionalArrays.Length),
                 "AdditionalArrays length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalArrays.Length; ii++)
@@ -520,8 +520,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             }
 
             Assert.That(
-                actual.AdditionalMatrices.Length,
-                Is.EqualTo(expected.AdditionalMatrices.Length),
+                actual.AdditionalMatrices,
+                Has.Length.EqualTo(expected.AdditionalMatrices.Length),
                 "AdditionalMatrices length mismatch");
 
             for (int ii = 0; ii < expected.AdditionalMatrices.Length; ii++)

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Types;
 #if NET8_0_OR_GREATER
@@ -435,6 +436,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static Variant CastFromWithReflectionFallback<T>(T value)
         {
             if (!TryCastFromWithReflectionFallback(value, out Variant variant))
@@ -454,6 +457,8 @@ namespace Opc.Ua
         /// <param name="value"></param>
         /// <param name="variant"></param>
         /// <returns></returns>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static bool TryCastFromWithReflectionFallback<T>(
             T value,
             out Variant variant)
@@ -1016,6 +1021,8 @@ namespace Opc.Ua
         /// Use reflection to cast
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         private static bool TryCastFromWithReflection<T>(T value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum

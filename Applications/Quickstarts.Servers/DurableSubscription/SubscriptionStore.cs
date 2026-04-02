@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -41,26 +39,21 @@ namespace Quickstarts.Servers
 {
     public class SubscriptionStore : ISubscriptionStore
     {
-        private static readonly JsonSerializerSettings s_settings = new()
-        {
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Uses equality which does not work with Variant.
-            TypeNameHandling = TypeNameHandling.All,
-            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() }
-        };
-
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions");
 
-        private const string kFilename = "subscriptionsStore.txt";
+        private const string kFilename = "subscriptionsStore.bin";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+        private readonly IServiceMessageContext m_messageContext;
 
         public SubscriptionStore(IServerInternal server)
         {
             m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
             m_telemetry = server.Telemetry;
+            m_messageContext = server.MessageContext;
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
@@ -69,20 +62,34 @@ namespace Quickstarts.Servers
         {
             try
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                string result = JsonConvert.SerializeObject(subscriptions, s_settings);
-
                 if (!Directory.Exists(s_storage_path))
                 {
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                File.WriteAllText(Path.Combine(s_storage_path, kFilename), result);
+                var subs = subscriptions.Cast<StoredSubscription>().ToList();
+                using (FileStream fileStream = File.Create(
+                    Path.Combine(s_storage_path, kFilename)))
+                using (var encoder = new BinaryEncoder(
+                    fileStream, m_messageContext, true))
+                {
+                    encoder.WriteStringArray(
+                        null, m_messageContext.NamespaceUris.ToArrayOf());
+                    encoder.WriteStringArray(
+                        null, m_messageContext.ServerUris.ToArrayOf());
+
+                    encoder.WriteInt32(null, subs.Count);
+                    foreach (StoredSubscription sub in subs)
+                    {
+                        EncodeSubscription(encoder, sub);
+                    }
+                }
 
                 if (m_durableMonitoredItemQueueFactory != null)
                 {
-                    IEnumerable<uint> ids = subscriptions.SelectMany(
-                        s => s.MonitoredItems.Select(m => m.Id));
+                    IEnumerable<uint> ids = subscriptions
+                        .SelectMany(s => s.MonitoredItems
+                            .Select(m => m.Id));
                     m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
                 }
                 return true;
@@ -101,13 +108,26 @@ namespace Quickstarts.Servers
             {
                 if (File.Exists(filePath))
                 {
-                    string json = File.ReadAllText(filePath);
-                    using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                    List<IStoredSubscription> result =
-                        JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
+                    List<IStoredSubscription> result;
+                    using (FileStream fileStream = File.OpenRead(filePath))
+                    using (var decoder = new BinaryDecoder(
+                        fileStream, m_messageContext, true))
+                    {
+                        ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+                        ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                        decoder.SetMappingTables(
+                            new NamespaceTable(nsUris.Memory.ToArray()),
+                            new StringTable(serverUris.Memory.ToArray()));
+
+                        int count = decoder.ReadInt32(null);
+                        result = new List<IStoredSubscription>(count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            result.Add(DecodeSubscription(decoder));
+                        }
+                    }
 
                     File.Delete(filePath);
-
                     return new RestoreSubscriptionResult(true, result);
                 }
             }
@@ -117,79 +137,6 @@ namespace Quickstarts.Servers
             }
 
             return new RestoreSubscriptionResult(false, null);
-        }
-
-        public class ExtensionObjectConverter : JsonConverter
-        {
-            public override bool CanConvert(Type objectType)
-            {
-                return objectType == typeof(ExtensionObject);
-            }
-
-            public override object ReadJson(
-                JsonReader reader,
-                Type objectType,
-                object existingValue,
-                JsonSerializer serializer)
-            {
-                var jo = JObject.Load(reader);
-                ExpandedNodeId typeId = jo["TypeId"].ToObject<ExpandedNodeId>(serializer);
-                return new ExtensionObject(typeId, jo["Body"].ToString(Formatting.None));
-            }
-
-            public override void WriteJson(
-                JsonWriter writer,
-                object value,
-                JsonSerializer serializer)
-            {
-                var extensionObject = (ExtensionObject)value;
-#pragma warning disable CS0618 // Type or member is obsolete
-                var jo = new JObject
-                {
-                    ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
-                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
-                };
-#pragma warning restore CS0618 // Type or member is obsolete
-                jo.WriteTo(writer);
-            }
-        }
-
-        public class NumericRangeConverter : JsonConverter
-        {
-            public override bool CanConvert(Type objectType)
-            {
-                return objectType == typeof(NumericRange);
-            }
-
-            public override object ReadJson(
-                JsonReader reader,
-                Type objectType,
-                object existingValue,
-                JsonSerializer serializer)
-            {
-                var jo = JObject.Load(reader);
-                int begin = jo["Begin"].ToObject<int>(serializer);
-                int end = jo["End"].ToObject<int>(serializer);
-                if (begin == -1)
-                {
-                    return NumericRange.Null;
-                }
-                return new NumericRange(begin, end);
-            }
-
-            public override void WriteJson(
-                JsonWriter writer,
-                object value,
-                JsonSerializer serializer)
-            {
-                var extensionObject = (NumericRange)value;
-                var jo = new JObject
-                {
-                    ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
-                    ["End"] = JToken.FromObject(extensionObject.End, serializer)
-                };
-                jo.WriteTo(writer);
-            }
         }
 
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(
@@ -223,12 +170,184 @@ namespace Quickstarts.Servers
                     m_logger.LogWarning(ex, "Failed to cleanup files for stored subscsription");
                 }
             }
-            //remove old batches & queues
+            // remove old batches & queues
             if (m_durableMonitoredItemQueueFactory != null)
             {
                 IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.ToArray());
                 m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
+        }
+
+        internal static void EncodeSubscription(
+            BinaryEncoder encoder, StoredSubscription subscription)
+        {
+            encoder.WriteUInt32(null, subscription.Id);
+            encoder.WriteBoolean(null, subscription.IsDurable);
+            encoder.WriteUInt32(null, subscription.LifetimeCounter);
+            encoder.WriteUInt32(null, subscription.MaxLifetimeCount);
+            encoder.WriteUInt32(null, subscription.MaxKeepaliveCount);
+            encoder.WriteUInt32(null, subscription.MaxMessageCount);
+            encoder.WriteUInt32(null, subscription.MaxNotificationsPerPublish);
+            encoder.WriteDouble(null, subscription.PublishingInterval);
+            encoder.WriteByte(null, subscription.Priority);
+            encoder.WriteInt32(null, subscription.LastSentMessage);
+            encoder.WriteUInt32(null, subscription.SequenceNumber);
+
+            encoder.WriteExtensionObject(null,
+                subscription.UserIdentityToken != null
+                    ? new ExtensionObject(subscription.UserIdentityToken)
+                    : ExtensionObject.Null);
+
+            ExtensionObject[] sentMsgs = subscription.SentMessages?
+                .Select(m => new ExtensionObject(m)).ToArray() ??
+                [];
+            encoder.WriteExtensionObjectArray(null,
+                new ArrayOf<ExtensionObject>(sentMsgs));
+
+            List<StoredMonitoredItem> items = subscription.MonitoredItems?
+                .Cast<StoredMonitoredItem>().ToList() ??
+                [];
+            encoder.WriteInt32(null, items.Count);
+            foreach (StoredMonitoredItem item in items)
+            {
+                EncodeMonitoredItem(encoder, item);
+            }
+        }
+
+        internal static void EncodeMonitoredItem(
+            BinaryEncoder encoder, StoredMonitoredItem item)
+        {
+            encoder.WriteBoolean(null, item.IsRestored);
+            encoder.WriteUInt32(null, item.SubscriptionId);
+            encoder.WriteUInt32(null, item.Id);
+            encoder.WriteInt32(null, item.TypeMask);
+            encoder.WriteNodeId(null, item.NodeId);
+            encoder.WriteUInt32(null, item.AttributeId);
+            encoder.WriteString(null, item.IndexRange);
+            encoder.WriteQualifiedName(null, item.Encoding);
+            encoder.WriteEnumerated(null, item.DiagnosticsMasks);
+            encoder.WriteEnumerated(null, item.TimestampsToReturn);
+            encoder.WriteUInt32(null, item.ClientHandle);
+            encoder.WriteEnumerated(null, item.MonitoringMode);
+            encoder.WriteExtensionObject(null,
+                item.OriginalFilter != null
+                    ? new ExtensionObject(item.OriginalFilter)
+                    : ExtensionObject.Null);
+            encoder.WriteExtensionObject(null,
+                item.FilterToUse != null
+                    ? new ExtensionObject(item.FilterToUse)
+                    : ExtensionObject.Null);
+            encoder.WriteDouble(null, item.Range);
+            encoder.WriteDouble(null, item.SamplingInterval);
+            encoder.WriteUInt32(null, item.QueueSize);
+            encoder.WriteBoolean(null, item.DiscardOldest);
+            encoder.WriteInt32(null, item.SourceSamplingInterval);
+            encoder.WriteBoolean(null, item.AlwaysReportUpdates);
+            encoder.WriteBoolean(null, item.IsDurable);
+            encoder.WriteDataValue(null, item.LastValue);
+            encoder.WriteStatusCode(null,
+                item.LastError?.StatusCode ?? StatusCodes.Good);
+            encoder.WriteString(null, item.ParsedIndexRange.ToString());
+        }
+
+        internal static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        {
+            var subscription = new StoredSubscription
+            {
+                Id = decoder.ReadUInt32(null),
+                IsDurable = decoder.ReadBoolean(null),
+                LifetimeCounter = decoder.ReadUInt32(null),
+                MaxLifetimeCount = decoder.ReadUInt32(null),
+                MaxKeepaliveCount = decoder.ReadUInt32(null),
+                MaxMessageCount = decoder.ReadUInt32(null),
+                MaxNotificationsPerPublish = decoder.ReadUInt32(null),
+                PublishingInterval = decoder.ReadDouble(null),
+                Priority = decoder.ReadByte(null),
+                LastSentMessage = decoder.ReadInt32(null),
+                SequenceNumber = decoder.ReadUInt32(null)
+            };
+
+            ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
+            if (!tokenEo.IsNull && tokenEo.TryGetEncodeable(out IEncodeable tokenBody))
+            {
+                subscription.UserIdentityToken = tokenBody as UserIdentityToken;
+            }
+
+            ArrayOf<ExtensionObject> sentMsgEos =
+                decoder.ReadExtensionObjectArray(null);
+            var sentList = new List<NotificationMessage>();
+            if (!sentMsgEos.IsNull)
+            {
+                foreach (ExtensionObject eo in sentMsgEos.Memory.ToArray())
+                {
+                    if (!eo.IsNull &&
+                        eo.TryGetEncodeable(out IEncodeable e) &&
+                        e is NotificationMessage nm)
+                    {
+                        sentList.Add(nm);
+                    }
+                }
+            }
+            subscription.SentMessages = sentList;
+
+            int itemCount = decoder.ReadInt32(null);
+            var items = new List<IStoredMonitoredItem>(itemCount);
+            for (int i = 0; i < itemCount; i++)
+            {
+                items.Add(DecodeMonitoredItem(decoder));
+            }
+            subscription.MonitoredItems = items;
+            return subscription;
+        }
+
+        internal static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
+        {
+            var item = new StoredMonitoredItem
+            {
+                IsRestored = decoder.ReadBoolean(null),
+                SubscriptionId = decoder.ReadUInt32(null),
+                Id = decoder.ReadUInt32(null),
+                TypeMask = decoder.ReadInt32(null),
+                NodeId = decoder.ReadNodeId(null),
+                AttributeId = decoder.ReadUInt32(null),
+                IndexRange = decoder.ReadString(null),
+                Encoding = decoder.ReadQualifiedName(null),
+                DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null),
+                TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null),
+                ClientHandle = decoder.ReadUInt32(null),
+                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null)
+            };
+
+            ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
+            if (!origFilterEo.IsNull && origFilterEo.TryGetEncodeable(out IEncodeable origBody))
+            {
+                item.OriginalFilter = origBody as MonitoringFilter;
+            }
+
+            ExtensionObject filterEo = decoder.ReadExtensionObject(null);
+            if (!filterEo.IsNull && filterEo.TryGetEncodeable(out IEncodeable filterBody))
+            {
+                item.FilterToUse = filterBody as MonitoringFilter;
+            }
+
+            item.Range = decoder.ReadDouble(null);
+            item.SamplingInterval = decoder.ReadDouble(null);
+            item.QueueSize = decoder.ReadUInt32(null);
+            item.DiscardOldest = decoder.ReadBoolean(null);
+            item.SourceSamplingInterval = decoder.ReadInt32(null);
+            item.AlwaysReportUpdates = decoder.ReadBoolean(null);
+            item.IsDurable = decoder.ReadBoolean(null);
+            item.LastValue = decoder.ReadDataValue(null);
+
+            StatusCode lastErrorStatus = decoder.ReadStatusCode(null);
+            item.LastError = lastErrorStatus == StatusCodes.Good
+                ? null : new ServiceResult(lastErrorStatus);
+
+            string rangeStr = decoder.ReadString(null);
+            item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
+                ? NumericRange.Null : NumericRange.Parse(rangeStr);
+
+            return item;
         }
     }
 }

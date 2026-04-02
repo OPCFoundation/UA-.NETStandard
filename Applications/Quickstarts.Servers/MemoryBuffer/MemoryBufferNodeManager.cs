@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.Sample;
@@ -60,6 +61,10 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Configuration uses DataContractSerializer but is optional.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Configuration uses DataContractSerializer but is optional.")]
         public MemoryBufferNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -67,10 +72,6 @@ namespace MemoryBuffer
             : base(server)
         {
             NamespaceUris = namespaceUris;
-
-            AddEncodeableNodeManagerTypes(
-                typeof(MemoryBufferNodeManager).Assembly,
-                typeof(MemoryBufferNodeManager).Namespace);
 
             // get the configuration for the node manager.
             m_configuration =

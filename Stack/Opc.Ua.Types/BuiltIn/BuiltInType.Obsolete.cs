@@ -28,11 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -145,6 +142,68 @@ namespace Opc.Ua
             public static bool IsNull([NotNullWhen(false)] ExtensionObject extension)
             {
                 return extension.IsNull;
+            }
+
+            /// <summary>
+            /// Converts an array of extension objects to a List of the specified
+            /// type.
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            [Obsolete("Use ExtensionObject.ToArray<T> instead.")]
+            public static List<T> ToList<T>(object source)
+                where T : class
+            {
+                if (source is not Array extensions)
+                {
+                    return null;
+                }
+
+                var list = new List<T>();
+
+                for (int ii = 0; ii < extensions.Length; ii++)
+                {
+                    if (extensions.GetValue(ii) is ExtensionObject e &&
+                        e.TryGetEncodeable(out IEncodeable element) &&
+                        element is T typedElement)
+                    {
+                        list.Add(typedElement);
+                    }
+                    else
+                    {
+                        list.Add(null);
+                    }
+                }
+
+                return list;
+            }
+
+            /// <summary>
+            /// Converts an array of extension objects to an array of
+            /// the specified type.
+            /// </summary>
+            [Obsolete("Use ExtensionObject.ToArray<T> instead.")]
+            [UnconditionalSuppressMessage("AOT", "IL3050",
+                Justification = "Array.CreateInstance is used with known OPC UA types.")]
+            public static Array ToArray(object source, Type elementType)
+            {
+                if (source is not Array extensions)
+                {
+                    return null;
+                }
+
+                var output = Array.CreateInstance(elementType, extensions.Length);
+
+                for (int ii = 0; ii < output.Length; ii++)
+                {
+                    if (extensions.GetValue(ii) is ExtensionObject e &&
+                        e.TryGetEncodeable(out IEncodeable element) &&
+                        elementType.IsInstanceOfType(element))
+                    {
+                        output.SetValue(element, ii);
+                    }
+                }
+
+                return output;
             }
         }
     }

@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
-using System.Xml;
 
 namespace Opc.Ua.Client
 {
@@ -180,12 +179,13 @@ namespace Opc.Ua.Client
         /// </summary>
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SessionConfiguration>();
-            // secure settings
-            using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            return (SessionConfiguration?)serializer.ReadObject(reader);
+            var context = ServiceMessageContext.Create(telemetry);
+            using var decoder = new BinaryDecoder(stream, context, true);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
+            context.ServerUris = new StringTable(serverUris.Memory.ToArray());
+            return SessionStateEncoder.DecodeSessionConfiguration(decoder);
         }
     }
 }

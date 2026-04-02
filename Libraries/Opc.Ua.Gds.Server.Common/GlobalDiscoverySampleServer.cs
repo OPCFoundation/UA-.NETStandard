@@ -75,6 +75,27 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Called before the server starts. Registers GDS-specific
+        /// encodeable types in the server's message context factory,
+        /// which is required for NativeAOT where reflection-based
+        /// assembly scanning does not discover types automatically.
+        /// </summary>
+        protected override void OnServerStarting(
+            ApplicationConfiguration configuration)
+        {
+            base.OnServerStarting(configuration);
+
+            if (!MessageContext.Factory.ContainsEncodeableType(
+                DataTypeIds.ApplicationRecordDataType))
+            {
+                MessageContext.Factory.Builder
+                    .AddOpcUaGds()
+                    .AddOpcUaGdsServerDataTypes()
+                    .Commit();
+            }
+        }
+
+        /// <summary>
         /// Called after the server has been started.
         /// </summary>
         protected override void OnServerStarted(IServerInternal server)
@@ -261,7 +282,7 @@ namespace Opc.Ua.Gds.Server
 
             // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
-                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                Configuration.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
             // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(

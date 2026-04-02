@@ -160,7 +160,7 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Encodeable activator
+        /// Encodeable type activator
         /// </summary>
         public static readonly TemplateString StructureActivatorClass = TemplateString.Parse(
             $$"""
@@ -187,7 +187,7 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Encodeable activator builder registration
+        /// Encodeable type activator builder registration
         /// </summary>
         public static readonly TemplateString StructureActivatorRegistration = TemplateString.Parse(
             $$"""
@@ -197,6 +197,40 @@ namespace Opc.Ua.SourceGeneration
                 .AddEncodeableType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.JsonEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
+            """);
+
+        /// <summary>
+        /// Enumeration activator
+        /// </summary>
+        public static readonly TemplateString EnumerationActivatorClass = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
+            {
+                /// <summary>
+                /// The singleton instance of the activator.
+                /// </summary>
+                public static readonly {{Tokens.ClassName}}Activator Instance
+                    = new {{Tokens.ClassName}}Activator();
+
+                /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+            }
+            """);
+
+        /// <summary>
+        /// Enumeration activator builder registration
+        /// </summary>
+        public static readonly TemplateString EnumerationActivatorRegistration = TemplateString.Parse(
+            $$"""
+            // Add enumerated type activator for {{Tokens.BrowseName}}
+            builder = builder
+                .AddEnumeratedType(DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
+                .AddEnumeratedType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
+                .AddEnumeratedType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
+                .AddEnumeratedType({{Tokens.JsonEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
 
         /// <summary>

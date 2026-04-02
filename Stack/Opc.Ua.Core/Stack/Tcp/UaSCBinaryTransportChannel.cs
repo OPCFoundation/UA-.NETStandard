@@ -387,7 +387,7 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory)
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -397,8 +397,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = m_settings.Factory
+                ServerUris = new StringTable()
             })
             {
                 MaxBufferSize = configuration.MaxBufferSize,

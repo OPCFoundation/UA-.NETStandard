@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -638,9 +639,26 @@ namespace Opc.Ua.Configuration
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
+        [RequiresUnreferencedCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses DataContractSerializer which might need unreferenced code.")]
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             object value);
+
+        /// <summary>
+        /// Add an extension to the configuration using an encoder function (AOT-safe).
+        /// </summary>
+        /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
+        /// <param name="elementName">The name of the extension, null to use the type name.</param>
+        /// <param name="value">The object to add and encode.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        [Experimental("UA_NETStandard_1")]
+        IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value,
+            Action<IEncoder, T> encoderFunc);
     }
 
     /// <summary>

@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// in provide diagnostic information in a uniform way.
     /// <br/></para>
     /// </remarks>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public sealed class DiagnosticInfo : ICloneable, IFormattable
     {
         /// <summary>

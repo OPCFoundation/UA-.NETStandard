@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Security.Certificates;
 
@@ -87,6 +88,8 @@ namespace Opc.Ua.Bindings
         /// Add all bindings with interface exported from a assembly.
         /// </summary>
         /// <param name="assembly">The assembly with the bindings.</param>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         IEnumerable<Type> AddBindings(Assembly assembly);
 
         /// <summary>

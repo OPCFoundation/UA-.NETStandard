@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Structure definition
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class StructureDefinition :
         DataTypeDefinition,
         IEquatable<StructureDefinition>

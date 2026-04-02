@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -379,7 +376,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult > 0;
+            return compareResult is not int.MinValue and > 0;
         }
 
         /// <summary>
@@ -394,7 +391,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult >= 0;
+            return compareResult is not int.MinValue and >= 0;
         }
 
         /// <summary>
@@ -409,7 +406,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult < 0;
+            return compareResult is not int.MinValue and < 0;
         }
 
         /// <summary>
@@ -424,7 +421,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult <= 0;
+            return compareResult is not int.MinValue and <= 0;
         }
 
         /// <summary>

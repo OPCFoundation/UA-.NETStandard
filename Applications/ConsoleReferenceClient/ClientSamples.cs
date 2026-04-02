@@ -31,14 +31,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -1117,13 +1117,13 @@ namespace Quickstarts
 
             m_logger.LogInformation(
                 "Loaded {Count} types took {Duration}ms.",
-                complexTypeSystem.GetDefinedTypes().Length,
+                complexTypeSystem.GetDefinedTypes().Count,
                 stopWatch.ElapsedMilliseconds);
 
             if (m_verbose)
             {
                 m_logger.LogInformation("Custom types defined for this session:");
-                foreach (Type type in complexTypeSystem.GetDefinedTypes())
+                foreach (XmlQualifiedName type in complexTypeSystem.GetDefinedTypes())
                 {
                     m_logger.LogInformation("{Namespace}.{TypeName}", type.Namespace, type.Name);
                 }
@@ -1369,25 +1369,26 @@ namespace Quickstarts
             }
 
             // prettify
-            using var stringWriter = new StringWriter();
             try
             {
-                using var stringReader = new StringReader(textbuffer);
-                var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter)
+                using var doc = System.Text.Json.JsonDocument.Parse(textbuffer);
+                using var stream = new MemoryStream();
+                using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions
                 {
-                    Formatting = Formatting.Indented,
-                    Culture = CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
+                    Indented = true
+                }))
+                {
+                    doc.WriteTo(writer);
+                }
+                return Encoding.UTF8.GetString(stream.ToArray());
             }
             catch (Exception ex)
             {
+                using var stringWriter = new StringWriter();
                 stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
                 stringWriter.WriteLine(textbuffer);
                 throw;
             }
-            return stringWriter.ToString();
         }
 
         /// <summary>
@@ -1568,7 +1569,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                var browseDescription = (BrowseDescription)template.MemberwiseClone();
+                BrowseDescription browseDescription = CoreUtils.Clone(template);
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1581,6 +1582,10 @@ namespace Quickstarts
         /// <param name="session">The session to use for exporting.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="filePath">The path where the NodeSet2 XML file will be saved.</param>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public void ExportNodesToNodeSet2(ISession session, IList<INode> nodes, string filePath)
         {
             m_logger.LogInformation("Exporting {Count} nodes to {FilePath}...", nodes.Count, filePath);
@@ -1617,6 +1622,10 @@ namespace Quickstarts
         /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
         /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
         /// <exception cref="ArgumentException">Thrown when outputDirectory is empty or whitespace.</exception>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public async Task<IReadOnlyDictionary<string, string>> ExportNodesToNodeSet2PerNamespaceAsync(
             ISession session,
             IList<INode> nodes,

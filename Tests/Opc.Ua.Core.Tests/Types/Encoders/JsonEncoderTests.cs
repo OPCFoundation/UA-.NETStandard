@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1085,10 +1085,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        private void GlobalSetup()
+        public void GlobalSetup()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1096,7 +1096,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        private void GlobalCleanup()
+        public void GlobalCleanup()
         {
             m_context = null;
             m_memoryStream.Dispose();
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void ConstructorDefault(JsonEncodingType encodingType)
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context,
                 encodingType == JsonEncodingType.Verbose ?
                 JsonEncoderOptions.Verbose :
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         private void ConstructorStream(MemoryStream memoryStream)
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
                 TestEncoding(jsonEncoder);
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStreamSequence()
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
@@ -1269,7 +1269,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStreamSequence()
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
             using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
             {
@@ -1461,9 +1461,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can
             // look up its type information when instantiated during encoding/decoding
-            var dynamicContext = new ServiceMessageContext(m_telemetry)
+            var dynamicContext = new ServiceMessageContext(
+                m_telemetry,
+                new DynamicEncodeableFactory(Context.Factory))
             {
-                Factory = new DynamicEncodeableFactory(Context.Factory),
                 NamespaceUris = Context.NamespaceUris
             };
             (dynamicContext.Factory as DynamicEncodeableFactory)?.AddDynamicEncodeable(encodeable);
@@ -1842,7 +1843,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ServiceMessageContext()
         {
-            _ = new ServiceMessageContext(m_telemetry);
+            _ = Ua.ServiceMessageContext.Create(m_telemetry);
         }
 
         /// <summary>

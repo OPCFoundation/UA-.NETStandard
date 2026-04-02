@@ -47,8 +47,15 @@ namespace Opc.Ua.Types.Tests.Nodes
         /// </summary>
         private sealed class TestableVariableTypeNode : VariableTypeNode
         {
-            public Variant TestRead(uint attributeId) => Read(attributeId);
-            public ServiceResult TestWrite(uint attributeId, Variant value) => Write(attributeId, value);
+            public Variant TestRead(uint attributeId)
+            {
+                return Read(attributeId);
+            }
+
+            public ServiceResult TestWrite(uint attributeId, Variant value)
+            {
+                return Write(attributeId, value);
+            }
         }
 
         /// <summary>
@@ -117,8 +124,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ArrayDimensionsSetNonNullValue()
         {
-            var node = new VariableTypeNode();
-            node.ArrayDimensions = [3, 5, 7];
+            var node = new VariableTypeNode
+            {
+                ArrayDimensions = [3, 5, 7]
+            };
 
             Assert.That(node.ArrayDimensions.Count, Is.EqualTo(3));
             Assert.That(node.ArrayDimensions[0], Is.EqualTo(3));

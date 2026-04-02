@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -119,6 +120,8 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public static UANodeSet Read(Stream istrm)
         {
             using var reader = new StreamReader(istrm);
@@ -131,6 +134,8 @@ namespace Opc.Ua.Export
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void Write(Stream istrm)
         {
             XmlWriterSettings setting = CoreUtils.DefaultXmlWriterSettings();

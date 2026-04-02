@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
             {
                 NamespaceUris = new NamespaceTable(),
                 ServerUris = new StringTable()
@@ -765,7 +765,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithContextNullNodeId()
         {
             ExpandedNodeId id = ExpandedNodeId.Null;
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.That(id.Format(ctx), Is.Null);
         }
 
@@ -773,7 +773,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithContextServerIndexNoUris()
         {
             var id = new ExpandedNodeId(1u, (string)null, 2);
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             string result = id.Format(ctx, useUris: false);
             Assert.That(result, Does.StartWith("svr=2;"));
         }
@@ -781,7 +781,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextServerIndexWithUrisResolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.ServerUris.Append("urn:placeholder");  // index 0
             ctx.ServerUris.Append("urn:server1");       // index 1
             var id = new ExpandedNodeId(1u, (string)null, 1);
@@ -793,7 +793,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextServerIndexWithUrisUnresolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             // ServerIndex 5 has no matching URI in the table
             var id = new ExpandedNodeId(1u, (string)null, 5);
             string result = id.Format(ctx, useUris: true);
@@ -949,7 +949,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptions()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             var options = new NodeIdParsingOptions { UpdateTables = false };
             bool success = ExpandedNodeId.TryParse(ctx, "nsu=http://test.org/;i=1", options, out ExpandedNodeId value);
@@ -960,7 +960,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextOptionsAndError()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = false };
             bool success = ExpandedNodeId.TryParse(ctx, "i=42", options, out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.True);
@@ -970,7 +970,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextOptionsAndErrorFailure()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(ctx, "svu=;i=42", null, out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
@@ -979,7 +979,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextSuccess()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             var result = ExpandedNodeId.Parse(ctx, "nsu=http://test.org/;i=42");
             Assert.That(result.TryGetIdentifier(out uint n), Is.True);
@@ -989,7 +989,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextFailureThrows()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.That(
                 () => ExpandedNodeId.Parse(ctx, "svu=;i=42"),
                 Throws.TypeOf<ServiceResultException>());
@@ -998,7 +998,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextAndUpdateTablesOption()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             var result = ExpandedNodeId.Parse(ctx, "nsu=http://newns.org/;i=42", options);
             Assert.That(result.TryGetIdentifier(out uint n), Is.True);
@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextEmptyText()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(ctx, string.Empty, out ExpandedNodeId value);
             Assert.That(success, Is.True);
             Assert.That(value.IsNull, Is.True);
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvuNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(ctx, "svu=urn:server", out ExpandedNodeId value);
             Assert.That(success, Is.False);
         }
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvuUnknownServerUri()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
                 ctx, "svu=urn:unknown;i=1", null, out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.False);
@@ -1076,7 +1076,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvuUpdateTables()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             bool success = ExpandedNodeId.TryParse(
                 ctx, "svu=urn:newserver;i=1", options, out ExpandedNodeId value);
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextSvrFormat()
         {
             // Must pass options (even empty) to avoid NullReferenceException at line 1372
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions();
             bool success = ExpandedNodeId.TryParse(ctx, "svr=2;i=1", options, out ExpandedNodeId value);
             Assert.That(success, Is.True);
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvrNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
                 ctx, "svr=2", null, out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.False);
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
                 ctx, "nsu=http://test.org/", null, out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.False);
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNamespaceResolvedToIndex()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             bool success = ExpandedNodeId.TryParse(
                 ctx, "nsu=http://test.org/;i=42", out ExpandedNodeId value);
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNamespaceNotResolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
                 ctx, "nsu=http://unknown.org/;i=42", out ExpandedNodeId value);
             Assert.That(success, Is.True);
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextInvalidNodeIdFails()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(ctx, "i=notanumber", out ExpandedNodeId value);
             Assert.That(success, Is.False);
         }
@@ -1486,7 +1486,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvrWithServerMappings()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions
             {
                 ServerMappings = [0, 5, 10],

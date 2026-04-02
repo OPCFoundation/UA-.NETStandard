@@ -703,7 +703,12 @@ namespace Opc.Ua
             }
 
             // check for known type.
-            Type systemType = Context.Factory.GetSystemType(extension.TypeId);
+            if (!Context.Factory.TryGetEncodeableType(
+                extension.TypeId,
+                out IEncodeableType activator))
+            {
+                m_logger.LogDebug("Failed to retrieve activator for extension");
+            }
 
             // check for XML bodies.
             if (encoding == (byte)ExtensionObjectEncoding.Xml)
@@ -713,7 +718,7 @@ namespace Opc.Ua
                     ReadXmlElement(null));
 
                 // attempt to decode a known type.
-                if (systemType != null && !extension.IsNull)
+                if (activator != null && !extension.IsNull)
                 {
                     XmlElement element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
@@ -735,7 +740,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
-                            systemType.FullName,
+                            activator.XmlName,
                             e.Message,
                             element.OuterXml);
                     }
@@ -753,9 +758,9 @@ namespace Opc.Ua
 
             // create instance of type.
             IEncodeable encodeable = null;
-            if (systemType != null && length >= -1)
+            if (activator != null && length >= -1)
             {
-                encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+                encodeable = activator.CreateInstance();
             }
 
             // process known type.
@@ -816,7 +821,7 @@ namespace Opc.Ua
                                 StatusCodes.BadDecodingError,
                                 "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
                                 errorMessage,
-                                systemType.Name,
+                                activator.XmlName,
                                 extension.TypeId);
                     }
                     else if (m_encodeablesRecovered == 0)
@@ -826,7 +831,7 @@ namespace Opc.Ua
                             exception,
                             "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
-                            systemType.Name,
+                            activator.XmlName,
                             extension.TypeId);
                     }
 

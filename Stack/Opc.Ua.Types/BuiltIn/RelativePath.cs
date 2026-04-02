@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Relative path
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class RelativePath :
         IEncodeable,
         IJsonEncodeable,

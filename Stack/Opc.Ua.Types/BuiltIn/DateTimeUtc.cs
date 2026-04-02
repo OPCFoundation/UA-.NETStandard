@@ -33,6 +33,7 @@ using System;
 using System.Buffers.Text;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.Json.Serialization;
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
@@ -103,6 +104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Update to now if min
         /// </summary>
+        [JsonIgnore]
         public DateTimeUtc NowIfDefault => m_value == 0 ? Now : this;
 
         /// <summary>

@@ -12,6 +12,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration" />
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Stack" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Design\*">

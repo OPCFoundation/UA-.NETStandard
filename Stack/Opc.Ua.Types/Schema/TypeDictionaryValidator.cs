@@ -29,6 +29,7 @@
 
 using System.Xml;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System;
 using System.Linq;
@@ -172,6 +173,8 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void Validate(string inputPath)
         {
             using Stream stream = FileSystem.OpenRead(inputPath);
@@ -181,6 +184,8 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void Validate(Stream stream)
         {
             Dictionary = LoadInput<TypeDictionary>(stream);
@@ -211,6 +216,10 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Imports a dictionary identified by an import directive.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
         private void Import(ImportDirective directive)
         {
             // check if already loaded.
@@ -594,7 +603,7 @@ namespace Opc.Ua.Schema.Types
                         .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml");
                     using var ms = new MemoryStream();
                     stream.CopyTo(ms);
-                    dictionary[Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                    dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     field = dictionary;
                 }
                 return field;

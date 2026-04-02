@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Serialization;
 
@@ -288,6 +289,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Set the value of a property.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "Uses reflection to cast enum types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Uses reflection to cast enum types.")]
         public void SetValue(object o, Variant v)
         {
             if (TypeInfo.IsScalar)

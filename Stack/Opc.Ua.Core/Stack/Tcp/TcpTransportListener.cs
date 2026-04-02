@@ -350,11 +350,10 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            var messageContext = new ServiceMessageContext(m_telemetry)
+            var messageContext = new ServiceMessageContext(m_telemetry, settings.Factory)
             {
                 NamespaceUris = settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = settings.Factory
+                ServerUris = new StringTable()
             };
             m_quotas = new ChannelQuotas(messageContext);
 

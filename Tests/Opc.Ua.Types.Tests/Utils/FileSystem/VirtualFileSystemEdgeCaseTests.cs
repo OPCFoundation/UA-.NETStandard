@@ -190,7 +190,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                 Assert.That(vfs.Exists(filePath), Is.True);
 
                 byte[] content = vfs.Get(filePath);
-                Assert.That(content.Length, Is.EqualTo(1024 * 1024));
+                Assert.That(content, Has.Length.EqualTo(1024 * 1024));
             }
         }
 
