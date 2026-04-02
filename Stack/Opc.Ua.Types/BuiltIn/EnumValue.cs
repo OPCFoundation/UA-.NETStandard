@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// </summary>
         public EnumValue(int value, Type? enumType)
         {
-            if (enumType == null)
+            if (enumType == null || enumType == typeof(int))
             {
                 m_value = value;
                 return;
