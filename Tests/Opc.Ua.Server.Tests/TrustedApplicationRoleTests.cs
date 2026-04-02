@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.True,
-                "Session with certificate on a signed channel must receive the TrustedApplication role.");
+                "Session with certificate on a signed channel should have the TrustedApplication role.");
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.True,
-                "Session with certificate on a sign-and-encrypt channel must receive the TrustedApplication role.");
+                "Session with certificate on a sign-and-encrypt channel should have the TrustedApplication role.");
         }
 
         [Test]
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
-                "Session on a None-security channel must not receive the TrustedApplication role.");
+                "Session on a None-security channel should not have the TrustedApplication role.");
         }
 
         [Test]
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
-                "Session without a certificate must not receive the TrustedApplication role.");
+                "Session without a certificate should not have the TrustedApplication role.");
         }
 
         [Test]
@@ -176,7 +176,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
-                "Session without a certificate on a None-security channel must not receive the TrustedApplication role.");
+                "Session without a certificate on a None-security channel should not have the TrustedApplication role.");
         }
 
         [Test]
@@ -195,9 +195,9 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.True,
-                "The TrustedApplication role must be added.");
+                "The TrustedApplication role should be added.");
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_AuthenticatedUser), Is.True,
-                "Pre-existing roles must be preserved.");
+                "Pre-existing roles should be preserved.");
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
             Assert.That(result, Is.SameAs(identity),
-                "When conditions are not met, the original identity object must be returned unchanged.");
+                "When conditions are not met, the original identity object should be returned unchanged.");
         }
     }
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(session, Is.Not.Null);
             Assert.That(session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
-                "Session with no certificate and None security must not have the TrustedApplication role.");
+                "Session with no certificate and None security should not have the TrustedApplication role.");
         }
     }
 
