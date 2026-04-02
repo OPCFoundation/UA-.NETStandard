@@ -330,6 +330,7 @@ namespace Opc.Ua
                 ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                configuration.Initialize(telemetry);
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
@@ -516,6 +517,7 @@ namespace Opc.Ua
                 configuration = systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                configuration.Initialize(telemetry);
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();

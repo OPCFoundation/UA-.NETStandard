@@ -2455,13 +2455,14 @@ namespace Opc.Ua
                     // unread children simply remain unconsumed.
 
                     EndField(fieldName);
+                    return value;
                 }
             }
             finally
             {
                 m_nestingLevel--;
             }
-            return value;
+            return default;
         }
 
         /// <summary>
