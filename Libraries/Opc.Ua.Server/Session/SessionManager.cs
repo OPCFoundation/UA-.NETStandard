@@ -427,6 +427,9 @@ namespace Opc.Ua.Server
             // clear failed authentication attempts on successful activation.
             ClearFailedAuthentication(clientKey);
 
+            // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+            effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
+
             // activate session.
 
             bool contextChanged = session.Activate(
@@ -563,6 +566,34 @@ namespace Opc.Ua.Server
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Assigns mandatory roles to the effective identity based on the session's security context.
+        /// </summary>
+        /// <remarks>
+        /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
+        /// assigned when a Session has been authenticated with a trusted ApplicationInstance
+        /// Certificate and uses at least a signed communication channel.
+        /// </remarks>
+        protected virtual IUserIdentity AddMandatoryRoles(
+            ISession session,
+            OperationContext context,
+            IUserIdentity effectiveIdentity)
+        {
+            // Assign TrustedApplication role per OPC UA Part 3 §4.9:
+            // The role is always assigned when the session was authenticated with a
+            // trusted ApplicationInstance certificate and uses at least a signed channel.
+            if (session.ClientCertificate != null &&
+                context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
+            {
+                return new RoleBasedIdentity(
+                    effectiveIdentity,
+                    [Role.TrustedApplication],
+                    m_server.NamespaceUris);
+            }
+
+            return effectiveIdentity;
         }
 
         /// <summary>
