@@ -869,6 +869,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 12, ForceEncodeable = true)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
         {
@@ -879,6 +880,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
+        [DataTypeField(Order = 13, ForceEncodeable = true)]
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
         {
@@ -1003,6 +1005,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 14, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList UserIssuerCertificates
         {
@@ -1013,6 +1016,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
+        [DataTypeField(Order = 15, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList TrustedUserCertificates
         {
@@ -1023,6 +1027,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
+        [DataTypeField(Order = 16, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public CertificateTrustList HttpsIssuerCertificates
         {
@@ -1033,6 +1038,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
+        [DataTypeField(Order = 17, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public CertificateTrustList TrustedHttpsCertificates
         {
@@ -2372,6 +2378,7 @@ namespace Opc.Ua
         /// <value>
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
         public string StoreType { get; set; }
 
@@ -2383,6 +2390,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty and the StoreLocation is not empty, the Utils.Format("{1}\\{0}", m_storeName, m_storeLocation) is returned.
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string StorePath
         {
@@ -2401,6 +2409,7 @@ namespace Opc.Ua
         /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
+        [DataTypeField(Order = 2, Name = "ValidationOptions")]
         [DataMember(
             Name = "ValidationOptions",
             IsRequired = false,
@@ -2706,6 +2715,7 @@ namespace Opc.Ua
         /// Gets or sets the XML encoded validation options - use to serialize the validation options.
         /// </summary>
         /// <value>The XML encoded validation options.</value>
+        [DataTypeField(Order = 6, Name = "ValidationOptions")]
         [DataMember(
             Name = "ValidationOptions",
             IsRequired = false,
