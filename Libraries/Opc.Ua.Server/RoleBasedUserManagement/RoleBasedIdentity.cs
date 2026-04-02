@@ -92,6 +92,14 @@ namespace Opc.Ua.Server
             new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
 
         /// <summary>
+        /// The Role is always assigned when a Session has been authenticated with a trusted
+        /// ApplicationInstance Certificate and uses at least a signed communication channel.
+        /// https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9
+        /// </summary>
+        public static Role TrustedApplication { get; } =
+            new Role(ObjectIds.WellKnownRole_TrustedApplication, BrowseNames.WellKnownRole_TrustedApplication);
+
+        /// <summary>
         /// Constructor for new Role
         /// </summary>
         /// <param name="roleId">NodeId of the Role, used for WellKnownRoles</param>

@@ -2118,6 +2118,7 @@ namespace Opc.Ua.Server
         [
             ObjectIds.WellKnownRole_Anonymous,
             ObjectIds.WellKnownRole_AuthenticatedUser,
+            ObjectIds.WellKnownRole_TrustedApplication,
             ObjectIds.WellKnownRole_ConfigureAdmin,
             ObjectIds.WellKnownRole_Engineer,
             ObjectIds.WellKnownRole_Observer,
