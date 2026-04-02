@@ -34,7 +34,7 @@ using NUnit.Framework;
 using Opc.Ua.Tests;
 using Opc.Ua.Types;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "JsonDecoder"/> class.
@@ -44,7 +44,7 @@ namespace Opc.Ua.UnitTests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class JsonWriterTests
+    public class JsonEncoderTests
     {
         [Test]
         public void WriteBadVariantThrows()

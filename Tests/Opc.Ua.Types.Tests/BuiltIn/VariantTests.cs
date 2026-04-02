@@ -36,6 +36,7 @@ using System.Reflection;
 using System.Xml;
 using NUnit.Framework;
 
+#pragma warning disable CA2263 // Prefer generic overload when type is known
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable NUnit4002 // Use Specific constraint
 #pragma warning disable UA_NETStandard_1

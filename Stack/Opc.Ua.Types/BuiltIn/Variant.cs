@@ -205,7 +205,7 @@ namespace Opc.Ua
         {
             m_union.Int32 = value.Value;
             m_value = value.Source;
-            m_typeInfo = TypeInfo.Arrays.Enumeration;
+            m_typeInfo = TypeInfo.Scalars.Enumeration;
         }
 
         /// <summary>
@@ -1834,9 +1834,16 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet(out int value)
         {
-            return
-                TryGetScalar(in m_union.Int32, out value, BuiltInType.Int32) ||
-                TryGetScalar(in m_union.Int32, out value, BuiltInType.Enumeration);
+            if (TryGetScalar(in m_union.Int32, out value, BuiltInType.Int32))
+            {
+                return true;
+            }
+            if (TryGet(out EnumValue enumValue))
+            {
+                value = enumValue.Value;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2234,9 +2241,16 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet(out ArrayOf<int> value)
         {
-            return
-                TryGetArray(out value, BuiltInType.Int32) ||
-                TryGetArray(out value, BuiltInType.Enumeration);
+            if (TryGetArray(out value, BuiltInType.Int32))
+            {
+                return true;
+            }
+            if (TryGetArray(out ArrayOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            {
+                value = enumValues.ConvertAll(e => e.Value);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2578,9 +2592,16 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet(out MatrixOf<int> value)
         {
-            return
-                TryGetMatrix(out value, BuiltInType.Int32) ||
-                TryGetMatrix(out value, BuiltInType.Enumeration);
+            if (TryGetMatrix(out value, BuiltInType.Int32))
+            {
+                return true;
+            }
+            if (TryGetMatrix(out MatrixOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            {
+                value = enumValues.ConvertAll(e => e.Value);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

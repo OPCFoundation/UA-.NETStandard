@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -59,7 +60,9 @@ namespace Opc.Ua.Client.ComplexTypes
             QualifiedName typeName,
             EnumDefinition enumDefinition)
         {
-            throw new NotImplementedException(); // TODO: return Enumeration type wrapper
+            return new Enumeration(
+                new XmlQualifiedName(typeName.Name, TargetNamespace),
+                enumDefinition);
         }
 
         /// <inheritdoc/>
@@ -69,5 +72,46 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return new DefaultComplexTypeFieldBuilder(this, name, structureDefinition);
         }
+    }
+
+    /// <summary>
+    /// Enumeration definition adapter
+    /// </summary>
+    public sealed class Enumeration : IEnumeratedType
+    {
+        /// <summary>
+        /// Create enumeration
+        /// </summary>
+        public Enumeration(XmlQualifiedName name, EnumDefinition definition)
+        {
+            m_definition = definition;
+            m_name = name;
+        }
+
+        /// <inheritdoc/>
+        public EnumValue Default => default;
+
+        /// <inheritdoc/>
+        public Type Type => GetType();
+
+        /// <inheritdoc/>
+        public XmlQualifiedName XmlName => m_name;
+
+        /// <inheritdoc/>
+        public bool TryGetSymbol(int value, out string? symbol)
+        {
+            symbol = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetValue(string symbol, out int value)
+        {
+            value = default;
+            return false;
+        }
+
+        private readonly EnumDefinition m_definition;
+        private readonly XmlQualifiedName m_name;
     }
 }
