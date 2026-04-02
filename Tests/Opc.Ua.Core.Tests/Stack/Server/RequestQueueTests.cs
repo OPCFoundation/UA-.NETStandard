@@ -138,6 +138,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             server.ScheduleIncomingRequest(req2); // Goes to queue.
             server.ScheduleIncomingRequest(req3); // Should fail to enter queue.
 
+            // req3 should be rejected synchronously or near-synchronously; wait briefly.
+            using (var cts3 = new CancellationTokenSource(5000))
+            {
+                await Task.WhenAny(req3.ProcessingCompleted.Task, Task.Delay(5000, cts3.Token))
+                    .ConfigureAwait(false);
+            }
+
             Assert.That(req3.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
             req1.ProcessingCompleted.TrySetResult(true);
@@ -245,6 +252,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // Scheduling a new request should immediately fail with BadServerHalted
             var req3 = new TestEndpointIncomingRequest();
             server.ScheduleIncomingRequest(req3);
+
+            // req3 should be rejected synchronously or near-synchronously; wait briefly.
+            using (var cts3 = new CancellationTokenSource(5000))
+            {
+                await Task.WhenAny(req3.ProcessingCompleted.Task, Task.Delay(5000, cts3.Token))
+                    .ConfigureAwait(false);
+            }
+
             Assert.That(req3.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
 
             req1.ProcessingCompleted.TrySetResult(true);
