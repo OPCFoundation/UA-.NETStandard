@@ -326,11 +326,13 @@ namespace Opc.Ua
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
-                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
+                var parser = new XmlParser((Type)null, stream, context);
                 ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                AppConfigEncoding.DecodeContents(parser, configuration);
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                 configuration.Initialize(telemetry);
                 configuration.SourceFilePath = file.FullName;
                 return configuration;
@@ -510,11 +512,13 @@ namespace Opc.Ua
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
-                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
+                var parser = new XmlParser((Type)null, stream, ctx);
                 configuration = systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                AppConfigEncoding.DecodeContents(parser, configuration);
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                 configuration.Initialize(telemetry);
             }
             catch (Exception e)

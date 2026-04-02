@@ -174,7 +174,9 @@ namespace Opc.Ua.Security
                             ServiceMessageContext.CreateEmpty(m_telemetry);
                         var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
                         applicationConfiguration = new ApplicationConfiguration();
-                        AppConfigEncoding.DecodeContents(parser, applicationConfiguration);
+                        applicationConfiguration.Decode(parser);
+                        applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
+                        applicationConfiguration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                         applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
@@ -504,7 +506,7 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var sec = new SecurityConfiguration();
-                AppConfigEncoding.DecodeSecurityConfiguration(parser, sec);
+                sec.Decode(parser);
                 return sec;
             }
 
@@ -512,7 +514,8 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var srv = new ServerConfiguration();
-                AppConfigEncoding.DecodeServerConfiguration(parser, srv);
+                srv.Decode(parser);
+                srv.ValidateSecurityPolicies();
                 return srv;
             }
 
@@ -520,7 +523,8 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var disc = new DiscoveryServerConfiguration();
-                AppConfigEncoding.DecodeDiscoveryServerConfiguration(parser, disc);
+                disc.Decode(parser);
+                disc.ValidateSecurityPolicies();
                 return disc;
             }
 

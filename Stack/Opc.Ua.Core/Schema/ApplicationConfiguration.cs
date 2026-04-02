@@ -770,6 +770,7 @@ namespace Opc.Ua
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        [DataTypeField(Order = 0, Name = "ApplicationCertificate", ForceEncodeable = true)]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
@@ -854,10 +855,15 @@ namespace Opc.Ua
         /// Emit only when the configuration is not marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        private CertificateIdentifierCollection ApplicationCertificatesDataContract
+        [DataTypeField(Order = 1, Name = "ApplicationCertificates", ForceEncodeable = true)]
+        private ArrayOf<CertificateIdentifier> ApplicationCertificatesDataContract
         {
-            get => IsDeprecatedConfiguration ? null : ApplicationCertificates;
-            set => ApplicationCertificates = value;
+            get => IsDeprecatedConfiguration
+                ? default
+                : ApplicationCertificates.ToArrayOf();
+            set => ApplicationCertificates = value.IsEmpty
+                ? []
+                : new CertificateIdentifierCollection(value.ToList());
         }
 
         /// <summary>
