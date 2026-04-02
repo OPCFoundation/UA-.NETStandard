@@ -1126,6 +1126,24 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
+            // For DisconnectedRepublishDelayedAck, deferred acks cause the server to
+            // republish unacknowledged notifications on every publish cycle. Those
+            // republished notifications may arrive slightly after the fixed delay; poll
+            // until subscription 0 reaches the expected count or a generous timeout expires.
+            // With sendInitialValues=true the expected count is 2×monitoredItemCount
+            // (initial values + one republish batch); with sendInitialValues=false it is
+            // 1×monitoredItemCount (only the republish batch).
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            {
+                uint expectedCount0 = (sendInitialValues ? 2u : 1u) * transferSubscriptions[0].MonitoredItemCount;
+                var deadline = DateTime.UtcNow.AddSeconds(10);
+                while ((uint)targetSubscriptionCounters[0] < expectedCount0 &&
+                    DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(200).ConfigureAwait(false);
+                }
+            }
+
             // stop publishing
             foreach (Subscription subscription in transferSubscriptions)
             {
@@ -1162,7 +1180,16 @@ namespace Opc.Ua.Client.Tests
 
                     // static nodes, expect only one set of changes, another one if send initial values was set
                     Assert.That(originSubscriptionCounters[jj], Is.EqualTo(originExpectedCount));
-                    Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(targetExpectedCount));
+                    // For DisconnectedRepublishDelayedAck deferred acks cause continuous republishing,
+                    // so the counter may exceed the exact expected value.
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+                    {
+                        Assert.That(targetSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(targetExpectedCount));
+                    }
+                    else
+                    {
+                        Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(targetExpectedCount));
+                    }
                 }
                 else
                 {
