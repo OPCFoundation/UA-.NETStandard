@@ -583,7 +583,7 @@ namespace Opc.Ua
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
-            this.Encode(encoder);
+            AppConfigEncoding.EncodeContents(encoder, this);
             encoder.Close();
         }
 
@@ -622,9 +622,10 @@ namespace Opc.Ua
             SecurityConfiguration.Validate(m_telemetry);
 
             // load private keys
-            foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration
-                .ApplicationCertificates)
+            var appCerts = SecurityConfiguration.ApplicationCertificates;
+            for (int i = 0; i < appCerts.Count; i++)
             {
+                CertificateIdentifier applicationCertificate = appCerts[i];
                 await applicationCertificate
                     .LoadPrivateKeyExAsync(
                         SecurityConfiguration.CertificatePasswordProvider,
@@ -917,7 +918,7 @@ namespace Opc.Ua
         {
             if (m_securityPolicies.Count == 0)
             {
-                m_securityPolicies.Add(new ServerSecurityPolicy());
+                m_securityPolicies = m_securityPolicies.AddItem(new ServerSecurityPolicy());
             }
         }
     }
