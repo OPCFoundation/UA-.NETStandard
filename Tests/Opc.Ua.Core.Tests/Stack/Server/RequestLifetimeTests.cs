@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public void None_Property_ReturnsCompletedInstance()
         {
-            var lifetime = RequestLifetime.None;
+            RequestLifetime lifetime = RequestLifetime.None;
 
             Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.Good));
 
