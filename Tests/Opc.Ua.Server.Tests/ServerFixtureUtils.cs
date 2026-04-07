@@ -49,11 +49,6 @@ namespace Opc.Ua.Server.Tests
         public const int MinTestPort = 50000;
         public const int MaxTestPort = 65000;
 
-        // Global port registry to prevent TOCTOU races when multiple fixtures
-        // call GetNextFreeIPPort() concurrently during parallel test execution.
-        private static readonly object s_portRegistryLock = new();
-        private static readonly HashSet<int> s_allocatedPorts = new();
-
         /// <summary>
         /// Create and Activate a session without security.
         /// </summary>
@@ -348,48 +343,20 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Get free IP Port.
         /// </summary>
-        /// <remarks>
-        /// Thread-safe: uses a global registry to ensure no two concurrent callers
-        /// receive the same port, preventing TOCTOU races during parallel fixture setup.
-        /// </remarks>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when no unique port can be found after a fixed number of attempts.
-        /// </exception>
         public static int GetNextFreeIPPort()
         {
-            lock (s_portRegistryLock)
+            var endpoint = new IPEndPoint(IPAddress.Any, 0);
+            using var socket = new Socket(
+                endpoint.AddressFamily,
+                SocketType.Stream,
+                ProtocolType.Tcp);
+            socket.Bind(endpoint);
+            if (socket.LocalEndPoint is IPEndPoint ep)
             {
-                const int maxAttempts = 100;
-                for (int attempt = 0; attempt < maxAttempts; attempt++)
-                {
-                    var endpoint = new IPEndPoint(IPAddress.Any, 0);
-                    using var socket = new Socket(
-                        endpoint.AddressFamily,
-                        SocketType.Stream,
-                        ProtocolType.Tcp);
-                    socket.Bind(endpoint);
-                    if (socket.LocalEndPoint is IPEndPoint ep && s_allocatedPorts.Add(ep.Port))
-                    {
-                        return ep.Port;
-                    }
-                }
-
-                throw new InvalidOperationException(
-                    $"Could not find a unique free TCP port after {maxAttempts} attempts. " +
-                    $"Currently tracking {s_allocatedPorts.Count} allocated port(s).");
+                return ep.Port;
             }
-        }
 
-        /// <summary>
-        /// Release a previously allocated port back to the global registry.
-        /// Call this when a server start fails, so the port may be reused.
-        /// </summary>
-        public static void ReleasePort(int port)
-        {
-            lock (s_portRegistryLock)
-            {
-                _ = s_allocatedPorts.Remove(port);
-            }
+            return 0;
         }
     }
 }

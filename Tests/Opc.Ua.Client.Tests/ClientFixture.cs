@@ -190,8 +190,9 @@ namespace Opc.Ua.Client.Tests
                         throw;
                     }
 
-                    ServerFixtureUtils.ReleasePort(testPort);
-                    testPort = ServerFixtureUtils.GetNextFreeIPPort();
+                    testPort = UnsecureRandom.Shared.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
 
@@ -221,7 +222,7 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 5;
+            const int maxAttempts = 25;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -276,7 +277,7 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            const int maxAttempts = 5;
+            const int maxAttempts = 25;
             for (int attempt = 0; ; attempt++)
             {
                 try
@@ -296,6 +297,14 @@ namespace Opc.Ua.Client.Tests
                 ) &&
                 attempt < maxAttempts)
                 {
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
+                    await Task.Delay(1000).ConfigureAwait(false);
+                }
+                catch (Exception e) when (
+                    e is not IgnoreException &&
+                    attempt < maxAttempts)
+                {
+                    // Retry on transient errors (e.g. HttpRequestException when HTTPS server is not yet ready)
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
