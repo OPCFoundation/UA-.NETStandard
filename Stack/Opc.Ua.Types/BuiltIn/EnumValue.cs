@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// The symbol for the value
         /// </summary>
-        public string Symbol
+        public string? Symbol
         {
             get
             {
@@ -131,8 +131,7 @@ namespace Opc.Ua
                         }
                         goto default;
                     default:
-                        return Value.ToString(
-                            CultureInfo.InvariantCulture);
+                        return null;
                 }
             }
         }
@@ -341,7 +340,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Value);
+            return Value;
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            string? symbol = Symbol;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                return Value.ToString(CultureInfo.InvariantCulture);
+            }
+            return $"{symbol}_{Value}";
         }
 
         /// <inheritdoc/>

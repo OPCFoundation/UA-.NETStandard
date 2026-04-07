@@ -1257,10 +1257,11 @@ namespace Opc.Ua
                 m_writer.WriteNumberValue(numeric);
                 return;
             }
-            var symbol = value.Symbol;
+            string? symbol = value.Symbol;
             if (string.IsNullOrEmpty(symbol))
             {
                 m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
+                return;
             }
             m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol, numeric));
         }

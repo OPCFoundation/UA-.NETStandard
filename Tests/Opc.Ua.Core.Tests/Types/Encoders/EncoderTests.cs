@@ -630,8 +630,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    break;
+                case EncodingType.Xml:
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
@@ -766,8 +772,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    break;
+                case EncodingType.Xml:
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 

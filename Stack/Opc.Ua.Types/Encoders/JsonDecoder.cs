@@ -1649,7 +1649,7 @@ namespace Opc.Ua
                     if (split >= 0)
                     {
                         symbol = text[..split];
-                        text = text[split..];
+                        text = text[(split + 1)..];
                     }
                     if (int.TryParse(text, out int enumValue))
                     {
@@ -1698,7 +1698,7 @@ namespace Opc.Ua
                     if (split >= 0)
                     {
                         symbol = text[..split];
-                        text = text[split..];
+                        text = text[(split + 1)..];
                     }
                     if (int.TryParse(text, out int enumValue))
                     {

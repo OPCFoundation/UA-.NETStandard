@@ -3618,7 +3618,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = default;
             var v = Variant.From(EnumValue.From(arr));
-            Assert.That(v.IsNull, Is.True);
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
 
         [Test]
@@ -3635,7 +3635,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = default;
             var v = Variant.From(EnumValue.From(matrix));
-            Assert.That(v.IsNull, Is.True);
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
 
         [Test]
