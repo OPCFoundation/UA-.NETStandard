@@ -233,6 +233,8 @@ namespace Opc.Ua.Server.Tests
                         sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     serverStartRetries--;
+                    // Use original `port` parameter (not `testPort`) to check whether
+                    // auto-allocation was used; only registered ports must be released.
                     if (port <= 0)
                     {
                         ServerFixtureUtils.ReleasePort(testPort);

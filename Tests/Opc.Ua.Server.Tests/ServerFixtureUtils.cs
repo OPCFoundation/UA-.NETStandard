@@ -352,11 +352,15 @@ namespace Opc.Ua.Server.Tests
         /// Thread-safe: uses a global registry to ensure no two concurrent callers
         /// receive the same port, preventing TOCTOU races during parallel fixture setup.
         /// </remarks>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when no unique port can be found after a fixed number of attempts.
+        /// </exception>
         public static int GetNextFreeIPPort()
         {
             lock (s_portRegistryLock)
             {
-                while (true)
+                const int maxAttempts = 100;
+                for (int attempt = 0; attempt < maxAttempts; attempt++)
                 {
                     var endpoint = new IPEndPoint(IPAddress.Any, 0);
                     using var socket = new Socket(
@@ -369,6 +373,10 @@ namespace Opc.Ua.Server.Tests
                         return ep.Port;
                     }
                 }
+
+                throw new InvalidOperationException(
+                    $"Could not find a unique free TCP port after {maxAttempts} attempts. " +
+                    $"Currently tracking {s_allocatedPorts.Count} allocated port(s).");
             }
         }
 
