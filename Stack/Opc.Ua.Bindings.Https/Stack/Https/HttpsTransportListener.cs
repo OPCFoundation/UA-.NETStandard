@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -100,9 +101,11 @@ namespace Opc.Ua.Bindings
         private const string kHttpsContentType = "text/plain";
 
         /// <summary>
-        /// Get the Https listener.
+        /// Registry of active listeners keyed by their local port.
+        /// Allows multiple concurrent HTTPS server instances on different ports.
         /// </summary>
-        public static HttpsTransportListener Listener { get; set; }
+        internal static readonly ConcurrentDictionary<int, HttpsTransportListener> Listeners
+            = new ConcurrentDictionary<int, HttpsTransportListener>();
 
         /// <summary>
         /// Configure the request pipeline for the listener.
@@ -120,7 +123,16 @@ namespace Opc.Ua.Bindings
                     return context.Response.WriteAsync(string.Empty);
                 }
 
-                return Listener.SendAsync(context);
+                int port = context.Connection.LocalPort;
+                if (Listeners.TryGetValue(port, out HttpsTransportListener listener))
+                {
+                    return listener.SendAsync(context);
+                }
+
+                context.Response.ContentLength = 0;
+                context.Response.ContentType = kHttpsContentType;
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                return context.Response.WriteAsync(string.Empty);
             });
         }
     }
@@ -163,6 +175,10 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged = null;
                 ConnectionWaiting = null;
+                if (EndpointUrl != null)
+                {
+                    Startup.Listeners.TryRemove(EndpointUrl.Port, out _);
+                }
                 m_host?.Dispose();
                 m_host = null;
             }
@@ -272,7 +288,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Start()
         {
-            Startup.Listener = this;
+            Startup.Listeners[EndpointUrl.Port] = this;
 #if NET8_0_OR_GREATER
             m_host = new HostBuilder()
                 .ConfigureWebHostDefaults(ConfigureWebHost)
