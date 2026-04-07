@@ -464,14 +464,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 // test setter if overflow certs are deleted
                 certValidator.MaxRejectedCertificates = 3;
-                await Task.Delay(1000).ConfigureAwait(false);
-                certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
+                certificates = await WaitForRejectedStoreCountAsync(
+                    validator, count => count <= 3, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(3));
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
-                await Task.Delay(1000).ConfigureAwait(false);
-                certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
+                certificates = await WaitForRejectedStoreCountAsync(
+                    validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(certificates.Count, Is.Zero);
 
                 // ensure no certs are added to the rejected store
@@ -490,7 +490,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
                 await Task.Delay(1000).ConfigureAwait(false);
-                certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
+                certificates = await WaitForRejectedStoreCountAsync(
+                    validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(certificates.Count, Is.Zero);
             }
             finally
@@ -2068,6 +2069,33 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
             }
+        }
+
+        /// <summary>
+        /// Polls the rejected store until the certificate count satisfies <paramref name="predicate"/>
+        /// or the <paramref name="timeout"/> elapses, then returns the most recently read collection.
+        /// Used to reliably wait for the fire-and-forget background task fired by
+        /// <see cref="CertificateValidator.MaxRejectedCertificates"/> setter.
+        /// </summary>
+        private static async Task<X509Certificate2Collection> WaitForRejectedStoreCountAsync(
+            TemporaryCertValidator validator,
+            Func<int, bool> predicate,
+            TimeSpan timeout)
+        {
+            var sw = Stopwatch.StartNew();
+            X509Certificate2Collection certificates;
+            do
+            {
+                certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
+                if (predicate(certificates.Count))
+                {
+                    break;
+                }
+
+                await Task.Delay(200).ConfigureAwait(false);
+            }
+            while (sw.Elapsed < timeout);
+            return certificates;
         }
 
         private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
