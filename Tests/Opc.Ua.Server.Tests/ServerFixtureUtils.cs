@@ -49,6 +49,11 @@ namespace Opc.Ua.Server.Tests
         public const int MinTestPort = 50000;
         public const int MaxTestPort = 65000;
 
+        // Global port registry to prevent TOCTOU races when multiple fixtures
+        // call GetNextFreeIPPort() concurrently during parallel test execution.
+        private static readonly object s_portRegistryLock = new();
+        private static readonly HashSet<int> s_allocatedPorts = new();
+
         /// <summary>
         /// Create and Activate a session without security.
         /// </summary>
@@ -343,19 +348,40 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Get free IP Port.
         /// </summary>
+        /// <remarks>
+        /// Thread-safe: uses a global registry to ensure no two concurrent callers
+        /// receive the same port, preventing TOCTOU races during parallel fixture setup.
+        /// </remarks>
         public static int GetNextFreeIPPort()
         {
-            var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            using var socket = new Socket(
-                endpoint.AddressFamily,
-                SocketType.Stream,
-                ProtocolType.Tcp);
-            socket.Bind(endpoint);
-            if (socket.LocalEndPoint is IPEndPoint ep)
+            lock (s_portRegistryLock)
             {
-                return ep.Port;
+                while (true)
+                {
+                    var endpoint = new IPEndPoint(IPAddress.Any, 0);
+                    using var socket = new Socket(
+                        endpoint.AddressFamily,
+                        SocketType.Stream,
+                        ProtocolType.Tcp);
+                    socket.Bind(endpoint);
+                    if (socket.LocalEndPoint is IPEndPoint ep && s_allocatedPorts.Add(ep.Port))
+                    {
+                        return ep.Port;
+                    }
+                }
             }
-            return 0;
+        }
+
+        /// <summary>
+        /// Release a previously allocated port back to the global registry.
+        /// Call this when a server start fails, so the port may be reused.
+        /// </summary>
+        public static void ReleasePort(int port)
+        {
+            lock (s_portRegistryLock)
+            {
+                _ = s_allocatedPorts.Remove(port);
+            }
         }
     }
 }

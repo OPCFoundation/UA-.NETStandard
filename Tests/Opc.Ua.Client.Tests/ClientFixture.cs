@@ -174,6 +174,7 @@ namespace Opc.Ua.Client.Tests
             int serverStartRetries = 25;
             do
             {
+                retryStartServer = false;
                 try
                 {
                     var reverseConnectUri = new Uri("opc.tcp://localhost:" + testPort);
@@ -188,11 +189,12 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+
+                    ServerFixtureUtils.ReleasePort(testPort);
+                    testPort = ServerFixtureUtils.GetNextFreeIPPort();
                     retryStartServer = true;
                 }
+
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
         }

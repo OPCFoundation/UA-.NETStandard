@@ -223,6 +223,7 @@ namespace Opc.Ua.Server.Tests
 
             do
             {
+                retryStartServer = false;
                 try
                 {
                     await InternalStartServerAsync(testPort).ConfigureAwait(false);
@@ -232,11 +233,21 @@ namespace Opc.Ua.Server.Tests
                         sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+                    if (port <= 0)
+                    {
+                        ServerFixtureUtils.ReleasePort(testPort);
+                        testPort = ServerFixtureUtils.GetNextFreeIPPort();
+                    }
+                    else
+                    {
+                        testPort = UnsecureRandom.Shared.Next(
+                            ServerFixtureUtils.MinTestPort,
+                            ServerFixtureUtils.MaxTestPort);
+                    }
+
                     retryStartServer = true;
                 }
+
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
