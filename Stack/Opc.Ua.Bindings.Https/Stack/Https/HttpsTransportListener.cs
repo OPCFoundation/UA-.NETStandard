@@ -175,9 +175,16 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged = null;
                 ConnectionWaiting = null;
-                if (EndpointUrl != null)
+                try
                 {
-                    Startup.Listeners.TryRemove(EndpointUrl.Port, out _);
+                    if (EndpointUrl != null)
+                    {
+                        Startup.Listeners.TryRemove(EndpointUrl.Port, out _);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Ignore errors during deregistration
                 }
                 m_host?.Dispose();
                 m_host = null;
