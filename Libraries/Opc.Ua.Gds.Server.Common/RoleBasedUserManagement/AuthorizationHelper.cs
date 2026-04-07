@@ -171,20 +171,14 @@ namespace Opc.Ua.Gds.Server
                 return false;
             }
 
-            // Traverse the identity chain to support wrapped identities (e.g., when
-            // mandatory roles are added on top via RoleBasedIdentity)
-            IUserIdentity current = userIdentity;
-            while (current != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
-                if (current is GdsRoleBasedIdentity identity)
+                //self Admin only has access to own application
+                if (identity.ApplicationId == applicationId)
                 {
-                    //self Admin only has access to own application
-                    return identity.ApplicationId == applicationId;
+                    return true;
                 }
-
-                current = (current as RoleBasedIdentity)?.InnerIdentity;
             }
-
             return false;
         }
 
@@ -194,31 +188,20 @@ namespace Opc.Ua.Gds.Server
             Dictionary<NodeId, string> certTypeMap,
             IApplicationsDatabase applicationsDatabase)
         {
-            // Traverse the identity chain to support wrapped identities (e.g., when
-            // mandatory roles are added on top via RoleBasedIdentity)
-            IUserIdentity current = userIdentity;
-            while (current != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
-                if (current is GdsRoleBasedIdentity identity)
+                foreach (string certType in certTypeMap.Values)
                 {
-                    foreach (string certType in certTypeMap.Values)
+                    applicationsDatabase.GetApplicationTrustLists(
+                        identity.ApplicationId,
+                        certType,
+                        out string trustListId);
+                    if (trustedStore.StorePath == trustListId)
                     {
-                        applicationsDatabase.GetApplicationTrustLists(
-                            identity.ApplicationId,
-                            certType,
-                            out string trustListId);
-                        if (trustedStore.StorePath == trustListId)
-                        {
-                            return true;
-                        }
+                        return true;
                     }
-
-                    return false;
                 }
-
-                current = (current as RoleBasedIdentity)?.InnerIdentity;
             }
-
             return false;
         }
     }

@@ -587,6 +587,14 @@ namespace Opc.Ua.Server
             if (session.ClientCertificate != null &&
                 context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
             {
+                // When the identity is already a RoleBasedIdentity (e.g. GdsRoleBasedIdentity),
+                // delegate to WithAdditionalRoles so the concrete subtype and any extra state
+                // (e.g. ApplicationId) are preserved rather than losing the type by wrapping.
+                if (effectiveIdentity is RoleBasedIdentity rbi)
+                {
+                    return rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
+                }
+
                 return new RoleBasedIdentity(
                     effectiveIdentity,
                     [Role.TrustedApplication],

@@ -215,10 +215,25 @@ namespace Opc.Ua.Server
         public IEnumerable<Role> Roles { get; }
 
         /// <summary>
-        /// The inner identity that this role-based identity wraps.
-        /// Allows traversal of the identity chain when multiple layers of roles are applied.
+        /// Returns a new <see cref="RoleBasedIdentity"/> that extends this identity with
+        /// <paramref name="additionalRoles"/> merged in. Subclasses should override this
+        /// method to preserve their concrete type (and any extra state such as
+        /// <c>ApplicationId</c>) when extra roles are layered on top.
         /// </summary>
-        public IUserIdentity InnerIdentity => m_identity;
+        /// <param name="additionalRoles">Roles to add on top of the existing ones.</param>
+        /// <param name="namespaces">Namespace table used to resolve role NodeIds.</param>
+        /// <returns>A new identity that carries the union of the current and additional roles.</returns>
+        public virtual RoleBasedIdentity WithAdditionalRoles(
+            IEnumerable<Role> additionalRoles,
+            NamespaceTable namespaces)
+        {
+            return new RoleBasedIdentity(m_identity, Roles.Concat(additionalRoles), namespaces);
+        }
+
+        /// <summary>
+        /// The inner identity that this role-based identity wraps.
+        /// </summary>
+        protected IUserIdentity InnerIdentity => m_identity;
 
         /// <inheritdoc/>
         public string DisplayName => m_identity.DisplayName;
