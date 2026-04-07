@@ -214,6 +214,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public IEnumerable<Role> Roles { get; }
 
+        /// <summary>
+        /// The inner identity that this role-based identity wraps.
+        /// Allows traversal of the identity chain when multiple layers of roles are applied.
+        /// </summary>
+        public IUserIdentity InnerIdentity => m_identity;
+
         /// <inheritdoc/>
         public string DisplayName => m_identity.DisplayName;
 
