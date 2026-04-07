@@ -184,7 +184,7 @@ namespace Opc.Ua.Client.Tests
 
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine("===========================================");
-                TestContext.Out.WriteLine($"Completed {i}th iteration.");
+                TestContext.Out.WriteLine($"Completed iteration {i + 1} of {loopCount}.");
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine("===========================================");
             }
