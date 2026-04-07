@@ -1126,16 +1126,18 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            // For DisconnectedRepublishDelayedAck, deferred acks cause the server to
-            // republish unacknowledged notifications on every publish cycle. Those
-            // republished notifications may arrive slightly after the fixed delay; poll
-            // until subscription 0 reaches the expected count or a generous timeout expires.
-            // With sendInitialValues=true the expected count is 2×monitoredItemCount
-            // (initial values + one republish batch); with sendInitialValues=false it is
-            // 1×monitoredItemCount (only the republish batch).
-            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            // For DisconnectedRepublishDelayedAck with sendInitialValues=true, the server
+            // sends initial values immediately after transfer, and DeferSubscriptionAcknowledge
+            // on the target session prevents those acks, causing the server to republish them
+            // on the next publish cycle. Poll until subscription 0 reaches 2×monitoredItemCount
+            // (initial values + one republish batch) or a generous timeout expires.
+            // For sendInitialValues=false there is no reliable notification source for static
+            // subscription 0: the server sends no initial values, and whether the origin
+            // session's unacknowledged notifications are still available for republish depends
+            // on the server's session-cleanup timing, so no polling is needed.
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
             {
-                uint expectedCount0 = (sendInitialValues ? 2u : 1u) * transferSubscriptions[0].MonitoredItemCount;
+                uint expectedCount0 = 2u * transferSubscriptions[0].MonitoredItemCount;
                 var deadline = DateTime.UtcNow.AddSeconds(10);
                 while ((uint)targetSubscriptionCounters[0] < expectedCount0 &&
                     DateTime.UtcNow < deadline)
@@ -1172,8 +1174,14 @@ namespace Opc.Ua.Client.Tests
                 uint targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
                 if (jj == 0)
                 {
-                    // correct for delayed ack and republish count
-                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+                    // correct for delayed ack and republish count:
+                    // when sendInitialValues=true, the target session's DeferSubscriptionAcknowledge
+                    // prevents acks for the initial-value notifications, causing the server to
+                    // republish them — adding monitoredItemCount to account for that republish batch.
+                    // When sendInitialValues=false, static subscription 0 may receive zero
+                    // notifications (server sends no initial values and origin-session republish
+                    // is not reliable), so no additional count is expected.
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
                     {
                         targetExpectedCount += monitoredItemCount;
                     }
