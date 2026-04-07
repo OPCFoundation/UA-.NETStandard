@@ -774,7 +774,13 @@ namespace Opc.Ua
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
-            set => ApplicationCertificate = value;
+            set
+            {
+                if (value != null)
+                {
+                    ApplicationCertificate = value;
+                }
+            }
         }
 
         /// <summary>
