@@ -208,7 +208,7 @@ namespace Opc.Ua
                     ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
                 var endpoints = new ConfiguredEndpointCollection();
-                endpoints.Decode(parser);
+                AppConfigEncoding.DecodeConfiguredEndpointCollection(parser, endpoints);
 
                 foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
@@ -257,7 +257,7 @@ namespace Opc.Ua
                 ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
             var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
-            this.Encode(encoder);
+            AppConfigEncoding.EncodeConfiguredEndpointCollection(encoder, this);
             encoder.Close();
         }
 

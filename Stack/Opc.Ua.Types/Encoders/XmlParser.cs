@@ -2451,18 +2451,16 @@ namespace Opc.Ua
                     value.Decode(this);
                     PopNamespace();
 
-                    // No need to skip to end of encodeable in DOM mode -
-                    // unread children simply remain unconsumed.
-
                     EndField(fieldName);
                     return value;
                 }
+
+                return default;
             }
             finally
             {
                 m_nestingLevel--;
             }
-            return default;
         }
 
         /// <summary>

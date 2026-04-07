@@ -770,7 +770,6 @@ namespace Opc.Ua
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
-        [DataTypeField(Order = 0, Name = "ApplicationCertificate", ForceEncodeable = true)]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
@@ -861,15 +860,10 @@ namespace Opc.Ua
         /// Emit only when the configuration is not marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        [DataTypeField(Order = 1, Name = "ApplicationCertificates", ForceEncodeable = true)]
-        private ArrayOf<CertificateIdentifier> ApplicationCertificatesDataContract
+        private CertificateIdentifierCollection ApplicationCertificatesDataContract
         {
-            get => IsDeprecatedConfiguration
-                ? default
-                : ApplicationCertificates.ToArrayOf();
-            set => ApplicationCertificates = value.IsEmpty
-                ? []
-                : new CertificateIdentifierCollection(value.ToList());
+            get => IsDeprecatedConfiguration ? null : ApplicationCertificates;
+            set => ApplicationCertificates = value;
         }
 
         /// <summary>
@@ -1016,7 +1010,7 @@ namespace Opc.Ua
         public CertificateTrustList UserIssuerCertificates
         {
             get => m_userIssuerCertificates;
-            set => m_userIssuerCertificates = value ?? new CertificateTrustList();
+            set => m_userIssuerCertificates = value;
         }
 
         /// <summary>
@@ -1027,7 +1021,7 @@ namespace Opc.Ua
         public CertificateTrustList TrustedUserCertificates
         {
             get => m_trustedUserCertificates;
-            set => m_trustedUserCertificates = value ?? new CertificateTrustList();
+            set => m_trustedUserCertificates = value;
         }
 
         /// <summary>
@@ -1038,7 +1032,7 @@ namespace Opc.Ua
         public CertificateTrustList HttpsIssuerCertificates
         {
             get => m_httpsIssuerCertificates;
-            set => m_httpsIssuerCertificates = value ?? new CertificateTrustList();
+            set => m_httpsIssuerCertificates = value;
         }
 
         /// <summary>
@@ -1049,7 +1043,7 @@ namespace Opc.Ua
         public CertificateTrustList TrustedHttpsCertificates
         {
             get => m_trustedHttpsCertificates;
-            set => m_trustedHttpsCertificates = value ?? new CertificateTrustList();
+            set => m_trustedHttpsCertificates = value;
         }
 
         /// <summary>
