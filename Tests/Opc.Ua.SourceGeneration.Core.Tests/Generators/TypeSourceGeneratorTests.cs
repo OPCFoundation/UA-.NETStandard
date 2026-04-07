@@ -39,7 +39,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     [TestFixture]
     [Category("Generator")]
     [Parallelizable]
-    public class DataTypeSourceGeneratorTests
+    public class TypeSourceGeneratorTests
     {
         [Test]
         public void GenerateSimpleClassProducesEncodeDecodeAndActivator()
@@ -52,12 +52,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "MyAppConfig",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Name", "String"),
                     CreateField("Port", "Int32"),
                     CreateField("Enabled", "Boolean"),
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -325,7 +325,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string result = TypeSourceGenerator.Generate(model);
 
             Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
-            Assert.That(result, Does.Contain("decoder.ReadEncodeable(\"Child\""));
+            Assert.That(result, Does.Contain("decoder.ReadEncodeable<global::Test.Ns.ChildType>(\"Child\")"));
         }
 
         [Test]

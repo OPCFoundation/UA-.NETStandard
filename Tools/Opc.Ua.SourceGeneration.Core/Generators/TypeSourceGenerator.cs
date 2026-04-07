@@ -252,61 +252,47 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfComparedFields,
                 model.Fields,
                 LoadTemplate_ListOfComparedFields);
+
+            context.Template.AddReplacement(
+                Tokens.ListOfChildCopies,
+                [model],
+                LoadTemplate_ListOfChildCopies,
+                WriteTemplate_ListOfChildCopies);
+
+            return context.Template.Render();
+        }
+
+        private static TemplateString LoadTemplate_ListOfChildCopies(ILoadContext context)
+        {
+            if (context.Target is not TypeSourceModel model ||
+                model.HasManualClone)
+            {
+                return null;
+            }
+            // Generate Clone/MemberwiseClone unless the user already has them
+            if (model.IsRecord)
+            {
+                return TypeSourceTemplates.RecordCloneMethod;
+            }
+            return TypeSourceTemplates.CloneMethod;
+        }
+
+        private static bool WriteTemplate_ListOfChildCopies(IWriteContext context)
+        {
+            if (context.Target is not TypeSourceModel model)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsDerived ? "override" :
+                    model.IsSealed ? string.Empty : "virtual");
             context.Template.AddReplacement(
                 Tokens.ListOfClonedFields,
                 model.Fields,
                 LoadTemplate_ListOfClonedFields);
 
-            // Generate Clone/MemberwiseClone unless the user already has them
-            if (model.HasManualClone)
-            {
-                context.Template.AddReplacement(
-                    Tokens.ListOfChildCopies, (string)null);
-            }
-            else
-            {
-                string cloneModifier = model.IsDerived ? "override" :
-                    (model.IsSealed ? "" : "virtual");
-                string cloneBlock = GenerateCloneBlock(
-                    model.ClassName, cloneModifier, model.Fields);
-                context.Template.AddReplacement(
-                    Tokens.ListOfChildCopies, cloneBlock);
-            }
-
             return context.Template.Render();
-        }
-
-        private static string GenerateCloneBlock(
-            string className,
-            string modifier,
-            IReadOnlyList<TypeFieldModel> fields)
-        {
-            string mod = string.IsNullOrEmpty(modifier)
-                ? "public"
-                : $"public {modifier}";
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"/// <inheritdoc/>");
-            sb.AppendLine($"{mod} object Clone()");
-            sb.AppendLine("{");
-            sb.AppendLine($"    return ({className})this.MemberwiseClone();");
-            sb.AppendLine("}");
-            sb.AppendLine();
-            sb.AppendLine("/// <inheritdoc/>");
-            sb.AppendLine($"public new object MemberwiseClone()");
-            sb.AppendLine("{");
-            sb.AppendLine($"    {className} clone = ({className})base.MemberwiseClone();");
-            foreach (TypeFieldModel field in fields)
-            {
-                if (field.IsEncodeable && !field.IsArray && !field.IsMatrix)
-                {
-                    sb.AppendLine(
-                        $"    clone.{field.PropertyName} = ({field.TypeName})" +
-                        $"((global::Opc.Ua.IEncodeable)this.{field.PropertyName})?.Clone();");
-                }
-            }
-            sb.AppendLine("    return clone;");
-            sb.Append("}");
-            return sb.ToString();
         }
 
         private static TemplateString LoadTemplate_ListOfEncodedFields(ILoadContext context)
@@ -430,7 +416,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return (TemplateString)CoreUtils.Format(
-                    """{0} = decoder.{1}("{2}");""",
+                """{0} = decoder.{1}("{2}");""",
                 field.PropertyName,
                 readMethod,
                 field.FieldName.Escape());
@@ -442,9 +428,20 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+
+            if (!IsDotNetEqualityComparable(field))
+            {
+                return (TemplateString)CoreUtils.Format(
+                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0})) return false;",
+                    field.PropertyName);
+            }
+
             return (TemplateString)CoreUtils.Format(
-                "if (!global::Opc.Ua.CoreUtils.IsEqual(this.{0}, value.{0})) return false;",
+                "if ({0} != value.{0}) return false;",
                 field.PropertyName);
+
+            static bool IsDotNetEqualityComparable(TypeFieldModel field) =>
+                !field.IsEncodeable; // Add any other type not comparable using ==
         }
 
         private static TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)
@@ -453,18 +450,33 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            // ArrayOf<T> and MatrixOf<T> are value types — copied by MemberwiseClone
-            if (field.IsArray || field.IsMatrix)
-            {
-                return null;
-            }
-            if (field.IsEncodeable)
+
+            if (NeedsCloning(field))
             {
                 return (TemplateString)CoreUtils.Format(
-                    "clone.{0} = ({1})((global::Opc.Ua.IEncodeable)this.{0})?.Clone();",
+                    "clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone({0});",
                     field.PropertyName, field.TypeName);
             }
-            return null;
+
+            return (TemplateString)CoreUtils.Format(
+                "clone.{0} = {0};",
+                field.PropertyName, field.TypeName);
+
+            static bool NeedsCloning(TypeFieldModel field)
+            {
+                switch (field.ShortTypeName)
+                {
+                    case "DataValue":
+                    case "Variant":
+                    case "ExtensionObject":
+                        return true;
+                }
+                if (field.IsArray || field.IsMatrix)
+                {
+                    return false;
+                }
+                return field.IsEncodeable;
+            }
         }
 
         private static TemplateString LoadTemplate_ListOfTypeActivators(ILoadContext context)
