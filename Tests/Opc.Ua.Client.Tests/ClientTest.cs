@@ -58,6 +58,7 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
+    [Parallelizable(ParallelScope.Fixtures)]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest : ClientTestFramework
