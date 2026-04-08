@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -46,6 +48,168 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MasterNodeManagerTests
     {
+        [Test]
+        public void ValidateRolePermissions_NullNodeMetadata_ReturnsGood()
+        {
+            var result = MasterNodeManager.ValidateRolePermissions(null, null, PermissionType.Read);
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_PermissionNone_ReturnsGood()
+        {
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1));
+            var result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.None);
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_NoRestrictions_ReturnsGood()
+        {
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1));
+            var result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.Read);
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_NoGrantedRoles_ReturnsBadUserAccessDenied()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns(new ArrayOf<NodeId>());
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                RolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(1), Permissions = (uint)PermissionType.Read }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Debug,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Current user has no granted role.")),
+                    It.IsAny<Exception>(),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                Times.Once);
+        }
+
+        [Test]
+        public void ValidateRolePermissions_DoesNotHaveRequestedPermission_ReturnsBadUserAccessDenied()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                RolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Browse }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Debug,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Role permissions validation failed for node")),
+                    It.IsAny<Exception>(),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                Times.Once);
+        }
+
+        [Test]
+        public void ValidateRolePermissions_HasRequestedPermission_ReturnsGood()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                RolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_DefaultPermissions_ReturnsGood()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                DefaultRolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_DefaultUserRolePermissions_ReturnsGood()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                DefaultUserRolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ValidateRolePermissions_UserRolePermissionsAndRolePermissionsIntersect_ReturnsGood()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+
+            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            {
+                UserRolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read | (uint)PermissionType.Browse }
+                ],
+                RolePermissions = [
+                    new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
+                ]
+            };
+
+            var loggerMock = new Mock<ILogger>();
+            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
         /// <summary>
         /// Test for registering a namespace manager for a namespace
         /// not contained in the server's namespace table

@@ -1120,7 +1120,8 @@ namespace Opc.Ua.Server
                         ServiceResult serviceResult = ValidateRolePermissions(
                             context,
                             nodeMetadata,
-                            PermissionType.Browse);
+                            PermissionType.Browse,
+                            m_logger);
 
                         if (ServiceResult.IsBad(serviceResult))
                         {
@@ -1331,24 +1332,38 @@ namespace Opc.Ua.Server
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
             var uniqueNodes = new HashSet<NodeId>();
+            Type listType = typeof(T);
+
+            if (listType != typeof(ReadValueId) &&
+                listType != typeof(BrowseDescription) &&
+                listType != typeof(CallMethodRequest))
+            {
+                throw new ArgumentException(
+                    "Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest",
+                    nameof(nodesList));
+            }
+
             for (int i = 0; i < nodesList.Count; i++)
             {
-                Type listType = typeof(T);
                 NodeId nodeId = default;
 
                 if (listType == typeof(ReadValueId))
                 {
                     nodeId = (nodesList[i] as ReadValueId)?.NodeId ?? default;
                 }
-
-                if (nodeId.IsNull)
+                else if (listType == typeof(BrowseDescription))
                 {
-                    throw new ArgumentException(
-                        "Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest",
-                        nameof(nodesList));
+                    nodeId = (nodesList[i] as BrowseDescription)?.NodeId ?? default;
+                }
+                else if (listType == typeof(CallMethodRequest))
+                {
+                    nodeId = (nodesList[i] as CallMethodRequest)?.ObjectId ?? default;
                 }
 
-                uniqueNodes.Add(nodeId);
+                if (!nodeId.IsNull)
+                {
+                    uniqueNodes.Add(nodeId);
+                }
             }
             // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
             uniqueNodesServiceAttributes = [];
@@ -2634,7 +2649,8 @@ namespace Opc.Ua.Server
                     errors[ii] = ValidateRolePermissions(
                         context,
                         nodeMetadata,
-                        PermissionType.ReceiveEvents);
+                        PermissionType.ReceiveEvents,
+                        m_logger);
 
                     if (ServiceResult.IsBad(errors[ii]))
                     {
@@ -3739,7 +3755,8 @@ namespace Opc.Ua.Server
                     serviceResult = ValidateRolePermissions(
                         context,
                         nodeMetadata,
-                        requestedPermision);
+                        requestedPermision,
+                        m_logger);
 
                     if (ServiceResult.IsGood(serviceResult))
                     {
@@ -3830,7 +3847,8 @@ namespace Opc.Ua.Server
         protected internal static ServiceResult ValidateRolePermissions(
             OperationContext context,
             NodeMetadata nodeMetadata,
-            PermissionType requestedPermission)
+            PermissionType requestedPermission,
+            ILogger logger = null)
         {
             if (nodeMetadata == null || requestedPermission == PermissionType.None)
             {
@@ -3879,7 +3897,7 @@ namespace Opc.Ua.Server
                     else
                     {
                         roleIdPermissions[rolePermission.RoleId] =
-                            ((PermissionType)rolePermission.Permissions) & requestedPermission;
+                            (PermissionType)rolePermission.Permissions;
                     }
                 }
             }
@@ -3898,7 +3916,7 @@ namespace Opc.Ua.Server
                     else
                     {
                         roleIdPermissionsDefinedForUser[rolePermission.RoleId] =
-                            ((PermissionType)rolePermission.Permissions) & requestedPermission;
+                            (PermissionType)rolePermission.Permissions;
                     }
                 }
             }
@@ -3932,20 +3950,33 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> currentRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
             if (currentRoleIds.IsEmpty)
             {
+                logger?.LogDebug("Current user has no granted role.");
                 return ServiceResult.Create(
                     StatusCodes.BadUserAccessDenied,
                     "Current user has no granted role.");
             }
 
+            PermissionType userActualPermissions = PermissionType.None;
+
             foreach (NodeId currentRoleId in currentRoleIds)
             {
-                if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value) &&
-                    value != PermissionType.None)
+                if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value))
                 {
-                    // there is one role that current session has na is listed in requested role
-                    return StatusCodes.Good;
+                    userActualPermissions |= value;
+                    if ((value & requestedPermission) != PermissionType.None)
+                    {
+                        // there is one role that current session has na is listed in requested role
+                        return StatusCodes.Good;
+                    }
                 }
             }
+
+            logger?.LogDebug(
+                "Role permissions validation failed for node {NodeId}. Requested: {RequestedPermission}, User has: {UserPermissions}",
+                nodeMetadata.NodeId,
+                requestedPermission,
+                userActualPermissions);
+
             return ServiceResult.Create(
                 StatusCodes.BadUserAccessDenied,
                 "The requested permission {0} is not granted for node id {1}.",

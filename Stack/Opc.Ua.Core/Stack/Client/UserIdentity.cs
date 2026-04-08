@@ -252,7 +252,7 @@ namespace Opc.Ua
         /// <summary>
         ///  Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        public ArrayOf<NodeId> GrantedRoleIds => default;
+        public ArrayOf<NodeId> GrantedRoleIds => [ObjectIds.WellKnownRole_Anonymous];
 
         /// <inheritdoc/>
         public override bool Equals(object obj)

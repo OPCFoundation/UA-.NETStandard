@@ -354,6 +354,7 @@ namespace Opc.Ua.Server.Tests
             {
                 return ep.Port;
             }
+
             return 0;
         }
     }

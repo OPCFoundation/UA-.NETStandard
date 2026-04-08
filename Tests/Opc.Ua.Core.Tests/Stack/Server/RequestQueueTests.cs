@@ -125,25 +125,37 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             server.ScheduleIncomingRequest(req1);
 
             // Wait for req1 to start processing so it leaves the queue.
-            using var cts = new CancellationTokenSource(5000);
             Task<bool> t1 = req1.ProcessingStarted.Task;
-            if (await Task.WhenAny(t1, Task.Delay(5000, cts.Token)).ConfigureAwait(false) != t1)
+            using (var cts1 = new CancellationTokenSource(5000))
             {
-                Assert.Fail("Timed out waiting for processing to start.");
+                if (await Task.WhenAny(t1, Task.Delay(5000, cts1.Token)).ConfigureAwait(false) != t1)
+                {
+                    Assert.Fail("Timed out waiting for processing to start.");
+                }
             }
 
             // req1 is active (taking the 1 thread), queue is now empty. Capacity is 1.
             server.ScheduleIncomingRequest(req2); // Goes to queue.
             server.ScheduleIncomingRequest(req3); // Should fail to enter queue.
 
+            // req3 should be rejected synchronously or near-synchronously; wait briefly.
+            using (var cts3 = new CancellationTokenSource(5000))
+            {
+                await Task.WhenAny(req3.ProcessingCompleted.Task, Task.Delay(5000, cts3.Token))
+                    .ConfigureAwait(false);
+            }
+
             Assert.That(req3.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
             req1.ProcessingCompleted.TrySetResult(true);
 
             Task<bool> t2 = req2.ProcessingStarted.Task;
-            if (await Task.WhenAny(t2, Task.Delay(5000, cts.Token)).ConfigureAwait(false) != t2)
+            using (var cts2 = new CancellationTokenSource(5000))
             {
-                Assert.Fail("Timed out waiting for req2 processing to start.");
+                if (await Task.WhenAny(t2, Task.Delay(5000, cts2.Token)).ConfigureAwait(false) != t2)
+                {
+                    Assert.Fail("Timed out waiting for req2 processing to start.");
+                }
             }
 
             req2.ProcessingCompleted.TrySetResult(true);
@@ -209,11 +221,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             server.ScheduleIncomingRequest(req1);
 
             // Wait for req1 to start processing so it leaves the queue.
-            using var cts = new CancellationTokenSource(5000);
             Task<bool> t1 = req1.ProcessingStarted.Task;
-            if (await Task.WhenAny(t1, Task.Delay(5000, cts.Token)).ConfigureAwait(false) != t1)
+            using (var cts1 = new CancellationTokenSource(5000))
             {
-                Assert.Fail("Timed out waiting for processing to start.");
+                if (await Task.WhenAny(t1, Task.Delay(5000, cts1.Token)).ConfigureAwait(false) != t1)
+                {
+                    Assert.Fail("Timed out waiting for processing to start.");
+                }
             }
 
             // req1 is active (taking the 1 thread)
@@ -226,15 +240,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // req2 should be failed with BadServerHalted.
             Task<bool> t2 = req2.ProcessingCompleted.Task;
-            if (await Task.WhenAny(t2, Task.Delay(5000, cts.Token)).ConfigureAwait(false) != t2)
+            using (var cts2 = new CancellationTokenSource(5000))
             {
-                Assert.Fail("Timed out waiting for req2 processing to be completed via Dispose.");
+                if (await Task.WhenAny(t2, Task.Delay(5000, cts2.Token)).ConfigureAwait(false) != t2)
+                {
+                    Assert.Fail("Timed out waiting for req2 processing to be completed via Dispose.");
+                }
             }
             Assert.That(req2.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
 
             // Scheduling a new request should immediately fail with BadServerHalted
             var req3 = new TestEndpointIncomingRequest();
             server.ScheduleIncomingRequest(req3);
+
+            // req3 should be rejected synchronously or near-synchronously; wait briefly.
+            using (var cts3 = new CancellationTokenSource(5000))
+            {
+                await Task.WhenAny(req3.ProcessingCompleted.Task, Task.Delay(5000, cts3.Token))
+                    .ConfigureAwait(false);
+            }
+
             Assert.That(req3.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
 
             req1.ProcessingCompleted.TrySetResult(true);
