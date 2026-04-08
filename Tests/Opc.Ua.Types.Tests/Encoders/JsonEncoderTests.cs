@@ -32,7 +32,6 @@ using System.Buffers;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -199,7 +198,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            DateTime expected = (DateTime)DateTime.UtcNow;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            var expected = (DateTime)DateTime.UtcNow;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var buffers = new PooledBufferWriter();
 
             using (var writer = new JsonEncoder(buffers, messageContext))
@@ -208,7 +209,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
+            var result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }

@@ -190,8 +190,7 @@ namespace Opc.Ua
             m_rejectedCertificateStore = null;
             if (rejectedCertificateStore != null)
             {
-                m_rejectedCertificateStore = (CertificateStoreIdentifier)rejectedCertificateStore
-                    .MemberwiseClone();
+                m_rejectedCertificateStore = (CertificateStoreIdentifier)rejectedCertificateStore.Clone();
             }
         }
 

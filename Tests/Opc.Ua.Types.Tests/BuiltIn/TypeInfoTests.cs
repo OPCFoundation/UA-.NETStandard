@@ -90,7 +90,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             TypeInfo unknown = TypeInfo.Unknown;
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(unknown.Equals((object)null));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 
@@ -1475,7 +1477,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetXmlNameForNullTypeReturnsNull()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(TypeInfo.GetXmlName((Type)null), Is.Null);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -1751,7 +1755,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructForListOfIntReturnsIntArray()
         {
-            TypeInfo result = TypeInfo.Construct(typeof(List<int>));
+            var result = TypeInfo.Construct(typeof(List<int>));
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Int32));
             Assert.That(result.IsArray, Is.True);
         }
@@ -1759,7 +1763,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructForNonEnumerableGenericTypeReturnsUnknown()
         {
-            TypeInfo result = TypeInfo.Construct(typeof(Task<int>));
+            var result = TypeInfo.Construct(typeof(Task<int>));
             Assert.That(result.IsUnknown, Is.True);
         }
     }

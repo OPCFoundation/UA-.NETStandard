@@ -1373,7 +1373,9 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             bool result = dict.Remove((IReference)null);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result, Is.False);
         }

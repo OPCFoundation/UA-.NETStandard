@@ -603,5 +603,90 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.Value.IsNull, Is.True);
             Assert.That(restored.ValueRank, Is.EqualTo(ValueRanks.Any));
         }
+
+        [Test]
+        public void SaveAsBinaryAndLoadRoundTrip()
+        {
+            ISystemContext context = CreateSystemContext();
+            var original = new BaseDataVariableTypeState
+            {
+                NodeId = new NodeId(301),
+                BrowseName = new QualifiedName("BinVarType"),
+                DisplayName = new LocalizedText("Binary Variable Type"),
+                Value = new Variant(123),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                ArrayDimensions = new uint[] { 1 }.ToArrayOf()
+            };
+
+            using var stream = new MemoryStream();
+            original.SaveAsBinary(context, stream);
+            stream.Position = 0;
+
+            var restored = new BaseDataVariableTypeState();
+            restored.LoadAsBinary(context, stream);
+
+            Assert.That((int)restored.Value, Is.EqualTo(123));
+            Assert.That(restored.DataType, Is.EqualTo(DataTypeIds.Int32));
+            Assert.That(restored.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(restored.ArrayDimensions.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PropertyTypeStateBinarySaveAndUpdateRoundTrip()
+        {
+            ISystemContext context = CreateSystemContext();
+            var original = new PropertyTypeState
+            {
+                Value = new Variant("hello"),
+                DataType = DataTypeIds.String,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
+            {
+                original.Save(context, encoder, attributesToSave);
+            }
+
+            ms.Position = 0;
+            var restored = new PropertyTypeState();
+            using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
+            {
+                restored.Update(context, decoder, attributesToSave);
+            }
+
+            Assert.That((string)restored.Value, Is.EqualTo("hello"));
+            Assert.That(restored.DataType, Is.EqualTo(DataTypeIds.String));
+            Assert.That(restored.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+        }
+
+        [Test]
+        public void BaseDataVariableTypeStateGenericWithFactory()
+        {
+            var state = BaseDataVariableTypeState<int>.With<VariantBuilder>();
+            state.Value = 42;
+
+            Assert.That(state.Value, Is.EqualTo(42));
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            Assert.That(((BaseDataVariableTypeState)state).WrappedValue,
+                Is.EqualTo(new Variant(42)));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+        }
+
+        [Test]
+        public void BaseDataVariableTypeStateGenericClone()
+        {
+            var state = BaseDataVariableTypeState<int>.With<VariantBuilder>();
+            state.NodeId = new NodeId(302);
+            state.BrowseName = new QualifiedName("GenericVar");
+            state.Value = 99;
+
+            var clone = (BaseDataVariableTypeState)state.Clone();
+
+            Assert.That(clone, Is.Not.SameAs(state));
+            Assert.That(clone.WrappedValue, Is.EqualTo(new Variant(99)));
+        }
     }
 }

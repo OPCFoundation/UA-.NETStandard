@@ -43,18 +43,19 @@ namespace Opc.Ua.Types.Tests.State
     {
         private const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         private SystemContext m_context;
+        private ServiceMessageContext m_messageContext;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
-            messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
+            m_messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            m_messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
             m_context = new SystemContext(telemetry)
             {
-                NamespaceUris = messageContext.NamespaceUris,
-                ServerUris = messageContext.ServerUris,
-                EncodeableFactory = messageContext.Factory
+                NamespaceUris = m_messageContext.NamespaceUris,
+                ServerUris = m_messageContext.ServerUris,
+                EncodeableFactory = m_messageContext.Factory
             };
         }
 
@@ -224,6 +225,98 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.ContainsNoLoops, Is.EqualTo(view.ContainsNoLoops));
             restored.Dispose();
             view.Dispose();
+        }
+
+        [Test]
+        public void SaveAndUpdateBinaryRoundTripWithAllProperties()
+        {
+            var original = new ViewState
+            {
+                NodeId = new NodeId(5010),
+                BrowseName = new QualifiedName("SaveUpdateView"),
+                DisplayName = new LocalizedText("Save Update View"),
+                EventNotifier = EventNotifiers.SubscribeToEvents,
+                ContainsNoLoops = true
+            };
+
+            AttributesToSave attributesToSave = original.GetAttributesToSave(m_context);
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
+            {
+                original.Save(m_context, encoder, attributesToSave);
+            }
+
+            ms.Position = 0;
+            var restored = new ViewState();
+            using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
+            {
+                restored.Update(m_context, decoder, attributesToSave);
+            }
+
+            Assert.That(restored.EventNotifier, Is.EqualTo(original.EventNotifier));
+            Assert.That(restored.ContainsNoLoops, Is.EqualTo(original.ContainsNoLoops));
+            restored.Dispose();
+            original.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentEventNotifier()
+        {
+            var view1 = new ViewState
+            {
+                NodeId = new NodeId(5020),
+                BrowseName = new QualifiedName("View"),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+
+            var view2 = (ViewState)view1.Clone();
+            view2.EventNotifier = EventNotifiers.None;
+
+            Assert.That(view1.DeepEquals(view2), Is.False);
+            view1.Dispose();
+            view2.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentContainsNoLoops()
+        {
+            var view1 = new ViewState
+            {
+                NodeId = new NodeId(5021),
+                BrowseName = new QualifiedName("View"),
+                ContainsNoLoops = true
+            };
+
+            var view2 = (ViewState)view1.Clone();
+            view2.ContainsNoLoops = false;
+
+            Assert.That(view1.DeepEquals(view2), Is.False);
+            view1.Dispose();
+            view2.Dispose();
+        }
+
+        [Test]
+        public void DeepGetHashCodeReturnsDifferentForDifferentProperties()
+        {
+            var view1 = new ViewState
+            {
+                NodeId = new NodeId(5030),
+                BrowseName = new QualifiedName("View1"),
+                EventNotifier = EventNotifiers.SubscribeToEvents,
+                ContainsNoLoops = true
+            };
+
+            var view2 = new ViewState
+            {
+                NodeId = new NodeId(5031),
+                BrowseName = new QualifiedName("View2"),
+                EventNotifier = EventNotifiers.None,
+                ContainsNoLoops = false
+            };
+
+            Assert.That(view1.DeepGetHashCode(), Is.Not.EqualTo(view2.DeepGetHashCode()));
+            view1.Dispose();
+            view2.Dispose();
         }
     }
 }

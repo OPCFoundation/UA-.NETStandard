@@ -78,8 +78,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CopyConstructorThrowsOnNull()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => new DataValue((DataValue)null),
                 Throws.TypeOf<ArgumentNullException>());
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]

@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void OneTimeAndGlobalSetUp()
         {
             // For perf and testing
-            EncodeableFactory encodeableFactory = new EncodeableFactory();
+            var encodeableFactory = new EncodeableFactory();
             m_builder = encodeableFactory.Builder.AddEncodeableTypes(encodeableFactory.GetType().Assembly);
             m_encodeableFactory = Create();
         }
@@ -411,7 +411,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access Clone method
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var concreteFactory = (EncodeableFactory)factory;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Assert
@@ -436,7 +438,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             factory.Builder.AddType(typeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access MemberwiseClone method
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var concreteFactory = (EncodeableFactory)factory;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Assert
@@ -462,7 +466,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             factory.Builder.AddType(initialTypeId, typeof(TestEncodeable)).Commit();
 
             // Act - Cast to concrete type to access Clone method
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var concreteFactory = (EncodeableFactory)factory;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Add type to original
@@ -957,7 +963,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void Builder_AddEncodeableType_WithNullExpandedNodeIdAndIEncodeableType_DoesNotThrow()
         {
             // Arrange
-            EncodeableFactory factory = new EncodeableFactory();
+            var factory = new EncodeableFactory();
             IEncodeableFactoryBuilder builder = factory.Builder;
             var encodeableType = new TestEncodeableType(typeof(TestEncodeable));
 
@@ -976,8 +982,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var typeId = new ExpandedNodeId(50002);
 
             // Act & Assert
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.Throws<ArgumentNullException>(
                 () => builder.AddEncodeableType(typeId, (IEncodeableType)null));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
