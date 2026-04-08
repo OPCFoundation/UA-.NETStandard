@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
+    [Parallelizable(ParallelScope.Fixtures)]
     public class LoadTest : ClientTestFramework
     {
         public LoadTest(string uriScheme)

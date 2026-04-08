@@ -75,7 +75,7 @@ namespace MemoryBuffer
 
             // get the configuration for the node manager.
             m_configuration =
-                configuration.ParseExtension<MemoryBufferConfiguration>() ??
+                configuration.ParseEncodeable<MemoryBufferConfiguration>() ??
                 new MemoryBufferConfiguration();
 
             // use suitable defaults if no configuration exists.
@@ -109,7 +109,7 @@ namespace MemoryBuffer
                 namespaceIndex = Server.NamespaceUris
                     .GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
 
-                if (m_configuration != null && m_configuration.Buffers != null)
+                if (m_configuration != null && !m_configuration.Buffers.IsNull)
                 {
                     for (int ii = 0; ii < m_configuration.Buffers.Count; ii++)
                     {

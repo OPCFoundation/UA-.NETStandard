@@ -1074,6 +1074,7 @@ namespace Opc.Ua
         /// The first sampling rate in the group (in milliseconds).
         /// </summary>
         /// <value>The first sampling rate in the group (in milliseconds).</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 1)]
         public double Start { get; set; }
 
@@ -1084,6 +1085,7 @@ namespace Opc.Ua
         /// <remarks>
         /// An increment of 0 means the group only contains one sampling rate equal to the start.
         /// </remarks>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 2)]
         public double Increment { get; set; }
 
@@ -1094,6 +1096,7 @@ namespace Opc.Ua
         /// <remarks>
         /// A count of 0 means there is no limit.
         /// </remarks>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 3)]
         public int Count { get; set; }
     }
@@ -1210,6 +1213,7 @@ namespace Opc.Ua
         /// The actually endpoints are constructed from the security policies.
         /// On one base address per supported transport protocol is allowed.
         /// </remarks>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 0)]
         public ArrayOf<string> BaseAddresses
         {
@@ -1227,6 +1231,7 @@ namespace Opc.Ua
         /// file then the server will use the domain of the URL used by the client to determine
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
         /// </remarks>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, Order = 1)]
         public ArrayOf<string> AlternateBaseAddresses
         {
@@ -1260,6 +1265,7 @@ namespace Opc.Ua
         /// The minimum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The minimum request thread count.</value>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = false, Order = 3)]
         public int MinRequestThreadCount { get; set; }
 
@@ -1267,6 +1273,7 @@ namespace Opc.Ua
         /// The maximum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The maximum request thread count.</value>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, Order = 4)]
         public int MaxRequestThreadCount { get; set; }
 
@@ -1274,6 +1281,7 @@ namespace Opc.Ua
         /// The maximum number of requests that will be queued waiting for a thread.
         /// </summary>
         /// <value>The maximum queued request count.</value>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, Order = 5)]
         public int MaxQueuedRequestCount { get; set; }
 
@@ -1357,6 +1365,7 @@ namespace Opc.Ua
         /// The user tokens accepted by the server.
         /// </summary>
         /// <value>The user token policies.</value>
+        [DataTypeField(Order = 3, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public ArrayOf<UserTokenPolicy> UserTokenPolicies
         {
@@ -1368,6 +1377,7 @@ namespace Opc.Ua
         /// Whether diagnostics are enabled.
         /// </summary>
         /// <value><c>true</c> if diagnostic is enabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, Order = 4)]
         public bool DiagnosticsEnabled { get; set; }
 
@@ -1375,6 +1385,7 @@ namespace Opc.Ua
         /// The maximum number of open sessions.
         /// </summary>
         /// <value>The maximum session count.</value>
+        [DataTypeField(Order = 5)]
         [DataMember(IsRequired = false, Order = 5)]
         public int MaxSessionCount { get; set; }
 
@@ -1382,6 +1393,7 @@ namespace Opc.Ua
         /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
+        [DataTypeField(Order = 6)]
         [DataMember(IsRequired = false, Order = 6)]
         public int MaxChannelCount { get; set; }
 
@@ -1390,6 +1402,7 @@ namespace Opc.Ua
         /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The minimum session timeout.</value>
+        [DataTypeField(Order = 7)]
         [DataMember(IsRequired = false, Order = 7)]
         public int MinSessionTimeout { get; set; }
 
@@ -1398,6 +1411,7 @@ namespace Opc.Ua
         /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The maximum session timeout.</value>
+        [DataTypeField(Order = 8)]
         [DataMember(IsRequired = false, Order = 8)]
         public int MaxSessionTimeout { get; set; }
 
@@ -1406,6 +1420,7 @@ namespace Opc.Ua
         /// Browse/BrowseNext operations.
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
+        [DataTypeField(Order = 9)]
         [DataMember(IsRequired = false, Order = 9)]
         public int MaxBrowseContinuationPoints { get; set; }
 
@@ -1414,6 +1429,7 @@ namespace Opc.Ua
         /// Query/QueryNext operations.
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
+        [DataTypeField(Order = 10)]
         [DataMember(IsRequired = false, Order = 10)]
         public int MaxQueryContinuationPoints { get; set; }
 
@@ -1421,6 +1437,7 @@ namespace Opc.Ua
         /// The maximum number of continuation points used for HistoryRead operations.
         /// </summary>
         /// <value>The maximum number of  history continuation points.</value>
+        [DataTypeField(Order = 11)]
         [DataMember(IsRequired = false, Order = 11)]
         public int MaxHistoryContinuationPoints { get; set; }
 
@@ -1428,6 +1445,7 @@ namespace Opc.Ua
         /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
+        [DataTypeField(Order = 12)]
         [DataMember(IsRequired = false, Order = 12)]
         public int MaxRequestAge { get; set; }
 
@@ -1435,6 +1453,7 @@ namespace Opc.Ua
         /// The minimum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The minimum publishing interval.</value>
+        [DataTypeField(Order = 13)]
         [DataMember(IsRequired = false, Order = 13)]
         public int MinPublishingInterval { get; set; }
 
@@ -1442,6 +1461,7 @@ namespace Opc.Ua
         /// The maximum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The maximum publishing interval.</value>
+        [DataTypeField(Order = 14)]
         [DataMember(IsRequired = false, Order = 14)]
         public int MaxPublishingInterval { get; set; }
 
@@ -1449,6 +1469,7 @@ namespace Opc.Ua
         /// The minimum difference between supported publishing interval (in milliseconds).
         /// </summary>
         /// <value>The publishing resolution.</value>
+        [DataTypeField(Order = 15)]
         [DataMember(IsRequired = false, Order = 15)]
         public int PublishingResolution { get; set; }
 
@@ -1456,6 +1477,7 @@ namespace Opc.Ua
         /// How long the subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum subscription lifetime.</value>
+        [DataTypeField(Order = 16)]
         [DataMember(IsRequired = false, Order = 16)]
         public int MaxSubscriptionLifetime { get; set; }
 
@@ -1463,6 +1485,7 @@ namespace Opc.Ua
         /// The maximum number of messages saved in the queue for each subscription.
         /// </summary>
         /// <value>The maximum size of the  message queue.</value>
+        [DataTypeField(Order = 17)]
         [DataMember(IsRequired = false, Order = 17)]
         public int MaxMessageQueueSize { get; set; }
 
@@ -1470,6 +1493,7 @@ namespace Opc.Ua
         /// The maximum number of notificates saved in the queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the notification queue.</value>
+        [DataTypeField(Order = 19)]
         [DataMember(IsRequired = false, Order = 18)]
         public int MaxNotificationQueueSize { get; set; }
 
@@ -1477,6 +1501,7 @@ namespace Opc.Ua
         /// The maximum number of notifications per publish.
         /// </summary>
         /// <value>The maximum number of notifications per publish.</value>
+        [DataTypeField(Order = 20)]
         [DataMember(IsRequired = false, Order = 19)]
         public int MaxNotificationsPerPublish { get; set; }
 
@@ -1484,6 +1509,7 @@ namespace Opc.Ua
         /// The minimum sampling interval for metadata.
         /// </summary>
         /// <value>The minimum sampling interval for metadata.</value>
+        [DataTypeField(Order = 21)]
         [DataMember(IsRequired = false, Order = 20)]
         public int MinMetadataSamplingInterval { get; set; }
 
@@ -1506,6 +1532,7 @@ namespace Opc.Ua
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
+        [DataTypeField(Order = 22, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
         public EndpointDescription RegistrationEndpoint { get; set; }
 
@@ -1513,6 +1540,7 @@ namespace Opc.Ua
         /// The maximum time between registration attempts (in milliseconds).
         /// </summary>
         /// <value>The maximum time between registration attempts (in milliseconds).</value>
+        [DataTypeField(Order = 23)]
         [DataMember(IsRequired = false, Order = 23)]
         public int MaxRegistrationInterval { get; set; }
 
@@ -1520,6 +1548,7 @@ namespace Opc.Ua
         /// The path to the file containing nodes persisted by the core node manager.
         /// </summary>
         /// <value>The path to the file containing nodes persisted by the core node manager.</value>
+        [DataTypeField(Order = 24)]
         [DataMember(IsRequired = false, Order = 24)]
         public string NodeManagerSaveFile { get; set; }
 
@@ -1527,6 +1556,7 @@ namespace Opc.Ua
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
+        [DataTypeField(Order = 25)]
         [DataMember(IsRequired = false, Order = 25)]
         public int MinSubscriptionLifetime { get; set; }
 
@@ -1534,6 +1564,7 @@ namespace Opc.Ua
         /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
+        [DataTypeField(Order = 26)]
         [DataMember(IsRequired = false, Order = 26)]
         public int MaxPublishRequestCount { get; set; }
 
@@ -1541,6 +1572,7 @@ namespace Opc.Ua
         /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
+        [DataTypeField(Order = 27)]
         [DataMember(IsRequired = false, Order = 27)]
         public int MaxSubscriptionCount { get; set; }
 
@@ -1548,6 +1580,7 @@ namespace Opc.Ua
         /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
+        [DataTypeField(Order = 28)]
         [DataMember(IsRequired = false, Order = 28)]
         public int MaxEventQueueSize { get; set; }
 
@@ -1555,6 +1588,7 @@ namespace Opc.Ua
         /// The server profile array.
         /// </summary>
         /// <value>The array of server profiles.</value>
+        [DataTypeField(Order = 29)]
         [DataMember(IsRequired = false, Order = 29)]
         public ArrayOf<string> ServerProfileArray
         {
@@ -1566,6 +1600,7 @@ namespace Opc.Ua
         /// The server shutdown delay.
         /// </summary>
         /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
+        [DataTypeField(Order = 30)]
         [DataMember(IsRequired = false, Order = 30)]
         public int ShutdownDelay { get; set; }
 
@@ -1575,6 +1610,7 @@ namespace Opc.Ua
         /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
+        [DataTypeField(Order = 31)]
         [DataMember(IsRequired = false, Order = 31)]
         public ArrayOf<string> ServerCapabilities
         {
@@ -1586,6 +1622,7 @@ namespace Opc.Ua
         /// Gets or sets the supported private key format.
         /// </summary>
         /// <value>The array of server profiles.</value>
+        [DataTypeField(Order = 32)]
         [DataMember(IsRequired = false, Order = 32)]
         public ArrayOf<string> SupportedPrivateKeyFormats
         {
@@ -1596,24 +1633,28 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the max size of the trust list.
         /// </summary>
+        [DataTypeField(Order = 33)]
         [DataMember(IsRequired = false, Order = 33)]
         public int MaxTrustListSize { get; set; }
 
         /// <summary>
         /// Gets or sets if multicast DNS is enabled.
         /// </summary>
+        [DataTypeField(Order = 34)]
         [DataMember(IsRequired = false, Order = 34)]
         public bool MultiCastDnsEnabled { get; set; }
 
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
+        [DataTypeField(Order = 35, ForceEncodeable = true)]
         [DataMember(IsRequired = false, Order = 35)]
         public ReverseConnectServerConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
+        [DataTypeField(Order = 36, ForceEncodeable = true)]
         [DataMember(IsRequired = false, Order = 36)]
         public OperationLimits OperationLimits { get; set; }
 
@@ -1621,6 +1662,7 @@ namespace Opc.Ua
         /// Whether auditing is enabled.
         /// </summary>
         /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 37)]
         [DataMember(IsRequired = false, Order = 37)]
         public bool AuditingEnabled { get; set; }
 
@@ -1628,6 +1670,7 @@ namespace Opc.Ua
         /// Whether mTLS is required/enforced by the HttpsTransportListener
         /// </summary>
         /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 38)]
         [DataMember(IsRequired = false, Order = 38)]
         public bool HttpsMutualTls { get; set; }
 
@@ -1635,6 +1678,7 @@ namespace Opc.Ua
         /// Enable / disable support for durable subscriptions
         /// </summary>
         /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
+        [DataTypeField(Order = 39)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 39)]
         public bool DurableSubscriptionsEnabled { get; set; }
 
@@ -1642,6 +1686,7 @@ namespace Opc.Ua
         /// The maximum number of notifications saved in the durable queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
+        [DataTypeField(Order = 40)]
         [DataMember(IsRequired = false, Order = 40)]
         public int MaxDurableNotificationQueueSize { get; set; }
 
@@ -1649,6 +1694,7 @@ namespace Opc.Ua
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
+        [DataTypeField(Order = 41)]
         [DataMember(IsRequired = false, Order = 41)]
         public int MaxDurableEventQueueSize { get; set; }
 
@@ -1656,6 +1702,7 @@ namespace Opc.Ua
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
+        [DataTypeField(Order = 42)]
         [DataMember(IsRequired = false, Order = 42)]
         public int MaxDurableSubscriptionLifetimeInHours { get; set; }
 
@@ -1716,12 +1763,14 @@ namespace Opc.Ua
         /// <summary>
         /// The interval after which a new reverse connection is attempted.
         /// </summary>
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 20)]
         public int ConnectInterval { get; set; }
 
         /// <summary>
         /// The default timeout to wait for a response to a reverse connection.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 30)]
         public int ConnectTimeout { get; set; }
 
@@ -1729,6 +1778,7 @@ namespace Opc.Ua
         /// The timeout to wait to establish a new reverse
         /// connection after a rejected attempt.
         /// </summary>
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 40)]
         public int RejectTimeout { get; set; }
     }
@@ -1779,6 +1829,7 @@ namespace Opc.Ua
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the Read Service.
         /// </summary>
+        [DataTypeField(Order = 0)]
         [DataMember(Order = 10)]
         public uint MaxNodesPerRead { get; set; }
 
@@ -1786,6 +1837,7 @@ namespace Opc.Ua
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails RAW, PROCESSED, MODIFIED or ATTIME.
         /// </summary>
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 20)]
         public uint MaxNodesPerHistoryReadData { get; set; }
 
@@ -1793,12 +1845,14 @@ namespace Opc.Ua
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails EVENTS.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 30)]
         public uint MaxNodesPerHistoryReadEvents { get; set; }
 
         /// <summary>
         /// Indicates the maximum size of the nodesToWrite array when a Client calls the Write Service.
         /// </summary>
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 40)]
         public uint MaxNodesPerWrite { get; set; }
 
@@ -1806,6 +1860,7 @@ namespace Opc.Ua
         /// Indicates the maximum size of the historyUpdateDetails array supported by the Server
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
+        [DataTypeField(Order = 4)]
         [DataMember(Order = 50)]
         public uint MaxNodesPerHistoryUpdateData { get; set; }
 
@@ -1813,12 +1868,14 @@ namespace Opc.Ua
         /// Indicates the maximum size of the historyUpdateDetails array
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
+        [DataTypeField(Order = 5)]
         [DataMember(Order = 60)]
         public uint MaxNodesPerHistoryUpdateEvents { get; set; }
 
         /// <summary>
         /// Indicates the maximum size of the methodsToCall array when a Client calls the Call Service.
         /// </summary>
+        [DataTypeField(Order = 6)]
         [DataMember(Order = 70)]
         public uint MaxNodesPerMethodCall { get; set; }
 
@@ -1826,6 +1883,7 @@ namespace Opc.Ua
         /// Indicates the maximum size of the nodesToBrowse array when calling the Browse Service
         /// or the continuationPoints array when a Client calls the BrowseNext Service.
         /// </summary>
+        [DataTypeField(Order = 7)]
         [DataMember(Order = 80)]
         public uint MaxNodesPerBrowse { get; set; }
 
@@ -1833,12 +1891,14 @@ namespace Opc.Ua
         /// Indicates the maximum size of the nodesToRegister array when a Client calls the RegisterNodes Service
         /// and the maximum size of the nodesToUnregister when calling the UnregisterNodes Service.
         /// </summary>
+        [DataTypeField(Order = 8)]
         [DataMember(Order = 90)]
         public uint MaxNodesPerRegisterNodes { get; set; }
 
         /// <summary>
         /// Indicates the maximum size of the browsePaths array when a Client calls the TranslateBrowsePathsToNodeIds Service.
         /// </summary>
+        [DataTypeField(Order = 9)]
         [DataMember(Order = 100)]
         public uint MaxNodesPerTranslateBrowsePathsToNodeIds { get; set; }
 
@@ -1848,6 +1908,7 @@ namespace Opc.Ua
         /// the maximum size of the nodesToDelete array when a Client calls the DeleteNodes Service,
         /// and the maximum size of the referencesToDelete array when a Client calls the DeleteReferences Service.
         /// </summary>
+        [DataTypeField(Order = 10)]
         [DataMember(Order = 110)]
         public uint MaxNodesPerNodeManagement { get; set; }
 
@@ -1857,6 +1918,7 @@ namespace Opc.Ua
         /// the maximum size of the monitoredItemIds array when a Client calls the SetMonitoringMode Service or the DeleteMonitoredItems Service,
         /// the maximum size of the sum of the linksToAdd and linksToRemove arrays when a Client calls the SetTriggering Service.
         /// </summary>
+        [DataTypeField(Order = 11)]
         [DataMember(Order = 120)]
         public uint MaxMonitoredItemsPerCall { get; set; }
     }
@@ -1896,6 +1958,7 @@ namespace Opc.Ua
         /// <summary>
         /// The endpoint Url of the reverse connect client endpoint.
         /// </summary>
+        [DataTypeField(Order = 0)]
         [DataMember(Order = 10)]
         public string EndpointUrl { get; set; }
 
@@ -1903,6 +1966,7 @@ namespace Opc.Ua
         /// The timeout to wait for a response to a reverse connection.
         /// Overrides the default reverse connection setting.
         /// </summary>
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 20)]
         public int Timeout { get; set; }
 
@@ -1913,12 +1977,14 @@ namespace Opc.Ua
         ///  n disables reverse hello once the total number of sessions
         ///  in the server reaches n.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 30)]
         public int MaxSessionCount { get; set; }
 
         /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 40)]
         public bool Enabled { get; set; } = true;
     }
@@ -1964,6 +2030,7 @@ namespace Opc.Ua
         /// The default session timeout (in milliseconds).
         /// </summary>
         /// <value>The default session timeout.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, Order = 0)]
         public int DefaultSessionTimeout { get; set; }
 
@@ -1971,6 +2038,7 @@ namespace Opc.Ua
         /// The well known URLs for the local discovery servers.
         /// </summary>
         /// <value>The well known discovery URLs.</value>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public ArrayOf<string> WellKnownDiscoveryUrls
         {
@@ -1982,6 +2050,7 @@ namespace Opc.Ua
         /// The endpoint descriptions for central discovery servers.
         /// </summary>
         /// <value>The endpoint descriptions for central discovery servers.</value>
+        [DataTypeField(Order = 2, ForceEncodeable = true)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public ArrayOf<EndpointDescription> DiscoveryServers
         {
@@ -1993,6 +2062,7 @@ namespace Opc.Ua
         /// The path to the file containing the cached endpoints.
         /// </summary>
         /// <value>The path to the file containing the cached endpoints.</value>
+        [DataTypeField(Order = 3)]
         [DataMember(IsRequired = false, Order = 3)]
         public string EndpointCacheFilePath { get; set; }
 
@@ -2000,12 +2070,14 @@ namespace Opc.Ua
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
+        [DataTypeField(Order = 4)]
         [DataMember(IsRequired = false, Order = 4)]
         public int MinSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The reverse connect Client configuration.
         /// </summary>
+        [DataTypeField(Order = 5, ForceEncodeable = true)]
         [DataMember(IsRequired = false, Order = 5)]
         public ReverseConnectClientConfiguration ReverseConnect { get; set; }
 
@@ -2016,6 +2088,7 @@ namespace Opc.Ua
         /// Values not equal to zero are overwritten with smaller values set by the server.
         /// The values are used to limit client service calls.
         /// </remarks>
+        [DataTypeField(Order = 6, ForceEncodeable = true)]
         [DataMember(IsRequired = false, Order = 6)]
         public OperationLimits OperationLimits { get; set; }
 
@@ -2048,12 +2121,14 @@ namespace Opc.Ua
         /// The time a reverse hello port is held open to wait for a
         /// reverse connection until the request is rejected.
         /// </summary>
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 20, IsRequired = false)]
         public int HoldTime { get; set; } = 15000;
 
         /// <summary>
         /// The timeout to wait for a reverse hello message.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 30, IsRequired = false)]
         public int WaitTimeout { get; set; } = 20000;
     }
@@ -2068,6 +2143,7 @@ namespace Opc.Ua
         /// <summary>
         /// The endpoint Url of a reverse connect client.
         /// </summary>
+        [DataTypeField(Order = 0)]
         [DataMember(Order = 1, IsRequired = false)]
         public string EndpointUrl { get; set; }
     }
@@ -2110,6 +2186,7 @@ namespace Opc.Ua
         /// The localized names for the discovery server.
         /// </summary>
         /// <value>The server names.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public ArrayOf<LocalizedText> ServerNames { get; set; }
 
@@ -2117,6 +2194,7 @@ namespace Opc.Ua
         /// The path to the file containing servers saved by the discovery server.
         /// </summary>
         /// <value>The discovery server cache file.</value>
+        [DataTypeField(Order = 2)]
         [DataMember(IsRequired = false, Order = 3)]
         public string DiscoveryServerCacheFile { get; set; }
 
@@ -2174,6 +2252,7 @@ namespace Opc.Ua
         /// Gets or sets the application URI of the server which the registration applies to.
         /// </summary>
         /// <value>The application uri.</value>
+        [DataTypeField(Order = 0)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string ApplicationUri { get; set; }
 
@@ -2194,6 +2273,7 @@ namespace Opc.Ua
         /// directly without requiring a patch to the server.
         /// </para>
         /// </remarks>
+        [DataTypeField(Order = 1)]
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public ArrayOf<string> AlternateDiscoveryUrls { get; set; }
     }

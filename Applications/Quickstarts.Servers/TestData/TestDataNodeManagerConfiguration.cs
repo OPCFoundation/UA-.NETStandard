@@ -28,14 +28,16 @@
  * ======================================================================*/
 
 using System.Runtime.Serialization;
+using Opc.Ua;
 
 namespace TestData
 {
     /// <summary>
     /// Stores the configuration the test node manager
     /// </summary>
+    [DataType(Namespace = Namespaces.TestData)]
     [DataContract(Namespace = Namespaces.TestData)]
-    public class TestDataNodeManagerConfiguration
+    public partial class TestDataNodeManagerConfiguration
     {
         /// <summary>
         /// The default constructor.
@@ -46,38 +48,31 @@ namespace TestData
         }
 
         /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()
         {
-            SaveFilePath = null;
             MaxQueueSize = 100;
         }
 
         /// <summary>
         /// The path to the file that stores state of the node manager.
         /// </summary>
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 1)]
         public string SaveFilePath { get; set; }
 
         /// <summary>
         /// The maximum length for a monitored item sampling queue.
         /// </summary>
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 2)]
         public uint MaxQueueSize { get; set; }
 
         /// <summary>
         /// The next unused value that can be assigned to new nodes.
         /// </summary>
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 3)]
         public uint NextUnusedId { get; set; }
     }

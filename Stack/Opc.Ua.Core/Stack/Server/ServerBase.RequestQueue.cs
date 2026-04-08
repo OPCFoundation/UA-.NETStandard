@@ -88,10 +88,13 @@ namespace Opc.Ua
                     Math.Max(maxCompletionPortThreads, m_maxThreadCount)
                 );
 
-                // Start worker tasks
+                // Start worker tasks. Increment m_totalThreadCount before Task.Run so that
+                // ScheduleIncomingRequest sees the correct worker count immediately and does
+                // not spawn extra workers before the initial workers have started executing.
                 CancellationToken token = m_cts.Token;
                 for (int i = 0; i < m_minThreadCount; i++)
                 {
+                    Interlocked.Increment(ref m_totalThreadCount);
                     m_workers.Add(Task.Run(() => WorkerLoopAsync(token)));
                 }
             }
@@ -165,13 +168,20 @@ namespace Opc.Ua
                     return;
                 }
 
-                // Optionally scale up workers if needed
+                // Optionally scale up workers if needed. Increment m_totalThreadCount
+                // inside the lock and before Task.Run so that concurrent callers see the
+                // updated count immediately and do not spawn duplicate workers.
                 if (m_totalThreadCount < m_maxThreadCount &&
                     m_activeThreadCount >= m_totalThreadCount)
                 {
                     lock (m_workers)
                     {
-                        m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
+                        // Re-check inside the lock to prevent double-spawning.
+                        if (m_totalThreadCount < m_maxThreadCount)
+                        {
+                            Interlocked.Increment(ref m_totalThreadCount);
+                            m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
+                        }
                     }
                 }
             }
@@ -182,7 +192,6 @@ namespace Opc.Ua
             /// <returns></returns>
             private async Task WorkerLoopAsync(CancellationToken ct)
             {
-                Interlocked.Increment(ref m_totalThreadCount);
                 try
                 {
                     while (await m_queue.Reader.WaitToReadAsync(ct).ConfigureAwait(false))

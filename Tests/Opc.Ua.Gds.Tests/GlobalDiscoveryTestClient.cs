@@ -177,7 +177,7 @@ namespace Opc.Ua.Gds.Tests
                 CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
-                Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+                Configuration.ParseEncodeable<GlobalDiscoveryTestClientConfiguration>();
             GDSClient = new GlobalDiscoveryServerClient(Configuration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 gdsClientConfiguration.GlobalDiscoveryServerUrl,
@@ -415,21 +415,27 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
+    [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
-    public class GlobalDiscoveryTestClientConfiguration
+    public partial class GlobalDiscoveryTestClientConfiguration
     {
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 2)]
         public string AppUserName { get; set; }
 
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 3)]
         public string AppPassword { get; set; }
 
+        [DataTypeField(Order = 4)]
         [DataMember(Order = 4, IsRequired = true)]
         public string AdminUserName { get; set; }
 
+        [DataTypeField(Order = 5)]
         [DataMember(Order = 5, IsRequired = true)]
         public string AdminPassword { get; set; }
     }

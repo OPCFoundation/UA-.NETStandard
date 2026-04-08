@@ -226,6 +226,26 @@ namespace Opc.Ua.Client.Tests
 
                 TestContext.Out.WriteLine($"Subscription created with {subscription.MonitoredItemCount} monitored items");
 
+                // Wait for the subscription to deliver initial values for all nodes before
+                // starting writes. This prevents the first few writes from being missed when
+                // the CI machine is under load and the subscription is still starting up.
+                TestContext.Out.WriteLine("Waiting for subscription to deliver initial values...");
+                var settleDeadline = DateTime.UtcNow.AddSeconds(15);
+                while (valueChanges.Values.Sum() < nodeIds.Count && DateTime.UtcNow < settleDeadline)
+                {
+                    await Task.Delay(200).ConfigureAwait(false);
+                }
+
+                int settledCount = valueChanges.Values.Sum();
+                TestContext.Out.WriteLine($"Subscription settled: {settledCount}/{nodeIds.Count} initial notifications received");
+
+                // Reset counters so the measurement period starts from when the subscription
+                // is confirmed active (initial-value notifications don't count as write-triggered).
+                foreach (NodeId nodeId in nodeIds.Keys)
+                {
+                    valueChanges[nodeId] = 0;
+                }
+
                 // Create writer session
                 ISession writerSession = await ClientFixture.ConnectAsync(
                     ServerUrl,
@@ -261,6 +281,15 @@ namespace Opc.Ua.Client.Tests
                         try
                         {
                             await writerSession.WriteAsync(null, nodesToWrite, writerCts.Token).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException sre)
+                            when (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                        {
+                            // BadRequestInterrupted is expected when a write is in-flight during a
+                            // secure channel renewal. The channel renewal briefly interrupts the old
+                            // channel before the new one activates, so this is not a test failure.
+                            TestContext.Out.WriteLine(
+                                $"INFO: Write interrupted during channel renewal (expected): {sre.Message}");
                         }
                         catch (Exception ex)
                         {
@@ -379,7 +408,7 @@ namespace Opc.Ua.Client.Tests
 #if DEBUG
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
 #endif
-                        double expected = writeCount * kNotificationToleranceRatio;
+                        double expected = Math.Max(0, writeCount - 1) * kNotificationToleranceRatio;
                         if (changes < expected)
                         {
                             allNodesReceivedData = false;

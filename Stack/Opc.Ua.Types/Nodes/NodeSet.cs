@@ -66,11 +66,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
+        [Obsolete("Use UANodeSet (NodeSet2 format) instead.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static NodeSet Read(Stream istrm)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
+#pragma warning restore CS0618 // Type or member is obsolete
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
             return serializer.ReadObject(reader) as NodeSet;
         }
@@ -79,6 +82,7 @@ namespace Opc.Ua
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
+        [Obsolete("Use UANodeSet (NodeSet2 format) instead.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void Write(Stream istrm)
@@ -86,7 +90,9 @@ namespace Opc.Ua
             var writer = XmlWriter.Create(istrm, CoreUtils.DefaultXmlWriterSettings());
             try
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
+#pragma warning restore CS0618 // Type or member is obsolete
                 serializer.WriteObject(writer, this);
             }
             finally

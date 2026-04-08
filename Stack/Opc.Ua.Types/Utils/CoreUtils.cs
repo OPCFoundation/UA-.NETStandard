@@ -1078,6 +1078,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
+        [Obsolete("Use IEncodeable.Encode/Decode instead of DataContractSerializer.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer<T>(
@@ -1085,13 +1086,16 @@ namespace Opc.Ua
             IEnumerable<Type> knownTypes = null,
             XmlQualifiedName rootName = null)
         {
+#pragma warning disable CS0618 // Obsolete — internal delegation
             return CreateDataContractSerializer(typeof(T), messageContext, knownTypes, rootName);
+#pragma warning restore CS0618
         }
 
         /// <summary>
         /// Create a data contract serializer for the specified type with OPC UA surrogates.
         /// </summary>
         /// <returns></returns>
+        [Obsolete("Use IEncodeable.Encode/Decode instead of DataContractSerializer.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer(

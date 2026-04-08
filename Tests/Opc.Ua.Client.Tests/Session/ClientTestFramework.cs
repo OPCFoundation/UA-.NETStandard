@@ -627,5 +627,101 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
             }
         }
+
+        /// <summary>
+        /// Create a set of subscriptions with monitored items on the given session.
+        /// </summary>
+        protected async Task CreateSubscriptionsAsync(
+            ISession session,
+            Subscription template,
+            SubscriptionCollection originSubscriptions,
+            int[] notificationCounters,
+            int[] fastDataCounters,
+            int subscriptionCount,
+            uint queueSize)
+        {
+            for (int ii = 0; ii < subscriptionCount; ii++)
+            {
+                // create subscription with static monitored items
+                var subscription = new TestableSubscription(template)
+                {
+                    PublishingEnabled = true,
+                    Handle = ii,
+                    FastDataChangeCallback = (s, n, _) =>
+                    {
+                        TestContext.Out.WriteLine(
+                            $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        fastDataCounters[(int)s.Handle]++;
+                    }
+                };
+
+                subscription.StateChanged += (s, e) =>
+                    TestContext.Out
+                        .WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+
+                subscription.PublishStatusChanged += (s, e) =>
+                    TestContext.Out.WriteLine(
+                        $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+
+                originSubscriptions.Add(subscription);
+                session.AddSubscription(subscription);
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                // set defaults
+                subscription.DefaultItem.DiscardOldest = true;
+                subscription.DefaultItem.QueueSize = ii == 0 ? 0U : queueSize;
+                subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+
+                // create test set using the passed session's namespace URIs
+                NamespaceTable namespaceUris = session.NamespaceUris;
+                var testSet = new List<NodeId>();
+                if (ii == 0)
+                {
+                    testSet.AddRange(GetTestSetStatic(namespaceUris));
+                }
+                else
+                {
+                    testSet.AddRange(GetTestSetSimulation(namespaceUris));
+                }
+
+                var list = CreateMonitoredItemTestSet(subscription, testSet).ToList();
+                list.ForEach(i =>
+                    i.Notification += (item, _) =>
+                    {
+                        notificationCounters[(int)subscription.Handle]++;
+                        foreach (DataValue value in item.DequeueValues())
+                        {
+                            TestContext.Out.WriteLine(
+                                "Org:{0}: {1:20}, {2}, {3}, {4}",
+                                subscription.Id,
+                                item.DisplayName,
+                                value.WrappedValue,
+                                value.SourceTimestamp,
+                                value.StatusCode);
+                        }
+                    });
+                subscription.AddItems(list);
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Create monitored items from a list of node ids on a subscription.
+        /// </summary>
+        protected static List<MonitoredItem> CreateMonitoredItemTestSet(
+            Subscription subscription,
+            IList<NodeId> nodeIds)
+        {
+            var list = new List<MonitoredItem>();
+            foreach (NodeId nodeId in nodeIds)
+            {
+                var item = new TestableMonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = nodeId
+                };
+                list.Add(item);
+            }
+            return list;
+        }
     }
 }

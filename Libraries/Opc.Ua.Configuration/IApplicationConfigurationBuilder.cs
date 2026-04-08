@@ -639,6 +639,7 @@ namespace Opc.Ua.Configuration
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
+        [Obsolete("Use the AddExtension<T> overload with encoderFunc, or AddExtension<T> where T : IEncodeable.")]
         [RequiresUnreferencedCode(
             "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
@@ -659,6 +660,16 @@ namespace Opc.Ua.Configuration
             XmlQualifiedName elementName,
             T value,
             Action<IEncoder, T> encoderFunc);
+
+        /// <summary>
+        /// Add an IEncodeable extension to the configuration (AOT-safe).
+        /// </summary>
+        /// <typeparam name="T">The type of the object to add as an extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">The name of the extension, null to use the type name.</param>
+        /// <param name="value">The IEncodeable object to add and encode.</param>
+        IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value) where T : IEncodeable;
     }
 
     /// <summary>

@@ -410,6 +410,7 @@ namespace Opc.Ua.Gds.Tests
             int serverStartRetries = 25;
             do
             {
+                retryStartServer = false;
                 try
                 {
                     server = new GlobalDiscoveryTestServer(true, NUnitTelemetryContext.Create(true), maxTrustListSize);
@@ -418,15 +419,17 @@ namespace Opc.Ua.Gds.Tests
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
                     if (serverStartRetries == 0 || sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;
                     }
+
+                    testPort = UnsecureRandom.Shared.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
+
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
