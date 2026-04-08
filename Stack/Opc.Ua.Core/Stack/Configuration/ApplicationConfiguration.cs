@@ -330,7 +330,9 @@ namespace Opc.Ua
                 ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                AppConfigEncoding.DecodeContents(parser, configuration);
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                 configuration.Initialize(telemetry);
                 configuration.SourceFilePath = file.FullName;
                 return configuration;
@@ -514,7 +516,9 @@ namespace Opc.Ua
                 configuration = systemType == typeof(ApplicationConfiguration)
                     ? new ApplicationConfiguration()
                     : (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                AppConfigEncoding.DecodeContents(parser, configuration);
+                configuration.Decode(parser);
+                configuration.ServerConfiguration?.ValidateSecurityPolicies();
+                configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                 configuration.Initialize(telemetry);
             }
             catch (Exception e)
@@ -583,7 +587,7 @@ namespace Opc.Ua
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
-            AppConfigEncoding.EncodeContents(encoder, this);
+            this.Encode(encoder);
             encoder.Close();
         }
 

@@ -208,7 +208,7 @@ namespace Opc.Ua
                     ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
                 var endpoints = new ConfiguredEndpointCollection();
-                AppConfigEncoding.DecodeConfiguredEndpointCollection(parser, endpoints);
+                DecodeConfiguredEndpointCollection(parser, endpoints);
 
                 foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
@@ -257,7 +257,7 @@ namespace Opc.Ua
                 ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
             var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
-            AppConfigEncoding.EncodeConfiguredEndpointCollection(encoder, this);
+            EncodeConfiguredEndpointCollection(encoder, this);
             encoder.Close();
         }
 
@@ -771,6 +771,184 @@ namespace Opc.Ua
                 endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             }
         }
+
+        private static void EncodeConfiguredEndpointCollection(
+            XmlEncoder encoder,
+            ConfiguredEndpointCollection collection)
+        {
+            encoder.WriteStringArray("KnownHosts", collection.KnownHosts);
+
+            if (collection.Endpoints != null && collection.Endpoints.Count > 0)
+            {
+                encoder.Push("Endpoints", Namespaces.OpcUaConfig);
+                foreach (ConfiguredEndpoint endpoint in collection.Endpoints)
+                {
+                    encoder.Push("ConfiguredEndpoint", Namespaces.OpcUaConfig);
+                    EncodeConfiguredEndpoint(encoder, endpoint);
+                    encoder.Pop();
+                }
+
+                encoder.Pop();
+            }
+
+            if (collection.TcpProxyUrl != null)
+            {
+                encoder.WriteString("TcpProxyUrl", collection.TcpProxyUrl.ToString());
+            }
+        }
+
+        private static void DecodeConfiguredEndpointCollection(
+            XmlParser decoder,
+            ConfiguredEndpointCollection collection)
+        {
+            collection.KnownHosts = decoder.ReadStringArray("KnownHosts");
+
+            if (decoder.Peek("Endpoints"))
+            {
+                decoder.ReadStartElement();
+                decoder.PushNamespace(Namespaces.OpcUaConfig);
+                while (decoder.Peek("ConfiguredEndpoint"))
+                {
+                    decoder.ReadStartElement();
+                    decoder.PushNamespace(Namespaces.OpcUaConfig);
+                    ConfiguredEndpoint endpoint = DecodeConfiguredEndpoint(decoder);
+                    endpoint.Collection = collection;
+                    collection.Endpoints.Add(endpoint);
+                    decoder.PopNamespace();
+                    decoder.Skip(new XmlQualifiedName("ConfiguredEndpoint", Namespaces.OpcUaConfig));
+                }
+
+                decoder.PopNamespace();
+                decoder.Skip(new XmlQualifiedName("Endpoints", Namespaces.OpcUaConfig));
+            }
+
+            string tcpProxy = decoder.ReadString("TcpProxyUrl");
+            if (tcpProxy != null)
+            {
+                collection.TcpProxyUrl = new Uri(tcpProxy);
+            }
+        }
+
+        private static void EncodeConfiguredEndpoint(
+            XmlEncoder encoder,
+            ConfiguredEndpoint endpoint)
+        {
+            if (endpoint.Description != null)
+            {
+                encoder.WriteEncodeable("Endpoint", endpoint.Description);
+            }
+
+            if (endpoint.Configuration != null)
+            {
+                encoder.WriteEncodeable("Configuration", endpoint.Configuration);
+            }
+
+            encoder.WriteBoolean("UpdateBeforeConnect", endpoint.UpdateBeforeConnect);
+            encoder.WriteString("BinaryEncodingSupport", endpoint.BinaryEncodingSupport.ToString());
+            encoder.WriteInt32("SelectedUserTokenPolicy", endpoint.SelectedUserTokenPolicyIndex);
+
+            if (endpoint.UserIdentity != null)
+            {
+                encoder.WriteExtensionObject("UserIdentity", new ExtensionObject(endpoint.UserIdentity));
+            }
+
+            if (endpoint.ReverseConnect != null)
+            {
+                encoder.Push("ReverseConnect", Namespaces.OpcUaConfig);
+                encoder.WriteBoolean("Enabled", endpoint.ReverseConnect.Enabled);
+                encoder.WriteString("ServerUri", endpoint.ReverseConnect.ServerUri);
+                encoder.WriteString("Thumbprint", endpoint.ReverseConnect.Thumbprint);
+                encoder.Pop();
+            }
+
+            if (!endpoint.Extensions.IsNull)
+            {
+                encoder.WriteXmlElementArray("Extensions", endpoint.Extensions);
+            }
+        }
+
+        private static ConfiguredEndpoint DecodeConfiguredEndpoint(XmlParser decoder)
+        {
+            var endpoint = new ConfiguredEndpoint();
+
+            endpoint.SetDescription(decoder.ReadEncodeable<EndpointDescription>("Endpoint"));
+            endpoint.Configuration = decoder.ReadEncodeable<EndpointConfiguration>("Configuration");
+            endpoint.UpdateBeforeConnect = decoder.ReadBoolean("UpdateBeforeConnect");
+
+            string binaryEncStr = decoder.ReadString("BinaryEncodingSupport");
+            if (binaryEncStr != null)
+            {
+                endpoint.BinaryEncodingSupport = ParseConfigEnum<BinaryEncodingSupport>(binaryEncStr);
+            }
+
+            endpoint.SelectedUserTokenPolicyIndex = decoder.ReadInt32("SelectedUserTokenPolicy");
+
+            ExtensionObject userIdentityExt = decoder.ReadExtensionObject("UserIdentity");
+            if (userIdentityExt.TryGetEncodeable(out IEncodeable identityBody) &&
+                identityBody is UserIdentityToken token)
+            {
+                endpoint.UserIdentity = token;
+            }
+
+            endpoint.ReverseConnect = DecodeOptionalObject(decoder, "ReverseConnect",
+                d => new ReverseConnectEndpoint
+                {
+                    Enabled = d.ReadBoolean("Enabled"),
+                    ServerUri = d.ReadString("ServerUri"),
+                    Thumbprint = d.ReadString("Thumbprint")
+                });
+
+            endpoint.Extensions = decoder.ReadXmlElementArray("Extensions");
+            return endpoint;
+        }
+
+        private static T ParseConfigEnum<T>(string value) where T : struct, Enum
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return default;
+            }
+
+            int idx = value.LastIndexOf('_');
+#pragma warning disable CA1846
+            if (idx >= 0 &&
+                int.TryParse(
+                    value[(idx + 1)..],
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out int intVal))
+#pragma warning restore CA1846
+            {
+                try
+                {
+                    return (T)(object)intVal;
+                }
+                catch
+                {
+                    // Fall through to string parse
+                }
+            }
+
+            return Enum.TryParse<T>(value, false, out T result) ? result : default;
+        }
+
+        private static T DecodeOptionalObject<T>(
+            XmlParser decoder,
+            string elementName,
+            Func<XmlParser, T> decode) where T : class
+        {
+            if (!decoder.Peek(elementName))
+            {
+                return null;
+            }
+
+            decoder.ReadStartElement();
+            decoder.PushNamespace(Namespaces.OpcUaConfig);
+            T result = decode(decoder);
+            decoder.PopNamespace();
+            decoder.Skip(new XmlQualifiedName(elementName, Namespaces.OpcUaConfig));
+            return result;
+        }
     }
 
     /// <summary>
@@ -782,6 +960,11 @@ namespace Opc.Ua
         /// A discovery suffix that may be appended to the discovery url of https endpoints.
         /// </summary>
         public static readonly string DiscoverySuffix = "/discovery";
+
+        internal void SetDescription(EndpointDescription description)
+        {
+            m_description = description ?? new EndpointDescription();
+        }
 
         /// <summary>
         /// Creates a configured endpoint from the server description.

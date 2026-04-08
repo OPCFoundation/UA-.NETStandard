@@ -452,7 +452,7 @@ namespace Opc.Ua.Security
                     node.InnerXml = EncodeToInnerXml(
                         typeof(SecurityConfiguration),
                         Namespaces.OpcUaConfig,
-                        encoder => AppConfigEncoding.EncodeSecurityConfiguration(encoder, security));
+                        encoder => security.Encode(encoder));
                     continue;
                 }
 
@@ -472,8 +472,7 @@ namespace Opc.Ua.Security
                     node.InnerXml = EncodeToInnerXml(
                         typeof(ServerConfiguration),
                         Namespaces.OpcUaConfig,
-                        encoder => AppConfigEncoding.EncodeServerConfiguration(
-                            encoder, configuration));
+                        encoder => configuration.Encode(encoder));
                 }
                 else if (node.Name == "DiscoveryServerConfiguration" &&
                     node.NamespaceURI == Namespaces.OpcUaConfig)
@@ -491,8 +490,7 @@ namespace Opc.Ua.Security
                     node.InnerXml = EncodeToInnerXml(
                         typeof(DiscoveryServerConfiguration),
                         Namespaces.OpcUaConfig,
-                        encoder => AppConfigEncoding.EncodeDiscoveryServerConfiguration(
-                            encoder, configuration));
+                        encoder => configuration.Encode(encoder));
                     continue;
                 }
             }
