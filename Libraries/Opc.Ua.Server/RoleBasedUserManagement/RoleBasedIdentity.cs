@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -206,7 +205,7 @@ namespace Opc.Ua.Server
 
             GrantedRoleIds = identity.GrantedRoleIds
                 .AddItems(roles
-                .Where(role => role != null && !role.RoleId.IsNull)
+                .Where(role => role != null)
                 .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
                 .Where(roleID => !identity.GrantedRoleIds.Contains(roleID))
                 .ToArrayOf());
