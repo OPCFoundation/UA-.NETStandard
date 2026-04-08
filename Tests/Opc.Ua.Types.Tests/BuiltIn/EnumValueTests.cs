@@ -110,7 +110,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var mockType = new Mock<IEnumeratedType>();
             mockType.Setup(t => t.TryGetSymbol(2, out It.Ref<string>.IsAny))
-                .Callback(new TryGetSymbolDelegate((int v, out string s) => s = "Variable"))
+                .Callback(new TryGetSymbolDelegate((v, out s) => s = "Variable"))
                 .Returns(true);
 
             var ev = new EnumValue(2, mockType.Object);

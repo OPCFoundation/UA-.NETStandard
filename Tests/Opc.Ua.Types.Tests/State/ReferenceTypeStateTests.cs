@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class ReferenceTypeStateTests
     {
-        private const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
+        private const string kApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         private SystemContext m_context;
         private ServiceMessageContext m_messageContext;
 
@@ -50,7 +50,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             m_messageContext = ServiceMessageContext.CreateEmpty(telemetry);
-            m_messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
+            m_messageContext.NamespaceUris.GetIndexOrAppend(kApplicationUri);
             m_context = new SystemContext(telemetry)
             {
                 NamespaceUris = m_messageContext.NamespaceUris,

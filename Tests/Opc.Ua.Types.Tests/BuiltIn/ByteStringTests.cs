@@ -1051,7 +1051,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(larger >= bs1, Is.True);
             Assert.That(bs1 >= larger, Is.False);
         }
-#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
         [Test]
         public void OperatorLessThanReadOnlyMemory()
@@ -1132,6 +1131,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(bs >= span, Is.True);
             Assert.That(bs <= span, Is.False);
         }
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
 
         [Test]
         public void ToHexStringAndFromHexStringRoundTrip()

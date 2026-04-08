@@ -54,9 +54,7 @@ namespace Opc.Ua.Types.Tests.Utils
             }
         }
 
-        private sealed class NonDisposable
-        {
-        }
+        private sealed class NonDisposable;
 
         private sealed class TrackingDisposable : IDisposable
         {
@@ -243,7 +241,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UnescapeUriReadOnlySpanEmptyReturnsEmpty()
         {
-            ReadOnlySpan<char> span = ReadOnlySpan<char>.Empty;
+            ReadOnlySpan<char> span = [];
 
             string result = CoreUtils.UnescapeUri(span);
 
@@ -329,7 +327,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CloneStructReturnsCopy()
         {
+#pragma warning disable RCS1118 // Mark local variable as const
             int original = 42;
+#pragma warning restore RCS1118 // Mark local variable as const
 
             int cloned = CoreUtils.Clone(in original);
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CloneStringNullReturnsNull()
         {
-            string original = null;
+            const string original = null;
 
             string cloned = CoreUtils.Clone(original);
 
@@ -392,7 +392,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsEqualClassSameReferenceReturnsTrue()
         {
-            string text = "hello";
+            const string text = "hello";
 
             Assert.That(CoreUtils.IsEqual(text, text), Is.True);
         }
@@ -401,9 +401,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void IsEqualClassBothNullReturnsTrue()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual((string)null, (string)null), Is.True);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -412,8 +410,6 @@ namespace Opc.Ua.Types.Tests.Utils
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual("hello", (string)null), Is.False);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual((string)null, "hello"), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
@@ -443,21 +439,17 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // ReferenceEquals(null, null) is true, so this returns true
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null, (IEnumerable<int>)null), Is.True);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
         public void IsEqualEnumerableOneNullReturnsFalse()
         {
-            IEnumerable<int> list = new List<int> { 1, 2, 3 };
+            IEnumerable<int> list = [1, 2, 3];
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual(list, (IEnumerable<int>)null), Is.False);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null, list), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }

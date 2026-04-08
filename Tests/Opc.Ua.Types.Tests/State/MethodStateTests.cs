@@ -681,7 +681,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public async Task CallAsyncWhenNotExecutableReturnsBadNotExecutable()
+        public async Task CallAsyncWhenNotExecutableReturnsBadNotExecutableAsync()
         {
             var method = new MethodState(null)
             {

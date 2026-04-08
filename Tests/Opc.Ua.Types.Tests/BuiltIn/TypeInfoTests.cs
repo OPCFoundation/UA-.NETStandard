@@ -427,15 +427,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public async Task GetBuiltInTypeAsyncWithKnownTypeReturnsDirectly()
+        public async Task GetBuiltInTypeAsyncWithKnownTypeReturnsDirectlyAsync()
         {
             BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
-    new NodeId(6u), null, CancellationToken.None).ConfigureAwait(false);
+                new NodeId(6u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
-        public async Task GetBuiltInTypeAsyncWithTypeTreeResolvesViaSuperType()
+        public async Task GetBuiltInTypeAsyncWithTypeTreeResolvesViaSuperTypeAsync()
         {
             var mockTypeTree = new Mock<ITypeTable>();
             mockTypeTree
@@ -448,15 +448,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public async Task GetBuiltInTypeAsyncWithNullTypeTreeReturnsNull()
+        public async Task GetBuiltInTypeAsyncWithNullTypeTreeReturnsNullAsync()
         {
             BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
-    new NodeId(1000u), null, CancellationToken.None).ConfigureAwait(false);
+                new NodeId(1000u), null, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(BuiltInType.Null));
         }
 
         [Test]
-        public async Task GetBuiltInTypeAsyncWithNullNodeIdReturnsNull()
+        public async Task GetBuiltInTypeAsyncWithNullNodeIdReturnsNullAsync()
         {
             BuiltInType result = await TypeInfo.GetBuiltInTypeAsync(
                 NodeId.Null, null, CancellationToken.None).ConfigureAwait(false);
@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateArrayWithEmptyDimensionsThrows()
         {
             Assert.That(
-                () => TypeInfo.CreateArray(BuiltInType.Int32, Array.Empty<int>()),
+                () => TypeInfo.CreateArray(BuiltInType.Int32, []),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 

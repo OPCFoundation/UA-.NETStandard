@@ -1179,7 +1179,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)42), Is.Zero);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(nodeId.CompareTo((object)(-1)), Is.EqualTo(-1));
+            Assert.That(nodeId.CompareTo((object)-1), Is.EqualTo(-1));
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -1324,7 +1324,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId, Is.EqualTo((object)42));
-            Assert.That(nodeId, Is.Not.EqualTo((object)(-1)));
+            Assert.That(nodeId, Is.Not.EqualTo((object)-1));
         }
 
         [Test]

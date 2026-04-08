@@ -340,7 +340,7 @@ namespace Opc.Ua.Types.Tests.State
             // SaveAsXml without keepStreamOpen closes the stream, so use ToArray() after
             var stream = new MemoryStream();
             collection.SaveAsXml(m_context, stream);
-            Assert.That(stream.ToArray().Length, Is.GreaterThan(0));
+            Assert.That(stream.ToArray(), Is.Not.Empty);
             view.Dispose();
         }
 
@@ -447,7 +447,7 @@ namespace Opc.Ua.Types.Tests.State
 
             using var saveStream = new MemoryStream();
             collection.SaveAsNodeSet2(m_context, saveStream);
-            Assert.That(saveStream.ToArray().Length, Is.GreaterThan(0));
+            Assert.That(saveStream.ToArray(), Is.Not.Empty);
             view.Dispose();
         }
 

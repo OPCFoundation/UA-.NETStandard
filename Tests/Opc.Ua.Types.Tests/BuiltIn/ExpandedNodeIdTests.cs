@@ -953,7 +953,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithError()
         {
-            bool success = ExpandedNodeId.TryParse("svr=;i=1", out ExpandedNodeId value, out NodeIdParseError error);
+            bool success = ExpandedNodeId.TryParse("svr=;i=1", out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
         }
@@ -984,7 +984,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = false };
-            bool success = ExpandedNodeId.TryParse(ctx, "i=42", options, out ExpandedNodeId value, out NodeIdParseError error);
+
+            bool success = ExpandedNodeId.TryParse(ctx, "i=42", options, out _, out NodeIdParseError error);
             Assert.That(success, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
         }
@@ -993,7 +994,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextOptionsAndErrorFailure()
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "svu=;i=42", null, out ExpandedNodeId value, out NodeIdParseError error);
+
+            bool success = ExpandedNodeId.TryParse(ctx, "svu=;i=42", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
         }
@@ -1032,21 +1034,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseInvalidServerIndexNoSemicolon()
         {
-            bool success = ExpandedNodeId.TryParse("svr=1", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("svr=1", out _);
             Assert.That(success, Is.False);
         }
 
         [Test]
         public void TryParseInvalidServerIndexNonNumeric()
         {
-            bool success = ExpandedNodeId.TryParse("svr=abc;i=1", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("svr=abc;i=1", out _);
             Assert.That(success, Is.False);
         }
 
         [Test]
         public void TryParseInvalidNamespaceUriNoSemicolon()
         {
-            bool success = ExpandedNodeId.TryParse("nsu=http://test.org/", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("nsu=http://test.org/", out _);
             Assert.That(success, Is.False);
         }
 
@@ -1081,7 +1083,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextSvuNoSemicolon()
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "svu=urn:server", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse(ctx, "svu=urn:server", out _);
             Assert.That(success, Is.False);
         }
 
@@ -1090,7 +1092,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svu=urn:unknown;i=1", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "svu=urn:unknown;i=1", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.NoServerUriMapping));
         }
@@ -1101,7 +1103,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svu=urn:newserver;i=1", options, out ExpandedNodeId value);
+                ctx, "svu=urn:newserver;i=1", options, out _);
             Assert.That(success, Is.True);
             Assert.That(ctx.ServerUris.GetIndex("urn:newserver"), Is.GreaterThanOrEqualTo(0));
         }
@@ -1122,7 +1124,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svr=2", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "svr=2", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidServerUriFormat));
         }
@@ -1132,7 +1134,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "nsu=http://test.org/", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "nsu=http://test.org/", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceFormat));
         }
@@ -1162,7 +1164,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextInvalidNodeIdFails()
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "i=notanumber", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse(ctx, "i=notanumber", out _);
             Assert.That(success, Is.False);
         }
 
@@ -1518,8 +1520,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerMappings = [0, 5, 10],
                 NamespaceMappings = [0, 1, 2, 3]
             };
-            bool success = ExpandedNodeId.TryParse(
-                ctx, "svr=2;i=42", options, out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse(ctx, "svr=2;i=42", options, out _);
             Assert.That(success, Is.True);
         }
 

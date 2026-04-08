@@ -803,13 +803,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NonGenericGetEnumeratorIteratesAllReferences()
         {
-            var collection = new ReferenceCollection
+            IEnumerable enumerable = new ReferenceCollection
             {
                 { RefType1, false, Target1 }
             };
 
             int count = 0;
-            IEnumerable enumerable = collection;
             foreach (object item in enumerable)
             {
                 count++;
@@ -1936,13 +1935,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NonGenericEnumeratorIteratesAllEntries()
         {
-            var dict = new ReferenceDictionary<string>
+            IEnumerable enumerable = new ReferenceDictionary<string>
             {
                 { MakeRef(RefType1, false, Target1), "v1" }
             };
 
             int count = 0;
-            IEnumerable enumerable = dict;
             foreach (object item in enumerable)
             {
                 count++;
@@ -1950,6 +1948,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(count, Is.EqualTo(1));
         }
+
         [Test]
         public void MixedReferencesAllDirectionsAndTargetTypes()
         {
