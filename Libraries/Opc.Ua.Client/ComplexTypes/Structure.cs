@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 // vs ExtensionObject which allow optional and subtyped fields in structures
                 case BuiltInType.Null:
-                    ExpandedNodeId dataTypeId = TypeInfo.GetDataTypeId(
+                    ExpandedNodeId dataTypeId = NodeId.ToExpandedNodeId(
                         property.Definition.DataType,
                         encoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
@@ -325,7 +325,10 @@ namespace Opc.Ua.Client.ComplexTypes
                             dataTypeId);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     encoder.WriteVariant(name, variant);
                     break;
                 default:
@@ -348,7 +351,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 case BuiltInType.Null:
-                    ExpandedNodeId dataTypeId = TypeInfo.GetDataTypeId(
+                    ExpandedNodeId dataTypeId = NodeId.ToExpandedNodeId(
                         property.Definition.DataType,
                         decoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
@@ -370,7 +373,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         variant = Variant.FromStructure(encodeables);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     variant = decoder.ReadVariant(name);
                     break;
                 default:

@@ -294,8 +294,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                     var fullTypeId = NodeId.ToExpandedNodeId(
                         variableNode.DataType,
                         Session.NamespaceUris);
-                    Type type = Session.Factory.GetSystemType(fullTypeId);
-                    if (type == null)
+                    if (!Session.Factory.TryGetType(fullTypeId, out IType type))
                     {
                         // check for opaque type
                         NodeId superType =
@@ -335,14 +334,14 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                     if (value.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
                         extensionObject.TryGetEncodeable(out IEncodeable encodeable))
                     {
-                        Type valueType = encodeable.GetType();
-                        if (valueType != type)
+                        if (!Session.Factory.TryGetType(encodeable.TypeId, out var valueType) ||
+                            valueType.XmlName != type.XmlName)
                         {
                             testFailed = true;
                             TestContext.Out.WriteLine(
-                                "Variable: {0} type is decoded as ExtensionObject --> {1}",
-                                variableNode,
-                                value.WrappedValue);
+                            "Variable: {0} type is decoded as ExtensionObject --> {1}",
+                            variableNode,
+                            value.WrappedValue);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
@@ -355,8 +354,8 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                         {
                             if (valueItem.TryGetEncodeable(out encodeable))
                             {
-                                Type valueType = encodeable.GetType();
-                                if (valueType != type)
+                                if (!Session.Factory.TryGetType(encodeable.TypeId, out var valueType) ||
+                                    valueType.XmlName != type.XmlName)
                                 {
                                     testFailed = true;
                                     TestContext.Out.WriteLine(

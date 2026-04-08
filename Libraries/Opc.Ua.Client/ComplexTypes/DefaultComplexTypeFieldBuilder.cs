@@ -29,6 +29,7 @@
 
 using System.Xml;
 using System.Collections.Generic;
+using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -62,9 +63,18 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_fieldTypes[field.Name] = fieldType switch
             {
-                IEnumeratedType => BuiltInType.Enumeration,
                 IBuiltInType builtIn => builtIn.BuiltInType,
-                _ => BuiltInType.ExtensionObject
+                IEnumeratedType => BuiltInType.Enumeration,
+                IEncodeableType =>                    // The data type is a subtype of i=22
+                    allowSubTypes &&                  // and the definition allows subtypes
+                    field.IsOptional ?                // and the field itself is optional
+                        BuiltInType.ExtensionObject : // then use Extension object encoding
+                        BuiltInType.Null,             // otherwise use encodeable encoding.
+                null => throw new InvalidOperationException(
+                    $"Null field type for field '{field.Name}' with DataType '{field.DataType}'"),
+                _ => throw new InvalidOperationException(
+                    $"Unknown field type '{fieldType.GetType().Name}' for field '{field.Name}'" +
+                    $" with DataType '{field.DataType}'")
             };
         }
 
