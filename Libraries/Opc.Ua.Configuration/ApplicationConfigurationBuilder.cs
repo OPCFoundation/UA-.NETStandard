@@ -1105,6 +1105,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use the AddExtension<T> overload with encoderFunc, or AddExtension<T> where T : IEncodeable.")]
         [RequiresUnreferencedCode(
             "Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode(
@@ -1125,6 +1126,16 @@ namespace Opc.Ua.Configuration
             Action<IEncoder, T> encoderFunc)
         {
             ApplicationConfiguration.UpdateExtension<T>(elementName, value, encoderFunc);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value)
+            where T : IEncodeable
+        {
+            ApplicationConfiguration.UpdateEncodeable<T>(elementName, value);
             return this;
         }
 

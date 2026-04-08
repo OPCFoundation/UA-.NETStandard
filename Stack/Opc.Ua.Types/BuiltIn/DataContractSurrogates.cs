@@ -320,9 +320,11 @@ namespace Opc.Ua
         public void WriteXml(XmlWriter writer)
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
                 rootName: xmlName);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             foreach (T item in this)
             {
@@ -338,9 +340,11 @@ namespace Opc.Ua
         public void ReadXml(XmlReader reader)
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
                 rootName: xmlName);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             if (reader.IsEmptyElement)
             {

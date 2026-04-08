@@ -42,6 +42,13 @@
     <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <ItemGroup>
     <None Update="Opc.Ua.GlobalDiscoveryTestServerX509Stores.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

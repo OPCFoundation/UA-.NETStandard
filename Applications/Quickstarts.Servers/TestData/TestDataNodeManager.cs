@@ -76,7 +76,7 @@ namespace TestData
 
             // get the configuration for the node manager.
             m_configuration =
-                configuration.ParseExtension<TestDataNodeManagerConfiguration>()
+                configuration.ParseEncodeable<TestDataNodeManagerConfiguration>()
                 ?? new TestDataNodeManagerConfiguration();
 
             // use suitable defaults if no configuration exists.

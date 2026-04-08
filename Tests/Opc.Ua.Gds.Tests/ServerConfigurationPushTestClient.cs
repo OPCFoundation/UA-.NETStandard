@@ -138,7 +138,7 @@ namespace Opc.Ua.Gds.Tests
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
-                    .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
+                    .ParseEncodeable<ServerConfigurationPushTestClientConfiguration>();
             PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 clientConfiguration.ServerUrl,
@@ -250,24 +250,31 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
+    [DataType(Namespace = Ua.Namespaces.OpcUaConfig)]
     [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
-    public class ServerConfigurationPushTestClientConfiguration
+    public partial class ServerConfigurationPushTestClientConfiguration
     {
+        [DataTypeField(Order = 1)]
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
 
+        [DataTypeField(Order = 2)]
         [DataMember(Order = 2)]
         public string AppUserName { get; set; }
 
+        [DataTypeField(Order = 3)]
         [DataMember(Order = 3)]
         public string AppPassword { get; set; }
 
+        [DataTypeField(Order = 4)]
         [DataMember(Order = 4, IsRequired = true)]
         public string SysAdminUserName { get; set; }
 
+        [DataTypeField(Order = 5)]
         [DataMember(Order = 5, IsRequired = true)]
         public string SysAdminPassword { get; set; }
 
+        [DataTypeField(Order = 6)]
         [DataMember(Order = 6, IsRequired = true)]
         public string TempStorePath { get; set; }
     }

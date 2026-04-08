@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Xml;
 
 namespace Opc.Ua.PubSub.Configuration
@@ -50,15 +50,16 @@ namespace Opc.Ua.PubSub.Configuration
             string filePath,
             ITelemetryContext telemetry)
         {
-            Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
-
+            using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<PubSubConfigurationDataType>();
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(telemetry);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            serializer.WriteObject(writer, pubSubConfiguration);
+            var encoder = new XmlEncoder(typeof(PubSubConfigurationDataType), writer, context);
+            pubSubConfiguration.Encode(encoder);
+            encoder.Close();
         }
 
         /// <summary>
@@ -74,11 +75,13 @@ namespace Opc.Ua.PubSub.Configuration
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer =
-                    CoreUtils.CreateDataContractSerializer<PubSubConfigurationDataType>();
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
                 using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                return (PubSubConfigurationDataType)serializer.ReadObject(reader);
+                var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
+                var config = new PubSubConfigurationDataType();
+                config.Decode(parser);
+                return config;
             }
             catch (Exception e)
             {

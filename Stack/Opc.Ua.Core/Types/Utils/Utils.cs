@@ -1380,6 +1380,7 @@ namespace Opc.Ua
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        [Obsolete("Use ParseEncodeable<T> or the ParseExtension overload with decoderFunc.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static T ParseExtension<T>(
@@ -1425,7 +1426,9 @@ namespace Opc.Ua
 
                 try
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
+#pragma warning restore CS0618 // Type or member is obsolete
                     return (T)serializer.ReadObject(reader);
                 }
                 finally
@@ -1451,6 +1454,7 @@ namespace Opc.Ua
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
         /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        [Obsolete("Use UpdateEncodeable<T> or the UpdateExtension overload with encoderFunc.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static void UpdateExtension<T>(
@@ -1470,7 +1474,9 @@ namespace Opc.Ua
                     try
                     {
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+#pragma warning disable CS0618 // Type or member is obsolete
                         DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
+#pragma warning restore CS0618 // Type or member is obsolete
                         serializer.WriteObject(writer, value);
                     }
                     finally

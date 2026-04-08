@@ -95,7 +95,9 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
+#pragma warning restore CS0618 // Type or member is obsolete
             using var writer = XmlWriter.Create(ostrm, settings);
             serializer.WriteObject(writer, nodeSet);
         }

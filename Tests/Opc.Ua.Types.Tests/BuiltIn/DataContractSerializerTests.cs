@@ -109,7 +109,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
 
+#pragma warning disable CS0618 // Testing obsolete DCS API
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
+#pragma warning restore CS0618
             using var stream = new MemoryStream();
             serializer.WriteObject(stream, instance);
 
@@ -121,7 +123,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
 
+#pragma warning disable CS0618 // Testing obsolete DCS API
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(context);
+#pragma warning restore CS0618
 
             using var stream = new MemoryStream();
             serializer.WriteObject(stream, value);

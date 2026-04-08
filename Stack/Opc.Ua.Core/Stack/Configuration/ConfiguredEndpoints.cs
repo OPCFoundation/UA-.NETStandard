@@ -1427,6 +1427,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Null otherwise.</returns>
+        [Obsolete("Use ParseEncodeable<T> instead.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
@@ -1441,6 +1442,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
         /// <param name="telemetry">The telemetry context.</param>
+        [Obsolete("Use UpdateEncodeable<T> instead.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
