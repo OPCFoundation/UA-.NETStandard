@@ -7,8 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <!-- Suppress IL2104 from third-party packages that are not trim-compatible -->
-    <!-- Suppress IL2072 from ConditionState.CreateBranch (Alarms node manager uses Activator.CreateInstance) -->
-    <NoWarn>$(NoWarn);IL2104;IL2072</NoWarn>
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
