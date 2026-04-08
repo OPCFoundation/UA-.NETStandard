@@ -346,7 +346,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
             // Assert
             Assert.That(vfs.Get(filePath), Is.EqualTo(newContent));
-            Assert.That(vfs.Files.Count, Is.EqualTo(1)); // Should still be only one file
+            Assert.That(vfs.Files.Count(), Is.EqualTo(1)); // Should still be only one file
         }
 
         [Test]

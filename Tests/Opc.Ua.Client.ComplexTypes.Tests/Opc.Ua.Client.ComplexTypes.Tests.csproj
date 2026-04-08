@@ -25,14 +25,10 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
   </ItemGroup>
 </Project>

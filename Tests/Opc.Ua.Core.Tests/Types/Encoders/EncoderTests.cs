@@ -441,7 +441,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Variant.From(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //Variant.From(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                Variant.FromEnumeration(s_valueArray0)
+                Variant.From(EnumValue.From(s_valueArray0))
             ]);
             EncodeDecodeDataValue(
                 encoderType,
@@ -630,8 +630,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    break;
+                case EncodingType.Xml:
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
@@ -766,8 +772,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    break;
+                case EncodingType.Xml:
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 

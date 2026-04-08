@@ -41,20 +41,21 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class ReferenceTypeStateTests
     {
-        private const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
+        private const string kApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         private SystemContext m_context;
+        private ServiceMessageContext m_messageContext;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
-            messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
+            m_messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            m_messageContext.NamespaceUris.GetIndexOrAppend(kApplicationUri);
             m_context = new SystemContext(telemetry)
             {
-                NamespaceUris = messageContext.NamespaceUris,
-                ServerUris = messageContext.ServerUris,
-                EncodeableFactory = messageContext.Factory
+                NamespaceUris = m_messageContext.NamespaceUris,
+                ServerUris = m_messageContext.ServerUris,
+                EncodeableFactory = m_messageContext.Factory
             };
         }
 
@@ -230,6 +231,102 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.Symmetric, Is.EqualTo(refType.Symmetric));
             restored.Dispose();
             refType.Dispose();
+        }
+
+        [Test]
+        public void SaveAndUpdateBinaryRoundTripWithAllProperties()
+        {
+            var original = new ReferenceTypeState
+            {
+                NodeId = new NodeId(4010),
+                BrowseName = new QualifiedName("SaveUpdateRef"),
+                DisplayName = new LocalizedText("Save Update Ref"),
+                InverseName = new LocalizedText("IsRefBy"),
+                Symmetric = true,
+                SuperTypeId = new NodeId(300),
+                IsAbstract = true
+            };
+
+            AttributesToSave attributesToSave = original.GetAttributesToSave(m_context);
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
+            {
+                original.Save(m_context, encoder, attributesToSave);
+            }
+
+            ms.Position = 0;
+            var restored = new ReferenceTypeState();
+            using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
+            {
+                restored.Update(m_context, decoder, attributesToSave);
+            }
+
+            Assert.That(restored.InverseName, Is.EqualTo(original.InverseName));
+            Assert.That(restored.Symmetric, Is.EqualTo(original.Symmetric));
+            Assert.That(restored.SuperTypeId, Is.EqualTo(original.SuperTypeId));
+            Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
+            restored.Dispose();
+            original.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentInverseName()
+        {
+            var rt1 = new ReferenceTypeState
+            {
+                NodeId = new NodeId(4020),
+                BrowseName = new QualifiedName("Ref"),
+                InverseName = new LocalizedText("InverseA")
+            };
+
+            var rt2 = (ReferenceTypeState)rt1.Clone();
+            rt2.InverseName = new LocalizedText("InverseB");
+
+            Assert.That(rt1.DeepEquals(rt2), Is.False);
+            rt1.Dispose();
+            rt2.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentSymmetric()
+        {
+            var rt1 = new ReferenceTypeState
+            {
+                NodeId = new NodeId(4021),
+                BrowseName = new QualifiedName("Ref"),
+                Symmetric = false
+            };
+
+            var rt2 = (ReferenceTypeState)rt1.Clone();
+            rt2.Symmetric = true;
+
+            Assert.That(rt1.DeepEquals(rt2), Is.False);
+            rt1.Dispose();
+            rt2.Dispose();
+        }
+
+        [Test]
+        public void DeepGetHashCodeReturnsDifferentForDifferentProperties()
+        {
+            var rt1 = new ReferenceTypeState
+            {
+                NodeId = new NodeId(4030),
+                BrowseName = new QualifiedName("Ref1"),
+                InverseName = new LocalizedText("InverseA"),
+                Symmetric = false
+            };
+
+            var rt2 = new ReferenceTypeState
+            {
+                NodeId = new NodeId(4031),
+                BrowseName = new QualifiedName("Ref2"),
+                InverseName = new LocalizedText("InverseB"),
+                Symmetric = true
+            };
+
+            Assert.That(rt1.DeepGetHashCode(), Is.Not.EqualTo(rt2.DeepGetHashCode()));
+            rt1.Dispose();
+            rt2.Dispose();
         }
     }
 }

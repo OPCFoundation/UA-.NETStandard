@@ -10187,7 +10187,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void WriteVariantValueWithGuidMatrixSetsEncodingBits()
         {
-            Variant variant = Variant.From(
+            var variant = Variant.From(
             ArrayOf.Wrapped([
                 Uuid.NewUuid(),
                 Uuid.NewUuid(),

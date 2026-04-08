@@ -32,9 +32,8 @@ using System.Buffers;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Opc.Ua.Types;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "JsonDecoder"/> class.
@@ -44,7 +43,7 @@ namespace Opc.Ua.UnitTests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class JsonWriterTests
+    public class JsonEncoderTests
     {
         [Test]
         public void WriteBadVariantThrows()
@@ -199,7 +198,9 @@ namespace Opc.Ua.UnitTests
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            DateTime expected = (DateTime)DateTime.UtcNow;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            var expected = (DateTime)DateTime.UtcNow;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var buffers = new PooledBufferWriter();
 
             using (var writer = new JsonEncoder(buffers, messageContext))
@@ -208,7 +209,7 @@ namespace Opc.Ua.UnitTests
             }
 
             var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
+            var result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }

@@ -950,8 +950,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 $$"""{"UaType":{{BuiltInType.UInt64:d}}, "Value":"123456789"}""",
                 null
             },
-            { BuiltInType.DataValue, new DataValue(), "{}", null },
-            { BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null },
+            {
+                BuiltInType.DataValue,
+                new DataValue(),
+                "{}",
+                null
+            },
+            {
+                BuiltInType.DataValue,
+                new DataValue(StatusCodes.Good),
+                "{}",
+                null
+            },
             {
                 BuiltInType.DataValue,
                 new DataValue(StatusCodes.BadNotWritable),
@@ -969,20 +979,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Three),
-                TestEnumType.Three.ToString("d"),
                 """
-                "3"
+                3
+                """,
                 """
-                // TODO: $""" "{TestEnumType.Three}_{TestEnumType.Three:d}" """
+                "Three_3"
+                """
             },
             {
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Ten),
-                $"{TestEnumType.Ten:d}",
                 """
-                "10"
+                10
+                """,
                 """
-                // TODO: $""" "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}" """
+                "Ten_10"
+                """
             },
             {
                 BuiltInType.Enumeration,
@@ -990,17 +1002,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "11",
                 """
                 "11"
-                """ },
+                """
+            },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(1),
+                Variant.From(new EnumValue(1)),
                 "1",
                 """
                 "1"
-                """ },
+                """
+            },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Two),
+                Variant.From(EnumValue.From((int)TestEnumType.Two)),
                 TestEnumType.Two.ToString("d"),
                 $"""
                 "{TestEnumType.Two:d}"
@@ -1008,7 +1022,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Hundred),
+                Variant.From(EnumValue.From((int)TestEnumType.Hundred)),
                 $"{TestEnumType.Hundred:d}",
                 $"""
                 "{TestEnumType.Hundred:d}"
@@ -1016,21 +1030,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(22),
+                Variant.From(EnumValue.From(22)),
                 "22",
                 """
                 "22"
-                """ },
+                """
+            },
             // arrays
             {
                 BuiltInType.Enumeration,
                 Variant.From(s_testEnumArray),
                 "[1,2,100]",
-                """["1","2","100"]""" // TODO: """["One_1","Two_2","Hundred_100"]"""
+                """["One_1","Two_2","Hundred_100"]"""
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(s_testInt32Array),
+                Variant.From(EnumValue.From(s_testInt32Array)),
                 "[2,3,10]",
                 """["2","3","10"]"""
             },

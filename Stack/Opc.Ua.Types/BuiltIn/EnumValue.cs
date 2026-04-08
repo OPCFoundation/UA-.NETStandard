@@ -27,7 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -40,32 +45,293 @@ namespace Opc.Ua
     public readonly struct EnumValue : IEquatable<EnumValue>
     {
         /// <summary>
-        /// The symbol for the value
+        /// Create enum value
         /// </summary>
-        public string Symbol { get; }
-
-        /// <summary>
-        /// The enum value
-        /// </summary>
-        public long Value { get; }
+        public EnumValue(int value, string? symbol = null)
+        {
+            Source = symbol;
+            m_value = value;
+        }
 
         /// <summary>
         /// Create enum value
         /// </summary>
-        public EnumValue(long value, string symbol)
+        public EnumValue(int value, Type? enumType)
         {
-            Symbol = symbol;
-            Value = value;
+            if (enumType == null || enumType == typeof(int))
+            {
+                m_value = value;
+                return;
+            }
+            if (!enumType.IsEnum)
+            {
+                throw new ArgumentException(
+                    "The provided type must be an enumeration.",
+                    nameof(enumType));
+            }
+            Source = enumType;
+            m_value = value;
+        }
+
+        /// <summary>
+        /// Create enum value
+        /// </summary>
+        public EnumValue(int value, IEnumeratedType enumType)
+        {
+            Source = enumType;
+            m_value = value;
+        }
+
+        /// <summary>
+        /// Internal constructor to convert from Variant to enum value
+        /// </summary>
+        internal EnumValue(int value, object? source)
+        {
+            Source = source;
+            m_value = value;
+        }
+
+        /// <summary>
+        /// The enum value
+        /// </summary>
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public int Value => m_value;
+#pragma warning restore RCS1085 // Use auto-implemented property
+
+        /// <summary>
+        /// The symbol for the value
+        /// </summary>
+        public string? Symbol
+        {
+            get
+            {
+                switch (Source)
+                {
+                    case string str:
+                        if (!string.IsNullOrEmpty(str))
+                        {
+                            return str;
+                        }
+                        goto default;
+                    case IEnumeratedType enumeratedType:
+                        if (enumeratedType.TryGetSymbol(
+                            Value,
+                            out string? symbol))
+                        {
+                            return symbol;
+                        }
+                        goto default;
+                    case Type enumType:
+                        string? name = Enum.GetName(
+                            enumType,
+                            Value);
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            return name;
+                        }
+                        goto default;
+                    default:
+                        return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Try to get a xml name
+        /// </summary>
+        public XmlQualifiedName? XmlName
+        {
+            get
+            {
+                switch (Source)
+                {
+                    case string str:
+                        if (!string.IsNullOrEmpty(str))
+                        {
+                            return new XmlQualifiedName(str);
+                        }
+                        goto default;
+                    case IEnumeratedType enumeratedType:
+                        return enumeratedType.XmlName;
+                    case Type enumType:
+                        return TypeInfo.GetXmlName(enumType);
+                    default:
+                        return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static EnumValue From<T>(T value)
+            where T : struct, Enum
+        {
+            return From(EnumHelper.EnumToInt32(value), typeof(T));
+        }
+
+        /// <summary>
+        /// Create a enum value array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<EnumValue> From<T>(ArrayOf<T> value)
+            where T : struct, Enum
+        {
+            return value.ConvertAll(From);
+        }
+
+        /// <summary>
+        /// Create a enum value matrix
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<EnumValue> From<T>(MatrixOf<T> value)
+            where T : struct, Enum
+        {
+            return value.ConvertAll(From);
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        public static EnumValue From(int value, Type? type = null)
+        {
+            return new EnumValue(value, type);
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        public static ArrayOf<EnumValue> From(ArrayOf<int> value, Type? type = null)
+        {
+            if (value.IsNull)
+            {
+                return default;
+            }
+            return value.ConvertAll(e => From(e, type));
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        public static MatrixOf<EnumValue> From(MatrixOf<int> value, Type? type = null)
+        {
+            if (value.IsNull)
+            {
+                return default;
+            }
+            return value.ConvertAll(e => From(e, type));
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        public static EnumValue From(object value, Type type)
+        {
+            return new EnumValue(EnumHelper.EnumToInt32(value, type), type);
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static EnumValue GetDefault<T>()
+            where T : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            T[] values = Enum.GetValues<T>();
+            if (values == null || values.Length == 0)
+            {
+                return default;
+            }
+            return From(values[0]);
+#else
+            return GetDefault(typeof(T));
+#endif
+        }
+
+        /// <summary>
+        /// Create a enum value
+        /// </summary>
+        [RequiresDynamicCode(
+            "Cannot get the values of the type in AOT. Use GetDefault<T> instead.")]
+        public static EnumValue GetDefault(Type type)
+        {
+            var values = Enum.GetValues(type);
+            if (values == null || values.Length == 0)
+            {
+                return default;
+            }
+            var value = values.GetValue(0);
+            if (value == null)
+            {
+                return default;
+            }
+            return From(value, type);
+        }
+
+        /// <summary>
+        /// Get array of enum values
+        /// </summary>
+        public static ArrayOf<EnumValue> FromArray(Array? value, Type type)
+        {
+            if (value is null)
+            {
+                return default;
+            }
+            if (type.IsArray)
+            {
+                type = type.GetElementType()!;
+            }
+            return EnumHelper.EnumArrayToInt32Array(value)
+                .ConvertAll(e => new EnumValue(e, type));
+        }
+
+        /// <summary>
+        /// Get array of enum values
+        /// </summary>
+        public static MatrixOf<EnumValue> FromMatrix(Array? value, Type type)
+        {
+            if (value is null)
+            {
+                return default;
+            }
+            if (type.IsArray)
+            {
+                type = type.GetElementType()!;
+            }
+            return EnumHelper.EnumArrayToInt32Matrix(value)
+                .ConvertAll(e => new EnumValue(e, type));
+        }
+
+        /// <summary>
+        /// Convert to typed enum type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public T To<T>() where T : struct, Enum
+        {
+            return EnumHelper.Int32ToEnum<T>(Value);
+        }
+
+        /// <summary>
+        /// Convert to an enum instance as object
+        /// </summary>
+        public object ToObject()
+        {
+            if (Source is Type enumType)
+            {
+                return EnumHelper.Int32ToEnum(Value, enumType);
+            }
+            return Value;
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
                 string value => Equals(value),
                 int value => Equals(value),
-                long value => Equals(value),
                 EnumValue value => Equals(value),
                 _ => false
             };
@@ -74,7 +340,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Value);
+            return Value;
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            string? symbol = Symbol;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                return Value.ToString(CultureInfo.InvariantCulture);
+            }
+            return $"{symbol}_{Value}";
         }
 
         /// <inheritdoc/>
@@ -93,7 +370,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(long value)
+        public bool Equals(int value)
         {
             return Value == value;
         }
@@ -111,13 +388,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(EnumValue left, long right)
+        public static bool operator ==(EnumValue left, int right)
         {
             return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(EnumValue left, long right)
+        public static bool operator !=(EnumValue left, int right)
         {
             return !(left == right);
         }
@@ -133,5 +410,20 @@ namespace Opc.Ua
         {
             return !(left == right);
         }
+
+        /// <inheritdoc/>
+        public static explicit operator int(EnumValue value)
+        {
+            return value.Value;
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator EnumValue(int value)
+        {
+            return new EnumValue(value);
+        }
+
+        internal readonly object? Source;
+        private readonly int m_value;
     }
 }

@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.Client.ComplexTypes.Structures
+namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// Interface to access properties of a complex type.

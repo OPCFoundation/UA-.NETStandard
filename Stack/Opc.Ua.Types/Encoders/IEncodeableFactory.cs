@@ -92,6 +92,33 @@ namespace Opc.Ua
         public Type Type => typeof(T);
 
         /// <inheritdoc/>
+        public virtual EnumValue Default => EnumValue.GetDefault<T>();
+
+        /// <inheritdoc/>
+        public virtual bool TryGetSymbol(int value, out string? symbol)
+        {
+            T enumValue = EnumHelper.Int32ToEnum<T>(value);
+#if NET8_0_OR_GREATER
+            symbol = Enum.GetName(enumValue);
+#else
+            symbol = Enum.GetName(typeof(T), enumValue);
+#endif
+            return symbol != null;
+        }
+
+        /// <inheritdoc/>
+        public virtual bool TryGetValue(string symbol, out int value)
+        {
+            if (!Enum.TryParse(symbol, out T enumValue))
+            {
+                value = default;
+                return false;
+            }
+            value = EnumHelper.EnumToInt32(enumValue);
+            return true;
+        }
+
+        /// <inheritdoc/>
         public abstract XmlQualifiedName XmlName { get; }
     }
 

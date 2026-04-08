@@ -27,22 +27,49 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.ComplexTypes.Structures
+using System;
+
+namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// Complex type property info.
     /// </summary>
-    public class Field
+    public class Field : ICloneable
     {
         /// <summary>
         /// Create the property state of the structure field
         /// </summary>
-        public Field(int order, StructureField fieldAttribute)
+        public Field(int order, StructureField fieldAttribute, BuiltInType builtInType)
         {
             Definition = fieldAttribute;
             Order = order;
+            BuiltInType = builtInType;
             OptionalFieldMask = 0;
+            Value = Variant.CreateDefault(TypeInfo);
         }
+
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        private Field(Field field)
+        {
+            Definition = field.Definition;
+            Order = field.Order;
+            BuiltInType = field.BuiltInType;
+            OptionalFieldMask = field.OptionalFieldMask;
+            Value = field.Value.Copy();
+        }
+
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return new Field(this);
+        }
+
+        /// <summary>
+        /// Order in the list of properties for the complex type.
+        /// </summary>
+        public BuiltInType BuiltInType { get; }
 
         /// <summary>
         /// Order in the list of properties for the complex type.
@@ -62,7 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         /// <summary>
         /// Type information object for the complex type property.
         /// </summary>
-        public TypeInfo TypeInfo => new(Definition.BuiltInType, Definition.ValueRank);
+        public TypeInfo TypeInfo => new(BuiltInType, Definition.ValueRank);
 
         /// <summary>
         /// Get the name of the complex type.

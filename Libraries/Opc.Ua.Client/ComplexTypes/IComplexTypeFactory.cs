@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -44,7 +42,7 @@ namespace Opc.Ua.Client.ComplexTypes
         IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null);
+            string? moduleName = null);
 
         /// <summary>
         /// Types defined in the factory.
@@ -103,7 +101,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         void AddField(
             StructureField field,
-            IType fieldType,
+            IType? fieldType,
             int order,
             bool allowSubTypes);
 

@@ -635,7 +635,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""Bonkers_2"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(TestEnum.None));
+            Assert.That(result, Is.EqualTo(TestEnum.Second));
         }
 
         [Test]

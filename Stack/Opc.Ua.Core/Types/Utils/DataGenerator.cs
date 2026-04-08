@@ -446,7 +446,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Variant:
                     return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength));
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(GetRandomInt32Array(useBoundaryValues, length, fixedLength));
+                    return Variant.From(EnumValue.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength)));
                 case BuiltInType.Null:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
@@ -541,8 +541,8 @@ namespace Opc.Ua.Test
                     return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength)
                         .ToMatrixOf(dimensions));
                 case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(GetRandomInt32Array(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
+                    return Variant.From(EnumValue.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions)));
                 case BuiltInType.Null:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:

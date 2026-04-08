@@ -43,6 +43,7 @@ namespace Opc.Ua.Aot.Tests
     /// transitively pulls BenchmarkDotNet, Moq, and other
     /// NativeAOT-incompatible packages).
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class AotServerFixture<T>
         where T : ServerBase
     {

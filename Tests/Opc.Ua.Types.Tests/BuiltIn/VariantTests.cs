@@ -36,6 +36,7 @@ using System.Reflection;
 using System.Xml;
 using NUnit.Framework;
 
+#pragma warning disable CA2263 // Prefer generic overload when type is known
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable NUnit4002 // Use Specific constraint
 #pragma warning disable UA_NETStandard_1
@@ -49,13 +50,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantTests
     {
-        private enum EnumValue
-        {
-            Zero = 0,
-            One = 1,
-            Two = 2
-        }
-
         public sealed record VariantDescriptor(
             string Name,
             Func<object> ValueFactory,
@@ -78,52 +72,52 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             get
             {
-                yield return CreateConstructorCase("ScalarBoolean",
-                    () => true, TypeInfo.Scalars.Boolean);
-                yield return CreateConstructorCase("ScalarSByte",
-                    () => (sbyte)-1, TypeInfo.Scalars.SByte);
-                yield return CreateConstructorCase("ScalarByte",
-                    () => (byte)1, TypeInfo.Scalars.Byte);
-                yield return CreateConstructorCase("ScalarInt16",
-                    () => (short)-2, TypeInfo.Scalars.Int16);
-                yield return CreateConstructorCase("ScalarUInt16",
-                    () => (ushort)2, TypeInfo.Scalars.UInt16);
-                yield return CreateConstructorCase("ScalarInt32",
-                    () => -3, TypeInfo.Scalars.Int32);
-                yield return CreateConstructorCase("ScalarUInt32",
-                    () => 3u, TypeInfo.Scalars.UInt32);
-                yield return CreateConstructorCase("ScalarInt64",
-                    () => -4L, TypeInfo.Scalars.Int64);
-                yield return CreateConstructorCase("ScalarUInt64",
-                    () => 4UL, TypeInfo.Scalars.UInt64);
-                yield return CreateConstructorCase("ScalarFloat",
-                    () => 1.25f, TypeInfo.Scalars.Float);
-                yield return CreateConstructorCase("ScalarDouble",
-                    () => 2.25d, TypeInfo.Scalars.Double);
-                yield return CreateConstructorCase("ScalarString",
-                    () => "opc", TypeInfo.Scalars.String);
-                yield return CreateConstructorCase("ScalarDateTime",
-                    () => (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 2, 3, 4, 5), DateTimeKind.Utc), TypeInfo.Scalars.DateTime);
-                yield return CreateConstructorCase("ScalarGuid",
-                    () => Uuid.NewUuid(), TypeInfo.Scalars.Guid);
-                yield return CreateConstructorCase("ScalarByteString",
-                    () => ByteString.From(1, 2, 3), TypeInfo.Scalars.ByteString);
-                yield return CreateConstructorCase("ScalarXmlElement",
-                    () => CreateXmlElement("Scalar"), TypeInfo.Scalars.XmlElement);
-                yield return CreateConstructorCase("ScalarNodeId",
-                    () => new NodeId(10, 1), TypeInfo.Scalars.NodeId);
-                yield return CreateConstructorCase("ScalarExpandedNodeId",
-                    () => ExpandedNodeId.Parse("nsu=Test;s=Node"), TypeInfo.Scalars.ExpandedNodeId);
-                yield return CreateConstructorCase("ScalarStatusCode",
-                    () => new StatusCode(123u), TypeInfo.Scalars.StatusCode);
-                yield return CreateConstructorCase("ScalarQualifiedName",
-                    () => new QualifiedName("name", 2), TypeInfo.Scalars.QualifiedName);
-                yield return CreateConstructorCase("ScalarLocalizedText",
-                    () => new LocalizedText("en", "text"), TypeInfo.Scalars.LocalizedText);
-                yield return CreateConstructorCase("ScalarExtensionObject",
-                    () => new ExtensionObject(new Argument()), TypeInfo.Scalars.ExtensionObject);
-                yield return CreateConstructorCase("ScalarDataValue",
-                    () => new DataValue(5), TypeInfo.Scalars.DataValue);
+                yield return CreateConstructorCase(() => true,
+                    TypeInfo.Scalars.Boolean);
+                yield return CreateConstructorCase(() => (sbyte)-1,
+                    TypeInfo.Scalars.SByte);
+                yield return CreateConstructorCase(() => (byte)1,
+                    TypeInfo.Scalars.Byte);
+                yield return CreateConstructorCase(() => (short)-2,
+                    TypeInfo.Scalars.Int16);
+                yield return CreateConstructorCase(() => (ushort)2,
+                    TypeInfo.Scalars.UInt16);
+                yield return CreateConstructorCase(() => -3,
+                    TypeInfo.Scalars.Int32);
+                yield return CreateConstructorCase(() => 3u,
+                    TypeInfo.Scalars.UInt32);
+                yield return CreateConstructorCase(() => -4L,
+                    TypeInfo.Scalars.Int64);
+                yield return CreateConstructorCase(() => 4UL,
+                    TypeInfo.Scalars.UInt64);
+                yield return CreateConstructorCase(() => 1.25f,
+                    TypeInfo.Scalars.Float);
+                yield return CreateConstructorCase(() => 2.25d,
+                    TypeInfo.Scalars.Double);
+                yield return CreateConstructorCase(() => "opc",
+                    TypeInfo.Scalars.String);
+                yield return CreateConstructorCase(() => (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 2, 3, 4, 5), DateTimeKind.Utc),
+                    TypeInfo.Scalars.DateTime);
+                yield return CreateConstructorCase(() => Uuid.NewUuid(),
+                    TypeInfo.Scalars.Guid);
+                yield return CreateConstructorCase(() => ByteString.From(1, 2, 3),
+                    TypeInfo.Scalars.ByteString);
+                yield return CreateConstructorCase(() => CreateXmlElement("Scalar"),
+                    TypeInfo.Scalars.XmlElement);
+                yield return CreateConstructorCase(() => new NodeId(10, 1),
+                    TypeInfo.Scalars.NodeId);
+                yield return CreateConstructorCase(() => ExpandedNodeId.Parse("nsu=Test;s=Node"),
+                    TypeInfo.Scalars.ExpandedNodeId);
+                yield return CreateConstructorCase(() => new StatusCode(123u),
+                    TypeInfo.Scalars.StatusCode);
+                yield return CreateConstructorCase(() => new QualifiedName("name", 2),
+                    TypeInfo.Scalars.QualifiedName);
+                yield return CreateConstructorCase(() => new LocalizedText("en", "text"),
+                    TypeInfo.Scalars.LocalizedText);
+                yield return CreateConstructorCase(() => new ExtensionObject(new Argument()),
+                    TypeInfo.Scalars.ExtensionObject);
+                yield return CreateConstructorCase(() => new DataValue(5),
+                    TypeInfo.Scalars.DataValue);
             }
         }
 
@@ -131,66 +125,66 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             get
             {
-                yield return CreateConstructorCase("ArrayBoolean",
-                    () => Array(true, false), TypeInfo.Arrays.Boolean);
-                yield return CreateConstructorCase("ArraySByte",
-                    () => Array((sbyte)-1, (sbyte)1), TypeInfo.Arrays.SByte);
-                yield return CreateConstructorCase("ArrayInt16",
-                    () => Array((short)-2, (short)2), TypeInfo.Arrays.Int16);
-                yield return CreateConstructorCase("ArrayUInt16",
-                    () => Array((ushort)2, (ushort)4), TypeInfo.Arrays.UInt16);
-                yield return CreateConstructorCase("ArrayInt32",
-                    () => Array(-3, 3), TypeInfo.Arrays.Int32);
-                yield return CreateConstructorCase("ArrayUInt32",
-                    () => Array(3u, 4u), TypeInfo.Arrays.UInt32);
-                yield return CreateConstructorCase("ArrayInt64",
-                    () => Array(-4L, 4L), TypeInfo.Arrays.Int64);
-                yield return CreateConstructorCase("ArrayUInt64",
-                    () => Array(4UL, 5UL), TypeInfo.Arrays.UInt64);
-                yield return CreateConstructorCase("ArrayFloat",
-                    () => Array(1.0f, 2.0f), TypeInfo.Arrays.Float);
-                yield return CreateConstructorCase("ArrayDouble",
-                    () => Array(1.0d, 2.0d), TypeInfo.Arrays.Double);
-                yield return CreateConstructorCase("ArrayString",
-                    () => Array("a", "b"), TypeInfo.Arrays.String);
-                yield return CreateConstructorCase("ArrayDateTime",
-                    () => Array(
+                yield return CreateConstructorCase(() => Array(true, false),
+                    TypeInfo.Arrays.Boolean);
+                yield return CreateConstructorCase(() => Array((sbyte)-1, (sbyte)1),
+                    TypeInfo.Arrays.SByte);
+                yield return CreateConstructorCase(() => Array((short)-2, (short)2),
+                    TypeInfo.Arrays.Int16);
+                yield return CreateConstructorCase(() => Array((ushort)2, (ushort)4),
+                    TypeInfo.Arrays.UInt16);
+                yield return CreateConstructorCase(() => Array(-3, 3),
+                    TypeInfo.Arrays.Int32);
+                yield return CreateConstructorCase(() => Array(3u, 4u),
+                    TypeInfo.Arrays.UInt32);
+                yield return CreateConstructorCase(() => Array(-4L, 4L),
+                    TypeInfo.Arrays.Int64);
+                yield return CreateConstructorCase(() => Array(4UL, 5UL),
+                    TypeInfo.Arrays.UInt64);
+                yield return CreateConstructorCase(() => Array(1.0f, 2.0f),
+                    TypeInfo.Arrays.Float);
+                yield return CreateConstructorCase(() => Array(1.0d, 2.0d),
+                    TypeInfo.Arrays.Double);
+                yield return CreateConstructorCase(() => Array("a", "b"),
+                    TypeInfo.Arrays.String);
+                yield return CreateConstructorCase(() => Array(
                         (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
-                        (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)), TypeInfo.Arrays.DateTime);
-                yield return CreateConstructorCase("ArrayGuid",
-                    () => Array(
+                        (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)),
+                    TypeInfo.Arrays.DateTime);
+                yield return CreateConstructorCase(() => Array(
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1")),
-                        new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2"))), TypeInfo.Arrays.Guid);
-                yield return CreateConstructorCase("ArrayByteString",
-                    () => Array(ByteString.From(1), ByteString.From(2, 3)), TypeInfo.Arrays.ByteString);
-                yield return CreateConstructorCase("ArrayXmlElement",
-                    () => Array(CreateXmlElement("A"), CreateXmlElement("B")), TypeInfo.Arrays.XmlElement);
-                yield return CreateConstructorCase("ArrayNodeId",
-                    () => Array(new NodeId(1), new NodeId(2, 1)), TypeInfo.Arrays.NodeId);
-                yield return CreateConstructorCase("ArrayExpandedNodeId",
-                    () => Array(
+                        new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2"))),
+                    TypeInfo.Arrays.Guid);
+                yield return CreateConstructorCase(() => Array(ByteString.From(1), ByteString.From(2, 3)),
+                    TypeInfo.Arrays.ByteString);
+                yield return CreateConstructorCase(() => Array(CreateXmlElement("A"), CreateXmlElement("B")),
+                    TypeInfo.Arrays.XmlElement);
+                yield return CreateConstructorCase(() => Array(new NodeId(1), new NodeId(2, 1)),
+                    TypeInfo.Arrays.NodeId);
+                yield return CreateConstructorCase(() => Array(
                         ExpandedNodeId.Parse("nsu=Test;s=One"),
-                        ExpandedNodeId.Parse("nsu=Test;s=Two")), TypeInfo.Arrays.ExpandedNodeId);
-                yield return CreateConstructorCase("ArrayStatusCode",
-                    () => Array(
+                        ExpandedNodeId.Parse("nsu=Test;s=Two")),
+                    TypeInfo.Arrays.ExpandedNodeId);
+                yield return CreateConstructorCase(() => Array(
                         new StatusCode(1u),
-                        new StatusCode(2u)), TypeInfo.Arrays.StatusCode);
-                yield return CreateConstructorCase("ArrayQualifiedName",
-                    () => Array(
+                        new StatusCode(2u)),
+                    TypeInfo.Arrays.StatusCode);
+                yield return CreateConstructorCase(() => Array(
                         new QualifiedName("q1", 1),
-                        new QualifiedName("q2", 2)), TypeInfo.Arrays.QualifiedName);
-                yield return CreateConstructorCase("ArrayLocalizedText",
-                    () => Array(
+                        new QualifiedName("q2", 2)),
+                    TypeInfo.Arrays.QualifiedName);
+                yield return CreateConstructorCase(() => Array(
                         new LocalizedText("en", "a"),
-                        new LocalizedText("de", "b")), TypeInfo.Arrays.LocalizedText);
-                yield return CreateConstructorCase("ArrayExtensionObject",
-                    () => Array(
+                        new LocalizedText("de", "b")),
+                    TypeInfo.Arrays.LocalizedText);
+                yield return CreateConstructorCase(() => Array(
                         new ExtensionObject(new Argument()),
-                        new ExtensionObject(new Argument())), TypeInfo.Arrays.ExtensionObject);
-                yield return CreateConstructorCase("ArrayDataValue",
-                    () => Array(new DataValue(1), new DataValue(2)), TypeInfo.Arrays.DataValue);
-                yield return CreateConstructorCase("ArrayVariant",
-                    () => Array(new Variant(1), new Variant("two")), TypeInfo.Arrays.Variant);
+                        new ExtensionObject(new Argument())),
+                    TypeInfo.Arrays.ExtensionObject);
+                yield return CreateConstructorCase(() => Array(new DataValue(1), new DataValue(2)),
+                    TypeInfo.Arrays.DataValue);
+                yield return CreateConstructorCase(() => Array(new Variant(1), new Variant("two")),
+                    TypeInfo.Arrays.Variant);
             }
         }
 
@@ -585,11 +579,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationArray_ReturnsEnumerationArray()
         {
-            EnumValue[] values = [EnumValue.Zero, EnumValue.One];
+            TestEnum[] values = [TestEnum.Zero, TestEnum.One];
             var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
         }
@@ -597,35 +591,35 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromIntArray_ReturnsEnumerationArray()
         {
-            ArrayOf<EnumValue> values = [EnumValue.Zero, EnumValue.One];
+            ArrayOf<TestEnum> values = [TestEnum.Zero, TestEnum.One];
             var asInt32 = ArrayOf.Wrapped(0, 1);
             var variant = Variant.From(asInt32);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(asInt32));
         }
 
         [Test]
         public void FromEnumeration_CoercesInt32Value()
         {
-            const EnumValue value = EnumValue.Two;
+            const TestEnum value = TestEnum.Two;
             var variant = Variant.From(value);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(variant.GetInt32(), Is.EqualTo(Convert.ToInt32(value, CultureInfo.InvariantCulture)));
-            Assert.That(variant.GetEnumeration<EnumValue>(), Is.EqualTo(value));
+            Assert.That(variant.GetEnumeration<TestEnum>(), Is.EqualTo(value));
             Assert.That(variant.Value, Is.EqualTo(value));
         }
 
         [Test]
         public void EnumArrayConstructorWithTypeInfo_CoercesEnumerationArray()
         {
-            EnumValue[] values = [EnumValue.Zero, EnumValue.One];
+            TestEnum[] values = [TestEnum.Zero, TestEnum.One];
             var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetEnumerationArray<TestEnum>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
         }
@@ -1072,7 +1066,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         private static TestCaseData CreateConstructorCase(
-            string name,
             Func<object> valueFactory,
             TypeInfo typeInfo)
         {
@@ -1306,7 +1299,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 6, 15), DateTimeKind.Utc);
             var v = new Variant(dt);
-            DateTimeUtc result = (DateTimeUtc)v;
+            var result = (DateTimeUtc)v;
             Assert.That(result, Is.EqualTo(dt));
         }
 
@@ -1315,7 +1308,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Uuid.NewUuid();
             var v = new Variant(guid);
-            Uuid result = (Uuid)v;
+            var result = (Uuid)v;
             Assert.That(result, Is.EqualTo(guid));
         }
 
@@ -1324,7 +1317,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bs = ByteString.From(1, 2, 3);
             var v = new Variant(bs);
-            ByteString result = (ByteString)v;
+            var result = (ByteString)v;
             Assert.That(result, Is.EqualTo(bs));
         }
 
@@ -1333,7 +1326,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             XmlElement xml = CreateXmlElement("Test");
             var v = new Variant(xml);
-            XmlElement result = (XmlElement)v;
+            var result = (XmlElement)v;
             Assert.That(result, Is.EqualTo(xml));
         }
 
@@ -1342,7 +1335,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(10, 1);
             var v = new Variant(nodeId);
-            NodeId result = (NodeId)v;
+            var result = (NodeId)v;
             Assert.That(result, Is.EqualTo(nodeId));
         }
 
@@ -1351,7 +1344,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eni = ExpandedNodeId.Parse("nsu=Test;s=Node");
             var v = new Variant(eni);
-            ExpandedNodeId result = (ExpandedNodeId)v;
+            var result = (ExpandedNodeId)v;
             Assert.That(result, Is.EqualTo(eni));
         }
 
@@ -1360,7 +1353,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sc = new StatusCode(123u);
             var v = new Variant(sc);
-            StatusCode result = (StatusCode)v;
+            var result = (StatusCode)v;
             Assert.That(result, Is.EqualTo(sc));
         }
 
@@ -1369,7 +1362,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("name", 2);
             var v = new Variant(qn);
-            QualifiedName result = (QualifiedName)v;
+            var result = (QualifiedName)v;
             Assert.That(result, Is.EqualTo(qn));
         }
 
@@ -1378,7 +1371,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en", "text");
             var v = new Variant(lt);
-            LocalizedText result = (LocalizedText)v;
+            var result = (LocalizedText)v;
             Assert.That(result, Is.EqualTo(lt));
         }
 
@@ -1387,7 +1380,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eo = new ExtensionObject(new Argument());
             var v = new Variant(eo);
-            ExtensionObject result = (ExtensionObject)v;
+            var result = (ExtensionObject)v;
             Assert.That(result.IsNull, Is.False);
         }
 
@@ -1396,7 +1389,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(5);
             var v = new Variant(dv);
-            DataValue result = (DataValue)v;
+            var result = (DataValue)v;
             Assert.That(result, Is.Not.Null);
         }
 
@@ -1405,7 +1398,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<bool> arr = [true, false];
             var v = new Variant(arr);
-            ArrayOf<bool> result = (ArrayOf<bool>)v;
+            var result = (ArrayOf<bool>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1414,7 +1407,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<sbyte> arr = [-1, 1];
             var v = new Variant(arr);
-            ArrayOf<sbyte> result = (ArrayOf<sbyte>)v;
+            var result = (ArrayOf<sbyte>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1423,7 +1416,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<byte> arr = [1, 2];
             var v = new Variant(arr);
-            ArrayOf<byte> result = (ArrayOf<byte>)v;
+            var result = (ArrayOf<byte>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1432,7 +1425,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<short> arr = [-1, 1];
             var v = new Variant(arr);
-            ArrayOf<short> result = (ArrayOf<short>)v;
+            var result = (ArrayOf<short>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1441,7 +1434,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ushort> arr = [1, 2];
             var v = new Variant(arr);
-            ArrayOf<ushort> result = (ArrayOf<ushort>)v;
+            var result = (ArrayOf<ushort>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1450,7 +1443,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [-1, 1];
             var v = new Variant(arr);
-            ArrayOf<int> result = (ArrayOf<int>)v;
+            var result = (ArrayOf<int>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1459,7 +1452,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<uint> arr = [1u, 2u];
             var v = new Variant(arr);
-            ArrayOf<uint> result = (ArrayOf<uint>)v;
+            var result = (ArrayOf<uint>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1468,7 +1461,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<long> arr = [-1L, 1L];
             var v = new Variant(arr);
-            ArrayOf<long> result = (ArrayOf<long>)v;
+            var result = (ArrayOf<long>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1477,7 +1470,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ulong> arr = [1UL, 2UL];
             var v = new Variant(arr);
-            ArrayOf<ulong> result = (ArrayOf<ulong>)v;
+            var result = (ArrayOf<ulong>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1486,7 +1479,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<float> arr = [1.0f, 2.0f];
             var v = new Variant(arr);
-            ArrayOf<float> result = (ArrayOf<float>)v;
+            var result = (ArrayOf<float>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1495,7 +1488,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<double> arr = [1.0, 2.0];
             var v = new Variant(arr);
-            ArrayOf<double> result = (ArrayOf<double>)v;
+            var result = (ArrayOf<double>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1504,7 +1497,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<string> arr = ["a", "b"];
             var v = new Variant(arr);
-            ArrayOf<string> result = (ArrayOf<string>)v;
+            var result = (ArrayOf<string>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1515,7 +1508,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt2 = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc);
             ArrayOf<DateTimeUtc> arr = [dt1, dt2];
             var v = new Variant(arr);
-            ArrayOf<DateTimeUtc> result = (ArrayOf<DateTimeUtc>)v;
+            var result = (ArrayOf<DateTimeUtc>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1524,7 +1517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Uuid> arr = [Uuid.NewUuid(), Uuid.NewUuid()];
             var v = new Variant(arr);
-            ArrayOf<Uuid> result = (ArrayOf<Uuid>)v;
+            var result = (ArrayOf<Uuid>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1533,7 +1526,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<ByteString> arr = [ByteString.From(1), ByteString.From(2)];
             var v = new Variant(arr);
-            ArrayOf<ByteString> result = (ArrayOf<ByteString>)v;
+            var result = (ArrayOf<ByteString>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1542,7 +1535,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<XmlElement> arr = [CreateXmlElement("A"), CreateXmlElement("B")];
             var v = new Variant(arr);
-            ArrayOf<XmlElement> result = (ArrayOf<XmlElement>)v;
+            var result = (ArrayOf<XmlElement>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1551,7 +1544,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<NodeId> arr = [new NodeId(1), new NodeId(2)];
             var v = new Variant(arr);
-            ArrayOf<NodeId> result = (ArrayOf<NodeId>)v;
+            var result = (ArrayOf<NodeId>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1563,7 +1556,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ExpandedNodeId.Parse("nsu=T;s=B")
             ];
             var v = new Variant(arr);
-            ArrayOf<ExpandedNodeId> result = (ArrayOf<ExpandedNodeId>)v;
+            var result = (ArrayOf<ExpandedNodeId>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1572,7 +1565,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<StatusCode> arr = [new StatusCode(1u), new StatusCode(2u)];
             var v = new Variant(arr);
-            ArrayOf<StatusCode> result = (ArrayOf<StatusCode>)v;
+            var result = (ArrayOf<StatusCode>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1581,7 +1574,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<QualifiedName> arr = [new QualifiedName("a"), new QualifiedName("b")];
             var v = new Variant(arr);
-            ArrayOf<QualifiedName> result = (ArrayOf<QualifiedName>)v;
+            var result = (ArrayOf<QualifiedName>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1593,7 +1586,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new LocalizedText("de", "b")
             ];
             var v = new Variant(arr);
-            ArrayOf<LocalizedText> result = (ArrayOf<LocalizedText>)v;
+            var result = (ArrayOf<LocalizedText>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1605,7 +1598,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new ExtensionObject(new Argument())
             ];
             var v = new Variant(arr);
-            ArrayOf<ExtensionObject> result = (ArrayOf<ExtensionObject>)v;
+            var result = (ArrayOf<ExtensionObject>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1614,7 +1607,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<DataValue> arr = [new DataValue(1), new DataValue(2)];
             var v = new Variant(arr);
-            ArrayOf<DataValue> result = (ArrayOf<DataValue>)v;
+            var result = (ArrayOf<DataValue>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1623,7 +1616,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> arr = [new Variant(1), new Variant("two")];
             var v = new Variant(arr);
-            ArrayOf<Variant> result = (ArrayOf<Variant>)v;
+            var result = (ArrayOf<Variant>)v;
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
@@ -1632,7 +1625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<bool> matrix = new bool[,] { { true, false }, { false, true } };
             var v = new Variant(matrix);
-            MatrixOf<bool> result = (MatrixOf<bool>)v;
+            var result = (MatrixOf<bool>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1641,7 +1634,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<sbyte> matrix = new sbyte[,] { { -1, 1 }, { -2, 2 } };
             var v = new Variant(matrix);
-            MatrixOf<sbyte> result = (MatrixOf<sbyte>)v;
+            var result = (MatrixOf<sbyte>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1650,7 +1643,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<byte> matrix = new byte[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<byte> result = (MatrixOf<byte>)v;
+            var result = (MatrixOf<byte>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1659,7 +1652,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<short> matrix = new short[,] { { -1, 1 }, { -2, 2 } };
             var v = new Variant(matrix);
-            MatrixOf<short> result = (MatrixOf<short>)v;
+            var result = (MatrixOf<short>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1668,7 +1661,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ushort> matrix = new ushort[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<ushort> result = (MatrixOf<ushort>)v;
+            var result = (MatrixOf<ushort>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1677,7 +1670,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<int> result = (MatrixOf<int>)v;
+            var result = (MatrixOf<int>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1686,7 +1679,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<uint> matrix = new uint[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<uint> result = (MatrixOf<uint>)v;
+            var result = (MatrixOf<uint>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1695,7 +1688,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<long> matrix = new long[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<long> result = (MatrixOf<long>)v;
+            var result = (MatrixOf<long>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1704,7 +1697,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<ulong> matrix = new ulong[,] { { 1, 2 }, { 3, 4 } };
             var v = new Variant(matrix);
-            MatrixOf<ulong> result = (MatrixOf<ulong>)v;
+            var result = (MatrixOf<ulong>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1713,7 +1706,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<float> matrix = new float[,] { { 1.0f, 2.0f }, { 3.0f, 4.0f } };
             var v = new Variant(matrix);
-            MatrixOf<float> result = (MatrixOf<float>)v;
+            var result = (MatrixOf<float>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1722,7 +1715,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<double> matrix = new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } };
             var v = new Variant(matrix);
-            MatrixOf<double> result = (MatrixOf<double>)v;
+            var result = (MatrixOf<double>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1731,7 +1724,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<string> matrix = new string[,] { { "a", "b" }, { "c", "d" } };
             var v = new Variant(matrix);
-            MatrixOf<string> result = (MatrixOf<string>)v;
+            var result = (MatrixOf<string>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1741,7 +1734,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
             MatrixOf<DateTimeUtc> matrix = new DateTimeUtc[,] { { dt, dt }, { dt, dt } };
             var v = new Variant(matrix);
-            MatrixOf<DateTimeUtc> result = (MatrixOf<DateTimeUtc>)v;
+            var result = (MatrixOf<DateTimeUtc>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1751,7 +1744,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var u = Uuid.NewUuid();
             MatrixOf<Uuid> matrix = new Uuid[,] { { u, u }, { u, u } };
             var v = new Variant(matrix);
-            MatrixOf<Uuid> result = (MatrixOf<Uuid>)v;
+            var result = (MatrixOf<Uuid>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1761,7 +1754,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var bs = ByteString.From(1);
             MatrixOf<ByteString> matrix = new ByteString[,] { { bs, bs }, { bs, bs } };
             var v = new Variant(matrix);
-            MatrixOf<ByteString> result = (MatrixOf<ByteString>)v;
+            var result = (MatrixOf<ByteString>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1771,7 +1764,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             XmlElement xml = CreateXmlElement("M");
             MatrixOf<XmlElement> matrix = new XmlElement[,] { { xml, xml }, { xml, xml } };
             var v = new Variant(matrix);
-            MatrixOf<XmlElement> result = (MatrixOf<XmlElement>)v;
+            var result = (MatrixOf<XmlElement>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1781,7 +1774,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nid = new NodeId(1);
             MatrixOf<NodeId> matrix = new NodeId[,] { { nid, nid }, { nid, nid } };
             var v = new Variant(matrix);
-            MatrixOf<NodeId> result = (MatrixOf<NodeId>)v;
+            var result = (MatrixOf<NodeId>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1791,7 +1784,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
             MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,] { { eni, eni }, { eni, eni } };
             var v = new Variant(matrix);
-            MatrixOf<ExpandedNodeId> result = (MatrixOf<ExpandedNodeId>)v;
+            var result = (MatrixOf<ExpandedNodeId>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1801,7 +1794,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc = new StatusCode(1u);
             MatrixOf<StatusCode> matrix = new StatusCode[,] { { sc, sc }, { sc, sc } };
             var v = new Variant(matrix);
-            MatrixOf<StatusCode> result = (MatrixOf<StatusCode>)v;
+            var result = (MatrixOf<StatusCode>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1811,7 +1804,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var qn = new QualifiedName("q");
             MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { qn, qn }, { qn, qn } };
             var v = new Variant(matrix);
-            MatrixOf<QualifiedName> result = (MatrixOf<QualifiedName>)v;
+            var result = (MatrixOf<QualifiedName>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1821,7 +1814,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var lt = new LocalizedText("en", "t");
             MatrixOf<LocalizedText> matrix = new LocalizedText[,] { { lt, lt }, { lt, lt } };
             var v = new Variant(matrix);
-            MatrixOf<LocalizedText> result = (MatrixOf<LocalizedText>)v;
+            var result = (MatrixOf<LocalizedText>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1831,7 +1824,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var eo = new ExtensionObject(new Argument());
             MatrixOf<ExtensionObject> matrix = new ExtensionObject[,] { { eo, eo }, { eo, eo } };
             var v = new Variant(matrix);
-            MatrixOf<ExtensionObject> result = (MatrixOf<ExtensionObject>)v;
+            var result = (MatrixOf<ExtensionObject>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1841,7 +1834,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(1);
             MatrixOf<DataValue> matrix = new DataValue[,] { { dv, dv }, { dv, dv } };
             var v = new Variant(matrix);
-            MatrixOf<DataValue> result = (MatrixOf<DataValue>)v;
+            var result = (MatrixOf<DataValue>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -1851,7 +1844,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var vr = new Variant(1);
             MatrixOf<Variant> matrix = new Variant[,] { { vr, vr }, { vr, vr } };
             var v = new Variant(matrix);
-            MatrixOf<Variant> result = (MatrixOf<Variant>)v;
+            var result = (MatrixOf<Variant>)v;
             Assert.That(result.Count, Is.EqualTo(4));
         }
 
@@ -2384,8 +2377,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualityOperatorWithEnumValue()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
-            Assert.That(v, Is.EqualTo((Enum)TestEnum.One));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
+            Assert.That(v, Is.EqualTo(EnumValue.From(TestEnum.One)));
         }
 
         [Test]
@@ -3292,36 +3285,39 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetHashCodeForArrays()
         {
-            Assert.That(new Variant((ArrayOf<bool>)[true, false]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([true, false]).GetHashCode(), Is.TypeOf<int>());
+
             Assert.That(new Variant((ArrayOf<sbyte>)[-1, 1]).GetHashCode(), Is.TypeOf<int>());
             Assert.That(new Variant((ArrayOf<byte>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
             Assert.That(new Variant((ArrayOf<short>)[-1, 1]).GetHashCode(), Is.TypeOf<int>());
             Assert.That(new Variant((ArrayOf<ushort>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<int>)[1, 2]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<uint>)[1u, 2u]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<long>)[1L, 2L]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<ulong>)[1UL, 2UL]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<float>)[1.0f, 2.0f]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<double>)[1.0, 2.0]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<string>)["a", "b"]).GetHashCode(), Is.TypeOf<int>());
+
+            Assert.That(new Variant([1, 2]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([1u, 2u]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([1L, 2L]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([1UL, 2UL]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([1.0f, 2.0f]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([1.0, 2.0]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant(["a", "b"]).GetHashCode(), Is.TypeOf<int>());
         }
 
         [Test]
         public void GetHashCodeForComplexArrays()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<StatusCode>)[new StatusCode(1u)]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<Uuid>)[Uuid.NewUuid()]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<XmlElement>)[CreateXmlElement("A")]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<NodeId>)[new NodeId(1)]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<ExpandedNodeId>)[ExpandedNodeId.Parse("nsu=T;s=A")]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<QualifiedName>)[new QualifiedName("q")]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<LocalizedText>)[new LocalizedText("en", "t")]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<ExtensionObject>)[new ExtensionObject(new Argument())]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<DataValue>)[new DataValue(1)]).GetHashCode(), Is.TypeOf<int>());
-            Assert.That(new Variant((ArrayOf<Variant>)[new Variant(1)]).GetHashCode(), Is.TypeOf<int>());
+
+            Assert.That(new Variant([dt]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new StatusCode(1u)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([Uuid.NewUuid()]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([ByteString.From(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([CreateXmlElement("A")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new NodeId(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([ExpandedNodeId.Parse("nsu=T;s=A")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new QualifiedName("q")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new LocalizedText("en", "t")]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new ExtensionObject(new Argument())]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new DataValue(1)]).GetHashCode(), Is.TypeOf<int>());
+            Assert.That(new Variant([new Variant(1)]).GetHashCode(), Is.TypeOf<int>());
         }
 
         [Test]
@@ -3534,7 +3530,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringForScalarEnumeration()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             string s = v.ToString();
             Assert.That(s, Is.Not.Null.And.Not.Empty);
         }
@@ -3542,7 +3538,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationWithIntEnumType()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.IsScalar, Is.True);
         }
@@ -3550,63 +3546,63 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromEnumerationWithByteEnumType()
         {
-            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            var v = Variant.From(EnumValue.From(ByteEnum.One, typeof(ByteEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithShortEnumType()
         {
-            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            var v = Variant.From(EnumValue.From(ShortEnum.One, typeof(ShortEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithLongEnumType()
         {
-            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            var v = Variant.From(EnumValue.From(LongEnum.One, typeof(LongEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithUShortEnumType()
         {
-            var v = Variant.FromEnumeration(UShortEnum.One, typeof(UShortEnum));
+            var v = Variant.From(EnumValue.From(UShortEnum.One, typeof(UShortEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithUIntEnumType()
         {
-            var v = Variant.FromEnumeration(UIntEnum.One, typeof(UIntEnum));
+            var v = Variant.From(EnumValue.From(UIntEnum.One, typeof(UIntEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithULongEnumType()
         {
-            var v = Variant.FromEnumeration(ULongEnum.One, typeof(ULongEnum));
+            var v = Variant.From(EnumValue.From(ULongEnum.One, typeof(ULongEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithSByteEnumType()
         {
-            var v = Variant.FromEnumeration(SByteEnum.One, typeof(SByteEnum));
+            var v = Variant.From(EnumValue.From(SByteEnum.One, typeof(SByteEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithIntValue()
         {
-            var v = Variant.FromEnumeration(42, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(42, typeof(TestEnum)));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
         [Test]
         public void FromEnumerationWithIntValueNoType()
         {
-            var v = Variant.FromEnumeration(42);
+            var v = Variant.From(EnumValue.From(42));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
         }
 
@@ -3614,7 +3610,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithIntArrayValue()
         {
             ArrayOf<int> arr = [1, 2, 3];
-            var v = Variant.FromEnumeration(arr);
+            var v = Variant.From(EnumValue.From(arr));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.IsArray, Is.True);
         }
@@ -3623,15 +3619,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithNullIntArrayReturnsDefault()
         {
             ArrayOf<int> arr = default;
-            var v = Variant.FromEnumeration(arr);
-            Assert.That(v.IsNull, Is.True);
+            var v = Variant.From(EnumValue.From(arr));
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
 
         [Test]
         public void FromEnumerationWithIntMatrixValue()
         {
             MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
-            var v = Variant.FromEnumeration(matrix);
+            var v = Variant.From(EnumValue.From(matrix));
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
             Assert.That(v.TypeInfo.ValueRank, Is.EqualTo(2));
         }
@@ -3640,8 +3636,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FromEnumerationWithNullMatrixReturnsDefault()
         {
             MatrixOf<int> matrix = default;
-            var v = Variant.FromEnumeration(matrix);
-            Assert.That(v.IsNull, Is.True);
+            var v = Variant.From(EnumValue.From(matrix));
+            Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
 
         [Test]
@@ -3747,7 +3743,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(TestEnum.One, typeof(TestEnum));
+            var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3755,7 +3751,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForByteEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(ByteEnum.One, typeof(ByteEnum));
+            var v = Variant.From(EnumValue.From(ByteEnum.One, typeof(ByteEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3763,7 +3759,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForShortEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(ShortEnum.One, typeof(ShortEnum));
+            var v = Variant.From(EnumValue.From(ShortEnum.One, typeof(ShortEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -3771,7 +3767,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void AsBoxedObjectForLongEnumerationReturnsEnumValue()
         {
-            var v = Variant.FromEnumeration(LongEnum.One, typeof(LongEnum));
+            var v = Variant.From(EnumValue.From(LongEnum.One, typeof(LongEnum)));
             object boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Not.Null);
         }
@@ -4062,24 +4058,24 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsArrayOfComplexTypes()
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
-            Assert.That(new Variant((ArrayOf<DateTimeUtc>)[dt]), Is.EqualTo((ArrayOf<DateTimeUtc>)[dt]));
+            Assert.That(new Variant([dt]), Is.EqualTo((ArrayOf<DateTimeUtc>)[dt]));
 
             var u = Uuid.NewUuid();
-            Assert.That(new Variant((ArrayOf<Uuid>)[u]), Is.EqualTo((ArrayOf<Uuid>)[u]));
+            Assert.That(new Variant([u]), Is.EqualTo((ArrayOf<Uuid>)[u]));
 
-            Assert.That(new Variant((ArrayOf<ByteString>)[ByteString.From(1)]), Is.EqualTo((ArrayOf<ByteString>)[ByteString.From(1)]));
+            Assert.That(new Variant([ByteString.From(1)]), Is.EqualTo((ArrayOf<ByteString>)[ByteString.From(1)]));
 
             var nid = new NodeId(1);
-            Assert.That(new Variant((ArrayOf<NodeId>)[nid]), Is.EqualTo((ArrayOf<NodeId>)[nid]));
+            Assert.That(new Variant([nid]), Is.EqualTo((ArrayOf<NodeId>)[nid]));
 
             var sc = new StatusCode(1u);
-            Assert.That(new Variant((ArrayOf<StatusCode>)[sc]), Is.EqualTo((ArrayOf<StatusCode>)[sc]));
+            Assert.That(new Variant([sc]), Is.EqualTo((ArrayOf<StatusCode>)[sc]));
 
             var qn = new QualifiedName("q");
-            Assert.That(new Variant((ArrayOf<QualifiedName>)[qn]), Is.EqualTo((ArrayOf<QualifiedName>)[qn]));
+            Assert.That(new Variant([qn]), Is.EqualTo((ArrayOf<QualifiedName>)[qn]));
 
             var lt = new LocalizedText("en", "t");
-            Assert.That(new Variant((ArrayOf<LocalizedText>)[lt]), Is.EqualTo((ArrayOf<LocalizedText>)[lt]));
+            Assert.That(new Variant([lt]), Is.EqualTo((ArrayOf<LocalizedText>)[lt]));
         }
 
         [Test]

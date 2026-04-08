@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a binary schema enumerated type to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(
+        public static EnumDefinition? ToEnumDefinition(
             this Schema.Binary.EnumeratedType enumeratedType,
             string enumTypeName)
         {
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(
+        public static EnumDefinition? ToEnumDefinition(
             this ArrayOf<ExtensionObject> enumValueTypes,
             string enumTypeName)
         {
@@ -317,7 +317,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(
+        public static EnumDefinition? ToEnumDefinition(
             this ArrayOf<LocalizedText> enumFieldNames,
             string enumTypeName)
         {
@@ -381,14 +381,14 @@ namespace Opc.Ua.Client.ComplexTypes
                     case "ExtensionObject":
                         return DataTypeIds.Structure;
                     default:
-                        System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(
+                        System.Reflection.FieldInfo? internalField = typeof(DataTypeIds).GetField(
                             typeName.Name);
                         if (internalField == null)
                         {
                             // The type was not found in the internal type factory.
                             return NodeId.Null;
                         }
-                        return (NodeId)internalField.GetValue(typeName.Name);
+                        return (NodeId)internalField.GetValue(typeName.Name)!;
                 }
             }
             if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))

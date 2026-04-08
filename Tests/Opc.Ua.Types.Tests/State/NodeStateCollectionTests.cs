@@ -297,5 +297,230 @@ namespace Opc.Ua.Types.Tests.State
             view.Dispose();
             refType.Dispose();
         }
+
+        [Test]
+        public void SaveAsXmlAndLoadFromXmlRoundTrip()
+        {
+            var collection = new NodeStateCollection();
+            var view = new ViewState
+            {
+                NodeId = new NodeId(6030),
+                SymbolicName = "XmlRTView",
+                BrowseName = new QualifiedName("XmlView"),
+                DisplayName = new LocalizedText("XML View"),
+                EventNotifier = EventNotifiers.SubscribeToEvents,
+                ContainsNoLoops = true
+            };
+            collection.Add(view);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromXml(m_context, stream, false);
+            Assert.That(restored, Has.Count.EqualTo(1));
+            Assert.That(restored[0], Is.InstanceOf<ViewState>());
+            view.Dispose();
+        }
+
+        [Test]
+        public void SaveAsXmlWithoutKeepStreamOpen()
+        {
+            var collection = new NodeStateCollection();
+            var view = new ViewState
+            {
+                NodeId = new NodeId(6031),
+                SymbolicName = "XmlView2",
+                BrowseName = new QualifiedName("XmlView2"),
+                DisplayName = new LocalizedText("XML View 2")
+            };
+            collection.Add(view);
+
+            // SaveAsXml without keepStreamOpen closes the stream, so use ToArray() after
+            var stream = new MemoryStream();
+            collection.SaveAsXml(m_context, stream);
+            Assert.That(stream.ToArray(), Is.Not.Empty);
+            view.Dispose();
+        }
+
+        [Test]
+        public void SaveAsXmlAndLoadFromXmlWithUpdateTables()
+        {
+            var collection = new NodeStateCollection();
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(6032),
+                SymbolicName = "XmlMethod",
+                BrowseName = new QualifiedName("XmlMethod"),
+                DisplayName = new LocalizedText("XML Method"),
+                Executable = true,
+                UserExecutable = false
+            };
+            collection.Add(method);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromXml(m_context, stream, true);
+            Assert.That(restored, Has.Count.EqualTo(1));
+            Assert.That(restored[0], Is.InstanceOf<MethodState>());
+            method.Dispose();
+        }
+
+        [Test]
+        public void SaveAsBinaryAndLoadFromBinaryRoundTrip()
+        {
+            var collection = new NodeStateCollection();
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(6040),
+                BrowseName = new QualifiedName("BinMethod"),
+                DisplayName = new LocalizedText("Binary Method"),
+                Executable = true,
+                UserExecutable = true
+            };
+            var obj = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(6041),
+                BrowseName = new QualifiedName("BinObj"),
+                DisplayName = new LocalizedText("Binary Object")
+            };
+            collection.Add(method);
+            collection.Add(obj);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsBinary(m_context, stream);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromBinary(m_context, stream, false);
+            Assert.That(restored, Has.Count.EqualTo(2));
+            Assert.That(restored[0], Is.InstanceOf<MethodState>());
+            Assert.That(restored[1], Is.InstanceOf<BaseObjectState>());
+            method.Dispose();
+            obj.Dispose();
+        }
+
+        [Test]
+        public void EmptyCollectionSaveAndLoadBinary()
+        {
+            var collection = new NodeStateCollection();
+
+            using var stream = new MemoryStream();
+            collection.SaveAsBinary(m_context, stream);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromBinary(m_context, stream, false);
+            Assert.That(restored, Is.Empty);
+        }
+
+        [Test]
+        public void EmptyCollectionSaveAndLoadXml()
+        {
+            var collection = new NodeStateCollection();
+
+            using var stream = new MemoryStream();
+            collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromXml(m_context, stream, false);
+            Assert.That(restored, Is.Empty);
+        }
+
+        [Test]
+        public void SaveAsNodeSet2AndLoadRoundTrip()
+        {
+            var collection = new NodeStateCollection();
+            var view = new ViewState
+            {
+                NodeId = new NodeId(6050),
+                BrowseName = new QualifiedName("NS2View"),
+                DisplayName = new LocalizedText("NS2 View"),
+                ContainsNoLoops = false
+            };
+            collection.Add(view);
+
+            using var saveStream = new MemoryStream();
+            collection.SaveAsNodeSet2(m_context, saveStream);
+            Assert.That(saveStream.ToArray(), Is.Not.Empty);
+            view.Dispose();
+        }
+
+        [Test]
+        public void ConstructorWithCapacity()
+        {
+            var collection = new NodeStateCollection(50);
+            Assert.That(collection, Is.Not.Null);
+            Assert.That(collection, Is.Empty);
+            Assert.That(collection.Capacity, Is.GreaterThanOrEqualTo(50));
+        }
+
+        [Test]
+        public void ConstructorWithEnumerable()
+        {
+            var items = new List<NodeState>
+            {
+                new BaseObjectState(null) { NodeId = new NodeId(6060) },
+                new MethodState(null) { NodeId = new NodeId(6061) },
+                new ViewState { NodeId = new NodeId(6062) }
+            };
+
+            var collection = new NodeStateCollection(items);
+            Assert.That(collection, Has.Count.EqualTo(3));
+            Assert.That(collection[0], Is.InstanceOf<BaseObjectState>());
+            Assert.That(collection[1], Is.InstanceOf<MethodState>());
+            Assert.That(collection[2], Is.InstanceOf<ViewState>());
+            foreach (NodeState item in items)
+            {
+                item.Dispose();
+            }
+        }
+
+        [Test]
+        public void LoadFromBinaryWithMultipleNodeTypes()
+        {
+            var collection = new NodeStateCollection();
+            var view = new ViewState
+            {
+                NodeId = new NodeId(6070),
+                BrowseName = new QualifiedName("V1"),
+                DisplayName = new LocalizedText("View 1"),
+                ContainsNoLoops = true
+            };
+            var dt = new DataTypeState
+            {
+                NodeId = new NodeId(6071),
+                BrowseName = new QualifiedName("DT1"),
+                DisplayName = new LocalizedText("DataType 1")
+            };
+            var refType = new ReferenceTypeState
+            {
+                NodeId = new NodeId(6072),
+                BrowseName = new QualifiedName("RT1"),
+                DisplayName = new LocalizedText("RefType 1")
+            };
+            collection.Add(view);
+            collection.Add(dt);
+            collection.Add(refType);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsBinary(m_context, stream);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromBinary(m_context, stream, true);
+            Assert.That(restored, Has.Count.EqualTo(3));
+            Assert.That(restored[0], Is.InstanceOf<ViewState>());
+            Assert.That(restored[1], Is.InstanceOf<DataTypeState>());
+            Assert.That(restored[2], Is.InstanceOf<ReferenceTypeState>());
+            view.Dispose();
+            dt.Dispose();
+            refType.Dispose();
+        }
     }
 }

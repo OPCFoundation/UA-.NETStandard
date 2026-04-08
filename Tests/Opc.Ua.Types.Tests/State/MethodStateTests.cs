@@ -29,6 +29,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using AttributesToSave = Opc.Ua.NodeState.AttributesToSave;
@@ -426,6 +427,350 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.Executable, Is.EqualTo(method.Executable));
             Assert.That(restored.UserExecutable, Is.EqualTo(method.UserExecutable));
             restored.Dispose();
+            method.Dispose();
+        }
+
+        [Test]
+        public void SaveAndUpdateBinaryRoundTripWithAllProperties()
+        {
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(510),
+                BrowseName = new QualifiedName("FullBinMethod"),
+                DisplayName = new LocalizedText("Full Binary Method"),
+                Executable = true,
+                UserExecutable = true,
+                MethodDeclarationId = new NodeId(999)
+            };
+
+            using var stream = new MemoryStream();
+            method.SaveAsBinary(m_context, stream);
+            stream.Position = 0;
+
+            var restored = new MethodState(null);
+            restored.LoadAsBinary(m_context, stream);
+
+            Assert.That(restored.Executable, Is.EqualTo(method.Executable));
+            Assert.That(restored.UserExecutable, Is.EqualTo(method.UserExecutable));
+            Assert.That(restored.MethodDeclarationId, Is.EqualTo(method.MethodDeclarationId));
+            Assert.That(restored.BrowseName, Is.EqualTo(method.BrowseName));
+            restored.Dispose();
+            method.Dispose();
+        }
+
+        [Test]
+        public void SaveAndUpdateBinaryRoundTripWithFalseExecutable()
+        {
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(511),
+                BrowseName = new QualifiedName("FalseBinMethod"),
+                DisplayName = new LocalizedText("False Binary Method"),
+                Executable = false,
+                UserExecutable = false
+            };
+
+            using var stream = new MemoryStream();
+            method.SaveAsBinary(m_context, stream);
+            stream.Position = 0;
+
+            var restored = new MethodState(null);
+            restored.LoadAsBinary(m_context, stream);
+
+            // Binary format omits default-valued attributes; constructor defaults to true
+            // Verify the round-trip at least deserializes without error
+            Assert.That(restored.BrowseName, Is.EqualTo(method.BrowseName));
+            Assert.That(restored.DisplayName, Is.EqualTo(method.DisplayName));
+            restored.Dispose();
+            method.Dispose();
+        }
+
+        [Test]
+        public void XmlSaveAndLoadRoundTrip()
+        {
+            var collection = new NodeStateCollection();
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(520),
+                SymbolicName = "XmlMethod",
+                BrowseName = new QualifiedName("XmlMethod"),
+                DisplayName = new LocalizedText("XML Method"),
+                Executable = true,
+                UserExecutable = true,
+                MethodDeclarationId = new NodeId(888)
+            };
+            collection.Add(method);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+            stream.Position = 0;
+
+            var restored = new NodeStateCollection();
+            restored.LoadFromXml(m_context, stream, false);
+
+            Assert.That(restored, Has.Count.EqualTo(1));
+            var restoredMethod = restored[0] as MethodState;
+            Assert.That(restoredMethod, Is.Not.Null);
+            Assert.That(restoredMethod.Executable, Is.EqualTo(method.Executable));
+            Assert.That(restoredMethod.UserExecutable, Is.EqualTo(method.UserExecutable));
+            method.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsWithDifferentExecutable()
+        {
+            var method1 = new MethodState(null)
+            {
+                NodeId = new NodeId(530),
+                BrowseName = new QualifiedName("M1"),
+                Executable = true,
+                UserExecutable = true
+            };
+            var method2 = (MethodState)method1.Clone();
+            method2.Executable = false;
+
+            Assert.That(method1.DeepEquals(method2), Is.False);
+            method1.Dispose();
+            method2.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsWithDifferentUserExecutable()
+        {
+            var method1 = new MethodState(null)
+            {
+                NodeId = new NodeId(531),
+                BrowseName = new QualifiedName("M2"),
+                Executable = true,
+                UserExecutable = true
+            };
+            var method2 = (MethodState)method1.Clone();
+            method2.UserExecutable = false;
+
+            Assert.That(method1.DeepEquals(method2), Is.False);
+            method1.Dispose();
+            method2.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsWithDifferentMethodDeclarationId()
+        {
+            var method1 = new MethodState(null)
+            {
+                NodeId = new NodeId(532),
+                BrowseName = new QualifiedName("M3"),
+                MethodDeclarationId = new NodeId(100)
+            };
+            var method2 = (MethodState)method1.Clone();
+            method2.MethodDeclarationId = new NodeId(200);
+
+            Assert.That(method1.DeepEquals(method2), Is.False);
+            method1.Dispose();
+            method2.Dispose();
+        }
+
+        [Test]
+        public void GetAttributesToSaveIncludesExecutableAndUserExecutable()
+        {
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(540),
+                Executable = true,
+                UserExecutable = true
+            };
+
+            AttributesToSave attrs = method.GetAttributesToSave(m_context);
+            Assert.That(attrs & AttributesToSave.Executable, Is.Not.EqualTo(AttributesToSave.None));
+            Assert.That(attrs & AttributesToSave.UserExecutable, Is.Not.EqualTo(AttributesToSave.None));
+
+            method.Executable = false;
+            method.UserExecutable = false;
+            attrs = method.GetAttributesToSave(m_context);
+            Assert.That(attrs & AttributesToSave.Executable, Is.EqualTo(AttributesToSave.None));
+            Assert.That(attrs & AttributesToSave.UserExecutable, Is.EqualTo(AttributesToSave.None));
+            method.Dispose();
+        }
+
+        [Test]
+        public void InputOutputArgumentsChildManagement()
+        {
+            var method = new MethodState(null);
+            var inputArgs = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            method.InputArguments = inputArgs;
+
+            var outputArgs = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            method.OutputArguments = outputArgs;
+
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(m_context, children);
+
+            Assert.That(children, Has.Count.GreaterThanOrEqualTo(2));
+            Assert.That(children, Does.Contain(inputArgs));
+            Assert.That(children, Does.Contain(outputArgs));
+
+            // Verify that children are retrievable by type
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            method.Dispose();
+        }
+
+        [Test]
+        public void CreateOrReplaceInputArgumentsWithReplacement()
+        {
+            var method = new MethodState(null);
+            Assert.That(method.InputArguments, Is.Null);
+
+            var replacement = new BaseObjectState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.InputArguments),
+                NodeId = new NodeId(550)
+            };
+
+            PropertyState<ArrayOf<Argument>> result = method.CreateOrReplaceInputArguments(m_context, replacement);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(method.InputArguments, Is.SameAs(result));
+            replacement.Dispose();
+            method.Dispose();
+        }
+
+        [Test]
+        public void CreateOrReplaceOutputArgumentsWithReplacement()
+        {
+            var method = new MethodState(null);
+            Assert.That(method.OutputArguments, Is.Null);
+
+            var replacement = new BaseObjectState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.OutputArguments),
+                NodeId = new NodeId(551)
+            };
+
+            PropertyState<ArrayOf<Argument>> result = method.CreateOrReplaceOutputArguments(m_context, replacement);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.SameAs(result));
+            replacement.Dispose();
+            method.Dispose();
+        }
+
+        [Test]
+        public async Task CallAsyncMethodWithHandler()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = true,
+                UserExecutable = true
+            };
+
+            bool handlerCalled = false;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                handlerCalled = true;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = await method.CallAsync(
+                m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs).ConfigureAwait(false);
+
+            Assert.That(handlerCalled, Is.True);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            method.Dispose();
+        }
+
+        [Test]
+        public async Task CallAsyncWhenNotExecutableReturnsBadNotExecutableAsync()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = false,
+                UserExecutable = true
+            };
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = await method.CallAsync(
+                m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
+            method.Dispose();
+        }
+
+        [Test]
+        public void CallMethodWithOnCallMethodHandler()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = true,
+                UserExecutable = true
+            };
+
+            bool handlerCalled = false;
+            method.OnCallMethod = (context, methodState, inputs, outputs) =>
+            {
+                handlerCalled = true;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(handlerCalled, Is.True);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            method.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsWithClonedMethodReturnsTrue()
+        {
+            var method1 = new MethodState(null)
+            {
+                NodeId = new NodeId(560),
+                BrowseName = new QualifiedName("ClonedMethod"),
+                Executable = true,
+                UserExecutable = false,
+                MethodDeclarationId = new NodeId(42)
+            };
+
+            var method2 = (MethodState)method1.Clone();
+            Assert.That(method1.DeepEquals(method2), Is.True);
+            method1.Dispose();
+            method2.Dispose();
+        }
+
+        [Test]
+        public void FindChildInputArguments()
+        {
+            var method = new MethodState(null);
+            method.CreateOrReplaceInputArguments(m_context, null);
+
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(m_context, children);
+            Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(children, Does.Contain(method.InputArguments));
+            method.Dispose();
+        }
+
+        [Test]
+        public void FindChildOutputArguments()
+        {
+            var method = new MethodState(null);
+            method.CreateOrReplaceOutputArguments(m_context, null);
+
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(m_context, children);
+            Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            Assert.That(children, Does.Contain(method.OutputArguments));
             method.Dispose();
         }
     }

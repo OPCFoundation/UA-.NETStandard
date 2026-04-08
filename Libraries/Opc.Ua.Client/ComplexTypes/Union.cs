@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes.Structures
+namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// Implements a union complex type.
@@ -48,15 +48,26 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
             StructureDefinition structureDefinition,
+            Dictionary<string, BuiltInType> fieldTypes,
             uint switchField = 0)
             : base(
                   xmlName,
                   typeId,
                   binaryEncodingId,
                   xmlEncodingId,
-                  structureDefinition)
+                  structureDefinition,
+                  fieldTypes)
         {
-            m_switchField = switchField;
+            SwitchField = switchField;
+        }
+
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        protected Union(Union source)
+            : base(source)
+        {
+            SwitchField = source.SwitchField;
         }
 
         /// <summary>
@@ -64,7 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         /// A value of 0 means all properties are invalid, x=1..n means the
         /// xth property is valid.
         /// </summary>
-        public uint SwitchField => m_switchField;
+        public uint SwitchField { get; protected set; }
 
         /// <inheritdoc/>
         public override StructureType StructureType => StructureType.Union;
@@ -72,7 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         /// <inheritdoc/>
         public override object Clone()
         {
-            return CreateInstance();
+            return new Union(this);
         }
 
         /// <inheritdoc/>
@@ -83,8 +94,9 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
                 TypeId,
                 BinaryEncodingId,
                 XmlEncodingId,
-                m_definition,
-                m_switchField);
+                Definition,
+                FieldTypes,
+                SwitchField);
         }
 
         /// <inheritdoc/>
@@ -94,15 +106,15 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
 
             // the encoder may return an override for the field name
             // e.g. to support reversible JSON encoding
-            encoder.WriteSwitchField(m_switchField, out string fieldName);
+            encoder.WriteSwitchField(SwitchField, out string fieldName);
 
-            if (m_switchField != 0)
+            if (SwitchField != 0)
             {
                 int unionSelector = 1;
-                Field unionProperty = null;
+                Field? unionProperty = null;
                 foreach (Field property in GetPropertyEnumerator())
                 {
-                    if (unionSelector == m_switchField)
+                    if (unionSelector == SwitchField)
                     {
                         unionProperty = property;
                         break;
@@ -110,9 +122,11 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
                     unionSelector++;
                 }
 
-                fieldName ??= unionProperty.Name;
-
-                EncodeProperty(encoder, fieldName, unionProperty);
+                if (unionProperty != null)
+                {
+                    fieldName ??= unionProperty.Name;
+                    EncodeProperty(encoder, fieldName, unionProperty);
+                }
             }
 
             encoder.PopNamespace();
@@ -140,7 +154,7 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
                 unionSelector = decoder.ReadSwitchField(fields, out _);
             }
 
-            m_switchField = unionSelector;
+            SwitchField = unionSelector;
             if (unionSelector > 0)
             {
                 foreach (Field property in GetPropertyEnumerator())
@@ -174,19 +188,19 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
                 return false;
             }
 
-            if (valueBaseType.m_propertyList.Count != m_propertyList.Count)
+            if (valueBaseType.PropertyList.Count != PropertyList.Count)
             {
                 return false;
             }
 
-            if (m_switchField != 0)
+            if (SwitchField != 0)
             {
-                uint unionSelector = m_switchField;
-                for (int ii = 0; ii < m_propertyList.Count; ii++)
+                uint unionSelector = SwitchField;
+                for (int ii = 0; ii < PropertyList.Count; ii++)
                 {
                     if (--unionSelector == 0)
                     {
-                        if (m_propertyList[ii].Value != valueBaseType.m_propertyList[ii].Value)
+                        if (PropertyList[ii].Value != valueBaseType.PropertyList[ii].Value)
                         {
                             return false;
                         }
@@ -198,14 +212,14 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         }
 
         /// <inheritdoc/>
-        public override string ToString(string format, IFormatProvider formatProvider)
+        public override string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
                 var body = new StringBuilder();
-                if (m_switchField != 0)
+                if (SwitchField != 0)
                 {
-                    uint unionSelector = m_switchField;
+                    uint unionSelector = SwitchField;
                     foreach (Field property in GetPropertyEnumerator())
                     {
                         if (--unionSelector == 0)
@@ -252,13 +266,13 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         {
             get
             {
-                if (index + 1 == (int)m_switchField)
+                if (index + 1 == (int)SwitchField)
                 {
-                    return m_propertyList[index].Value;
+                    return PropertyList[index].Value;
                 }
-                if (index < 0 && m_switchField > 0)
+                if (index < 0 && SwitchField > 0)
                 {
-                    return m_propertyList[(int)m_switchField - 1].Value;
+                    return PropertyList[(int)SwitchField - 1].Value;
                 }
                 return default;
             }
@@ -266,15 +280,15 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
             {
                 if (index >= 0)
                 {
-                    m_propertyList[index].Value = value;
-                    m_switchField = (uint)m_propertyList[index].Order;
+                    PropertyList[index].Value = value;
+                    SwitchField = (uint)PropertyList[index].Order;
                     if (!value.IsNull)
                     {
                         return;
                     }
                     // reset union selector if value is a null
                 }
-                m_switchField = 0;
+                SwitchField = 0;
             }
         }
 
@@ -296,33 +310,33 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
             {
                 if (SwitchField > 0)
                 {
-                    if (m_propertyDict.TryGetValue(name, out Field property))
+                    if (PropertyDict.TryGetValue(name, out Field? property))
                     {
-                        if ((int)m_switchField == property.Order)
+                        if ((int)SwitchField == property.Order)
                         {
                             return property.Value;
                         }
                     }
                     else
                     {
-                        return m_propertyList[(int)SwitchField - 1].Value;
+                        return PropertyList[(int)SwitchField - 1].Value;
                     }
                 }
                 return default;
             }
             set
             {
-                if (m_propertyDict.TryGetValue(name, out Field property))
+                if (PropertyDict.TryGetValue(name, out Field? property))
                 {
                     property.Value = value;
-                    m_switchField = (uint)property.Order;
+                    SwitchField = (uint)property.Order;
                     if (!value.IsNull)
                     {
                         return;
                     }
                     // reset union selector if value is a null
                 }
-                m_switchField = 0;
+                SwitchField = 0;
             }
         }
 
@@ -330,11 +344,6 @@ namespace Opc.Ua.Client.ComplexTypes.Structures
         /// Simple accessor for Union to access current Value.
         /// </summary>
         public Variant Value
-            => m_switchField == 0 ? default : m_propertyList[(int)m_switchField - 1].Value;
-
-        /// <summary>
-        /// The selector for the value of the Union.
-        /// </summary>
-        protected uint m_switchField;
+            => SwitchField == 0 ? default : PropertyList[(int)SwitchField - 1].Value;
     }
 }

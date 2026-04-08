@@ -534,6 +534,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // Ignore expected errors during test shutdown to reduce noise in CI logs
                 if (e.Status?.StatusCode == StatusCodes.BadServerHalted ||
+                    e.Status?.StatusCode == StatusCodes.BadConnectionClosed ||
                     e.Status?.StatusCode == StatusCodes.BadNoCommunication ||
                     e.Status?.StatusCode == StatusCodes.BadSecureChannelClosed ||
                     e.Status?.StatusCode == StatusCodes.BadRequestInterrupted)

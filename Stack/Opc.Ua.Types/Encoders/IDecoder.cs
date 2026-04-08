@@ -246,6 +246,11 @@ namespace Opc.Ua
         T ReadEnumerated<T>(string fieldName) where T : struct, Enum;
 
         /// <summary>
+        /// Reads an enumerated value from the stream.
+        /// </summary>
+        EnumValue ReadEnumerated(string fieldName);
+
+        /// <summary>
         /// Reads a boolean array from the stream.
         /// </summary>
         ArrayOf<bool> ReadBooleanArray(string fieldName);
@@ -416,6 +421,11 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of the enum to be read</typeparam>
         ArrayOf<T> ReadEnumeratedArray<T>(string fieldName)
             where T : struct, Enum;
+
+        /// <summary>
+        /// Reads an enumerated value array from the stream.
+        /// </summary>
+        ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName);
 
         /// <summary>
         /// Reads a value of a <see cref="Variant"/> from the stream with

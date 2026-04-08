@@ -1220,7 +1220,7 @@ namespace Opc.Ua.PubSub.Encoding
                             case BuiltInType.DataValue:
                                 return elements2.Cast<DataValue>().ToMatrixOf([.. dimensions]);
                             case BuiltInType.Enumeration:
-                                return Variant.FromEnumeration(elements2.Cast<int>().ToMatrixOf([.. dimensions]));
+                                return Variant.From(EnumValue.From(elements2.Cast<int>().ToMatrixOf([.. dimensions])));
                             case BuiltInType.Variant:
                             {
                                 if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
@@ -2357,6 +2357,32 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            if (!ReadField(fieldName, out object token))
+            {
+                return default;
+            }
+
+            if (token is long code)
+            {
+                return (EnumValue)(int)code;
+            }
+
+            if (token is string text)
+            {
+                int index = text.LastIndexOf('_');
+
+                if (index > 0 && long.TryParse(text[(index + 1)..], out code))
+                {
+                    return new EnumValue((int)code, text[..index]);
+                }
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new()
         {
             return ArrayOf.From<T>(ReadEncodeableArray(fieldName, typeof(T)));
@@ -2385,6 +2411,32 @@ namespace Opc.Ua.PubSub.Encoding
         public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
         {
             return ArrayOf.From<T>(ReadEnumeratedArray(fieldName, typeof(T)));
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            if (!ReadArrayField(fieldName, out List<object> token))
+            {
+                return default;
+            }
+
+            var values = new EnumValue[token.Count];
+
+            for (int ii = 0; ii < token.Count; ii++)
+            {
+                try
+                {
+                    m_stack.Push(token[ii]);
+                    values[ii] = ReadEnumerated(null);
+                }
+                finally
+                {
+                    m_stack.Pop();
+                }
+            }
+
+            return values;
         }
 
         /// <inheritdoc/>

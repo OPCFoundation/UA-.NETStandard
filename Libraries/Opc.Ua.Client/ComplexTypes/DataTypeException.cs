@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The name of the data type.
         /// </summary>
-        public string TypeName { get; }
+        public string? TypeName { get; }
 
         /// <summary>
         /// Create exception

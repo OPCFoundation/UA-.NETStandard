@@ -265,14 +265,30 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var layout = TypeLayout.GetLayout<QualifiedName>();
             TestContext.Out.WriteLine(layout.ToString(true));
             Assert.That(Unsafe.SizeOf<QualifiedName>(), Is.EqualTo(16));
-            Assert.That(layout.Fields, Has.Length.EqualTo(3)); // TODO: Remove padding
+            Assert.That(layout.Fields, Has.Length.EqualTo(3));
             Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(string)));
             Assert.That(layout.Fields[0].Offset, Is.Zero);
             Assert.That(layout.Fields[0].Size, Is.EqualTo(8));
             Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(ushort)));
             Assert.That(layout.Fields[1].Offset, Is.EqualTo(8));
             Assert.That(layout.Fields[1].Size, Is.EqualTo(2));
-            Assert.That(layout.Fields[2].Size, Is.EqualTo(6));
+            Assert.That(layout.Fields[2].Size, Is.EqualTo(6)); // TODO: Remove padding
+        }
+
+        [Test]
+        public void EnumValueSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<EnumValue>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<EnumValue>(), Is.EqualTo(16));
+            Assert.That(layout.Fields, Has.Length.EqualTo(3));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(object)));
+            Assert.That(layout.Fields[0].Offset, Is.Zero);
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(8));
+            Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(int)));
+            Assert.That(layout.Fields[1].Offset, Is.EqualTo(8));
+            Assert.That(layout.Fields[1].Size, Is.EqualTo(4));
+            Assert.That(layout.Fields[2].Size, Is.EqualTo(4)); // TODO: Remove padding
         }
 
         [Test]

@@ -113,7 +113,16 @@ namespace Opc.Ua
                     return Unsafe.As<T, int>(ref value);
             }
 #else
-            switch (typeof(T).GetEnumUnderlyingType())
+            return EnumToInt32((object)value, typeof(T));
+#endif
+        }
+
+        /// <summary>
+        /// Convert int to enum T
+        /// </summary>
+        public static int EnumToInt32(object value, Type type)
+        {
+            switch (type.IsEnum ? Enum.GetUnderlyingType(type) : type)
             {
                 case Type t when t == typeof(byte):
                     return unchecked((byte)(object)value);
@@ -133,7 +142,6 @@ namespace Opc.Ua
                     return unchecked((int)(ulong)(object)value);
             }
             return 0;
-#endif
         }
 
         /// <summary>
@@ -154,6 +162,48 @@ namespace Opc.Ua
             where T : struct, Enum
         {
             return values.ConvertAll(EnumToInt32);
+        }
+
+        /// <summary>
+        /// Convert int to enum T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static long EnumToInt64<T>(T value) where T : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            switch (Unsafe.SizeOf<T>())
+            {
+                case sizeof(byte):
+                    return Unsafe.As<T, byte>(ref value);
+                case sizeof(ushort):
+                    return Unsafe.As<T, ushort>(ref value);
+                case sizeof(uint):
+                    return Unsafe.As<T, uint>(ref value);
+                default:
+                    return Unsafe.As<T, long>(ref value);
+            }
+#else
+            switch (typeof(T).GetEnumUnderlyingType())
+            {
+                case Type t when t == typeof(byte):
+                    return unchecked((byte)(object)value);
+                case Type t when t == typeof(sbyte):
+                    return unchecked((sbyte)(object)value);
+                case Type t when t == typeof(short):
+                    return unchecked((short)(object)value);
+                case Type t when t == typeof(ushort):
+                    return unchecked((ushort)(object)value);
+                case Type t when t == typeof(int):
+                    return unchecked((int)(object)value);
+                case Type t when t == typeof(uint):
+                    return unchecked((uint)(object)value);
+                case Type t when t == typeof(long):
+                    return unchecked((long)(object)value);
+                case Type t when t == typeof(ulong):
+                    return unchecked((long)(ulong)(object)value);
+            }
+            return 0;
+#endif
         }
 
         /// <summary>
@@ -225,7 +275,43 @@ namespace Opc.Ua
             {
                 return null;
             }
-            return Enum.ToObject(type, value);
+            Type enumType = type.GetEnumUnderlyingType();
+            if (type == typeof(int))
+            {
+                return Enum.ToObject(enumType, value);
+            }
+            else if (type == typeof(uint))
+            {
+                return Enum.ToObject(enumType, (uint)value);
+            }
+            else if (type == typeof(byte))
+            {
+                return Enum.ToObject(enumType, (byte)value);
+            }
+            else if (type == typeof(sbyte))
+            {
+                return Enum.ToObject(enumType, (sbyte)value);
+            }
+            else if (type == typeof(short))
+            {
+                return Enum.ToObject(enumType, (short)value);
+            }
+            else if (type == typeof(ushort))
+            {
+                return Enum.ToObject(enumType, (ushort)value);
+            }
+            else if (type == typeof(long))
+            {
+                return Enum.ToObject(enumType, (long)value);
+            }
+            else if(type == typeof(ulong))
+            {
+                return Enum.ToObject(enumType, (ulong)value);
+            }
+            else
+            {
+                return Enum.ToObject(type, value);
+            }
         }
 
         /// <summary>

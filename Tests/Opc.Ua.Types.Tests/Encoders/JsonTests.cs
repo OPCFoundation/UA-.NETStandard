@@ -305,7 +305,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            DateTime expected = (DateTime)value;
+            var expected = (DateTime)value;
             var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
@@ -314,7 +314,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = (DateTime)decoder.ReadDateTime(JsonProperties.Value);
+            var result = (DateTime)decoder.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }

@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.State
 {
@@ -311,6 +313,522 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node();
             ReferenceCollection table = node.ReferenceTable;
             Assert.That(table, Is.Not.Null);
+        }
+
+        [Test]
+        public void ReadNodeIdAttribute()
+        {
+            var node = new Node { NodeId = new NodeId(8001) };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.NodeId, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(dataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That((NodeId)dataValue.WrappedValue, Is.EqualTo(new NodeId(8001)));
+        }
+
+        [Test]
+        public void ReadNodeClassAttribute()
+        {
+            var node = new Node { NodeClass = NodeClass.Variable };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.NodeClass, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((NodeClass)(int)dataValue.WrappedValue, Is.EqualTo(NodeClass.Variable));
+        }
+
+        [Test]
+        public void ReadBrowseNameAttribute()
+        {
+            var node = new Node { BrowseName = new QualifiedName("ReadTest") };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.BrowseName, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((QualifiedName)dataValue.WrappedValue, Is.EqualTo(new QualifiedName("ReadTest")));
+        }
+
+        [Test]
+        public void ReadDisplayNameAttribute()
+        {
+            var node = new Node { DisplayName = new LocalizedText("Display Read") };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.DisplayName, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((LocalizedText)dataValue.WrappedValue, Is.EqualTo(new LocalizedText("Display Read")));
+        }
+
+        [Test]
+        public void ReadDescriptionAttribute()
+        {
+            var node = new Node { Description = new LocalizedText("Desc Read") };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.Description, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((LocalizedText)dataValue.WrappedValue, Is.EqualTo(new LocalizedText("Desc Read")));
+        }
+
+        [Test]
+        public void ReadWriteMaskAttribute()
+        {
+            var node = new Node { WriteMask = 0xAB };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.WriteMask, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((uint)dataValue.WrappedValue, Is.EqualTo(0xABu));
+        }
+
+        [Test]
+        public void ReadUserWriteMaskAttribute()
+        {
+            var node = new Node { UserWriteMask = 0xCD };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.UserWriteMask, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((uint)dataValue.WrappedValue, Is.EqualTo(0xCDu));
+        }
+
+        [Test]
+        public void ReadAccessRestrictionsAttribute()
+        {
+            var node = new Node { AccessRestrictions = 7 };
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.AccessRestrictions, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That((ushort)dataValue.WrappedValue, Is.EqualTo((ushort)7));
+        }
+
+        [Test]
+        public void ReadRolePermissionsAttribute()
+        {
+            var node = new Node();
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.RolePermissions, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+        }
+
+        [Test]
+        public void ReadUserRolePermissionsAttribute()
+        {
+            var node = new Node();
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.UserRolePermissions, dataValue);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+        }
+
+        [Test]
+        public void ReadUnsupportedAttributeReturnsBadStatus()
+        {
+            var node = new Node();
+            var dataValue = new DataValue();
+
+            ServiceResult result = node.Read(null, Attributes.Value, dataValue);
+
+            Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+        }
+
+        [Test]
+        public void WriteNodeIdReturnsNotWritable()
+        {
+            var node = new Node { NodeId = new NodeId(8100) };
+            var dataValue = new DataValue { WrappedValue = new NodeId(8200) };
+
+            ServiceResult result = node.Write(Attributes.NodeId, dataValue);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void WriteNodeClassReturnsNotWritable()
+        {
+            var node = new Node { NodeClass = NodeClass.Object };
+            var dataValue = new DataValue { WrappedValue = Variant.From(NodeClass.Variable) };
+
+            ServiceResult result = node.Write(Attributes.NodeClass, dataValue);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void WriteUnsupportedAttributeReturnsBadStatus()
+        {
+            var node = new Node();
+            var dataValue = new DataValue { WrappedValue = 42 };
+
+            ServiceResult result = node.Write(Attributes.Value, dataValue);
+
+            Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+        }
+
+        [Test]
+        public void WriteWithTypeMismatchReturnsBadTypeMismatch()
+        {
+            var node = new Node();
+            var dataValue = new DataValue { WrappedValue = "wrong type" };
+
+            ServiceResult result = node.Write(Attributes.WriteMask, dataValue);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void EncodeDecodeRoundTrip()
+        {
+            var original = new Node
+            {
+                NodeId = new NodeId(8300),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("RoundTrip"),
+                DisplayName = new LocalizedText("Round Trip Node"),
+                Description = new LocalizedText("Round trip test"),
+                WriteMask = 42,
+                UserWriteMask = 7,
+                AccessRestrictions = 3
+            };
+
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+
+            byte[] encoded;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                original.Encode(encoder);
+                encoded = encoder.CloseAndReturnBuffer();
+            }
+
+            var decoded = new Node();
+            using (var decoder = new BinaryDecoder(encoded, messageContext))
+            {
+                decoded.Decode(decoder);
+            }
+
+            Assert.That(decoded.NodeId, Is.EqualTo(original.NodeId));
+            Assert.That(decoded.NodeClass, Is.EqualTo(original.NodeClass));
+            Assert.That(decoded.BrowseName, Is.EqualTo(original.BrowseName));
+            Assert.That(decoded.DisplayName, Is.EqualTo(original.DisplayName));
+            Assert.That(decoded.Description, Is.EqualTo(original.Description));
+            Assert.That(decoded.WriteMask, Is.EqualTo(original.WriteMask));
+            Assert.That(decoded.UserWriteMask, Is.EqualTo(original.UserWriteMask));
+            Assert.That(decoded.AccessRestrictions, Is.EqualTo(original.AccessRestrictions));
+        }
+
+        [Test]
+        public void CopyConstructorFromReferenceDescription()
+        {
+            var reference = new ReferenceDescription
+            {
+                NodeId = new ExpandedNodeId(8400),
+                NodeClass = NodeClass.Variable,
+                BrowseName = new QualifiedName("RefCopy"),
+                DisplayName = new LocalizedText("Ref Copy Node")
+            };
+
+            var node = new Node(reference);
+
+            Assert.That(node.NodeId, Is.EqualTo(new NodeId(8400)));
+            Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Variable));
+            Assert.That(node.BrowseName, Is.EqualTo(new QualifiedName("RefCopy")));
+            Assert.That(node.DisplayName, Is.EqualTo(new LocalizedText("Ref Copy Node")));
+        }
+
+        [Test]
+        public void CopyConstructorFromILocalNode()
+        {
+            var source = new Node
+            {
+                NodeId = new NodeId(8500),
+                NodeClass = NodeClass.Method,
+                BrowseName = new QualifiedName("SourceNode"),
+                DisplayName = new LocalizedText("Source"),
+                Description = new LocalizedText("Source Desc"),
+                WriteMask = 10,
+                UserWriteMask = 5
+            };
+
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            var copy = new Node((ILocalNode)source);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+
+            Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+            Assert.That(copy.NodeClass, Is.EqualTo(source.NodeClass));
+            Assert.That(copy.BrowseName, Is.EqualTo(source.BrowseName));
+            Assert.That(copy.DisplayName, Is.EqualTo(source.DisplayName));
+            Assert.That(copy.Description, Is.EqualTo(source.Description));
+            Assert.That(copy.WriteMask, Is.EqualTo(source.WriteMask));
+            Assert.That(copy.UserWriteMask, Is.EqualTo(source.UserWriteMask));
+        }
+
+        [Test]
+        public void CopyConstructorFromNullILocalNode()
+        {
+            var node = new Node((ILocalNode)null);
+
+            Assert.That(node.NodeId, Is.Default);
+            Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Unspecified));
+        }
+
+        [Test]
+        public void IsEqualReturnsFalseForDifferentRolePermissions()
+        {
+            var rp1 = new RolePermissionType { RoleId = new NodeId(100), Permissions = 1 };
+            var rp2 = new RolePermissionType { RoleId = new NodeId(200), Permissions = 2 };
+
+            var node1 = new Node { NodeId = new NodeId(8600), RolePermissions = [rp1] };
+            var node2 = new Node { NodeId = new NodeId(8600), RolePermissions = [rp2] };
+
+            Assert.That(node1.IsEqual(node2), Is.False);
+        }
+
+        [Test]
+        public void IsEqualReturnsFalseForDifferentUserRolePermissions()
+        {
+            var rp1 = new RolePermissionType { RoleId = new NodeId(110), Permissions = 1 };
+            var rp2 = new RolePermissionType { RoleId = new NodeId(220), Permissions = 2 };
+
+            var node1 = new Node { NodeId = new NodeId(8601), UserRolePermissions = [rp1] };
+            var node2 = new Node { NodeId = new NodeId(8601), UserRolePermissions = [rp2] };
+
+            Assert.That(node1.IsEqual(node2), Is.False);
+        }
+
+        [Test]
+        public void IsEqualReturnsFalseForDifferentReferences()
+        {
+            var ref1 = new ReferenceNode(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(900));
+            var ref2 = new ReferenceNode(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(901));
+
+            var node1 = new Node { NodeId = new NodeId(8602), References = [ref1] };
+            var node2 = new Node { NodeId = new NodeId(8602), References = [ref2] };
+
+            Assert.That(node1.IsEqual(node2), Is.False);
+        }
+
+        [Test]
+        public void IsEqualReturnsFalseForNonNodeEncodeable()
+        {
+            var node = new Node { NodeId = new NodeId(8603) };
+            var other = new ReferenceNode();
+
+            Assert.That(node.IsEqual(other), Is.False);
+        }
+
+        [Test]
+        public void ReferenceExistsReturnsTrueWhenPresent()
+        {
+            var node = new Node { NodeId = new NodeId(8700) };
+            var targetId = new ExpandedNodeId(8701);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, targetId);
+
+            bool exists = node.ReferenceExists(ReferenceTypeIds.HasComponent, false, targetId);
+
+            Assert.That(exists, Is.True);
+        }
+
+        [Test]
+        public void ReferenceExistsReturnsFalseWhenAbsent()
+        {
+            var node = new Node { NodeId = new NodeId(8710) };
+
+            bool exists = node.ReferenceExists(
+                ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(9999));
+
+            Assert.That(exists, Is.False);
+        }
+
+        [Test]
+        public void FindReturnsMatchingReferences()
+        {
+            var node = new Node { NodeId = new NodeId(8720) };
+            var target1 = new ExpandedNodeId(8721);
+            var target2 = new ExpandedNodeId(8722);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, target1);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, target2);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasProperty, false, new ExpandedNodeId(8723));
+
+            IList<IReference> found = node.Find(ReferenceTypeIds.HasComponent, false);
+
+            Assert.That(found, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void FindReturnsEmptyWhenNoMatch()
+        {
+            var node = new Node { NodeId = new NodeId(8730) };
+
+            IList<IReference> found = node.Find(ReferenceTypeIds.HasComponent, false);
+
+            Assert.That(found, Is.Empty);
+        }
+
+        [Test]
+        public void FindTargetReturnsMatchingTarget()
+        {
+            var node = new Node { NodeId = new NodeId(8740) };
+            var target = new ExpandedNodeId(8741);
+            node.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, target);
+
+            ExpandedNodeId foundTarget = node.FindTarget(ReferenceTypeIds.Organizes, false, 0);
+
+            Assert.That(foundTarget, Is.EqualTo(target));
+        }
+
+        [Test]
+        public void FindTargetReturnsDefaultWhenNotFound()
+        {
+            var node = new Node { NodeId = new NodeId(8750) };
+
+            ExpandedNodeId foundTarget = node.FindTarget(ReferenceTypeIds.Organizes, false, 0);
+
+            Assert.That(foundTarget, Is.Default);
+        }
+
+        [Test]
+        public void GetSuperTypeReturnsDefaultWhenNoReferences()
+        {
+            var node = new Node { NodeId = new NodeId(8800) };
+
+            ExpandedNodeId superType = node.GetSuperType(null);
+
+            Assert.That(superType, Is.Default);
+        }
+
+        [Test]
+        public void GetSuperTypeReturnsTargetWhenHasSubtypeInverse()
+        {
+            var node = new Node { NodeId = new NodeId(8810) };
+            var parentType = new ExpandedNodeId(8811);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, parentType);
+
+            ExpandedNodeId superType = node.GetSuperType(null);
+
+            Assert.That(superType, Is.EqualTo(parentType));
+        }
+
+        [Test]
+        public void TypeDefinitionIdReturnsDefaultWhenNoReferenceTable()
+        {
+            var node = new Node { NodeId = new NodeId(8820) };
+
+            ExpandedNodeId typeDefId = node.TypeDefinitionId;
+
+            Assert.That(typeDefId, Is.Default);
+        }
+
+        [Test]
+        public void TypeDefinitionIdReturnsTargetWhenPresent()
+        {
+            var node = new Node { NodeId = new NodeId(8830) };
+            var typeDef = new ExpandedNodeId(8831);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDef);
+
+            ExpandedNodeId typeDefId = node.TypeDefinitionId;
+
+            Assert.That(typeDefId, Is.EqualTo(typeDef));
+        }
+
+        [Test]
+        public void GetHashCodeReturnsConsistentValue()
+        {
+            var node = new Node
+            {
+                NodeId = new NodeId(8900),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("HashTest")
+            };
+
+            int hash1 = node.GetHashCode();
+            int hash2 = node.GetHashCode();
+
+            Assert.That(hash1, Is.EqualTo(hash2));
+        }
+
+        [Test]
+        public void ModellingRuleReturnsDefaultWhenNotSet()
+        {
+            var node = new Node { NodeId = new NodeId(8910) };
+
+            NodeId modellingRule = node.ModellingRule;
+
+            Assert.That(modellingRule, Is.Default);
+        }
+
+        [Test]
+        public void ILocalNodeWriteMaskPropertyMaps()
+        {
+            var node = new Node { WriteMask = 0xFF };
+
+            ILocalNode localNode = node;
+
+#pragma warning disable RCS1257 // Use enum field explicitly
+            Assert.That(localNode.WriteMask, Is.EqualTo((AttributeWriteMask)0xFF));
+#pragma warning restore RCS1257 // Use enum field explicitly
+
+            localNode.WriteMask = AttributeWriteMask.DisplayName;
+            Assert.That(node.WriteMask, Is.EqualTo((uint)AttributeWriteMask.DisplayName));
+        }
+
+        [Test]
+        public void ILocalNodeUserWriteMaskPropertyMaps()
+        {
+            var node = new Node { UserWriteMask = 0x0F };
+
+            ILocalNode localNode = node;
+
+#pragma warning disable RCS1257 // Use enum field explicitly
+            Assert.That(localNode.UserWriteMask, Is.EqualTo((AttributeWriteMask)0x0F));
+#pragma warning restore RCS1257 // Use enum field explicitly
+
+            localNode.UserWriteMask = AttributeWriteMask.Description;
+            Assert.That(node.UserWriteMask, Is.EqualTo((uint)AttributeWriteMask.Description));
+        }
+
+        [Test]
+        public void ILocalNodeReferencesReturnsReferenceTable()
+        {
+            var node = new Node { NodeId = new NodeId(8920) };
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(8921));
+
+            ILocalNode localNode = node;
+
+            Assert.That(localNode.References, Is.Not.Null);
+            Assert.That(localNode.References, Is.SameAs(node.ReferenceTable));
+        }
+
+        [Test]
+        public void INodeNodeIdReturnsExpandedNodeId()
+        {
+            var node = new Node { NodeId = new NodeId(8930) };
+
+            INode iNode = node;
+
+            Assert.That(iNode.NodeId, Is.EqualTo(new ExpandedNodeId(new NodeId(8930))));
+        }
+
+        [Test]
+        public void SupportsAttributeForRolePermissions()
+        {
+            var node = new Node();
+            Assert.That(node.SupportsAttribute(Attributes.RolePermissions), Is.True);
+            Assert.That(node.SupportsAttribute(Attributes.UserRolePermissions), Is.True);
+            Assert.That(node.SupportsAttribute(Attributes.AccessRestrictions), Is.True);
         }
     }
 }

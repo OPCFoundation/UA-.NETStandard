@@ -282,7 +282,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             Assert.That(node.Extensions, Is.Null);
-            node.Extensions = Array.Empty<XmlElement>();
+            node.Extensions = [];
             Assert.That(node.Extensions, Is.Not.Null);
         }
 

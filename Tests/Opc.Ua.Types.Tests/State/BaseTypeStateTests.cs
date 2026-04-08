@@ -43,18 +43,19 @@ namespace Opc.Ua.Types.Tests.State
     {
         private const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         private SystemContext m_context;
+        private ServiceMessageContext m_messageContext;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
-            messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
+            m_messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            m_messageContext.NamespaceUris.GetIndexOrAppend(ApplicationUri);
             m_context = new SystemContext(telemetry)
             {
-                NamespaceUris = messageContext.NamespaceUris,
-                ServerUris = messageContext.ServerUris,
-                EncodeableFactory = messageContext.Factory
+                NamespaceUris = m_messageContext.NamespaceUris,
+                ServerUris = m_messageContext.ServerUris,
+                EncodeableFactory = m_messageContext.Factory
             };
         }
 
@@ -241,6 +242,130 @@ namespace Opc.Ua.Types.Tests.State
             ot.Export(m_context, table);
             Assert.That(table, Is.Not.Empty);
             ot.Dispose();
+        }
+
+        [Test]
+        public void SaveAndUpdateBinaryRoundTripWithAllProperties()
+        {
+            var original = new DataTypeState
+            {
+                NodeId = new NodeId(3020),
+                BrowseName = new QualifiedName("SaveUpdateType"),
+                DisplayName = new LocalizedText("Save Update Type"),
+                SuperTypeId = new NodeId(400),
+                IsAbstract = true
+            };
+
+            AttributesToSave attributesToSave = original.GetAttributesToSave(m_context);
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
+            {
+                original.Save(m_context, encoder, attributesToSave);
+            }
+
+            ms.Position = 0;
+            var restored = new DataTypeState();
+            using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
+            {
+                restored.Update(m_context, decoder, attributesToSave);
+            }
+
+            Assert.That(restored.SuperTypeId, Is.EqualTo(original.SuperTypeId));
+            Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
+            restored.Dispose();
+            original.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentSuperTypeId()
+        {
+            var dt1 = new DataTypeState
+            {
+                NodeId = new NodeId(3030),
+                BrowseName = new QualifiedName("Type"),
+                SuperTypeId = new NodeId(100)
+            };
+
+            var dt2 = (DataTypeState)dt1.Clone();
+            dt2.SuperTypeId = new NodeId(200);
+
+            Assert.That(dt1.DeepEquals(dt2), Is.False);
+            dt1.Dispose();
+            dt2.Dispose();
+        }
+
+        [Test]
+        public void DeepEqualsReturnsFalseForDifferentIsAbstract()
+        {
+            var dt1 = new DataTypeState
+            {
+                NodeId = new NodeId(3031),
+                BrowseName = new QualifiedName("Type"),
+                IsAbstract = false
+            };
+
+            var dt2 = (DataTypeState)dt1.Clone();
+            dt2.IsAbstract = true;
+
+            Assert.That(dt1.DeepEquals(dt2), Is.False);
+            dt1.Dispose();
+            dt2.Dispose();
+        }
+
+        [Test]
+        public void ObjectTypeStateBinarySaveAndUpdateRoundTrip()
+        {
+            var original = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(3040),
+                BrowseName = new QualifiedName("ObjTypeSaveUpdate"),
+                DisplayName = new LocalizedText("Object Type Save Update"),
+                SuperTypeId = new NodeId(500),
+                IsAbstract = true
+            };
+
+            AttributesToSave attributesToSave = original.GetAttributesToSave(m_context);
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
+            {
+                original.Save(m_context, encoder, attributesToSave);
+            }
+
+            ms.Position = 0;
+            var restored = new BaseObjectTypeState();
+            using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
+            {
+                restored.Update(m_context, decoder, attributesToSave);
+            }
+
+            Assert.That(restored.SuperTypeId, Is.EqualTo(original.SuperTypeId));
+            Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
+            restored.Dispose();
+            original.Dispose();
+        }
+
+        [Test]
+        public void DeepGetHashCodeReturnsDifferentForDifferentProperties()
+        {
+            var dt1 = new DataTypeState
+            {
+                NodeId = new NodeId(3050),
+                BrowseName = new QualifiedName("Type1"),
+                SuperTypeId = new NodeId(100),
+                IsAbstract = false
+            };
+
+            var dt2 = new DataTypeState
+            {
+                NodeId = new NodeId(3051),
+                BrowseName = new QualifiedName("Type2"),
+                SuperTypeId = new NodeId(200),
+                IsAbstract = true
+            };
+
+            Assert.That(dt1.DeepGetHashCode(), Is.Not.EqualTo(dt2.DeepGetHashCode()));
+            dt1.Dispose();
+            dt2.Dispose();
         }
     }
 }
