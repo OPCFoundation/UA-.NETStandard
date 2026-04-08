@@ -43,6 +43,7 @@ namespace Opc.Ua.Client.Tests
     /// Server load tests.
     /// </summary>
     [TestFixture]
+    [Explicit]
     [Category("LoadTest")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]

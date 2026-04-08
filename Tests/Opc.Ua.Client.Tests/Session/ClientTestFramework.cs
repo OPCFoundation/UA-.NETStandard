@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -47,6 +48,12 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientTestFramework
     {
+        /// <summary>
+        /// Limits concurrent server startups to avoid CPU starvation during
+        /// address space creation (TestData node managers are CPU-intensive).
+        /// </summary>
+        private static readonly SemaphoreSlim s_serverStartupThrottle = new(2);
+
         public static readonly object[] FixtureArgs =
         [
             new object[] { Utils.UriSchemeOpcTcp },
@@ -325,8 +332,19 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
-            ReferenceServer = await ServerFixture.StartAsync()
-                .ConfigureAwait(false);
+
+            // Throttle concurrent server startups to prevent CPU starvation
+            // during address space creation (TestData generates random data).
+            await s_serverStartupThrottle.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                ReferenceServer = await ServerFixture.StartAsync()
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                s_serverStartupThrottle.Release();
+            }
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
@@ -338,13 +356,29 @@ namespace Opc.Ua.Client.Tests
         {
             if (Session != null)
             {
-                await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                try
+                {
+                    await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Error closing session during teardown.");
+                }
                 Session.Dispose();
                 Session = null;
             }
             if (ServerFixture != null)
             {
-                await ServerFixture.StopAsync().ConfigureAwait(false);
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await ServerFixture.StopAsync().WaitAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Error stopping server during teardown, forcing dispose.");
+                    Utils.SilentDispose(ServerFixture.Server);
+                }
                 await Task.Delay(100).ConfigureAwait(false);
             }
             Utils.SilentDispose(ClientFixture);

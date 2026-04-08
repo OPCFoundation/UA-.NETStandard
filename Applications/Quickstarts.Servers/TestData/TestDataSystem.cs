@@ -114,6 +114,11 @@ namespace TestData
         }
 
         /// <summary>
+        /// Gets the data generator used for random value generation.
+        /// </summary>
+        public Opc.Ua.Test.DataGenerator Generator => m_generator;
+
+        /// <summary>
         /// Creates an archive for the variable.
         /// </summary>
         public void EnableHistoryArchiving(BaseVariableState variable)

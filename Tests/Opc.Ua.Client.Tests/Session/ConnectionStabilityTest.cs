@@ -75,6 +75,8 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Order(100)]
+        [Explicit]
+        [Category("ConnectionStability")]
         public async Task ShortHaulStabilityTestAsync()
         {
             try

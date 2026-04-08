@@ -1706,6 +1706,7 @@ namespace Opc.Ua.Test
                 BuiltInType.Variant or
                 BuiltInType.DataValue or
                 BuiltInType.Null or
+                BuiltInType.XmlElement or
                 BuiltInType.DiagnosticInfo) // Invalid
             {
                 builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
