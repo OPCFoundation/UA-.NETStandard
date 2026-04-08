@@ -55,12 +55,6 @@ namespace Opc.Ua.Server
             new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
 
         /// <summary>
-        /// The Role is allowed to browse and read non-security related Nodes.
-        /// </summary>
-        public static Role TrustedApplication { get; } =
-            new Role(ObjectIds.WellKnownRole_TrustedApplication, BrowseNames.WellKnownRole_TrustedApplication);
-
-        /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
         /// </summary>
         public static Role Observer { get; } =
