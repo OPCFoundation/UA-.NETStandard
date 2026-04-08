@@ -195,11 +195,19 @@ namespace Opc.Ua
         /// The transport configuration for the application.
         /// </summary>
         /// <value>The transport configurations.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 5)]
-        public TransportConfigurationCollection TransportConfigurations
+        [DataTypeField(Order = 4, ForceEncodeable = true, Name = "TransportConfigurations")]
+        [IgnoreDataMember]
+        public ArrayOf<TransportConfiguration> TransportConfigurations
         {
             get => m_transportConfigurations;
-            set => m_transportConfigurations = value ?? [];
+            set => m_transportConfigurations = value;
+        }
+
+        [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 5)]
+        private TransportConfiguration[] TransportConfigurationsDcs
+        {
+            get => m_transportConfigurations.ToArray();
+            set => m_transportConfigurations = value.ToArrayOf();
         }
 
         /// <summary>
@@ -265,7 +273,7 @@ namespace Opc.Ua
         private ITelemetryContext m_telemetry;
         private ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
-        private TransportConfigurationCollection m_transportConfigurations;
+        private ArrayOf<TransportConfiguration> m_transportConfigurations;
         private ArrayOf<XmlElement> m_extensions;
         private List<object> m_extensionObjects;
         private Dictionary<string, object> m_properties;
@@ -524,45 +532,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of TransportConfiguration objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfTransportConfiguration",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "TransportConfiguration"
-    )]
-    public partial class TransportConfigurationCollection : List<TransportConfiguration>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public TransportConfigurationCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public TransportConfigurationCollection(int capacity)
-            : base(capacity)
-        {
-        }
-    }
-
-    /// <summary>
     /// A class that defines a group of security policies supported by the server.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaConfig)]
@@ -638,45 +607,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of ServerSecurityPolicy objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfServerSecurityPolicy",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "ServerSecurityPolicy"
-    )]
-    public partial class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public ServerSecurityPolicyCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public ServerSecurityPolicyCollection(int capacity)
-            : base(capacity)
-        {
-        }
-    }
-
-    /// <summary>
     /// The security configuration for the application.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaConfig)]
@@ -742,25 +672,30 @@ namespace Opc.Ua
             }
             set
             {
-                if (m_applicationCertificates.Count > 0)
+                var list = new List<CertificateIdentifier>(m_applicationCertificates.ToArray() ?? []);
+                if (list.Count > 0)
                 {
                     if (value == null)
                     {
-                        m_applicationCertificates.RemoveAt(0);
+                        list.RemoveAt(0);
                     }
                     else
                     {
-                        m_applicationCertificates[0] = value;
+                        list[0] = value;
                     }
                 }
-                else
+                else if (value != null)
                 {
-                    m_applicationCertificates.Add(value);
+                    list.Add(value);
                 }
+                m_applicationCertificates = list.ToArrayOf();
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
 
-                m_applicationCertificates[0].CertificateType = ObjectTypeIds
-                    .RsaSha256ApplicationCertificateType;
+                if (m_applicationCertificates.Count > 0)
+                {
+                    m_applicationCertificates[0].CertificateType = ObjectTypeIds
+                        .RsaSha256ApplicationCertificateType;
+                }
                 IsDeprecatedConfiguration = true;
             }
         }
@@ -769,6 +704,7 @@ namespace Opc.Ua
         /// This private property exists solely to control serialization of the legacy single
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
+        [DataTypeField(Order = 0, ForceEncodeable = true, Name = "ApplicationCertificate")]
         [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
@@ -785,13 +721,21 @@ namespace Opc.Ua
         /// <summary>
         /// The application instance certificates in use for the application.
         /// </summary>
+        [DataTypeField(Order = 1, ForceEncodeable = true, Name = "ApplicationCertificates")]
         [IgnoreDataMember]
-        public CertificateIdentifierCollection ApplicationCertificates
+        public ArrayOf<CertificateIdentifier> ApplicationCertificates
         {
             get => m_applicationCertificates;
             set
             {
-                if (value == null || value.Count == 0)
+                // When the element is absent from XML, the decoder passes default (IsNull).
+                // Preserve existing state (e.g., set by the legacy ApplicationCertificate).
+                if (value.IsNull)
+                {
+                    return;
+                }
+
+                if (value.IsEmpty)
                 {
                     m_applicationCertificates = [];
                     return;
@@ -802,7 +746,7 @@ namespace Opc.Ua
                 // prefer the modern representation and clear the
                 // deprecated flag when we process the collection below.
 
-                var newCertificates = new CertificateIdentifierCollection(value);
+                var newCertificates = new List<CertificateIdentifier>(value.ToArray());
 
                 // Remove unsupported certificate types
                 for (int i = newCertificates.Count - 1; i >= 0; i--)
@@ -846,7 +790,7 @@ namespace Opc.Ua
                     }
                 }
 
-                m_applicationCertificates = newCertificates;
+                m_applicationCertificates = newCertificates.ToArrayOf();
 
                 // Presence of the modern collection takes precedence over legacy; clear the flag so
                 // hybrid configurations are treated as modern.
@@ -860,10 +804,16 @@ namespace Opc.Ua
         /// Emit only when the configuration is not marked deprecated.
         /// </summary>
         [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        private CertificateIdentifierCollection ApplicationCertificatesDataContract
+        private CertificateIdentifier[] ApplicationCertificatesDataContract
         {
-            get => IsDeprecatedConfiguration ? null : ApplicationCertificates;
-            set => ApplicationCertificates = value;
+            get => IsDeprecatedConfiguration ? null : ApplicationCertificates.ToArray();
+            set
+            {
+                if (value != null)
+                {
+                    ApplicationCertificates = value.ToArrayOf();
+                }
+            }
         }
 
         /// <summary>
@@ -1063,7 +1013,7 @@ namespace Opc.Ua
         /// </summary>
         public bool IsDeprecatedConfiguration { get; set; }
 
-        private CertificateIdentifierCollection m_applicationCertificates;
+        private ArrayOf<CertificateIdentifier> m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
         private CertificateTrustList m_httpsIssuerCertificates;
@@ -1149,45 +1099,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of SamplingRateGroup objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfSamplingRateGroup",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "SamplingRateGroup"
-    )]
-    public partial class SamplingRateGroupCollection : List<SamplingRateGroup>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public SamplingRateGroupCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public SamplingRateGroupCollection(int capacity)
-            : base(capacity)
-        {
-        }
-    }
-
-    /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaConfig)]
@@ -1241,7 +1152,7 @@ namespace Opc.Ua
         private void ValidateSecurityPolicyCollection(StreamingContext context)
         {
             string[] supportedPolicies = Ua.SecurityPolicies.GetDisplayNames();
-            var newPolicies = new ServerSecurityPolicyCollection();
+            var newPolicies = new List<ServerSecurityPolicy>();
             foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
                 if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
@@ -1288,7 +1199,7 @@ namespace Opc.Ua
                     }
                 }
             }
-            m_securityPolicies = newPolicies;
+            m_securityPolicies = newPolicies.ToArrayOf();
         }
 
         /// <summary>
@@ -1330,11 +1241,19 @@ namespace Opc.Ua
         /// <remarks>
         /// An endpoint description is created for each combination of base address and security policy.
         /// </remarks>
-        [DataMember(IsRequired = false, Order = 2)]
-        public ServerSecurityPolicyCollection SecurityPolicies
+        [DataTypeField(Order = 2, ForceEncodeable = true, Name = "SecurityPolicies")]
+        [IgnoreDataMember]
+        public ArrayOf<ServerSecurityPolicy> SecurityPolicies
         {
             get => m_securityPolicies;
-            set => m_securityPolicies = value ?? [];
+            set => m_securityPolicies = value;
+        }
+
+        [DataMember(IsRequired = false, Order = 2)]
+        private ServerSecurityPolicy[] SecurityPoliciesDcs
+        {
+            get => m_securityPolicies.ToArray();
+            set => m_securityPolicies = value.ToArrayOf();
         }
 
         /// <summary>
@@ -1360,7 +1279,7 @@ namespace Opc.Ua
 
         private ArrayOf<string> m_baseAddresses;
         private ArrayOf<string> m_alternateBaseAddresses;
-        private ServerSecurityPolicyCollection m_securityPolicies;
+        private ArrayOf<ServerSecurityPolicy> m_securityPolicies;
     }
 
     /// <summary>
@@ -1572,8 +1491,16 @@ namespace Opc.Ua
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
+        [DataTypeField(Order = 18, ForceEncodeable = true, Name = "AvailableSamplingRates")]
+        [IgnoreDataMember]
+        public ArrayOf<SamplingRateGroup> AvailableSamplingRates { get; set; }
+
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
-        public SamplingRateGroupCollection AvailableSamplingRates { get; set; }
+        private SamplingRateGroup[] AvailableSamplingRatesDcs
+        {
+            get => AvailableSamplingRates.ToArray();
+            set => AvailableSamplingRates = value.ToArrayOf();
+        }
 
         /// <summary>
         /// The endpoint description for the registration endpoint.
@@ -1775,8 +1702,16 @@ namespace Opc.Ua
         /// <summary>
         /// A collection of reverse connect clients.
         /// </summary>
+        [DataTypeField(Order = 0, ForceEncodeable = true, Name = "Clients")]
+        [IgnoreDataMember]
+        public ArrayOf<ReverseConnectClient> Clients { get; set; }
+
         [DataMember(Order = 10)]
-        public ReverseConnectClientCollection Clients { get; set; }
+        private ReverseConnectClient[] ClientsDcs
+        {
+            get => Clients.ToArray();
+            set => Clients = value.ToArrayOf();
+        }
 
         /// <summary>
         /// The interval after which a new reverse connection is attempted.
@@ -1989,45 +1924,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of reverse connect clients.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfReverseConnectClient",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "ReverseConnectClient"
-    )]
-    public partial class ReverseConnectClientCollection : List<ReverseConnectClient>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public ReverseConnectClientCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientCollection(int capacity)
-            : base(capacity)
-        {
-        }
-    }
-
-    /// <summary>
     /// The configuration for a client application.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaConfig)]
@@ -2137,8 +2033,16 @@ namespace Opc.Ua
         /// <summary>
         /// A collection of reverse connect client endpoints.
         /// </summary>
+        [DataTypeField(Order = 0, ForceEncodeable = true, Name = "ClientEndpoints")]
+        [IgnoreDataMember]
+        public ArrayOf<ReverseConnectClientEndpoint> ClientEndpoints { get; set; }
+
         [DataMember(Order = 10, IsRequired = false)]
-        public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
+        private ReverseConnectClientEndpoint[] ClientEndpointsDcs
+        {
+            get => ClientEndpoints.ToArray();
+            set => ClientEndpoints = value.ToArrayOf();
+        }
 
         /// <summary>
         /// The time a reverse hello port is held open to wait for a
@@ -2166,46 +2070,6 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 1, IsRequired = false)]
         public string EndpointUrl { get; set; }
-    }
-
-    /// <summary>
-    /// A collection of reverse connect client endpoints.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfReverseConnectClientEndpoint",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "ClientEndpoint"
-    )]
-    public partial class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public ReverseConnectClientEndpointCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public ReverseConnectClientEndpointCollection(
-            IEnumerable<ReverseConnectClientEndpoint> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientEndpointCollection(int capacity)
-            : base(capacity)
-        {
-        }
     }
 
     /// <summary>
@@ -2260,8 +2124,16 @@ namespace Opc.Ua
         /// Gets or sets the server registrations associated with the discovery server.
         /// </summary>
         /// <value>The server registrations.</value>
+        [DataTypeField(Order = 1, ForceEncodeable = true, Name = "ServerRegistrations")]
+        [IgnoreDataMember]
+        public ArrayOf<ServerRegistration> ServerRegistrations { get; set; }
+
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public ServerRegistrationCollection ServerRegistrations { get; set; }
+        private ServerRegistration[] ServerRegistrationsDcs
+        {
+            get => ServerRegistrations.ToArray();
+            set => ServerRegistrations = value.ToArrayOf();
+        }
     }
 
     /// <summary>
@@ -2324,45 +2196,6 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public ArrayOf<string> AlternateDiscoveryUrls { get; set; }
-    }
-
-    /// <summary>
-    /// A collection of AdditionalServerRegistrationInfo objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfServerRegistration",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "ServerRegistration"
-    )]
-    public partial class ServerRegistrationCollection : List<ServerRegistration>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public ServerRegistrationCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The capacity.</param>
-        public ServerRegistrationCollection(int capacity)
-            : base(capacity)
-        {
-        }
     }
 
     /// <summary>
@@ -2458,49 +2291,24 @@ namespace Opc.Ua
         /// The list of trusted certificates.
         /// </summary>
         /// <value>
-        /// The list of trusted certificates is set when TrustedCertificates is not a null value,
-        /// otherwise new CertificateIdentifierCollection is set.
+        /// The list of trusted certificates.
         /// </value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public CertificateIdentifierCollection TrustedCertificates
+        [DataTypeField(Order = 3, ForceEncodeable = true, Name = "TrustedCertificates")]
+        [IgnoreDataMember]
+        public ArrayOf<CertificateIdentifier> TrustedCertificates
         {
             get => m_trustedCertificates;
-            set => m_trustedCertificates = value ?? [];
+            set => m_trustedCertificates = value;
         }
 
-        private CertificateIdentifierCollection m_trustedCertificates;
-    }
-
-    [CollectionDataContract(
-        Name = "ApplicationCertificates",
-        Namespace = Namespaces.OpcUaConfig,
-        ItemName = "CertificateIdentifier"
-    )]
-    public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public CertificateIdentifierCollection()
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        private CertificateIdentifier[] TrustedCertificatesDcs
         {
+            get => m_trustedCertificates.ToArray();
+            set => m_trustedCertificates = value.ToArrayOf();
         }
 
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">A collection of values to add to this new collection</param>
-        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        public CertificateIdentifierCollection(int capacity)
-            : base(capacity)
-        {
-        }
+        private ArrayOf<CertificateIdentifier> m_trustedCertificates;
     }
 
     [DataType(Namespace = Namespaces.OpcUaConfig)]

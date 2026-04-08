@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
 
             pkiRoot ??= Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,

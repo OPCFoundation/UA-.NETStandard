@@ -378,7 +378,7 @@ namespace Opc.Ua.Client.Tests
             };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName);
 

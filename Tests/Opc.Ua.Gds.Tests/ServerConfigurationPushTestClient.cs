@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Tests
                 SecurityTokenLifetime = 3600000
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
                     CertificateStoreType.Directory,

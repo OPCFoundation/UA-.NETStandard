@@ -58,7 +58,9 @@ namespace Opc.Ua
         /// </summary>
         public void AddTrustedPeer(byte[] certificate)
         {
-            TrustedPeerCertificates.TrustedCertificates.Add(new CertificateIdentifier(certificate));
+            TrustedPeerCertificates.TrustedCertificates =
+                TrustedPeerCertificates.TrustedCertificates.AddItem(
+                    new CertificateIdentifier(certificate));
         }
 
         /// <summary>
@@ -67,7 +69,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Validate(ITelemetryContext telemetry)
         {
-            if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
+            if (m_applicationCertificates.IsNull || m_applicationCertificates.Count == 0)
             {
                 throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate must be specified.");
@@ -158,25 +160,25 @@ namespace Opc.Ua
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
             {
-                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId =>
+                CertificateIdentifier id = ApplicationCertificates.ToArray().FirstOrDefault(certId =>
                     certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.FirstOrDefault(
+                        id = ApplicationCertificates.ToArray().FirstOrDefault(
                             certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ApplicationCertificates.FirstOrDefault();
+                        id = ApplicationCertificates.ToArray().FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ApplicationCertificates.FirstOrDefault(certId =>
+                        id = ApplicationCertificates.ToArray().FirstOrDefault(certId =>
                             X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }

@@ -72,13 +72,15 @@ namespace Opc.Ua.Gds.Tests
             // verify the public cert matches the private key
             Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
             Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
-            var issuerCertIdCollection = new CertificateIdentifierCollection();
+            var issuerCertIdList = new List<CertificateIdentifier>();
             foreach (byte[] issuer in issuerCertificates)
             {
                 X509Certificate2 issuerCert = CertificateFactory.Create(issuer);
                 Assert.That(issuerCert, Is.Not.Null);
-                issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
+                issuerCertIdList.Add(new CertificateIdentifier(issuerCert));
             }
+
+            var issuerCertIdCollection = issuerCertIdList.ToArrayOf();
 
             // verify cert with issuer chain
             var certValidator = new CertificateValidator(telemetry);

@@ -138,7 +138,8 @@ namespace Opc.Ua.Server
                     .. defaultApplicationGroup.CertificateTypes,
                     .. new NodeId[] { cert.CertificateType }
                 ];
-                defaultApplicationGroup.ApplicationCertificates.Add(cert);
+                defaultApplicationGroup.ApplicationCertificates =
+                    defaultApplicationGroup.ApplicationCertificates.AddItem(cert);
 
                 if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType &&
                     defaultHttpsGroup != null)
@@ -148,7 +149,8 @@ namespace Opc.Ua.Server
                         .. defaultHttpsGroup.CertificateTypes,
                         .. new NodeId[] { cert.CertificateType }
                     ];
-                    defaultHttpsGroup.ApplicationCertificates.Add(cert);
+                    defaultHttpsGroup.ApplicationCertificates =
+                        defaultHttpsGroup.ApplicationCertificates.AddItem(cert);
                 }
             }
         }
@@ -564,10 +566,10 @@ namespace Opc.Ua.Server
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier =
                     (
-                        certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                        certificateGroup.ApplicationCertificates.ToList().FirstOrDefault(cert =>
                             X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
                             cert.CertificateType == certificateTypeId)
-                        ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                        ?? certificateGroup.ApplicationCertificates.ToList().FirstOrDefault(cert =>
                             cert.Certificate != null &&
                             X509Utils.GetApplicationUrisFromCertificate(cert.Certificate)
                                 .Any(uri => uri.Equals(m_configuration.ApplicationUri, StringComparison.Ordinal)) &&
@@ -609,12 +611,12 @@ namespace Opc.Ua.Server
                         // verify cert with issuer chain
                         var certValidator = new CertificateValidator(Server.Telemetry);
                         var issuerStore = new CertificateTrustList();
-                        var issuerCollection = new CertificateIdentifierCollection();
+                        var issuerList = new List<CertificateIdentifier>();
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
                         {
-                            issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            issuerList.Add(new CertificateIdentifier(issuerCert));
                         }
-                        issuerStore.TrustedCertificates = issuerCollection;
+                        issuerStore.TrustedCertificates = issuerList.ToArrayOf();
                         certValidator.Update(issuerStore, issuerStore, null);
                         await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
                     }
@@ -938,7 +940,7 @@ namespace Opc.Ua.Server
             // identify the existing certificate for which to CreateSigningRequest
             // it should be of the same type
             CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates
-                .FirstOrDefault(
+                .ToList().FirstOrDefault(
                     cert => cert.CertificateType == certificateTypeId);
 
             if (string.IsNullOrEmpty(subjectName))
@@ -1172,7 +1174,7 @@ namespace Opc.Ua.Server
 
             certificateTypeIds = certificateGroup.CertificateTypes;
             certificates = certificateGroup.ApplicationCertificates
-                .Select(s => s.Certificate?.RawData.ToByteString() ?? default)
+                .ToList().Select(s => s.Certificate?.RawData.ToByteString() ?? default)
                 .ToArrayOf();
 
             return ServiceResult.Good;
@@ -1396,7 +1398,7 @@ namespace Opc.Ua.Server
             public NodeId NodeId { get; set; }
             public CertificateGroupState Node { get; set; }
             public NodeId[] CertificateTypes { get; set; }
-            public CertificateIdentifierCollection ApplicationCertificates { get; set; }
+            public ArrayOf<CertificateIdentifier> ApplicationCertificates { get; set; }
             public CertificateStoreIdentifier IssuerStore { get; set; }
             public CertificateStoreIdentifier TrustedStore { get; set; }
             public UpdateCertificateData UpdateCertificate { get; set; }

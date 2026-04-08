@@ -2778,9 +2778,10 @@ namespace Opc.Ua.Server
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
-            if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
+            if (configuration.ServerConfiguration.SecurityPolicies.IsEmpty)
             {
-                configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
+                configuration.ServerConfiguration.SecurityPolicies =
+                    configuration.ServerConfiguration.SecurityPolicies.AddItem(new ServerSecurityPolicy());
             }
 
             // ensure at least one user token policy exists.

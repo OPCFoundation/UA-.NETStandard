@@ -105,7 +105,7 @@ namespace Opc.Ua.Aot.Tests
                 .SetDiagnosticsEnabled(true)
                 .SetAuditingEnabled(true);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
