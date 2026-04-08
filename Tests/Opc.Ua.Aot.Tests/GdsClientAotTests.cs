@@ -43,15 +43,6 @@ namespace Opc.Ua.Aot.Tests
     [ClassDataSource<GdsTestFixture>(Shared = SharedType.PerTestSession)]
     public class GdsClientAotTests(GdsTestFixture fixture)
     {
-        [Before(TUnit.Core.HookType.Test)]
-        public void SkipIfFixtureFailed()
-        {
-            if (fixture.SkipReason != null)
-            {
-                throw new TUnit.Core.Exceptions.SkipTestException(fixture.SkipReason);
-            }
-        }
-
         [Test]
         public async Task ConnectToGdsAsync()
         {

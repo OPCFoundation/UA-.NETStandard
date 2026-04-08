@@ -29,14 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Alarms;
+using Boiler;
+using MemoryBuffer;
+using TestData;
 
 namespace Quickstarts.Servers
 {
@@ -138,34 +139,18 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// Helper to determine the INodeManagerFactory by reflection.
-        /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
-            Justification = "Factory types are in the same assembly and their constructors are preserved.")]
-        private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
-        {
-            System.Reflection.TypeInfo nodeManagerTypeInfo = type.GetTypeInfo();
-            if (nodeManagerTypeInfo.IsAbstract ||
-                !typeof(INodeManagerFactory).IsAssignableFrom(type))
-            {
-                return null;
-            }
-            return Activator.CreateInstance(type) as INodeManagerFactory;
-        }
-
-        /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Scans types in the same assembly which are preserved.")]
         private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
-            Assembly assembly = typeof(Utils).Assembly;
-            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly
-                .GetExportedTypes()
-                .Select(IsINodeManagerFactoryType)
-                .Where(type => type != null);
-            return [.. nodeManagerFactories];
+            List<INodeManagerFactory> nodeManagerFactories = [];
+
+            nodeManagerFactories.Add(new MemoryBufferNodeManagerFactory());
+            nodeManagerFactories.Add(new TestDataNodeManagerFactory());
+            nodeManagerFactories.Add(new BoilerNodeManagerFactory());
+            nodeManagerFactories.Add(new AlarmNodeManagerFactory());
+
+            return nodeManagerFactories;
         }
 
         private static IList<INodeManagerFactory> s_nodeManagerFactories;

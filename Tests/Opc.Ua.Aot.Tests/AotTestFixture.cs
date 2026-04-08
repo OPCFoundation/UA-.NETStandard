@@ -100,7 +100,10 @@ namespace Opc.Ua.Aot.Tests
                     },
                     AutoAcceptUntrustedCertificates = true
                 },
-                TransportQuotas = new TransportQuotas(),
+                TransportQuotas = new TransportQuotas
+                {
+                    MaxMessageSize = 4 * 1024 * 1024
+                },
                 ClientConfiguration = new ClientConfiguration(),
                 ServerConfiguration = new ServerConfiguration()
             };
