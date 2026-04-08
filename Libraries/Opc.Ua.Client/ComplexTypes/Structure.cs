@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Xml;
@@ -82,6 +81,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 PropertyList.Add(newProperty);
             }
             PropertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
+            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
+        }
+
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        protected Structure(Structure structure)
+        {
+            Definition = structure.Definition;
+            XmlName = structure.XmlName;
+            TypeId = structure.TypeId;
+            XmlEncodingId = structure.XmlEncodingId;
+            BinaryEncodingId = structure.BinaryEncodingId;
+            FieldTypes = structure.FieldTypes;
+            PropertyList = structure.PropertyList.ConvertAll(p => (Field)p.Clone());
             PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
         }
 
@@ -231,7 +245,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return CreateInstance();
+            return new Structure(this);
         }
 
         /// <summary>

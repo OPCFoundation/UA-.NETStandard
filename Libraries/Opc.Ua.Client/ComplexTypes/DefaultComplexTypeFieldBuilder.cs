@@ -118,6 +118,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         0);  // TODO: switch field?
                     break;
             }
+            if (m_structureToBuild != null)
+            {
+                m_defaultComplexTypeBuilder.OnTypeCreated(m_structureToBuild);
+            }
             return m_structureToBuild!;
         }
 

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -98,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
         public ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
-            : this(session, new DefaultComplexTypeFactory(), telemetry) // TODO:
+            : this(session, new DefaultComplexTypeFactory(), telemetry)
         {
         }
 

@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -40,10 +39,11 @@ using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
+using Opc.Ua.Client.ComplexTypes;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Opc.Ua.Client.Tests.ComplexTypes
 {
     /// <summary>
     /// Load Type System tests.
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
             Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -209,7 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             ArrayOf<ReferenceDescription> referenceDescriptions = await samples
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
@@ -395,7 +395,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             // test the static version of the structure
@@ -414,20 +414,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject), Is.True);
             Assert.That(extensionObject.TryGetEncodeable(out IEncodeable encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
-            var complexType = encodeable as IComplexTypeProperties;
+            var complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
             TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (ComplexTypePropertyInfo property in complexType.GetPropertyEnumerator())
+            foreach (string property in complexType.GetPropertyNames())
             {
                 TestContext.Out.WriteLine(
-                    "{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
-                    property.Order,
-                    property.Name,
-                    property.PropertyType.Name,
-                    property.ValueRank,
-                    complexType[property.Name].ToString());
+                    "{0} (Type: {1}): {2})",
+                    property,
+                    complexType[property].TypeInfo,
+                    complexType[property].ToString());
             }
 
             complexType["ByteValue"] = (byte)0;
@@ -468,20 +466,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(dataValue.WrappedValue.TryGet(out extensionObject), Is.True);
             Assert.That(extensionObject.TryGetEncodeable(out encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
-            complexType = encodeable as IComplexTypeProperties;
+            complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
             TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (ComplexTypePropertyInfo property in complexType.GetPropertyEnumerator())
+            foreach (string property in complexType.GetPropertyNames())
             {
                 TestContext.Out.WriteLine(
-                    "{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
-                    property.Order,
-                    property.Name,
-                    property.GetType().Name,
-                    property.ValueRank,
-                    complexType[property.Name].ToString());
+                    "{0} (Type: {1}): {2})",
+                    property,
+                    complexType[property].TypeInfo,
+                    complexType[property].ToString());
             }
 
             Assert.That(complexType["ByteValue"], Is.EqualTo(new Variant((byte)0)));

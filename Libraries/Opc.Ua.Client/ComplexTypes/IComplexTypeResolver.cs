@@ -44,7 +44,8 @@ namespace Opc.Ua.Client.ComplexTypes
         NamespaceTable NamespaceUris { get; }
 
         /// <summary>
-        /// Gets the factory used to create encodeable objects that the server understands.
+        /// Gets the factory used to create encodeable objects that the server
+        /// understands.
         /// </summary>
         IEncodeableFactoryBuilder FactoryBuilder { get; }
 
@@ -56,7 +57,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
         /// </summary>
-        /// <param name="dataTypeSystem">The type system. Defaults to OPC Binary schema.</param>
+        /// <param name="dataTypeSystem">The type system. Defaults to OPC Binary
+        /// schema.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = default,
@@ -75,7 +77,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// to get the subtype typeid
         /// iii) load the DataType node
         /// </remarks>
-        /// <returns>type id, encoding id and data type node if successful, null otherwise</returns>
+        /// <returns>type id, encoding id and data type node if successful,
+        /// null otherwise</returns>
         Task<(
             ExpandedNodeId typeId,
             ExpandedNodeId encodingId,
@@ -127,7 +130,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>Returns null if the node does not exist.</returns>
-        Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+        Task<INode> FindAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the enum type array of a enum type definition node.
@@ -136,21 +141,27 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The enum array is stored as the Value in the property
         /// reference of the enum type NodeId
         /// </remarks>
-        /// <param name="nodeId">The enum type nodeId which has an enum array in the property.</param>
+        /// <param name="nodeId">The enum type nodeId which has an enum array in
+        /// the property.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>
         /// The value of the nodeId, which can be an array of
         /// <see cref="ExtensionObject"/> or of <see cref="LocalizedText"/>.
         /// <c>null</c> if the enum type array does not exist.
         /// </returns>
-        Task<Variant> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+        Task<Variant> GetEnumTypeArrayAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The type identifier.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
-        /// <returns>The immediate supertype identifier for <paramref name="typeId"/></returns>
-        Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
+        /// <returns>The immediate supertype identifier for
+        /// <paramref name="typeId"/></returns>
+        Task<NodeId> FindSuperTypeAsync(
+            NodeId typeId,
+            CancellationToken ct = default);
     }
 }

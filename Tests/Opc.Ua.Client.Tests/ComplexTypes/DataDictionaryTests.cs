@@ -35,9 +35,10 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
+using Opc.Ua.Client.ComplexTypes;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Opc.Ua.Client.Tests.ComplexTypes
 {
     /// <summary>
     /// Data dictionary load tests

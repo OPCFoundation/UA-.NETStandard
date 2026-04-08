@@ -30,7 +30,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

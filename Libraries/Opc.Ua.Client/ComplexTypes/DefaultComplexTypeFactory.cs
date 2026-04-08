@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Xml;
 
@@ -49,13 +48,27 @@ namespace Opc.Ua.Client.ComplexTypes
             int targetNamespaceIndex,
             string? moduleName = null)
         {
-            return new DefaultComplexTypeBuilder(this, targetNamespace, targetNamespaceIndex);
+            return new DefaultComplexTypeBuilder(
+                this,
+                targetNamespace,
+                targetNamespaceIndex);
         }
 
         /// <inheritdoc/>
         public IReadOnlyList<IType> GetTypes()
         {
-            throw new NotImplementedException();
+            return [.. m_types.Values];
         }
+
+        /// <summary>
+        /// Called when a new type was created during complex type system
+        /// loading
+        /// </summary>
+        internal void OnTypeCreated(IType type)
+        {
+            m_types[type.XmlName] = type;
+        }
+
+        private readonly Dictionary<XmlQualifiedName, IType> m_types = [];
     }
 }

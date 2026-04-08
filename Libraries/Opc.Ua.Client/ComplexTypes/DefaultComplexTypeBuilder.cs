@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             TargetNamespace = targetNamespace;
             TargetNamespaceIndex = targetNamespaceIndex;
+            m_defaultComplexTypeFactory = defaultComplexTypeFactory;
         }
 
         /// <inheritdoc/>
@@ -60,9 +61,10 @@ namespace Opc.Ua.Client.ComplexTypes
             QualifiedName typeName,
             EnumDefinition enumDefinition)
         {
-            return new Enumeration(
-                new XmlQualifiedName(typeName.Name, TargetNamespace),
-                enumDefinition);
+            var xmlName = new XmlQualifiedName(typeName.Name, TargetNamespace);
+            var type = new Enumeration(xmlName, enumDefinition);
+            OnTypeCreated(type);
+            return type;
         }
 
         /// <inheritdoc/>
@@ -72,6 +74,16 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return new DefaultComplexTypeFieldBuilder(this, name, structureDefinition);
         }
+
+        /// <summary>
+        /// Type created
+        /// </summary>
+        internal void OnTypeCreated(IType type)
+        {
+            m_defaultComplexTypeFactory.OnTypeCreated(type);
+        }
+
+        private readonly DefaultComplexTypeFactory m_defaultComplexTypeFactory;
     }
 
     /// <summary>

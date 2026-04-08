@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// Complex type property info.
     /// </summary>
-    public class Field
+    public class Field : ICloneable
     {
         /// <summary>
         /// Create the property state of the structure field
@@ -44,6 +46,24 @@ namespace Opc.Ua.Client.ComplexTypes
             BuiltInType = builtInType;
             OptionalFieldMask = 0;
             Value = Variant.CreateDefault(TypeInfo);
+        }
+
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        private Field(Field field)
+        {
+            Definition = field.Definition;
+            Order = field.Order;
+            BuiltInType = field.BuiltInType;
+            OptionalFieldMask = field.OptionalFieldMask;
+            Value = field.Value.Copy();
+        }
+
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return new Field(this);
         }
 
         /// <summary>

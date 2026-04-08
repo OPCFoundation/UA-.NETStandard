@@ -1101,16 +1101,13 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(
-            ISession session,
-            CancellationToken ct = default)
+        public async Task LoadTypeSystemAsync(ComplexTypeSystem complexTypeSystem, CancellationToken ct = default)
         {
             m_logger.LogInformation("Load the server type system.");
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = ComplexTypeSystem.Create(session, m_telemetry);
             await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
@@ -1140,8 +1137,6 @@ namespace Quickstarts
                     }
                 }
             }
-
-            return complexTypeSystem;
         }
 
         /// <summary>

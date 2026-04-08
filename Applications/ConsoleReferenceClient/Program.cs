@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -40,8 +41,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
-using System.CommandLine;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -430,10 +432,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                 verbose);
                             if (loadTypes)
                             {
-                                Opc.Ua.Client.ComplexTypes.ComplexTypeSystem complexTypeSystem
-                                    = await samples
-                                    .LoadTypeSystemAsync(uaClient.Session, ct)
-                                    .ConfigureAwait(false);
+                                var complexTypeSystem = new ComplexTypeSystem(uaClient.Session, telemetry);
+                                await samples.LoadTypeSystemAsync(complexTypeSystem, ct).ConfigureAwait(false);
                             }
 
                             if (browseall || fetchall || jsonvalues || managedbrowseall)

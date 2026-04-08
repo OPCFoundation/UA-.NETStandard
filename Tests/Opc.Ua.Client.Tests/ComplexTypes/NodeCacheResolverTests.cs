@@ -31,9 +31,10 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Client.Tests;
 
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Opc.Ua.Client.Tests.ComplexTypes
 {
     /// <summary>
     /// Node cache resolver tests.

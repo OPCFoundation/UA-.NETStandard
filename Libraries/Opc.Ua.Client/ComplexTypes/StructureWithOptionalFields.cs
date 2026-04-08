@@ -72,10 +72,27 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        protected StructureWithOptionalFields(StructureWithOptionalFields source)
+            : base(source)
+        {
+            EncodingMask = source.EncodingMask;
+        }
+
+        /// <inheritdoc/>
+        public override StructureType StructureType => StructureType.StructureWithOptionalFields;
+
+        /// <summary>
+        /// The encoding mask for the optional fields.
+        /// </summary>
+        public uint EncodingMask { get; private set; }
+
         /// <inheritdoc/>
         public override object Clone()
         {
-            return CreateInstance();
+            return new StructureWithOptionalFields(this);
         }
 
         /// <inheritdoc/>
@@ -89,14 +106,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 Definition,
                 FieldTypes);
         }
-
-        /// <inheritdoc/>
-        public override StructureType StructureType => StructureType.StructureWithOptionalFields;
-
-        /// <summary>
-        /// The encoding mask for the optional fields.
-        /// </summary>
-        public uint EncodingMask { get; private set; }
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
