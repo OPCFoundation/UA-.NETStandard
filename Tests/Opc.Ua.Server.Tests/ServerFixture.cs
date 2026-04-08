@@ -223,6 +223,7 @@ namespace Opc.Ua.Server.Tests
 
             do
             {
+                retryStartServer = false;
                 try
                 {
                     await InternalStartServerAsync(testPort).ConfigureAwait(false);
@@ -237,6 +238,7 @@ namespace Opc.Ua.Server.Tests
                         ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
+
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
