@@ -119,11 +119,21 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public virtual bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
                 {
-                    if (encodeable is null) return false;
-                    if (object.ReferenceEquals(this, encodeable)) return true;
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
+                    if (object.ReferenceEquals(this, encodeable))
+                    {
+                        return true;
+                    }
 
                     {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
-                    if (value is null) return false;
+                    if (value is null)
+                    {
+                        return false;
+                    }
 
                     {{Tokens.ListOfComparedFields}}
 
@@ -180,12 +190,22 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
                 {
-                    if (encodeable is null) return false;
-                    if (object.ReferenceEquals(this, encodeable)) return true;
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
+                    if (object.ReferenceEquals(this, encodeable))
+                    {
+                        return true;
+                    }
 
                     {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
-                    if (value is null) return false;
-
+                    if (value is null)
+                    {
+                        return false;
+                    }
+            
                     {{Tokens.ListOfComparedFields}}
 
                     return true;
@@ -242,11 +262,21 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override bool IsEqual(global::Opc.Ua.IEncodeable encodeable)
                 {
-                    if (encodeable is null) return false;
-                    if (object.ReferenceEquals(this, encodeable)) return true;
+                    if (encodeable is null)
+                    {
+                        return false;
+                    }
+
+                    if (object.ReferenceEquals(this, encodeable))
+                    {
+                        return true;
+                    }
 
                     {{Tokens.ClassName}} value = encodeable as {{Tokens.ClassName}};
-                    if (value is null) return false;
+                    if (value is null)
+                    {
+                        return false;
+                    }
 
                     {{Tokens.ListOfComparedFields}}
 
@@ -305,12 +335,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return Equals(encodeable as {{Tokens.ClassName}});
                 }
-
-                /// <inheritdoc/>
-                object global::System.ICloneable.Clone()
-                {
-                    return this with { };
-                }
+            
+                {{Tokens.ListOfChildCopies}}
             }
             """);
 
@@ -363,11 +389,7 @@ namespace Opc.Ua.SourceGeneration
                     return Equals(encodeable as {{Tokens.ClassName}});
                 }
 
-                /// <inheritdoc/>
-                object global::System.ICloneable.Clone()
-                {
-                    return this with { };
-                }
+                {{Tokens.ListOfChildCopies}}
             }
             """);
 
@@ -421,6 +443,36 @@ namespace Opc.Ua.SourceGeneration
                     return Equals(encodeable as {{Tokens.ClassName}});
                 }
             }
+            """);
+
+        /// <summary>
+        /// Clone method
+        /// </summary>
+        public static readonly TemplateString CloneMethod = TemplateString.Parse(
+            $$"""
+            /// <inheritdoc/>
+            public {{Tokens.AccessModifier}} object Clone()
+            {
+                {{Tokens.ClassName}} clone = new {{Tokens.ClassName}}();
+                {{Tokens.ListOfClonedFields}}
+                return clone;
+            }
+            
+            """);
+
+        /// <summary>
+        /// Clone method
+        /// </summary>
+        public static readonly TemplateString RecordCloneMethod = TemplateString.Parse(
+            $$"""
+            /// <inheritdoc/>
+            object global::System.ICloneable.Clone()
+            {
+                {{Tokens.ClassName}} clone = this with { };
+                {{Tokens.ListOfClonedFields}}
+                return clone;
+            }
+                  
             """);
 
         /// <summary>
