@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -40,6 +39,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
@@ -101,17 +101,18 @@ namespace Opc.Ua.Bindings
         private const string kHttpsContentType = "text/plain";
 
         /// <summary>
-        /// Registry of active listeners keyed by their local port.
-        /// Allows multiple concurrent HTTPS server instances on different ports.
-        /// </summary>
-        internal static readonly ConcurrentDictionary<int, HttpsTransportListener> Listeners
-            = new ConcurrentDictionary<int, HttpsTransportListener>();
-
-        /// <summary>
         /// Configure the request pipeline for the listener.
+        /// The <paramref name="listener"/> is resolved from the web host's DI container,
+        /// which is populated via <c>IWebHostBuilder.ConfigureServices</c> in
+        /// <see cref="HttpsTransportListener.ConfigureWebHost"/>.
+        /// Using method injection here (rather than constructor injection) ensures the
+        /// instance is resolved from the web-host app container on all target frameworks,
+        /// including .NET 8+ where <c>HostBuilder</c> activates <c>Startup</c> from a
+        /// separate host-level container that does not include web-host app services.
         /// </summary>
         /// <param name="appBuilder">The application builder.</param>
-        public void Configure(IApplicationBuilder appBuilder)
+        /// <param name="listener">The transport listener that handles OPC UA requests.</param>
+        public void Configure(IApplicationBuilder appBuilder, HttpsTransportListener listener)
         {
             appBuilder.Run(context =>
             {
@@ -123,16 +124,7 @@ namespace Opc.Ua.Bindings
                     return context.Response.WriteAsync(string.Empty);
                 }
 
-                int port = context.Connection.LocalPort;
-                if (Listeners.TryGetValue(port, out HttpsTransportListener listener))
-                {
-                    return listener.SendAsync(context);
-                }
-
-                context.Response.ContentLength = 0;
-                context.Response.ContentType = kHttpsContentType;
-                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                return context.Response.WriteAsync(string.Empty);
+                return listener.SendAsync(context);
             });
         }
     }
@@ -175,17 +167,6 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged = null;
                 ConnectionWaiting = null;
-                try
-                {
-                    if (EndpointUrl != null)
-                    {
-                        Startup.Listeners.TryRemove(EndpointUrl.Port, out _);
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    // Ignore errors during deregistration
-                }
                 m_host?.Dispose();
                 m_host = null;
             }
@@ -295,7 +276,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Start()
         {
-            Startup.Listeners[EndpointUrl.Port] = this;
 #if NET8_0_OR_GREATER
             m_host = new HostBuilder()
                 .ConfigureWebHostDefaults(ConfigureWebHost)
@@ -308,6 +288,11 @@ namespace Opc.Ua.Bindings
 #endif
         }
 
+        // CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
+        // on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
+        // which passes an IWebHostBuilder, not WebHostBuilder.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance",
+            Justification = "IWebHostBuilder is required for cross-framework compatibility; on NET8_0_OR_GREATER ConfigureWebHostDefaults passes IWebHostBuilder.")]
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
         {
             // prepare the server TLS certificate
@@ -361,6 +346,9 @@ namespace Opc.Ua.Bindings
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            // Register this listener instance in the web host DI container so it can be
+            // injected into Startup.Configure as a method parameter — no static state needed.
+            webHostBuilder.ConfigureServices(services => services.AddSingleton(this));
             webHostBuilder.UseStartup<Startup>();
         }
 
