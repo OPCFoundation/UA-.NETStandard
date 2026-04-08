@@ -1512,6 +1512,7 @@ namespace Opc.Ua.Server
             }
             else
             {
+                // allow Session to see own session diagnostics
                 NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
                 adminUser = node.NodeId == curSession || HasApplicationSecureAdminAccess(context);
             }
@@ -1526,8 +1527,7 @@ namespace Opc.Ua.Server
                         Permissions = (uint)(
                             PermissionType.Browse |
                             PermissionType.Read |
-                            PermissionType.ReadRolePermissions |
-                            PermissionType.Write)
+                            PermissionType.ReadRolePermissions)
                     };
 
                 value = [.. rolePermissionTypes];
@@ -1660,11 +1660,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                IUserIdentity user = session.UserIdentity as RoleBasedIdentity;
-
-                return user != null &&
-                    user.TokenType != UserTokenType.Anonymous &&
-                    user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
+                return session?.UserIdentity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
             }
             return false;
         }

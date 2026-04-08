@@ -199,10 +199,17 @@ namespace Opc.Ua.Server
         {
             m_identity = identity;
             Roles = roles;
+
+            if (identity is RoleBasedIdentity roleBasedIdentity)
+            {
+                Roles = roleBasedIdentity.Roles.Concat(roles);
+            }
+
             GrantedRoleIds = identity.GrantedRoleIds
                 .AddItems(roles
                 .Where(role => role != null)
                 .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
+                .Where(roleID => !identity.GrantedRoleIds.Contains(roleID))
                 .ToArrayOf());
         }
 
