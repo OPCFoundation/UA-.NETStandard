@@ -353,7 +353,7 @@ namespace TestApp.Shared
             string generated = result.GeneratedSources[0].SourceText.ToString();
 
             int extensionClassCount = CountOccurrences(
-                generated, "TestAppSharedExtensions");
+                generated, "TestAppSharedDataTypeExtensions");
             Assert.That(extensionClassCount, Is.GreaterThanOrEqualTo(1),
                 "Should have exactly one extension class");
 
@@ -455,7 +455,7 @@ namespace TestApp.Incremental
 
             // Verify single extension class with both registrations
             int extCount = CountOccurrences(
-                generatedB, "TestAppIncrementalExtensions");
+                generatedB, "TestAppIncrementalDataTypeExtensions");
             Assert.That(extCount, Is.GreaterThanOrEqualTo(1),
                 "Should have one extension class");
             Assert.That(generatedB, Does.Contain("FirstTypeActivator.Instance"));

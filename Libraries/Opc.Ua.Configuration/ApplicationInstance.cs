@@ -275,9 +275,11 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentException("Missing configuration.");
             }
 
-            foreach (CertificateIdentifier id in ApplicationConfiguration.SecurityConfiguration
-                .ApplicationCertificates)
+            ArrayOf<CertificateIdentifier> applicationCerts = ApplicationConfiguration
+                .SecurityConfiguration.ApplicationCertificates;
+            for (int ii = 0; ii < applicationCerts.Count; ii++)
             {
+                CertificateIdentifier id = applicationCerts[ii];
                 await DeleteApplicationInstanceCertificateAsync(ApplicationConfiguration, id, ct)
                     .ConfigureAwait(false);
             }
@@ -312,8 +314,9 @@ namespace Opc.Ua.Configuration
             // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains
             // the configuration's ApplicationUri.
             bool result = true;
-            foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
+            for (int ii = 0; ii < securityConfiguration.ApplicationCertificates.Count; ii++)
             {
+                CertificateIdentifier certId = securityConfiguration.ApplicationCertificates[ii];
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
                 bool nextResult = await CheckOrCreateCertificateAsync(
                         certId,

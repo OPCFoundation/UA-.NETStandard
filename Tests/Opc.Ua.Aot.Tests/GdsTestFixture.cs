@@ -168,6 +168,7 @@ namespace Opc.Ua.Aot.Tests
             };
             await m_clientConfiguration.ValidateAsync(ApplicationType.Client)
                 .ConfigureAwait(false);
+
             m_clientConfiguration.CertificateValidator
                 .CertificateValidation += (s, e) => e.Accept = true;
 
@@ -282,7 +283,7 @@ namespace Opc.Ua.Aot.Tests
                     Path.Combine(m_gdsRoot, "gdsusersdb.json")
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder
                     .CreateDefaultApplicationCertificates(
                         "CN=GDS AOT Test Server, O=OPC Foundation, " +

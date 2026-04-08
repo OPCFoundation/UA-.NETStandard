@@ -29,9 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -56,10 +54,6 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer and reflection are used with known OPC UA GDS types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer and reflection are used with known OPC UA GDS types.")]
         public ApplicationsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -79,7 +73,7 @@ namespace Opc.Ua.Gds.Server
             m_configuration = configuration;
             // get the configuration for the node manager.
             m_globalDiscoveryServerConfiguration =
-                configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                configuration.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
 
             // use suitable defaults if no configuration exists.
@@ -143,8 +137,8 @@ namespace Opc.Ua.Gds.Server
                 m_logger.LogInformation("Database Initialized!");
             }
 
-            Server.MessageContext.Factory
-                .AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+            Server.MessageContext.Factory.Builder
+                .AddOpcUaGds().Commit();
         }
 
         /// <summary>

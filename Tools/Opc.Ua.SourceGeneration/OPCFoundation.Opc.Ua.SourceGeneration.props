@@ -7,6 +7,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorModelVersion" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorModelPublicationDate" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorReleaseCandidate" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorPublicDataTypeExtensions" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />

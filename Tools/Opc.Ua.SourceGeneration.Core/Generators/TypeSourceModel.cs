@@ -104,6 +104,41 @@ namespace Opc.Ua.SourceGeneration
         public string BaseClassName { get; set; }
 
         /// <summary>
+        /// True if the base class implements IEncodeable
+        /// (or has [DataType] attribute).
+        /// </summary>
+        public bool BaseTypeIsEncodeable { get; set; }
+
+        /// <summary>
+        /// True if the user class is sealed.
+        /// </summary>
+        public bool IsSealed { get; set; }
+
+        /// <summary>
+        /// True if the user class derives from a type that implements
+        /// IEncodeable (meaning generated methods must use override).
+        /// </summary>
+        public bool IsDerived { get; set; }
+
+        /// <summary>
+        /// True if the user class is declared internal (not public).
+        /// </summary>
+        public bool IsInternal { get; set; }
+
+        /// <summary>
+        /// True if the user's partial class already defines a
+        /// Clone() or MemberwiseClone() method (the generator
+        /// should skip emitting these).
+        /// </summary>
+        public bool HasManualClone { get; set; }
+
+        /// <summary>
+        /// If true, the generated extension methods are public.
+        /// If false (default), they are internal.
+        /// </summary>
+        public bool PublicExtensions { get; set; }
+
+        /// <summary>
         /// Ordered list of fields to encode/decode.
         /// </summary>
         public IReadOnlyList<TypeFieldModel> Fields { get; set; }
@@ -195,6 +230,26 @@ namespace Opc.Ua.SourceGeneration
         /// errors vs warnings.
         /// </summary>
         public bool HasDataTypeFieldAttribute { get; set; }
+
+        /// <summary>
+        /// Tri-state for ForceEncodeable from [DataTypeField].
+        /// null = auto-detect, true = force WriteEncodeable,
+        /// false = force WriteEncodeableAsExtensionObject.
+        /// </summary>
+        public bool? ForceEncodeable { get; set; }
+
+        /// <summary>
+        /// True if the field's encodeable type is sealed and has
+        /// no IEncodeable base type (auto-detected when
+        /// ForceEncodeable is null).
+        /// </summary>
+        public bool FieldTypeIsSealed { get; set; }
+
+        /// <summary>
+        /// True if the field's encodeable type derives from
+        /// another IEncodeable (has a non-trivial IEncodeable base).
+        /// </summary>
+        public bool FieldTypeHasEncodeableBase { get; set; }
     }
 
     /// <summary>

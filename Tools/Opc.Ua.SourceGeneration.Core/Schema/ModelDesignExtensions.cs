@@ -721,8 +721,21 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.LocalizedText:
                 case BasicDataType.StatusCode:
                 case BasicDataType.Structure: // Extension object
+                case BasicDataType.Number:
+                case BasicDataType.Integer:
+                case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.Enumeration when !dataType.IsOptionSet:
+                case BasicDataType.UserDefined when dataType.IsEnumeration:
+                case BasicDataType.ByteString:
+                case BasicDataType.XmlElement:
                     return true;
+                case BasicDataType.String:
+                case BasicDataType.DiagnosticInfo:
+                case BasicDataType.DataValue:
+                case BasicDataType.UserDefined:
+                case BasicDataType.Enumeration:
+                    return false;
                 default:
                     return false;
             }

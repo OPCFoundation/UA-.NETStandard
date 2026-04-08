@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,

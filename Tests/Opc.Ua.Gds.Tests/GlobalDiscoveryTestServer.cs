@@ -120,12 +120,9 @@ namespace Opc.Ua.Gds.Tests
             if (additionalCertGroups != null)
             {
                 GlobalDiscoveryServerConfiguration gdsConfig =
-                    Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-                foreach (CertificateGroupConfiguration group in additionalCertGroups)
-                {
-                    gdsConfig.CertificateGroups.Add(group);
-                }
-                Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
+                    Config.ParseEncodeable<GlobalDiscoveryServerConfiguration>();
+                gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
+                Config.UpdateEncodeable<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
             }
 
             // check the application certificate.
@@ -146,7 +143,7 @@ namespace Opc.Ua.Gds.Tests
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration =
-                Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
+                Config.ParseEncodeable<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(
                 gdsConfiguration.DatabaseStorePath);
             string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(
@@ -297,7 +294,7 @@ namespace Opc.Ua.Gds.Tests
                 UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,

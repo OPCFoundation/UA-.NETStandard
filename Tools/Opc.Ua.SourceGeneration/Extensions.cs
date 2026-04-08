@@ -215,6 +215,17 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Check if a type symbol has a specific attribute by name.
+        /// </summary>
+        public static bool HasAttribute(
+            this ITypeSymbol type,
+            string attributeName)
+        {
+            return type.GetAttributes().Any(a =>
+                a.AttributeClass?.Name == attributeName);
+        }
+
+        /// <summary>
         /// Get a named argument from the attribute
         /// </summary>
         public static string GetValue(

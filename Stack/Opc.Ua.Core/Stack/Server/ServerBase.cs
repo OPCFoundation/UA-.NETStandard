@@ -775,11 +775,10 @@ namespace Opc.Ua
             {
                 InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
 
-                foreach (
-                    CertificateIdentifier certificateIdentifier in Configuration
-                        .SecurityConfiguration
-                        .ApplicationCertificates)
+                var applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
+                for (int i = 0; i < applicationCertificates.Count; i++)
                 {
+                    CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
                     X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
                         .ConfigureAwait(false);
@@ -1412,8 +1411,9 @@ namespace Opc.Ua
             {
                 if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
                 {
-                    configuration.ServerConfiguration.SecurityPolicies
-                        .Add(new ServerSecurityPolicy());
+                    configuration.ServerConfiguration.SecurityPolicies =
+                        configuration.ServerConfiguration.SecurityPolicies
+                            .AddItem(new ServerSecurityPolicy());
                 }
 
                 // ensure at least one user token policy exists.

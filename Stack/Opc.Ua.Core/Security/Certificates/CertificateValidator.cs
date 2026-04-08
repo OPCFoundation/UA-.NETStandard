@@ -158,7 +158,7 @@ namespace Opc.Ua
             InternalResetValidatedCertificates();
 
             m_trustedCertificateStore = null;
-            m_trustedCertificateList = null;
+            m_trustedCertificateList = default;
             if (trustedStore != null)
             {
                 m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath)
@@ -166,14 +166,14 @@ namespace Opc.Ua
                     ValidationOptions = trustedStore.ValidationOptions
                 };
 
-                if (trustedStore.TrustedCertificates != null)
+                if (!trustedStore.TrustedCertificates.IsEmpty)
                 {
-                    m_trustedCertificateList = [.. trustedStore.TrustedCertificates];
+                    m_trustedCertificateList = trustedStore.TrustedCertificates;
                 }
             }
 
             m_issuerCertificateStore = null;
-            m_issuerCertificateList = null;
+            m_issuerCertificateList = default;
             if (issuerStore != null)
             {
                 m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath)
@@ -181,9 +181,9 @@ namespace Opc.Ua
                     ValidationOptions = issuerStore.ValidationOptions
                 };
 
-                if (issuerStore.TrustedCertificates != null)
+                if (!issuerStore.TrustedCertificates.IsEmpty)
                 {
-                    m_issuerCertificateList = [.. issuerStore.TrustedCertificates];
+                    m_issuerCertificateList = issuerStore.TrustedCertificates;
                 }
             }
 
@@ -245,11 +245,12 @@ namespace Opc.Ua
                     m_maxRejectedCertificates = configuration.MaxRejectedCertificates;
                 }
 
-                if (configuration.ApplicationCertificates != null)
+                if (!configuration.ApplicationCertificates.IsEmpty)
                 {
-                    foreach (CertificateIdentifier applicationCertificate in configuration
-                        .ApplicationCertificates)
+                    var appCerts = configuration.ApplicationCertificates;
+                    for (int i = 0; i < appCerts.Count; i++)
                     {
+                        CertificateIdentifier applicationCertificate = appCerts[i];
                         X509Certificate2 certificate = await applicationCertificate
                             .FindAsync(true, applicationUri, m_telemetry, ct)
                             .ConfigureAwait(false);
@@ -304,9 +305,10 @@ namespace Opc.Ua
                 //     applicationCertificate.DisposeCertificate();
                 // }
 
-                foreach (CertificateIdentifier applicationCertificate in securityConfiguration
-                    .ApplicationCertificates)
+                var secAppCerts = securityConfiguration.ApplicationCertificates;
+                for (int i = 0; i < secAppCerts.Count; i++)
                 {
+                    CertificateIdentifier applicationCertificate = secAppCerts[i];
                     await applicationCertificate
                         .LoadPrivateKeyExAsync(
                             securityConfiguration.CertificatePasswordProvider,
@@ -577,11 +579,12 @@ namespace Opc.Ua
             ServiceResultException revocationStatus = null;
             X509Certificate2 certificate = certificates[0];
 
-            var untrustedCollection = new CertificateIdentifierCollection();
+            var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
             {
-                untrustedCollection.Add(new CertificateIdentifier(certificates[ii]));
+                untrustedList.Add(new CertificateIdentifier(certificates[ii]));
             }
+            ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
 
             do
             {
@@ -969,7 +972,7 @@ namespace Opc.Ua
             try
             {
                 // check if explicitly trusted.
-                if (m_trustedCertificateList != null)
+                if (!m_trustedCertificateList.IsEmpty)
                 {
                     for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
                     {
@@ -1082,7 +1085,7 @@ namespace Opc.Ua
         /// </summary>
         private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoExceptionAsync(
             X509Certificate2 certificate,
-            CertificateIdentifierCollection explicitList,
+            ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus,
             CancellationToken ct = default)
@@ -1107,7 +1110,7 @@ namespace Opc.Ua
             }
 
             // check in explicit list.
-            if (explicitList != null)
+            if (!explicitList.IsEmpty)
             {
                 for (int ii = 0; ii < explicitList.Count; ii++)
                 {
@@ -1233,7 +1236,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private async Task<CertificateIdentifier> GetIssuerAsync(
             X509Certificate2 certificate,
-            CertificateIdentifierCollection explicitList,
+            ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus,
             CancellationToken ct = default)
@@ -2195,9 +2198,9 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ConcurrentDictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
-        private CertificateIdentifierCollection m_trustedCertificateList;
+        private ArrayOf<CertificateIdentifier> m_trustedCertificateList;
         private CertificateStoreIdentifier m_issuerCertificateStore;
-        private CertificateIdentifierCollection m_issuerCertificateList;
+        private ArrayOf<CertificateIdentifier> m_issuerCertificateList;
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;

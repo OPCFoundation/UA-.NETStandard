@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -259,26 +259,6 @@ namespace Opc.Ua
             var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
             AppConfigEncoding.EncodeConfiguredEndpointCollection(encoder, this);
             encoder.Close();
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            var clone = new ConfiguredEndpointCollection
-            {
-                m_filepath = m_filepath,
-                m_knownHosts = m_knownHosts,
-                DefaultConfiguration = CoreUtils.Clone(DefaultConfiguration)
-            };
-
-            foreach (ConfiguredEndpoint endpoint in m_endpoints)
-            {
-                ConfiguredEndpoint clonedEndpoint = CoreUtils.Clone(endpoint);
-                clonedEndpoint.Collection = clone;
-                clone.m_endpoints.Add(clonedEndpoint);
-            }
-
-            return clone;
         }
 
         /// <summary>
@@ -895,14 +875,6 @@ namespace Opc.Ua
             }
 
             Update(configuration);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            var clone = new ConfiguredEndpoint { Collection = Collection };
-            clone.Update(this);
-            return clone;
         }
 
         /// <summary>

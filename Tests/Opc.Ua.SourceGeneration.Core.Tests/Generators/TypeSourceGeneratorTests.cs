@@ -39,7 +39,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     [TestFixture]
     [Category("Generator")]
     [Parallelizable]
-    public class DataTypeSourceGeneratorTests
+    public class TypeSourceGeneratorTests
     {
         [Test]
         public void GenerateSimpleClassProducesEncodeDecodeAndActivator()
@@ -52,12 +52,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "MyAppConfig",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Name", "String"),
                     CreateField("Port", "Int32"),
                     CreateField("Enabled", "Boolean"),
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Does.Contain("public virtual object Clone"));
             Assert.That(result, Does.Contain("MyConfigActivator"));
             Assert.That(result, Does.Contain("EncodeableType<MyConfig>"));
-            Assert.That(result, Does.Contain("AddMyAppConfig"));
+            Assert.That(result, Does.Contain("AddMyAppConfigDataTypes"));
         }
 
         [Test]
@@ -135,6 +135,63 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void GenerateSealedRecordOmitsVirtual()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MySealedRecord",
+                Namespace = "Test.Records",
+                NamespaceUri = "urn:test:records",
+                NamespaceSymbol = "TestRecords",
+                IsEnum = false,
+                IsRecord = true,
+                IsSealed = true,
+                Fields = new[]
+                {
+                    CreateField("Value", "Int32"),
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("this with { }"));
+            Assert.That(result, Does.Contain("public void Encode"));
+            Assert.That(result, Does.Not.Contain("virtual void Encode"));
+            Assert.That(result, Does.Not.Contain("override void Encode"));
+        }
+
+        [Test]
+        public void GenerateDerivedRecordUsesOverrideAndBaseCall()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MyDerivedRecord",
+                Namespace = "Test.Records",
+                NamespaceUri = "urn:test:records",
+                NamespaceSymbol = "TestRecords",
+                IsEnum = false,
+                IsRecord = true,
+                IsDerived = true,
+                BaseTypeIsEncodeable = true,
+                Fields = new[]
+                {
+                    CreateField("Extra", "String"),
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("override void Encode"));
+            Assert.That(result, Does.Contain("base.Encode(encoder)"));
+            Assert.That(result, Does.Contain("override void Decode"));
+            Assert.That(result, Does.Contain("base.Decode(decoder)"));
+            Assert.That(result, Does.Contain("override bool IsEqual"));
+            Assert.That(result, Does.Contain("Equals(encodeable as MyDerivedRecord)"));
+            Assert.That(result, Does.Not.Contain("this with { }"),
+                "Derived record does not re-declare Clone");
+        }
+
+        [Test]
         public void GenerateEnumProducesEnumeratedTypeActivator()
         {
             var model = new TypeSourceModel
@@ -156,7 +213,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.That(result, Does.Contain("MyEnumActivator"));
             Assert.That(result, Does.Contain("EnumeratedType<MyEnum>"));
-            Assert.That(result, Does.Contain("AddTestEnums"));
+            Assert.That(result, Does.Contain("AddTestEnumsDataTypes"));
             Assert.That(result, Does.Not.Contain("partial class MyEnum"));
             Assert.That(result, Does.Not.Contain("void Encode"));
             Assert.That(result, Does.Not.Contain("void Decode"));
@@ -209,7 +266,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void GenerateWithEncodeableFieldUsesWriteEncodeable()
+        public void GenerateWithEncodeableFieldDefaultUsesExtensionObject()
         {
             var model = new TypeSourceModel
             {
@@ -235,9 +292,72 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string result = TypeSourceGenerator.Generate(model);
 
+            Assert.That(result, Does.Contain("WriteEncodeableAsExtensionObject"));
+            Assert.That(result, Does.Contain("ReadEncodeableAsExtensionObject"));
+        }
+
+        [Test]
+        public void GenerateWithSealedEncodeableFieldUsesWriteEncodeable()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "Parent",
+                Namespace = "Test.Ns",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "TestNs",
+                IsEnum = false,
+                IsRecord = false,
+                Fields = new[]
+                {
+                    new TypeFieldModel
+                    {
+                        PropertyName = "Child",
+                        FieldName = "Child",
+                        TypeName = "global::Test.Ns.ChildType",
+                        ShortTypeName = "ChildType",
+                        IsEncodeable = true,
+                        FieldTypeIsSealed = true,
+                        Order = 0
+                    }
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
             Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
-            Assert.That(result, Does.Contain("decoder.ReadEncodeable(\"Child\""));
-            Assert.That(result, Does.Contain("typeof(global::Test.Ns.ChildType)"));
+            Assert.That(result, Does.Contain("decoder.ReadEncodeable<global::Test.Ns.ChildType>(\"Child\")"));
+        }
+
+        [Test]
+        public void GenerateWithForceEncodeableTrueUsesWriteEncodeable()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "Parent",
+                Namespace = "Test.Ns",
+                NamespaceUri = "urn:test",
+                NamespaceSymbol = "TestNs",
+                IsEnum = false,
+                IsRecord = false,
+                Fields = new[]
+                {
+                    new TypeFieldModel
+                    {
+                        PropertyName = "Child",
+                        FieldName = "Child",
+                        TypeName = "global::Test.Ns.ChildType",
+                        ShortTypeName = "ChildType",
+                        IsEncodeable = true,
+                        ForceEncodeable = true,
+                        Order = 0
+                    }
+                }
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("encoder.WriteEncodeable(\"Child\", Child)"));
+            Assert.That(result, Does.Not.Contain("ExtensionObject"));
         }
 
         [Test]
@@ -269,7 +389,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string result = TypeSourceGenerator.Generate(model);
 
-            Assert.That(result, Does.Contain("Utils.Clone(this.Items)"));
+            Assert.That(result, Does.Not.Contain("Clone(this.Items)"),
+                "ArrayOf<T> is a value type, no deep clone needed");
             Assert.That(result, Does.Contain("WriteStringArray"));
             Assert.That(result, Does.Contain("ReadStringArray"));
         }

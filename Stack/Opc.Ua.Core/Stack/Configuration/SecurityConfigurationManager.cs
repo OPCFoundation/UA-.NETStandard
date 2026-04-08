@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -68,10 +66,6 @@ namespace Opc.Ua.Security
         /// <returns>The security configuration.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer for SecuredApplication serialization.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer for SecuredApplication serialization.")]
         public SecuredApplication ReadConfiguration(string filePath)
         {
             if (filePath == null)
@@ -151,11 +145,13 @@ namespace Opc.Ua.Security
                     // find the SecuredApplication element in the file.
                     if (Encoding.UTF8.GetString(data).Contains("SecuredApplication", StringComparison.Ordinal))
                     {
-                        // TODO: Replace SecuredApplication DataContractSerializer with XmlParser/XmlEncoder.
+                        iStrm.Position = 0;
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<SecuredApplication>();
-                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
-                        application = serializer.ReadObject(reader) as SecuredApplication;
+                        IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                            ServiceMessageContext.CreateEmpty(m_telemetry);
+                        var parser = new XmlParser(typeof(SecuredApplication), iStrm, ctx);
+                        application = new SecuredApplication();
+                        SecuredApplicationEncoding.DecodeContents(parser, application);
 
                         application.ConfigurationFile = configFilePath;
                         application.ExecutableFile = exeFilePath;
@@ -174,7 +170,9 @@ namespace Opc.Ua.Security
                             ServiceMessageContext.CreateEmpty(m_telemetry);
                         var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
                         applicationConfiguration = new ApplicationConfiguration();
-                        AppConfigEncoding.DecodeContents(parser, applicationConfiguration);
+                        applicationConfiguration.Decode(parser);
+                        applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
+                        applicationConfiguration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                         applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
@@ -233,9 +231,9 @@ namespace Opc.Ua.Security
                             applicationConfiguration.SecurityConfiguration
                                 .TrustedIssuerCertificates);
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                            .TrustedCertificates !=
-                        null)
+                    if (!applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
+                            .TrustedCertificates
+                            .IsNull)
                     {
                         application.IssuerCertificates = SecuredApplication.ToCertificateList(
                             applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
@@ -249,9 +247,9 @@ namespace Opc.Ua.Security
                         .ToCertificateStoreIdentifier(
                             applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates);
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
-                            .TrustedCertificates !=
-                        null)
+                    if (!applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
+                            .TrustedCertificates
+                            .IsNull)
                     {
                         application.TrustedCertificates = SecuredApplication.ToCertificateList(
                             applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
@@ -326,8 +324,6 @@ namespace Opc.Ua.Security
         /// <param name="configuration">The configuration.</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
-        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         public void WriteConfiguration(string filePath, SecuredApplication configuration)
         {
             if (configuration == null)
@@ -360,7 +356,10 @@ namespace Opc.Ua.Security
             if (element != null)
             {
                 configuration.LastExportTime = DateTime.UtcNow;
-                element.InnerXml = SetObject(typeof(SecuredApplication), configuration);
+                element.InnerXml = EncodeToInnerXml(
+                    typeof(SecuredApplication),
+                    Namespaces.OpcUaSecurity,
+                    encoder => SecuredApplicationEncoding.EncodeContents(encoder, configuration));
             }
             // update application configuration.
             else
@@ -397,8 +396,6 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Updates the XML document with the new configuration information.
         /// </summary>
-        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
-        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         private void UpdateDocument(System.Xml.XmlElement element, SecuredApplication application)
         {
             for (XmlNode node = element.FirstChild; node != null; node = node.NextSibling)
@@ -452,7 +449,10 @@ namespace Opc.Ua.Security
                         .FromCertificateStoreIdentifier(
                             application.RejectedCertificatesStore);
 
-                    node.InnerXml = SetObject(typeof(SecurityConfiguration), security);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(SecurityConfiguration),
+                        Namespaces.OpcUaConfig,
+                        encoder => AppConfigEncoding.EncodeSecurityConfiguration(encoder, security));
                     continue;
                 }
 
@@ -469,7 +469,11 @@ namespace Opc.Ua.Security
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
                         application.SecurityProfiles);
 
-                    node.InnerXml = SetObject(typeof(ServerConfiguration), configuration);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(ServerConfiguration),
+                        Namespaces.OpcUaConfig,
+                        encoder => AppConfigEncoding.EncodeServerConfiguration(
+                            encoder, configuration));
                 }
                 else if (node.Name == "DiscoveryServerConfiguration" &&
                     node.NamespaceURI == Namespaces.OpcUaConfig)
@@ -484,7 +488,11 @@ namespace Opc.Ua.Security
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
                         application.SecurityProfiles);
 
-                    node.InnerXml = SetObject(typeof(DiscoveryServerConfiguration), configuration);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(DiscoveryServerConfiguration),
+                        Namespaces.OpcUaConfig,
+                        encoder => AppConfigEncoding.EncodeDiscoveryServerConfiguration(
+                            encoder, configuration));
                     continue;
                 }
             }
@@ -504,7 +512,7 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var sec = new SecurityConfiguration();
-                AppConfigEncoding.DecodeSecurityConfiguration(parser, sec);
+                sec.Decode(parser);
                 return sec;
             }
 
@@ -512,7 +520,8 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var srv = new ServerConfiguration();
-                AppConfigEncoding.DecodeServerConfiguration(parser, srv);
+                srv.Decode(parser);
+                srv.ValidateSecurityPolicies();
                 return srv;
             }
 
@@ -520,26 +529,34 @@ namespace Opc.Ua.Security
             {
                 var parser = new XmlParser(type, element.OuterXml, context);
                 var disc = new DiscoveryServerConfiguration();
-                AppConfigEncoding.DecodeDiscoveryServerConfiguration(parser, disc);
+                disc.Decode(parser);
+                disc.ValidateSecurityPolicies();
                 return disc;
             }
 
             throw new NotSupportedException(Utils.Format("Unsupported type for GetObject: {0}", type.FullName));
         }
 
-        // TODO: Replace DataContractSerializer with XmlEncoder for known OPC UA config types.
-        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
-        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
-        private string SetObject(Type type, object value)
+        /// <summary>
+        /// Encodes an object to XML using XmlEncoder and returns the inner XML content.
+        /// </summary>
+        private string EncodeToInnerXml(
+            Type systemType,
+            string namespaceUri,
+            Action<XmlEncoder> encodeAction)
         {
-            using var memoryStream = new MemoryStream();
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer(value?.GetType() ?? type);
+            IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(m_telemetry);
+            using var memoryStream = new MemoryStream();
             using var writer = XmlWriter.Create(memoryStream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, value);
+            var encoder = new XmlEncoder(
+                new System.Xml.XmlQualifiedName(systemType.Name, namespaceUri),
+                writer,
+                ctx);
+            encodeAction(encoder);
+            encoder.Close();
 
-            // must extract the inner xml.
             var document = new XmlDocument();
             document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
             return document.DocumentElement.InnerXml;

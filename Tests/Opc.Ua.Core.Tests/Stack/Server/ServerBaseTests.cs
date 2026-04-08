@@ -213,25 +213,25 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             InitializeBaseAddresses(configuration);
 
             // add security policies.
-            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+            configuration.ServerConfiguration.SecurityPolicies =
+            [
+                new ServerSecurityPolicy(),
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.None,
                     SecurityPolicyUri = SecurityPolicies.None
-                });
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+                },
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.Sign,
                     SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
-                });
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+                },
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
-                });
+                }
+            ];
 
             // ensure at least one user token policy exists.
             var userTokenPolicyAnonymous = new UserTokenPolicy

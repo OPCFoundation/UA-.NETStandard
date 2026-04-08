@@ -2528,17 +2528,23 @@ namespace Opc.Ua
                     value.Decode(this);
                     PopNamespace();
 
-                    // No need to skip to end of encodeable in DOM mode -
-                    // unread children simply remain unconsumed.
-
                     EndField(fieldName);
+                    return value;
                 }
+
+                // If the element exists but is empty (e.g., <ServerConfiguration />),
+                // return the pre-created instance with defaults rather than null.
+                if (LastFieldWasEmpty)
+                {
+                    return value;
+                }
+
+                return default;
             }
             finally
             {
                 m_nestingLevel--;
             }
-            return value;
         }
 
         /// <summary>
@@ -2597,6 +2603,7 @@ namespace Opc.Ua
         private bool BeginField(string fieldName, bool isOptional, out bool isNil)
         {
             isNil = false;
+            m_lastFieldWasEmpty = false;
 
             // allow caller to skip reading element tag if field name is not specified.
             if (string.IsNullOrEmpty(fieldName))
@@ -2652,6 +2659,7 @@ namespace Opc.Ua
 
             if (isNil || isEmpty)
             {
+                m_lastFieldWasEmpty = isEmpty && !isNil;
                 return false;
             }
 
@@ -2880,5 +2888,11 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+        private bool m_lastFieldWasEmpty;
+
+        /// <summary>
+        /// Returns true if the last BeginField found the element but it was empty.
+        /// </summary>
+        private bool LastFieldWasEmpty => m_lastFieldWasEmpty;
     }
 }

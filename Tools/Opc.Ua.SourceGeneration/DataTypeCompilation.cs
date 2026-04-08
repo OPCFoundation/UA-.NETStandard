@@ -105,58 +105,78 @@ namespace Opc.Ua.SourceGeneration
             string dataTypeId =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.DataTypeId));
             string binaryEncodingId =
-                dataTypeAttr.GetValue(nameof(DataTypeAttribute.BinaryEncodingId));
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.BinaryEncodingId));
             string xmlEncodingId =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.XmlEncodingId));
             string jsonEncodingId =
-                dataTypeAttr.GetValue(nameof(DataTypeAttribute.JsonEncodingId));
-            if (symbol.TypeKind == TypeKind.Enum)
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.JsonEncodingId));
+
+            try
             {
-                Model = BuildEnumModel(
+                if (symbol.TypeKind == TypeKind.Enum)
+                {
+                    Model = BuildEnumModel(
+                        symbol, dataTypeNamespace, dataTypeId,
+                        binaryEncodingId, xmlEncodingId, jsonEncodingId);
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool isPartial = symbol.DeclaringSyntaxReferences
+                    .Any(r => r.GetSyntax(cancellationToken)
+                        is TypeDeclarationSyntax tds &&
+                        tds.Modifiers.Any(SyntaxKind.PartialKeyword));
+                if (!isPartial)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must be declared as partial.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool hasCtor = symbol.Constructors
+                    .Any(c => c.Parameters.Length == 0);
+                if (!hasCtor)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must have a parameterless ctor.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                Model = BuildClassModel(
                     symbol, dataTypeNamespace, dataTypeId,
-                    binaryEncodingId, xmlEncodingId, jsonEncodingId);
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
-            }
+                    binaryEncodingId, xmlEncodingId, jsonEncodingId,
+                    cancellationToken);
 
-            bool isPartial = symbol.DeclaringSyntaxReferences
-                .Any(r => r.GetSyntax(cancellationToken)
-                    is ClassDeclarationSyntax cds &&
-                    cds.Modifiers.Any(SyntaxKind.PartialKeyword));
-            if (!isPartial)
-            {
-                HasErrors = true;
-                ErrorMessage = "[DataType] class must be declared as partial.";
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
-            }
+                IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
+                    TypeSourceGenerator.ValidateAndFilter(
+                        Model, out IReadOnlyList<TypeFieldModel> valid);
 
-            bool hasCtor = symbol.Constructors
-                .Any(c => c.Parameters.Length == 0);
-            if (!hasCtor)
+                ValidFields = valid;
+                Diagnostics = diags;
+                HasErrors = diags.Any(d => d.IsError);
+            }
+            catch (System.Exception ex)
             {
                 HasErrors = true;
                 ErrorMessage =
-                    "[DataType] class must have a parameterless constructor.";
-                ValidFields = System.Array.Empty<TypeFieldModel>();
-                Diagnostics = System.Array.Empty<TypeSourceGeneratorDiagnostic>();
-                return;
+                    $"[DataType] generator error for '{symbol.Name}': " +
+                    $"{ex.GetType().Name}: {ex.Message}";
+                ValidFields ??= System.Array.Empty<TypeFieldModel>();
+                Diagnostics ??=
+                    System.Array.Empty<TypeSourceGeneratorDiagnostic>();
             }
-
-            Model = BuildClassModel(
-                symbol, dataTypeNamespace, dataTypeId,
-                binaryEncodingId, xmlEncodingId, jsonEncodingId,
-                cancellationToken);
-
-            IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
-                TypeSourceGenerator.ValidateAndFilter(
-                    Model, out IReadOnlyList<TypeFieldModel> valid);
-
-            ValidFields = valid;
-            Diagnostics = diags;
-            HasErrors = diags.Any(d => d.IsError);
         }
 
         /// <summary>
@@ -164,7 +184,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static void EmitBatch(
             SourceProductionContext sourceContext,
-            ImmutableArray<DataTypeCompilation> compilations)
+            ImmutableArray<DataTypeCompilation> compilations,
+            bool publicExtensions)
         {
             foreach (DataTypeCompilation comp in compilations)
             {
@@ -203,14 +224,18 @@ namespace Opc.Ua.SourceGeneration
 
                 foreach (DataTypeCompilation comp in entries)
                 {
-                    if (comp.Model.IsEnum)
+                    TypeSourceModel model = comp.Model with
                     {
-                        allActivators.Add(comp.Model);
+                        PublicExtensions = publicExtensions
+                    };
+                    if (model.IsEnum)
+                    {
+                        allActivators.Add(model);
                     }
                     else
                     {
-                        allTypes.Add(comp.Model with { Fields = comp.ValidFields });
-                        allActivators.Add(comp.Model);
+                        allTypes.Add(model with { Fields = comp.ValidFields });
+                        allActivators.Add(model);
                     }
                 }
 
@@ -218,6 +243,7 @@ namespace Opc.Ua.SourceGeneration
                     first.Namespace,
                     first.NamespaceSymbol,
                     first.NamespaceUri,
+                    publicExtensions,
                     allTypes,
                     allActivators);
 
@@ -236,6 +262,10 @@ namespace Opc.Ua.SourceGeneration
             CancellationToken ct)
         {
             string ns = symbol.GetFullNamespace();
+            bool baseTypeIsEncodeable = symbol.BaseType != null &&
+                symbol.BaseType.Name != "Object" &&
+                (symbol.BaseType.ImplementsInterface("IEncodeable") ||
+                 symbol.BaseType.HasAttribute("DataTypeAttribute"));
             return new TypeSourceModel
             {
                 ClassName = symbol.Name,
@@ -249,6 +279,16 @@ namespace Opc.Ua.SourceGeneration
                 JsonEncodingId = jsonEncodingId,
                 IsRecord = symbol.IsRecord,
                 IsEnum = false,
+                IsSealed = symbol.IsSealed,
+                IsDerived = baseTypeIsEncodeable,
+                IsInternal =
+                    symbol.DeclaredAccessibility == Accessibility.Internal ||
+                    symbol.DeclaredAccessibility == Accessibility.NotApplicable,
+                BaseTypeIsEncodeable = baseTypeIsEncodeable,
+                HasManualClone = symbol.GetMembers()
+                    .OfType<IMethodSymbol>()
+                    .Any(m => m.Name is "Clone" or "MemberwiseClone" &&
+                        !m.IsImplicitlyDeclared),
                 Fields = CollectFields(symbol, ct),
                 BaseClassName = symbol.BaseType?.Name == "Object"
                     ? null : symbol.BaseType?.Name
@@ -298,14 +338,15 @@ namespace Opc.Ua.SourceGeneration
         private static List<TypeFieldModel> CollectFields(
             INamedTypeSymbol symbol, CancellationToken ct)
         {
+            // Get ALL non-abstract, non-static properties regardless of
+            // accessibility for [DataTypeField] scanning.
             IPropertySymbol[] allProperties =
             [
                 .. symbol.GetMembers()
                     .OfType<IPropertySymbol>()
                     .Where(p => !p.IsAbstract &&
                         !p.IsStatic &&
-                        !p.IsReadOnly &&
-                        p.DeclaredAccessibility == Accessibility.Public)
+                        !p.IsReadOnly)
             ];
             // Check if any property has [DataTypeField] — if so, use only those
             Tuple<IPropertySymbol, AttributeData>[] selectedPropsWithAttribute =
@@ -320,16 +361,20 @@ namespace Opc.Ua.SourceGeneration
             int orderIndex = 0;
             if (selectedPropsWithAttribute.Length == 0)
             {
-                // None annotated - use all unnotated
+                // None annotated — auto-discover PUBLIC properties only
                 foreach (IPropertySymbol prop in allProperties)
                 {
+                    if (prop.DeclaredAccessibility != Accessibility.Public)
+                    {
+                        continue;
+                    }
                     ct.ThrowIfCancellationRequested();
                     fields.Add(CreateField(prop, prop.Name, orderIndex++, false));
                 }
             }
             else
             {
-                // Use annotations
+                // Use only annotated properties (any accessibility)
                 foreach (Tuple<IPropertySymbol, AttributeData> propWithAttribute
                     in selectedPropsWithAttribute)
                 {
@@ -342,7 +387,7 @@ namespace Opc.Ua.SourceGeneration
                     string fieldName = dtfAttr.GetValue(
                         nameof(DataTypeFieldAttribute.Name))
                         ?? prop.Name;
-                    fields.Add(CreateField(prop, fieldName, orderIndex, true));
+                    fields.Add(CreateField(prop, fieldName, orderIndex, true, dtfAttr));
                 }
             }
             fields.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -351,19 +396,22 @@ namespace Opc.Ua.SourceGeneration
 
         private static TypeFieldModel CreateField(
             IPropertySymbol prop, string fieldName,
-            int order, bool hasDataTypeFieldAttr)
+            int order, bool hasDataTypeFieldAttr,
+            AttributeData dtfAttr = null)
         {
             ITypeSymbol type = prop.Type;
             string shortName = type.Name;
             bool isNullable =
                 prop.NullableAnnotation == NullableAnnotation.Annotated;
-            bool isEncodeable =
-                type.ImplementsInterface(nameof(IEncodeable));
             bool isEnum = type.TypeKind == TypeKind.Enum;
+            bool isEncodeable = !isEnum &&
+                (type.ImplementsInterface(nameof(IEncodeable)) ||
+                 type.HasAttribute(nameof(DataTypeAttribute)));
             bool isArray = false;
             bool isMatrix = false;
             string elementShortTypeName = null;
             string elementTypeName = null;
+            ITypeSymbol encodeableType = type;
 
             if (shortName == "ArrayOf" &&
                 type is INamedTypeSymbol arrayType &&
@@ -374,9 +422,11 @@ namespace Opc.Ua.SourceGeneration
                 ITypeSymbol elem = arrayType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
-                isEncodeable =
-                    elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                     elem.HasAttribute(nameof(DataTypeAttribute)));
+                encodeableType = elem;
             }
             else if (shortName == "MatrixOf" &&
                 type is INamedTypeSymbol matrixType &&
@@ -387,10 +437,31 @@ namespace Opc.Ua.SourceGeneration
                 ITypeSymbol elem = matrixType.TypeArguments[0];
                 elementShortTypeName = elem.Name;
                 elementTypeName = elem.GetFullyQualifiedTypeName();
-                isEncodeable =
-                    elem.ImplementsInterface(nameof(IEncodeable));
                 isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                     elem.HasAttribute(nameof(DataTypeAttribute)));
+                encodeableType = elem;
             }
+
+            bool? forceEncodeable = null;
+            if (dtfAttr != null)
+            {
+                foreach (var kvp in dtfAttr.NamedArguments)
+                {
+                    if (kvp.Key == "ForceEncodeable" && kvp.Value.Value is bool b)
+                    {
+                        forceEncodeable = b;
+                    }
+                }
+            }
+
+            bool fieldTypeIsSealed = encodeableType.IsSealed;
+            bool fieldTypeHasEncodeableBase =
+                encodeableType is INamedTypeSymbol namedFieldType &&
+                namedFieldType.BaseType != null &&
+                namedFieldType.BaseType.Name != "Object" &&
+                namedFieldType.BaseType.ImplementsInterface("IEncodeable");
 
             return new TypeFieldModel
             {
@@ -406,7 +477,10 @@ namespace Opc.Ua.SourceGeneration
                 IsEncodeable = isEncodeable,
                 IsEnum = isEnum,
                 Order = order,
-                HasDataTypeFieldAttribute = hasDataTypeFieldAttr
+                HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
+                ForceEncodeable = forceEncodeable,
+                FieldTypeIsSealed = fieldTypeIsSealed,
+                FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
             };
         }
 

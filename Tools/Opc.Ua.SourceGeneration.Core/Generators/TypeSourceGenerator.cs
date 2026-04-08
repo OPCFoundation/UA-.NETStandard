@@ -101,6 +101,8 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, model.Namespace);
             template.AddReplacement(Tokens.Namespace, model.NamespaceSymbol);
             template.AddReplacement(Tokens.NamespaceUri, model.NamespaceUri);
+            template.AddReplacement(Tokens.AccessModifier,
+                model.PublicExtensions ? "public" : "internal");
 
             if (model.IsEnum)
             {
@@ -147,6 +149,7 @@ namespace Opc.Ua.SourceGeneration
             string ns,
             string nsSymbol,
             string nsUri,
+            bool publicExtensions,
             IReadOnlyList<TypeSourceModel> allTypes,
             IReadOnlyList<TypeSourceModel> allActivators)
         {
@@ -158,6 +161,8 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, ns);
             template.AddReplacement(Tokens.Namespace, nsSymbol);
             template.AddReplacement(Tokens.NamespaceUri, nsUri);
+            template.AddReplacement(Tokens.AccessModifier,
+                publicExtensions ? "public" : "internal");
 
             template.AddReplacement(
                 Tokens.ListOfTypes,
@@ -187,8 +192,24 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            return ctx.IsRecord
-                ? TypeSourceTemplates.RecordPartialClassBody
+            if (ctx.IsRecord)
+            {
+                if (ctx.IsDerived)
+                {
+                    return TypeSourceTemplates.DerivedRecordPartialClassBody;
+                }
+                return ctx.IsSealed
+                    ? TypeSourceTemplates.SealedRecordPartialClassBody
+                    : TypeSourceTemplates.RecordPartialClassBody;
+            }
+
+            if (ctx.IsDerived)
+            {
+                return TypeSourceTemplates.DerivedPartialClassBody;
+            }
+
+            return ctx.IsSealed
+                ? TypeSourceTemplates.SealedPartialClassBody
                 : TypeSourceTemplates.PartialClassBody;
         }
 
@@ -216,6 +237,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"\"{model.NamespaceUri.Escape()}\"");
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsInternal ? "internal" : "public");
 
             context.Template.AddReplacement(
                 Tokens.ListOfEncodedFields,
@@ -229,6 +252,41 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfComparedFields,
                 model.Fields,
                 LoadTemplate_ListOfComparedFields);
+
+            context.Template.AddReplacement(
+                Tokens.ListOfChildCopies,
+                [model],
+                LoadTemplate_ListOfChildCopies,
+                WriteTemplate_ListOfChildCopies);
+
+            return context.Template.Render();
+        }
+
+        private static TemplateString LoadTemplate_ListOfChildCopies(ILoadContext context)
+        {
+            if (context.Target is not TypeSourceModel model ||
+                model.HasManualClone)
+            {
+                return null;
+            }
+            // Generate Clone/MemberwiseClone unless the user already has them
+            if (model.IsRecord)
+            {
+                return TypeSourceTemplates.RecordCloneMethod;
+            }
+            return TypeSourceTemplates.CloneMethod;
+        }
+
+        private static bool WriteTemplate_ListOfChildCopies(IWriteContext context)
+        {
+            if (context.Target is not TypeSourceModel model)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsDerived ? "override" :
+                    model.IsSealed ? string.Empty : "virtual");
             context.Template.AddReplacement(
                 Tokens.ListOfClonedFields,
                 model.Fields,
@@ -252,8 +310,24 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                bool useExtObj = ShouldUseExtensionObject(field);
+                if (field.IsArray)
+                {
+                    string method = useExtObj
+                        ? "WriteEncodeableArrayAsExtensionObjects"
+                        : "WriteEncodeableArray";
+                    return (TemplateString)CoreUtils.Format(
+                        "encoder.{0}(\"{1}\", {2});",
+                        method,
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+                }
+                string scalarMethod = useExtObj
+                    ? "WriteEncodeableAsExtensionObject"
+                    : "WriteEncodeable";
                 return (TemplateString)CoreUtils.Format(
-                    """encoder.WriteEncodeable("{0}", {1});""",
+                    "encoder.{0}(\"{1}\", {2});",
+                    scalarMethod,
                     field.FieldName.Escape(),
                     field.PropertyName);
             }
@@ -295,8 +369,29 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.IsEncodeable)
             {
+                bool useExtObj = ShouldUseExtensionObject(field);
+                if (field.IsArray)
+                {
+                    string method = useExtObj
+                        ? "ReadEncodeableArrayAsExtensionObjects"
+                        : "ReadEncodeableArray";
+                    return (TemplateString)CoreUtils.Format(
+                        "{0} = decoder.{1}<{2}>(\"{3}\");",
+                        field.PropertyName,
+                        method,
+                        field.ElementTypeName,
+                        field.FieldName.Escape());
+                }
+                if (useExtObj)
+                {
+                    return (TemplateString)CoreUtils.Format(
+                        "{0} = decoder.ReadEncodeableAsExtensionObject<{1}>(\"{2}\");",
+                        field.PropertyName,
+                        field.TypeName,
+                        field.FieldName.Escape());
+                }
                 return (TemplateString)CoreUtils.Format(
-                    """{0} = ({1})decoder.ReadEncodeable("{2}", typeof({1}));""",
+                    "{0} = decoder.ReadEncodeable<{1}>(\"{2}\");",
                     field.PropertyName,
                     field.TypeName,
                     field.FieldName.Escape());
@@ -314,14 +409,14 @@ namespace Opc.Ua.SourceGeneration
                         field.FieldName.Escape());
                 }
                 return (TemplateString)CoreUtils.Format(
-                    """{0} = ({1})decoder.ReadEnumerated("{2}", typeof({1}));""",
+                    "{0} = decoder.ReadEnumerated<{1}>(\"{2}\");",
                     field.PropertyName,
                     typeName,
                     field.FieldName.Escape());
             }
 
             return (TemplateString)CoreUtils.Format(
-                    """{0} = decoder.{1}("{2}");""",
+                """{0} = decoder.{1}("{2}");""",
                 field.PropertyName,
                 readMethod,
                 field.FieldName.Escape());
@@ -333,9 +428,20 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+
+            if (!IsDotNetEqualityComparable(field))
+            {
+                return (TemplateString)CoreUtils.Format(
+                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0})) return false;",
+                    field.PropertyName);
+            }
+
             return (TemplateString)CoreUtils.Format(
-                "if (!global::Opc.Ua.Utils.IsEqual(this.{0}, value.{0})) return false;",
+                "if ({0} != value.{0}) return false;",
                 field.PropertyName);
+
+            static bool IsDotNetEqualityComparable(TypeFieldModel field) =>
+                !field.IsEncodeable; // Add any other type not comparable using ==
         }
 
         private static TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)
@@ -344,13 +450,33 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            if (field.IsArray || field.IsMatrix || field.IsEncodeable)
+
+            if (NeedsCloning(field))
             {
                 return (TemplateString)CoreUtils.Format(
-                    "clone.{0} = ({1})global::Opc.Ua.Utils.Clone(this.{0});",
+                    "clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone({0});",
                     field.PropertyName, field.TypeName);
             }
-            return null;
+
+            return (TemplateString)CoreUtils.Format(
+                "clone.{0} = {0};",
+                field.PropertyName, field.TypeName);
+
+            static bool NeedsCloning(TypeFieldModel field)
+            {
+                switch (field.ShortTypeName)
+                {
+                    case "DataValue":
+                    case "Variant":
+                    case "ExtensionObject":
+                        return true;
+                }
+                if (field.IsArray || field.IsMatrix)
+                {
+                    return false;
+                }
+                return field.IsEncodeable;
+            }
         }
 
         private static TemplateString LoadTemplate_ListOfTypeActivators(ILoadContext context)
@@ -412,6 +538,33 @@ namespace Opc.Ua.SourceGeneration
                 """);
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Determines whether an IEncodeable field should be encoded as
+        /// an ExtensionObject (allowing subtyping) or directly.
+        /// </summary>
+        internal static bool ShouldUseExtensionObject(TypeFieldModel field)
+        {
+            // Explicit override from [DataTypeField(ForceEncodeable = ...)]
+            if (field.ForceEncodeable == true)
+            {
+                return false;
+            }
+            if (field.ForceEncodeable == false)
+            {
+                return true;
+            }
+
+            // Auto-detect: use WriteEncodeable if the type is sealed
+            // and does not derive from another IEncodeable base type
+            if (field.FieldTypeIsSealed && !field.FieldTypeHasEncodeableBase)
+            {
+                return false;
+            }
+
+            // Default: use ExtensionObject to allow subtyping
+            return true;
         }
 
         /// <summary>

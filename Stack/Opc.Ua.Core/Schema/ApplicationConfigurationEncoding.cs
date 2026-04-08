@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Xml;
 
 namespace Opc.Ua
@@ -287,9 +288,9 @@ namespace Opc.Ua
 
         internal static void EncodeTransportConfigurationCollection(
             XmlEncoder encoder,
-            TransportConfigurationCollection items)
+            ArrayOf<TransportConfiguration> items)
         {
-            if (items == null)
+            if (items.IsEmpty)
             {
                 return;
             }
@@ -302,10 +303,10 @@ namespace Opc.Ua
             }
         }
 
-        internal static TransportConfigurationCollection DecodeTransportConfigurationCollection(
+        internal static ArrayOf<TransportConfiguration> DecodeTransportConfigurationCollection(
             XmlParser decoder)
         {
-            var collection = new TransportConfigurationCollection();
+            var collection = new List<TransportConfiguration>();
             while (decoder.Peek("TransportConfiguration"))
             {
                 decoder.ReadStartElement();
@@ -315,7 +316,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName("TransportConfiguration", Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeServerSecurityPolicy(XmlEncoder encoder, ServerSecurityPolicy policy)
@@ -341,9 +342,9 @@ namespace Opc.Ua
         internal static void EncodeServerSecurityPolicyCollection(
             XmlEncoder encoder,
             string wrapperElement,
-            ServerSecurityPolicyCollection policies)
+            ArrayOf<ServerSecurityPolicy> policies)
         {
-            if (policies == null || policies.Count == 0)
+            if (policies.IsEmpty)
             {
                 return;
             }
@@ -359,11 +360,11 @@ namespace Opc.Ua
             encoder.Pop();
         }
 
-        internal static ServerSecurityPolicyCollection DecodeServerSecurityPolicyCollection(
+        internal static ArrayOf<ServerSecurityPolicy> DecodeServerSecurityPolicyCollection(
             XmlParser decoder,
             string wrapperElement)
         {
-            var collection = new ServerSecurityPolicyCollection();
+            var collection = new List<ServerSecurityPolicy>();
             if (decoder.Peek(wrapperElement))
             {
                 decoder.ReadStartElement();
@@ -381,7 +382,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName(wrapperElement, Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeSecurityConfiguration(
@@ -557,7 +558,7 @@ namespace Opc.Ua
             {
                 decoder.ReadStartElement();
                 decoder.PushNamespace(Namespaces.OpcUaConfig);
-                var certs = new CertificateIdentifierCollection();
+                var certs = new List<CertificateIdentifier>();
                 while (decoder.Peek("CertificateIdentifier"))
                 {
                     decoder.ReadStartElement();
@@ -567,7 +568,7 @@ namespace Opc.Ua
                     decoder.Skip(new XmlQualifiedName("CertificateIdentifier", Namespaces.OpcUaConfig));
                 }
 
-                config.ApplicationCertificates = certs;
+                config.ApplicationCertificates = certs.ToArrayOf();
                 decoder.PopNamespace();
                 decoder.Skip(new XmlQualifiedName("ApplicationCertificates", Namespaces.OpcUaConfig));
             }
@@ -669,9 +670,9 @@ namespace Opc.Ua
 
         internal static void EncodeSamplingRateGroupCollection(
             XmlEncoder encoder,
-            SamplingRateGroupCollection items)
+            ArrayOf<SamplingRateGroup> items)
         {
-            if (items == null || items.Count == 0)
+            if (items.IsEmpty)
             {
                 return;
             }
@@ -684,10 +685,10 @@ namespace Opc.Ua
             }
         }
 
-        internal static SamplingRateGroupCollection DecodeSamplingRateGroupCollection(
+        internal static ArrayOf<SamplingRateGroup> DecodeSamplingRateGroupCollection(
             XmlParser decoder)
         {
-            var collection = new SamplingRateGroupCollection();
+            var collection = new List<SamplingRateGroup>();
             while (decoder.Peek("SamplingRateGroup"))
             {
                 decoder.ReadStartElement();
@@ -697,7 +698,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName("SamplingRateGroup", Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeServerBaseConfiguration(
@@ -778,7 +779,7 @@ namespace Opc.Ua
             ReverseConnectServerConfiguration config)
         {
             // Order 10: Clients
-            if (config.Clients != null && config.Clients.Count > 0)
+            if (!config.Clients.IsNull && config.Clients.Count > 0)
             {
                 encoder.Push("Clients", Namespaces.OpcUaConfig);
                 EncodeReverseConnectClientCollection(encoder, config.Clients);
@@ -835,9 +836,9 @@ namespace Opc.Ua
 
         internal static void EncodeReverseConnectClientCollection(
             XmlEncoder encoder,
-            ReverseConnectClientCollection clients)
+            ArrayOf<ReverseConnectClient> clients)
         {
-            if (clients == null)
+            if (clients.IsEmpty)
             {
                 return;
             }
@@ -850,10 +851,10 @@ namespace Opc.Ua
             }
         }
 
-        internal static ReverseConnectClientCollection DecodeReverseConnectClientCollection(
+        internal static ArrayOf<ReverseConnectClient> DecodeReverseConnectClientCollection(
             XmlParser decoder)
         {
-            var collection = new ReverseConnectClientCollection();
+            var collection = new List<ReverseConnectClient>();
             while (decoder.Peek("ReverseConnectClient"))
             {
                 decoder.ReadStartElement();
@@ -863,7 +864,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName("ReverseConnectClient", Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeServerConfiguration(XmlEncoder encoder, ServerConfiguration config)
@@ -929,7 +930,7 @@ namespace Opc.Ua
             encoder.WriteInt32("MinMetadataSamplingInterval", config.MinMetadataSamplingInterval);
 
             // Order 21: AvailableSamplingRates (EmitDefaultValue=false)
-            if (config.AvailableSamplingRates != null && config.AvailableSamplingRates.Count > 0)
+            if (!config.AvailableSamplingRates.IsNull && config.AvailableSamplingRates.Count > 0)
             {
                 encoder.Push("AvailableSamplingRates", Namespaces.OpcUaConfig);
                 EncodeSamplingRateGroupCollection(encoder, config.AvailableSamplingRates);
@@ -1146,7 +1147,7 @@ namespace Opc.Ua
             ReverseConnectClientConfiguration config)
         {
             // Order 10: ClientEndpoints
-            if (config.ClientEndpoints != null && config.ClientEndpoints.Count > 0)
+            if (!config.ClientEndpoints.IsNull && config.ClientEndpoints.Count > 0)
             {
                 encoder.Push("ClientEndpoints", Namespaces.OpcUaConfig);
                 EncodeReverseConnectClientEndpointCollection(encoder, config.ClientEndpoints);
@@ -1196,9 +1197,9 @@ namespace Opc.Ua
 
         internal static void EncodeReverseConnectClientEndpointCollection(
             XmlEncoder encoder,
-            ReverseConnectClientEndpointCollection endpoints)
+            ArrayOf<ReverseConnectClientEndpoint> endpoints)
         {
-            if (endpoints == null)
+            if (endpoints.IsEmpty)
             {
                 return;
             }
@@ -1211,10 +1212,10 @@ namespace Opc.Ua
             }
         }
 
-        internal static ReverseConnectClientEndpointCollection DecodeReverseConnectClientEndpointCollection(
+        internal static ArrayOf<ReverseConnectClientEndpoint> DecodeReverseConnectClientEndpointCollection(
             XmlParser decoder)
         {
-            var collection = new ReverseConnectClientEndpointCollection();
+            var collection = new List<ReverseConnectClientEndpoint>();
             while (decoder.Peek("ClientEndpoint"))
             {
                 decoder.ReadStartElement();
@@ -1224,7 +1225,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName("ClientEndpoint", Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeDiscoveryServerConfiguration(
@@ -1244,7 +1245,7 @@ namespace Opc.Ua
             encoder.WriteString("DiscoveryServerCacheFile", config.DiscoveryServerCacheFile);
 
             // Order 4: ServerRegistrations (EmitDefaultValue=false)
-            if (config.ServerRegistrations != null && config.ServerRegistrations.Count > 0)
+            if (!config.ServerRegistrations.IsNull && config.ServerRegistrations.Count > 0)
             {
                 encoder.Push("ServerRegistrations", Namespaces.OpcUaConfig);
                 EncodeServerRegistrationCollection(encoder, config.ServerRegistrations);
@@ -1299,9 +1300,9 @@ namespace Opc.Ua
 
         internal static void EncodeServerRegistrationCollection(
             XmlEncoder encoder,
-            ServerRegistrationCollection registrations)
+            ArrayOf<ServerRegistration> registrations)
         {
-            if (registrations == null)
+            if (registrations.IsEmpty)
             {
                 return;
             }
@@ -1314,10 +1315,10 @@ namespace Opc.Ua
             }
         }
 
-        internal static ServerRegistrationCollection DecodeServerRegistrationCollection(
+        internal static ArrayOf<ServerRegistration> DecodeServerRegistrationCollection(
             XmlParser decoder)
         {
-            var collection = new ServerRegistrationCollection();
+            var collection = new List<ServerRegistration>();
             while (decoder.Peek("ServerRegistration"))
             {
                 decoder.ReadStartElement();
@@ -1327,7 +1328,7 @@ namespace Opc.Ua
                 decoder.Skip(new XmlQualifiedName("ServerRegistration", Namespaces.OpcUaConfig));
             }
 
-            return collection;
+            return collection.ToArrayOf();
         }
 
         internal static void EncodeCertificateStoreIdentifier(
@@ -1370,7 +1371,7 @@ namespace Opc.Ua
             EncodeCertificateStoreIdentifier(encoder, trustList);
 
             // Order 3: TrustedCertificates (EmitDefaultValue=false)
-            if (trustList.TrustedCertificates != null && trustList.TrustedCertificates.Count > 0)
+            if (!trustList.TrustedCertificates.IsNull && trustList.TrustedCertificates.Count > 0)
             {
                 encoder.Push("TrustedCertificates", Namespaces.OpcUaConfig);
                 foreach (CertificateIdentifier cert in trustList.TrustedCertificates)
@@ -1402,7 +1403,7 @@ namespace Opc.Ua
             {
                 decoder.ReadStartElement();
                 decoder.PushNamespace(Namespaces.OpcUaConfig);
-                var certs = new CertificateIdentifierCollection();
+                var certs = new List<CertificateIdentifier>();
                 while (decoder.Peek("CertificateIdentifier"))
                 {
                     decoder.ReadStartElement();
@@ -1412,7 +1413,7 @@ namespace Opc.Ua
                     decoder.Skip(new XmlQualifiedName("CertificateIdentifier", Namespaces.OpcUaConfig));
                 }
 
-                trustList.TrustedCertificates = certs;
+                trustList.TrustedCertificates = certs.ToArrayOf();
                 decoder.PopNamespace();
                 decoder.Skip(new XmlQualifiedName("TrustedCertificates", Namespaces.OpcUaConfig));
             }

@@ -622,9 +622,10 @@ namespace Opc.Ua
             SecurityConfiguration.Validate(m_telemetry);
 
             // load private keys
-            foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration
-                .ApplicationCertificates)
+            var appCerts = SecurityConfiguration.ApplicationCertificates;
+            for (int i = 0; i < appCerts.Count; i++)
             {
+                CertificateIdentifier applicationCertificate = appCerts[i];
                 await applicationCertificate
                     .LoadPrivateKeyExAsync(
                         SecurityConfiguration.CertificatePasswordProvider,
@@ -879,6 +880,30 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry, encoderFunc);
         }
+
+        /// <summary>
+        /// Looks for an extension with the specified IEncodeable type and decodes it.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">Name of the element (null to derive from type).</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        public T ParseEncodeable<T>(XmlQualifiedName elementName = null)
+            where T : IEncodeable, new()
+        {
+            return Utils.ParseEncodeable<T>(m_extensions, elementName, m_telemetry);
+        }
+
+        /// <summary>
+        /// Updates or adds an extension using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">Name of the element (null to derive from type).</param>
+        /// <param name="value">The value to encode.</param>
+        public void UpdateEncodeable<T>(XmlQualifiedName elementName, T value)
+            where T : IEncodeable
+        {
+            Utils.UpdateEncodeable<T>(ref m_extensions, elementName, value, m_telemetry);
+        }
     }
 
     /// <summary>
@@ -893,7 +918,7 @@ namespace Opc.Ua
         {
             if (m_securityPolicies.Count == 0)
             {
-                m_securityPolicies.Add(new ServerSecurityPolicy());
+                m_securityPolicies = m_securityPolicies.AddItem(new ServerSecurityPolicy());
             }
         }
     }

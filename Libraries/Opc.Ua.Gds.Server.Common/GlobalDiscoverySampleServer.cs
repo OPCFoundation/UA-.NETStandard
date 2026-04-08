@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -73,6 +72,27 @@ namespace Opc.Ua.Gds.Server
             m_certificateGroup = certificateGroup;
             m_userDatabase = userDatabase;
             m_autoApprove = autoApprove;
+        }
+
+        /// <summary>
+        /// Called before the server starts. Registers GDS-specific
+        /// encodeable types in the server's message context factory,
+        /// which is required for NativeAOT where reflection-based
+        /// assembly scanning does not discover types automatically.
+        /// </summary>
+        protected override void OnServerStarting(
+            ApplicationConfiguration configuration)
+        {
+            base.OnServerStarting(configuration);
+
+            if (!MessageContext.Factory.ContainsEncodeableType(
+                DataTypeIds.ApplicationRecordDataType))
+            {
+                MessageContext.Factory.Builder
+                    .AddOpcUaGds()
+                    .AddOpcUaGdsServerDataTypes()
+                    .Commit();
+            }
         }
 
         /// <summary>
@@ -251,10 +271,6 @@ namespace Opc.Ua.Gds.Server
         /// Verifies if an Application is registered with the provided certificate at the GDS
         /// </summary>
         /// <param name="session">the session</param>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "DataContractSerializer is used with known OPC UA GDS types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "DataContractSerializer is used with known OPC UA GDS types.")]
         private bool VerifiyApplicationRegistered(ISession session)
         {
             X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
@@ -266,7 +282,7 @@ namespace Opc.Ua.Gds.Server
 
             // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
-                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                Configuration.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
             // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(

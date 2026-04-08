@@ -228,7 +228,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
         IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
-            SamplingRateGroupCollection availableSampleRates);
+            ArrayOf<SamplingRateGroup> availableSampleRates);
 
         /// <inheritdoc cref="ServerConfiguration.RegistrationEndpoint"/>
         IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
@@ -460,7 +460,7 @@ namespace Opc.Ua.Configuration
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
         [Obsolete(
-            "Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead."
+            "Use AddSecurityConfiguration(ArrayOf<CertificateIdentifier> certIdList, string pkiRoot = null, string rejectedRoot = null) instead."
         )]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
@@ -480,7 +480,7 @@ namespace Opc.Ua.Configuration
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
-            CertificateIdentifierCollection certIdList,
+            ArrayOf<CertificateIdentifier> certIdList,
             string pkiRoot = null,
             string rejectedRoot = null);
 
@@ -543,7 +543,7 @@ namespace Opc.Ua.Configuration
         /// </remarks>
         /// <param name="certIdList">A list of Certificate identifiers</param>
         IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
-            CertificateIdentifierCollection certIdList);
+            ArrayOf<CertificateIdentifier> certIdList);
 
         /// <summary>
         /// The number of rejected certificates to keep in the store.

@@ -42,10 +42,6 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <returns>The security configuration.</returns>
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
         SecuredApplication ReadConfiguration(string filePath);
 
         /// <summary>
@@ -53,8 +49,6 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <param name="configuration">The configuration.</param>
-        [RequiresUnreferencedCode("Uses DataContractSerializer for SecuredApplication serialization.")]
-        [RequiresDynamicCode("Uses DataContractSerializer for SecuredApplication serialization.")]
         void WriteConfiguration(string filePath, SecuredApplication configuration);
     }
 

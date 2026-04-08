@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
                 nodeManager,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates);
+                configuration.ServerConfiguration.AvailableSamplingRates.ToArray());
 
             m_nodeManager = nodeManager;
             m_server = server;

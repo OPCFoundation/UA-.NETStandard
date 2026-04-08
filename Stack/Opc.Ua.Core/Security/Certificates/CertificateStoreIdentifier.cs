@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -73,20 +73,6 @@ namespace Opc.Ua
             StorePath = storePath;
             StoreType = storeType;
             m_noPrivateKeys = noPrivateKeys;
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a new object that is a copy of the current instance.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            return base.MemberwiseClone();
         }
 
         /// <summary>
