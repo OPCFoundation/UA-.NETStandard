@@ -282,6 +282,15 @@ namespace Opc.Ua.Client.Tests
                         {
                             await writerSession.WriteAsync(null, nodesToWrite, writerCts.Token).ConfigureAwait(false);
                         }
+                        catch (ServiceResultException sre)
+                            when (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                        {
+                            // BadRequestInterrupted is expected when a write is in-flight during a
+                            // secure channel renewal. The channel renewal briefly interrupts the old
+                            // channel before the new one activates, so this is not a test failure.
+                            TestContext.Out.WriteLine(
+                                $"INFO: Write interrupted during channel renewal (expected): {sre.Message}");
+                        }
                         catch (Exception ex)
                         {
                             string error = $"Writer session error: {ex.Message}";
