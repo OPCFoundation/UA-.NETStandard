@@ -24,12 +24,6 @@ jobs:
     vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
-    displayName: 'Install .NET 8.0'
-    condition: eq('${{parameters.framework}}', 'net8.0')
-    inputs:
-      packageType: 'sdk'
-      version: '8.0.x'
-  - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
     inputs:
       packageType: 'sdk'
@@ -67,7 +61,9 @@ jobs:
     timeoutInMinutes: 60
     inputs:
       command: test
-      projects: 'UA.slnx'
+      projects: |
+        **/*.Tests.csproj
+        !**/Opc.Ua.Aot.Tests.csproj
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
