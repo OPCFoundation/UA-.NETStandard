@@ -4791,7 +4791,6 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.BaseDataType)]
         [TestCase(BasicDataType.ByteString)]
         [TestCase(BasicDataType.XmlElement)]
-        [TestCase(BasicDataType.DataValue)]
         [TestCase(BasicDataType.Number)]
         [TestCase(BasicDataType.Integer)]
         [TestCase(BasicDataType.UInteger)]
@@ -4819,6 +4818,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.String)]
         [TestCase(BasicDataType.DiagnosticInfo)]
         [TestCase(BasicDataType.UserDefined)]
+        [TestCase(BasicDataType.DataValue)]
         public void IsDotNetValueType_ScalarReferenceTypeBasicDataType_ReturnsFalse(BasicDataType basicDataType)
         {
             // Arrange

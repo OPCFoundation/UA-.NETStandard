@@ -61,10 +61,6 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "Configuration uses DataContractSerializer but is optional.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Configuration uses DataContractSerializer but is optional.")]
         public MemoryBufferNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
