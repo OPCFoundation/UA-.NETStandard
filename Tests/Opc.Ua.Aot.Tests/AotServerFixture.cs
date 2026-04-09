@@ -29,10 +29,8 @@
 
 using System.Net;
 using System.Net.Sockets;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Aot.Tests
 {

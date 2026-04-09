@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MemoryBufferConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://samples.org/UA/MemoryBuffer">
+  <Buffers xmlns="urn:memorybuffer">
+    <MemoryBufferInstance xmlns="http://samples.org/UA/MemoryBuffer">
+      <Name xmlns="urn:memorybuffer">UInt32</Name>
+      <TagCount xmlns="urn:memorybuffer">100</TagCount>
+      <DataType xmlns="urn:memorybuffer">UInt32</DataType>
+    </MemoryBufferInstance>
+    <MemoryBufferInstance xmlns="http://samples.org/UA/MemoryBuffer">
+      <Name xmlns="urn:memorybuffer">Double</Name>
+      <TagCount xmlns="urn:memorybuffer">200</TagCount>
+      <DataType xmlns="urn:memorybuffer">Double</DataType>
+    </MemoryBufferInstance>
+  </Buffers>
+</MemoryBufferConfiguration>

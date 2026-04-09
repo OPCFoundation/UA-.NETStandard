@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Xml;
 
 // suppress warnings until OAuth 2.0 is supported

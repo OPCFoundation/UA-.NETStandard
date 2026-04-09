@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Client.ComplexTypes;
 using Quickstarts.ReferenceServer;

@@ -32,6 +32,14 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="test-memorybuffer-config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="test-testdata-config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />

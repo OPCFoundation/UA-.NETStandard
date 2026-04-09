@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <ApplicationName>Round Trip Test</ApplicationName>
+  <ApplicationUri>urn:localhost:roundtriptest</ApplicationUri>
+  <ProductUri>http://test.org/roundtrip</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/test</StorePath>
+      <SubjectName>CN=Test, O=OPC Foundation</SubjectName>
+    </ApplicationCertificate>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/issuers</StorePath>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/trusted</StorePath>
+    </TrustedPeerCertificates>
+    <RejectedCertificateStore>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/rejected</StorePath>
+    </RejectedCertificateStore>
+    <NonceLength>32</NonceLength>
+    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+  </SecurityConfiguration>
+  <TransportQuotas>
+    <OperationTimeout>60000</OperationTimeout>
+    <MaxStringLength>1048576</MaxStringLength>
+    <MaxByteStringLength>4194304</MaxByteStringLength>
+    <MaxArrayLength>65535</MaxArrayLength>
+    <MaxMessageSize>4194304</MaxMessageSize>
+    <MaxBufferSize>65535</MaxBufferSize>
+    <ChannelLifetime>300000</ChannelLifetime>
+    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+  </TransportQuotas>
+  <ServerConfiguration>
+    <BaseAddresses>
+      <ua:String>opc.tcp://localhost:4840</ua:String>
+    </BaseAddresses>
+    <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+    </SecurityPolicies>
+    <MaxSessionCount>100</MaxSessionCount>
+    <MinSessionTimeout>10000</MinSessionTimeout>
+    <MaxSessionTimeout>3600000</MaxSessionTimeout>
+  </ServerConfiguration>
+  <TraceConfiguration>
+    <OutputFilePath>test.log</OutputFilePath>
+    <TraceMasks>519</TraceMasks>
+  </TraceConfiguration>
+</ApplicationConfiguration>

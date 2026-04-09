@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestDataNodeManagerConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://test.org/UA/Data/">
+  <SaveFilePath xmlns="urn:testdata">C:\TestData\state.bin</SaveFilePath>
+  <MaxQueueSize xmlns="urn:testdata">250</MaxQueueSize>
+  <NextUnusedId xmlns="urn:testdata">42</NextUnusedId>
+</TestDataNodeManagerConfiguration>
