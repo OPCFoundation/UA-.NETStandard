@@ -355,13 +355,11 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    await ServerFixture.StopAsync().WaitAsync(cts.Token).ConfigureAwait(false);
+                    await ServerFixture.StopAsync().ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error stopping server during teardown, forcing dispose.");
-                    Utils.SilentDispose(ServerFixture.Server);
+                    m_logger.LogError(e, "Error stopping server during teardown.");
                 }
                 await Task.Delay(100).ConfigureAwait(false);
             }
