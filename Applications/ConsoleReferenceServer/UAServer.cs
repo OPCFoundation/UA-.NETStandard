@@ -155,7 +155,7 @@ namespace Quickstarts
         /// Start the server.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public async Task StartAsync()
+        public async Task StartAsync(CancellationToken ct = default)
         {
             try
             {
@@ -163,7 +163,7 @@ namespace Quickstarts
                 Server ??= m_factory(m_telemetry);
 
                 // start the server
-                await Application.StartAsync(Server).ConfigureAwait(false);
+                await Application.StartAsync(Server, ct).ConfigureAwait(false);
 
                 // save state
                 ExitCode = ExitCode.ErrorRunning;
@@ -196,7 +196,7 @@ namespace Quickstarts
         /// Stops the server.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public async Task StopAsync()
+        public async Task StopAsync(CancellationToken ct = default)
         {
             try
             {
@@ -208,7 +208,7 @@ namespace Quickstarts
                     await m_status.ConfigureAwait(false);
 
                     // Stop server and dispose
-                    await server.StopAsync().ConfigureAwait(false);
+                    await server.StopAsync(ct).ConfigureAwait(false);
                 }
 
                 ExitCode = ExitCode.Ok;

@@ -204,7 +204,7 @@ namespace Quickstarts.ReferenceServer
 
                     // start the server
                     Console.WriteLine("Start the server.");
-                    await server.StartAsync().ConfigureAwait(false);
+                    await server.StartAsync(cancellationToken).ConfigureAwait(false);
 
                     // setup reverse connect if specified
                     if (!string.IsNullOrEmpty(reverseConnectUrlString))
@@ -235,10 +235,31 @@ namespace Quickstarts.ReferenceServer
 
                     Console.WriteLine($"Server started ({sw.ElapsedMilliseconds} ms). Press Ctrl-C to exit...");
 
-                    // wait for timeout or Ctrl-C
-                    var quitCTS = new CancellationTokenSource();
-                    ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
-                    bool ctrlc = quitEvent.WaitOne(timeout);
+                    // wait for timeout or Ctrl-C (cancellationToken is cancelled on Ctrl-C by System.CommandLine)
+                    if (timeout >= 0)
+                    {
+                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        timeoutCts.CancelAfter(timeout);
+                        try
+                        {
+                            await Task.Delay(Timeout.Infinite, timeoutCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // expected — timeout or Ctrl-C
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // expected — Ctrl-C
+                        }
+                    }
 
                     // stop server. May have to wait for clients to disconnect.
                     Console.WriteLine("Server stopped. Waiting for exit...");

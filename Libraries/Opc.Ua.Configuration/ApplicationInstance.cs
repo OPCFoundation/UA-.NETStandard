@@ -44,6 +44,24 @@ namespace Opc.Ua.Configuration
     /// <inheritdoc/>
     public class ApplicationInstance : IApplicationInstance
     {
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Server != null)
+            {
+                try
+                {
+                    await StopAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Error stopping server during dispose.");
+                }
+                Server.Dispose();
+                Server = null;
+            }
+            GC.SuppressFinalize(this);
+        }
         /// <summary>
         /// Obsolete constructor
         /// </summary>
@@ -116,22 +134,22 @@ namespace Opc.Ua.Configuration
         public bool DisableCertificateAutoCreation { get; set; }
 
         /// <inheritdoc/>
-        public async Task StartAsync(IServerBase server)
+        public async Task StartAsync(IServerBase server, CancellationToken ct = default)
         {
             Server = server;
 
             if (ApplicationConfiguration == null)
             {
-                await LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
+                await LoadApplicationConfigurationAsync(false, ct).ConfigureAwait(false);
             }
 
-            await server.StartAsync(ApplicationConfiguration).ConfigureAwait(false);
+            await server.StartAsync(ApplicationConfiguration, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ValueTask StopAsync()
+        public ValueTask StopAsync(CancellationToken ct = default)
         {
-            return Server.StopAsync();
+            return Server.StopAsync(ct);
         }
 
         /// <summary>
