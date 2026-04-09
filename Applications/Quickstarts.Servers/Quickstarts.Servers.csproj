@@ -16,10 +16,6 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Remove="Alarms\Alarms.cs" />
   </ItemGroup>
   <ItemGroup>
