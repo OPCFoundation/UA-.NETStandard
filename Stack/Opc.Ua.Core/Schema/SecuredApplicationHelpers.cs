@@ -178,7 +178,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateList object.
         /// </summary>
-        public static CertificateList ToCertificateList(ArrayOf<Opc.Ua.CertificateIdentifier> input)
+        public static CertificateList ToCertificateList(ArrayOf<Ua.CertificateIdentifier> input)
         {
             var output = new CertificateList();
 
@@ -199,9 +199,9 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates an ArrayOf&lt;CertificateIdentifier&gt; object.
         /// </summary>
-        public static ArrayOf<Opc.Ua.CertificateIdentifier> FromCertificateList(CertificateList input)
+        public static ArrayOf<Ua.CertificateIdentifier> FromCertificateList(CertificateList input)
         {
-            var output = new List<Opc.Ua.CertificateIdentifier>();
+            var output = new List<Ua.CertificateIdentifier>();
 
             if (input != null && input.Certificates != null)
             {

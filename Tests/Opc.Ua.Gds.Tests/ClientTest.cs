@@ -125,7 +125,7 @@ namespace Opc.Ua.Gds.Tests
             m_supportedCertificateTypes =
             [
                 .. m_server
-                    .Config.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
+                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
                     .CertificateGroups
                     .ToList()
                     .Where(cg => cg.Id == "Default")

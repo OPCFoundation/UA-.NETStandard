@@ -548,7 +548,7 @@ namespace Opc.Ua.Security
             using var memoryStream = new MemoryStream();
             using var writer = XmlWriter.Create(memoryStream, Utils.DefaultXmlWriterSettings());
             var encoder = new XmlEncoder(
-                new System.Xml.XmlQualifiedName(systemType.Name, namespaceUri),
+                new XmlQualifiedName(systemType.Name, namespaceUri),
                 writer,
                 ctx);
             encodeAction(encoder);

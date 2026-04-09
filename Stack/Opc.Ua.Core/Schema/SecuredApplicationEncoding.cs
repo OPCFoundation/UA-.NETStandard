@@ -581,7 +581,7 @@ namespace Opc.Ua.Security
                 return default;
             }
 
-            if (Enum.TryParse<T>(value, out T result))
+            if (Enum.TryParse(value, out T result))
             {
                 return result;
             }

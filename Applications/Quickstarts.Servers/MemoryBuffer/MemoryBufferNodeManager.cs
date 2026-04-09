@@ -71,7 +71,7 @@ namespace MemoryBuffer
 
             // get the configuration for the node manager.
             m_configuration =
-                configuration.ParseEncodeable<MemoryBufferConfiguration>() ??
+                configuration.ParseExtension<MemoryBufferConfiguration>() ??
                 new MemoryBufferConfiguration();
 
             // use suitable defaults if no configuration exists.

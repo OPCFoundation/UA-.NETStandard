@@ -120,9 +120,9 @@ namespace Opc.Ua.Gds.Tests
             if (additionalCertGroups != null)
             {
                 GlobalDiscoveryServerConfiguration gdsConfig =
-                    Config.ParseEncodeable<GlobalDiscoveryServerConfiguration>();
+                    Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
                 gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
-                Config.UpdateEncodeable<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
+                Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
             }
 
             // check the application certificate.
@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Tests
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration =
-                Config.ParseEncodeable<GlobalDiscoveryServerConfiguration>();
+                Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(
                 gdsConfiguration.DatabaseStorePath);
             string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(

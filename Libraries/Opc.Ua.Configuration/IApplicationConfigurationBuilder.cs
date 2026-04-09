@@ -634,21 +634,6 @@ namespace Opc.Ua.Configuration
     public interface IApplicationConfigurationBuilderExtension : IApplicationConfigurationBuilderTraceConfiguration
     {
         /// <summary>
-        /// Add an extension to the configuration.
-        /// </summary>
-        /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
-        /// <param name="elementName">The name of the extension, null to use the name.</param>
-        /// <param name="value">The object to add and encode.</param>
-        [Obsolete("Use the AddExtension<T> overload with encoderFunc, or AddExtension<T> where T : IEncodeable.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        IApplicationConfigurationBuilderExtension AddExtension<T>(
-            XmlQualifiedName elementName,
-            object value);
-
-        /// <summary>
         /// Add an extension to the configuration using an encoder function (AOT-safe).
         /// </summary>
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>

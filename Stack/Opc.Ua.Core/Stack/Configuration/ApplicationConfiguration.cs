@@ -837,70 +837,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns>
-        /// The deserialized extension. Null if an error occurs.
-        /// </returns>
-        /// <remarks>
-        /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
-        /// </remarks>
-        [Obsolete("Use ParseEncodeable<T> instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        public T ParseExtension<T>()
-        {
-#pragma warning disable CS0618 // Obsolete — internal delegation
-            return ParseExtension<T>(null);
-#pragma warning restore CS0618
-        }
-
-        /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <returns>The extension if found. Null otherwise.</returns>
-        [Obsolete("Use ParseEncodeable<T> instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        public T ParseExtension<T>(XmlQualifiedName elementName)
-        {
-            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
-        }
-
-        /// <summary>
-        /// Updates the extension.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <param name="value">The value.</param>
-        [Obsolete("Use UpdateEncodeable<T> instead.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
-        {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry);
-        }
-
-        /// <summary>
         /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (required).</param>
         /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        [Experimental("UA_NETStandard_1")]
         public T ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
         {
-            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry, decoderFunc);
+            return Utils.ParseExtension(m_extensions, elementName, m_telemetry, decoderFunc);
         }
 
         /// <summary>
@@ -910,10 +855,9 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (required).</param>
         /// <param name="value">The value.</param>
         /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
-        [Experimental("UA_NETStandard_1")]
         public void UpdateExtension<T>(XmlQualifiedName elementName, T value, Action<IEncoder, T> encoderFunc)
         {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, m_telemetry, encoderFunc);
+            Utils.UpdateExtension(ref m_extensions, elementName, value, m_telemetry, encoderFunc);
         }
 
         /// <summary>
@@ -922,10 +866,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
         /// <param name="elementName">Name of the element (null to derive from type).</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        public T ParseEncodeable<T>(XmlQualifiedName elementName = null)
+        public T ParseExtension<T>(XmlQualifiedName elementName = null)
             where T : IEncodeable, new()
         {
-            return Utils.ParseEncodeable<T>(m_extensions, elementName, m_telemetry);
+            return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
         }
 
         /// <summary>
@@ -934,10 +878,10 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
         /// <param name="elementName">Name of the element (null to derive from type).</param>
         /// <param name="value">The value to encode.</param>
-        public void UpdateEncodeable<T>(XmlQualifiedName elementName, T value)
+        public void UpdateExtension<T>(XmlQualifiedName elementName, T value)
             where T : IEncodeable
         {
-            Utils.UpdateEncodeable<T>(ref m_extensions, elementName, value, m_telemetry);
+            Utils.UpdateExtension(ref m_extensions, elementName, value, m_telemetry);
         }
     }
 

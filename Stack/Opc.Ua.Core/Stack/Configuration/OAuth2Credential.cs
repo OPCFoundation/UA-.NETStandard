@@ -74,7 +74,7 @@ namespace Opc.Ua
                     return existing;
                 }
 
-                list = configuration.ParseExtension<ArrayOf<OAuth2Credential>>(
+                list = configuration.ParseExtension(
                     s_elementName,
                     static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null));
 

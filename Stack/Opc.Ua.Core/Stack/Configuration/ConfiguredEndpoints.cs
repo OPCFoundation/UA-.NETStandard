@@ -925,7 +925,7 @@ namespace Opc.Ua
                 }
             }
 
-            return Enum.TryParse<T>(value, false, out T result) ? result : default;
+            return Enum.TryParse(value, false, out T result) ? result : default;
         }
 
         private static T DecodeOptionalObject<T>(
@@ -1414,36 +1414,6 @@ namespace Opc.Ua
 
             // return the first in the list.
             return Utils.ParseUri(discoveryUrls[0]);
-        }
-
-        /// <summary>
-        /// Parses the extension.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <param name="telemetry">The telemetry context.</param>
-        /// <returns>The extension if found. Null otherwise.</returns>
-        [Obsolete("Use ParseEncodeable<T> instead.")]
-        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
-        {
-            return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
-        }
-
-        /// <summary>
-        /// Updates the extension.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <param name="value">The value.</param>
-        /// <param name="telemetry">The telemetry context.</param>
-        [Obsolete("Use UpdateEncodeable<T> instead.")]
-        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
-        {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);
         }
 
         /// <summary>

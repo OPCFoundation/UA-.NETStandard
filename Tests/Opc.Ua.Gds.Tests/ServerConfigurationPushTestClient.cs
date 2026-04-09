@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Tests
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
-                    .ParseEncodeable<ServerConfigurationPushTestClientConfiguration>();
+                    .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 clientConfiguration.ServerUrl,

@@ -1105,27 +1105,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use the AddExtension<T> overload with encoderFunc, or AddExtension<T> where T : IEncodeable.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        public IApplicationConfigurationBuilderExtension AddExtension<T>(
-            XmlQualifiedName elementName,
-            object value)
-        {
-            ApplicationConfiguration.UpdateExtension<T>(elementName, value);
-            return this;
-        }
-
-        /// <inheritdoc/>
         [Experimental("UA_NETStandard_1")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             T value,
             Action<IEncoder, T> encoderFunc)
         {
-            ApplicationConfiguration.UpdateExtension<T>(elementName, value, encoderFunc);
+            ApplicationConfiguration.UpdateExtension(elementName, value, encoderFunc);
             return this;
         }
 
@@ -1135,7 +1121,7 @@ namespace Opc.Ua.Configuration
             T value)
             where T : IEncodeable
         {
-            ApplicationConfiguration.UpdateEncodeable<T>(elementName, value);
+            ApplicationConfiguration.UpdateExtension(elementName, value);
             return this;
         }
 
@@ -1390,7 +1376,7 @@ namespace Opc.Ua.Configuration
             bool policyNone = false)
         {
             // create list of supported policies
-            System.Collections.Generic.List<string> defaultPolicyUris = [.. SecurityPolicies
+            List<string> defaultPolicyUris = [.. SecurityPolicies
                 .GetDefaultUris()];
             if (deprecated)
             {

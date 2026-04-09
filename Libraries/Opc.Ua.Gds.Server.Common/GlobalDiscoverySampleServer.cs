@@ -282,7 +282,7 @@ namespace Opc.Ua.Gds.Server
 
             // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
-                Configuration.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
+                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
             // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(

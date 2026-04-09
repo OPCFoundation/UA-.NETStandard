@@ -1370,171 +1370,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="extensions">The list of extensions to search.</param>
-        /// <param name="elementName">Name of the element (use type name if null).</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>
-        /// The deserialized extension. Null if an error occurs.
-        /// </returns>
-        /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
-        [Obsolete("Use ParseEncodeable<T> or the ParseExtension overload with decoderFunc.")]
-        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public static T ParseExtension<T>(
-            ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            ITelemetryContext telemetry)
-        {
-            // check if nothing to search for.
-            if (extensions.IsEmpty)
-            {
-                return default;
-            }
-
-            // use the type name as the default.
-            if (elementName == null)
-            {
-                // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
-
-                elementName =
-                    qname ??
-                    throw new ArgumentException(
-                        "Type does not seem to support DataContract serialization");
-            }
-
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-
-            // find the element.
-            for (int ii = 0; ii < extensions.Count; ii++)
-            {
-                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
-
-                if (element.LocalName != elementName.Name ||
-                    element.NamespaceURI != elementName.Namespace)
-                {
-                    continue;
-                }
-
-                // type found.
-                var reader = XmlReader.Create(
-                    new StringReader(element.OuterXml),
-                    DefaultXmlReaderSettings());
-
-                try
-                {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
-#pragma warning restore CS0618 // Type or member is obsolete
-                    return (T)serializer.ReadObject(reader);
-                }
-                finally
-                {
-                    reader.Dispose();
-                }
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.
-        /// </summary>
-        /// <typeparam name="T">The type of the extension.</typeparam>
-        /// <param name="extensions">The list of extensions to update.</param>
-        /// <param name="elementName">Name of the element (use type name if null).</param>
-        /// <param name="value">The value.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <remarks>
-        /// Adds a new extension if the it does not already exist.
-        /// Deletes the extension if the value is null.
-        /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
-        /// </remarks>
-        /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
-        [Obsolete("Use UpdateEncodeable<T> or the UpdateExtension overload with encoderFunc.")]
-        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public static void UpdateExtension<T>(
-            ref ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            object value,
-            ITelemetryContext telemetry)
-        {
-            var document = new XmlDocument();
-
-            // serialize value.
-            var buffer = new StringBuilder();
-            using (var writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
-            {
-                if (value != null)
-                {
-                    try
-                    {
-                        using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-#pragma warning disable CS0618 // Type or member is obsolete
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
-#pragma warning restore CS0618 // Type or member is obsolete
-                        serializer.WriteObject(writer, value);
-                    }
-                    finally
-                    {
-                        writer.Dispose();
-                    }
-
-                    document.LoadInnerXml(buffer.ToString());
-                }
-            }
-
-            // use the type name as the default.
-            if (elementName == null)
-            {
-                // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
-
-                elementName =
-                    qname ??
-                    throw new ArgumentException(
-                        "Type does not seem to support DataContract serialization");
-            }
-
-            // replace existing element.
-            var xmlElements = extensions.ToList();
-            if (xmlElements.Count > 0)
-            {
-                for (int ii = 0; ii < xmlElements.Count; ii++)
-                {
-                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
-                    if (element != null &&
-                        element.LocalName == elementName.Name &&
-                        element.NamespaceURI == elementName.Namespace)
-                    {
-                        // remove the existing value if the value is null.
-                        if (value == null)
-                        {
-                            xmlElements.RemoveAt(ii);
-                            extensions = xmlElements.ToArrayOf();
-                            return;
-                        }
-
-                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
-                        extensions = xmlElements.ToArrayOf();
-                        return;
-                    }
-                }
-            }
-
-            // add new element.
-            if (value != null)
-            {
-                xmlElements.Add(XmlElement.From(document.DocumentElement));
-                extensions = xmlElements.ToArrayOf();
-            }
-        }
-
-        /// <summary>
         /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
@@ -1670,7 +1505,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null to derive from type name).</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        public static T ParseEncodeable<T>(
+        public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
             ITelemetryContext telemetry)
@@ -1719,7 +1554,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null to derive from type name).</param>
         /// <param name="value">The value to encode.</param>
         /// <param name="telemetry">The telemetry context.</param>
-        public static void UpdateEncodeable<T>(
+        public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
             T value,

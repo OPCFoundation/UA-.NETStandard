@@ -183,15 +183,13 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             foreach (ExpandedNodeId dataTypeId in typeSystem.GetDefinedDataTypeIds())
             {
-                NodeIdDictionary<DataTypeDefinition> definitions = typeSystem
-                    .GetDataTypeDefinitionsForDataType(
-                        dataTypeId);
+                NodeIdDictionary<DataTypeDefinition> definitions =
+                    typeSystem.GetDataTypeDefinitionsForDataType(dataTypeId);
                 Assert.That(definitions, Is.Not.Empty);
-                Type type = Session.Factory.GetSystemType(dataTypeId);
-                Assert.That(type, Is.Not.Null);
+                Assert.That(Session.Factory.TryGetType(dataTypeId, out var type), Is.True);
 
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
-                if (type.IsEnum)
+                if (type is IEnumeratedType)
                 {
                     Assert.That(definitions, Has.Count.EqualTo(1));
                     Assert.That(definitions.First().Value, Is.InstanceOf<EnumDefinition>());

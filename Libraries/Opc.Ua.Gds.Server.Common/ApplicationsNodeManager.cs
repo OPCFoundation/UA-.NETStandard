@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Server
             m_configuration = configuration;
             // get the configuration for the node manager.
             m_globalDiscoveryServerConfiguration =
-                configuration.ParseEncodeable<GlobalDiscoveryServerConfiguration>()
+                configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
 
             // use suitable defaults if no configuration exists.

@@ -699,37 +699,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        [Obsolete("Use UpdateExtension with telemetry context.")]
-        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public static void UpdateExtension<T>(
-            ref ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            object value)
-        {
-            UpdateExtension<T>(ref extensions, elementName, value, null);
-        }
-
-        /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        [Obsolete("Use ParseExtension with telemetry context.")]
-        [RequiresUnreferencedCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        [RequiresDynamicCode(
-            "Uses DataContractSerializer which might need unreferenced code.")]
-        public static T ParseExtension<T>(
-            ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName)
-        {
-            return ParseExtension<T>(extensions, elementName, null);
-        }
-
-        /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
         [Obsolete("Catch exceptions from GetAbsoluteFilePath and handle !throwOnError")]

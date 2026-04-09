@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Tests
                 CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
-                Configuration.ParseEncodeable<GlobalDiscoveryTestClientConfiguration>();
+                Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
             GDSClient = new GlobalDiscoveryServerClient(Configuration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 gdsClientConfiguration.GlobalDiscoveryServerUrl,
