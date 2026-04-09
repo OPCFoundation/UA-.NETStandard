@@ -76,11 +76,11 @@ Get-ChildItem $BuildRoot -Recurse `
     }
     $agents.keys | ForEach-Object {
         $jobName = "$($JobPrefix)$($postFix)$($_)"
-        $jobMatrix.Add($jobName, @{ 
+        $jobMatrix.Add($jobName, @{
             "poolImage" = $agents.Item($_)
-            "folder" = $folder 
-            "fullFolder" = $fullFolder 
-            "file" = $file 
+            "folder" = $folder
+            "fullFolder" = $fullFolder
+            "file" = $file
             "agent" = $($_)
         })
     }
