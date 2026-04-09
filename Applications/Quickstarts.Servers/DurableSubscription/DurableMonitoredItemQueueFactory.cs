@@ -313,7 +313,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static void EncodeDataChangeQueue(BinaryEncoder encoder, StorableDataChangeQueue q)
+        public static void EncodeDataChangeQueue(BinaryEncoder encoder, StorableDataChangeQueue q)
         {
             encoder.WriteBoolean(null, q.IsDurable);
             encoder.WriteUInt32(null, q.MonitoredItemId);
@@ -333,7 +333,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
+        public static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
         {
             var q = new StorableDataChangeQueue
             {
@@ -415,7 +415,7 @@ namespace Quickstarts.Servers
             return batch;
         }
 
-        internal static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
+        public static void EncodeEventQueue(BinaryEncoder encoder, StorableEventQueue q)
         {
             encoder.WriteBoolean(null, q.IsDurable);
             encoder.WriteUInt32(null, q.MonitoredItemId);
@@ -434,7 +434,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static StorableEventQueue DecodeEventQueue(BinaryDecoder decoder)
+        public static StorableEventQueue DecodeEventQueue(BinaryDecoder decoder)
         {
             var q = new StorableEventQueue
             {

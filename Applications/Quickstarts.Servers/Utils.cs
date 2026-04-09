@@ -34,10 +34,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Alarms;
-using Boiler;
-using MemoryBuffer;
-using TestData;
 
 namespace Quickstarts.Servers
 {
@@ -145,10 +141,10 @@ namespace Quickstarts.Servers
         {
             List<INodeManagerFactory> nodeManagerFactories = [];
 
-            nodeManagerFactories.Add(new MemoryBufferNodeManagerFactory());
-            nodeManagerFactories.Add(new TestDataNodeManagerFactory());
-            nodeManagerFactories.Add(new BoilerNodeManagerFactory());
-            nodeManagerFactories.Add(new AlarmNodeManagerFactory());
+            nodeManagerFactories.Add(new MemoryBuffer.MemoryBufferNodeManagerFactory());
+            nodeManagerFactories.Add(new TestData.TestDataNodeManagerFactory());
+            nodeManagerFactories.Add(new Boiler.BoilerNodeManagerFactory());
+            nodeManagerFactories.Add(new Alarms.AlarmNodeManagerFactory());
 
             return nodeManagerFactories;
         }

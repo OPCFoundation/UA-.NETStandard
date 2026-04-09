@@ -178,7 +178,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static void EncodeSubscription(
+        public static void EncodeSubscription(
             BinaryEncoder encoder, StoredSubscription subscription)
         {
             encoder.WriteUInt32(null, subscription.Id);
@@ -250,7 +250,7 @@ namespace Quickstarts.Servers
             encoder.WriteString(null, item.ParsedIndexRange.ToString());
         }
 
-        internal static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        public static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
         {
             var subscription = new StoredSubscription
             {
