@@ -61,7 +61,9 @@ jobs:
     timeoutInMinutes: 60
     inputs:
       command: test
-      projects: 'UA.slnx'
+      projects: |
+        **/*.Tests.csproj
+        !**/Opc.Ua.Aot.Tests.csproj
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
       publishTestResults: false

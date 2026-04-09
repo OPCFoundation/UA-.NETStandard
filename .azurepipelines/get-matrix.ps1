@@ -15,6 +15,9 @@
  .PARAMETER FileName
     File patterns to match defining the folders and files in the matrix
 
+ .PARAMETER ExcludeFileName
+    Optional file pattern to exclude from the matrix
+
  .PARAMETER JobPrefix
     Optional name prefix for each job
 
@@ -25,6 +28,7 @@
 Param(
     [string] $BuildRoot = $null,
     [string] $FileName = $null,
+    [string] $ExcludeFileName = $null,
     [string] $JobPrefix = "",
     [hashtable] $AgentTable = $null
 )
@@ -57,6 +61,7 @@ $jobMatrix = @{}
 # Traverse from build root and find all files to create job matrix
 Get-ChildItem $BuildRoot -Recurse `
     | Where-Object Name -like $FileName `
+    | Where-Object { [string]::IsNullOrEmpty($ExcludeFileName) -or $_.Name -notlike $ExcludeFileName } `
     | ForEach-Object {
 
     $fullFolder = $_.DirectoryName.Replace("\", "/")
