@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+
 namespace Opc.Ua
 {
     public partial class ExclusiveLimitStateMachineState
@@ -34,9 +36,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             UpdateStateVariable(context, Objects.ExclusiveLimitStateMachineType_High, CurrentState);
             UpdateTransitionVariable(context, 0, LastTransition);

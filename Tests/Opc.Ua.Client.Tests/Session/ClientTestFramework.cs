@@ -48,12 +48,6 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientTestFramework
     {
-        /// <summary>
-        /// Limits concurrent server startups to avoid CPU starvation during
-        /// address space creation (TestData node managers are CPU-intensive).
-        /// </summary>
-        private static readonly SemaphoreSlim s_serverStartupThrottle = new(2);
-
         public static readonly object[] FixtureArgs =
         [
             new object[] { Utils.UriSchemeOpcTcp },
@@ -67,6 +61,7 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
         public bool SingleSession { get; set; } = true;
+        public bool AllNodeManagers { get; set; }
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
@@ -224,7 +219,7 @@ namespace Opc.Ua.Client.Tests
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
-                AllNodeManagers = true,
+                AllNodeManagers = AllNodeManagers,
                 OperationLimits = true,
                 UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager
             };
@@ -332,19 +327,8 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
-
-            // Throttle concurrent server startups to prevent CPU starvation
-            // during address space creation (TestData generates random data).
-            await s_serverStartupThrottle.WaitAsync().ConfigureAwait(false);
-            try
-            {
-                ReferenceServer = await ServerFixture.StartAsync()
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                s_serverStartupThrottle.Release();
-            }
+            ReferenceServer = await ServerFixture.StartAsync()
+                .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }

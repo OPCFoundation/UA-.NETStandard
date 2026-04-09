@@ -74,6 +74,7 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
+            AllNodeManagers = true;
             return base.OneTimeSetUpAsync();
         }
 
