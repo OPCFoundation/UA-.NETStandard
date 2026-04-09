@@ -204,7 +204,7 @@ namespace Opc.Ua
                     ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
                 var endpoints = new ConfiguredEndpointCollection();
-                DecodeConfiguredEndpointCollection(parser, endpoints);
+                endpoints.Decode(parser);
 
                 foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
@@ -253,7 +253,7 @@ namespace Opc.Ua
                 ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
             var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
-            EncodeConfiguredEndpointCollection(encoder, this);
+            Encode(encoder);
             encoder.Close();
         }
 
@@ -348,16 +348,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Copies the elements of the <see cref="ICollection{T}"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
+        /// Copies the elements of the <see cref="ICollection{T}"/> to an
+        /// <see cref="Array"/>, starting at a particular <see cref="Array"/>
+        /// index.
         /// </summary>
-        /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection{T}"/>. The <see cref="Array"/> must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        /// <param name="array">The one-dimensional <see cref="Array"/> that is the
+        /// destination of the elements copied from <see cref="ICollection{T}"/>.
+        /// The <see cref="Array"/> must have zero-based indexing.</param>
+        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/>
+        /// at which copying begins.</param>
         /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="array"/> is null.</exception>
+        /// <paramref name="array"/> is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// 	<paramref name="arrayIndex"/> is less than 0.</exception>
+        /// <paramref name="arrayIndex"/> is less than 0.</exception>
         /// <exception cref="ArgumentException">
-        /// 	<paramref name="array"/> is multidimensional.-or-<paramref name="arrayIndex"/> is equal to or greater than the length of <paramref name="array"/>.-or-The number of elements in the source <see cref="ICollection{T}"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>./>.</exception>
+        /// <paramref name="array"/> is multidimensional.-or-
+        /// <paramref name="arrayIndex"/> is equal to or greater than the length
+        /// of <paramref name="array"/>.-or-The number of elements in the source
+        /// <see cref="ICollection{T}"/> is greater than the available space from
+        /// <paramref name="arrayIndex"/> to the end of the destination
+        /// <paramref name="array"/>./>.
+        /// </exception>
         public void CopyTo(ConfiguredEndpoint[] array, int arrayIndex)
         {
             m_endpoints.CopyTo(array, arrayIndex);
@@ -366,20 +377,24 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the number of elements contained in the <see cref="ICollection{T}"/>.
         /// </summary>
-        /// <returns>The number of elements contained in the <see cref="ICollection{T}"/>.</returns>
+        /// <returns>The number of elements contained in the
+        /// <see cref="ICollection{T}"/>.</returns>
         public int Count => m_endpoints.Count;
 
         /// <summary>
-        /// Gets a value indicating whether the <see cref="ICollection{T}"/> is read-only.
+        /// Gets a value indicating whether the <see cref="ICollection{T}"/>
+        /// is read-only.
         /// </summary>
-        /// <returns>true if the <see cref="ICollection{T}"/> is read-only; otherwise, false.</returns>
+        /// <returns>true if the <see cref="ICollection{T}"/> is read-only;
+        /// otherwise, false.</returns>
         public bool IsReadOnly => false;
 
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
         /// <returns>
-        /// A <see cref="IEnumerator{T}"/> that can be used to iterate through the collection.
+        /// A <see cref="IEnumerator{T}"/> that can be used to iterate
+        /// through the collection.
         /// </returns>
         public IEnumerator<ConfiguredEndpoint> GetEnumerator()
         {
@@ -428,7 +443,8 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a previous created endpoint to the collection.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="endpoint"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         private void Insert(ConfiguredEndpoint endpoint, int index)
         {
@@ -467,7 +483,8 @@ namespace Opc.Ua
         /// <summary>
         /// Removes the configured endpoint.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="item"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="item"/> is <c>null</c>.</exception>
         public bool Remove(ConfiguredEndpoint item)
         {
             if (item == null)
@@ -481,7 +498,8 @@ namespace Opc.Ua
         /// <summary>
         /// Removes all endpoints for the specified server.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="serverUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
         public void RemoveServer(string serverUri)
         {
             if (serverUri == null)
@@ -498,7 +516,8 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the server descrption for the endpoints.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="server"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public void SetApplicationDescription(string serverUri, ApplicationDescription server)
         {
@@ -739,8 +758,6 @@ namespace Opc.Ua
         /// </summary>
         public EndpointConfiguration DefaultConfiguration { get; private set; }
 
-        private static readonly char[] s_separator = ['-', '[', ':', ']'];
-
         /// <summary>
         /// Throws exceptions if the endpoint is not valid.
         /// </summary>
@@ -768,183 +785,7 @@ namespace Opc.Ua
             }
         }
 
-        private static void EncodeConfiguredEndpointCollection(
-            XmlEncoder encoder,
-            ConfiguredEndpointCollection collection)
-        {
-            encoder.WriteStringArray("KnownHosts", collection.KnownHosts);
-
-            if (collection.Endpoints != null && collection.Endpoints.Count > 0)
-            {
-                encoder.Push("Endpoints", Namespaces.OpcUaConfig);
-                foreach (ConfiguredEndpoint endpoint in collection.Endpoints)
-                {
-                    encoder.Push("ConfiguredEndpoint", Namespaces.OpcUaConfig);
-                    EncodeConfiguredEndpoint(encoder, endpoint);
-                    encoder.Pop();
-                }
-
-                encoder.Pop();
-            }
-
-            if (collection.TcpProxyUrl != null)
-            {
-                encoder.WriteString("TcpProxyUrl", collection.TcpProxyUrl.ToString());
-            }
-        }
-
-        private static void DecodeConfiguredEndpointCollection(
-            XmlParser decoder,
-            ConfiguredEndpointCollection collection)
-        {
-            collection.KnownHosts = decoder.ReadStringArray("KnownHosts");
-
-            if (decoder.Peek("Endpoints"))
-            {
-                decoder.ReadStartElement();
-                decoder.PushNamespace(Namespaces.OpcUaConfig);
-                while (decoder.Peek("ConfiguredEndpoint"))
-                {
-                    decoder.ReadStartElement();
-                    decoder.PushNamespace(Namespaces.OpcUaConfig);
-                    ConfiguredEndpoint endpoint = DecodeConfiguredEndpoint(decoder);
-                    endpoint.Collection = collection;
-                    collection.Endpoints.Add(endpoint);
-                    decoder.PopNamespace();
-                    decoder.Skip(new XmlQualifiedName("ConfiguredEndpoint", Namespaces.OpcUaConfig));
-                }
-
-                decoder.PopNamespace();
-                decoder.Skip(new XmlQualifiedName("Endpoints", Namespaces.OpcUaConfig));
-            }
-
-            string tcpProxy = decoder.ReadString("TcpProxyUrl");
-            if (tcpProxy != null)
-            {
-                collection.TcpProxyUrl = new Uri(tcpProxy);
-            }
-        }
-
-        private static void EncodeConfiguredEndpoint(
-            XmlEncoder encoder,
-            ConfiguredEndpoint endpoint)
-        {
-            if (endpoint.Description != null)
-            {
-                encoder.WriteEncodeable("Endpoint", endpoint.Description);
-            }
-
-            if (endpoint.Configuration != null)
-            {
-                encoder.WriteEncodeable("Configuration", endpoint.Configuration);
-            }
-
-            encoder.WriteBoolean("UpdateBeforeConnect", endpoint.UpdateBeforeConnect);
-            encoder.WriteString("BinaryEncodingSupport", endpoint.BinaryEncodingSupport.ToString());
-            encoder.WriteInt32("SelectedUserTokenPolicy", endpoint.SelectedUserTokenPolicyIndex);
-
-            if (endpoint.UserIdentity != null)
-            {
-                encoder.WriteExtensionObject("UserIdentity", new ExtensionObject(endpoint.UserIdentity));
-            }
-
-            if (endpoint.ReverseConnect != null)
-            {
-                encoder.Push("ReverseConnect", Namespaces.OpcUaConfig);
-                encoder.WriteBoolean("Enabled", endpoint.ReverseConnect.Enabled);
-                encoder.WriteString("ServerUri", endpoint.ReverseConnect.ServerUri);
-                encoder.WriteString("Thumbprint", endpoint.ReverseConnect.Thumbprint);
-                encoder.Pop();
-            }
-
-            if (!endpoint.Extensions.IsNull)
-            {
-                encoder.WriteXmlElementArray("Extensions", endpoint.Extensions);
-            }
-        }
-
-        private static ConfiguredEndpoint DecodeConfiguredEndpoint(XmlParser decoder)
-        {
-            var endpoint = new ConfiguredEndpoint();
-
-            endpoint.SetDescription(decoder.ReadEncodeable<EndpointDescription>("Endpoint"));
-            endpoint.Configuration = decoder.ReadEncodeable<EndpointConfiguration>("Configuration");
-            endpoint.UpdateBeforeConnect = decoder.ReadBoolean("UpdateBeforeConnect");
-
-            string binaryEncStr = decoder.ReadString("BinaryEncodingSupport");
-            if (binaryEncStr != null)
-            {
-                endpoint.BinaryEncodingSupport = ParseConfigEnum<BinaryEncodingSupport>(binaryEncStr);
-            }
-
-            endpoint.SelectedUserTokenPolicyIndex = decoder.ReadInt32("SelectedUserTokenPolicy");
-
-            ExtensionObject userIdentityExt = decoder.ReadExtensionObject("UserIdentity");
-            if (userIdentityExt.TryGetEncodeable(out IEncodeable identityBody) &&
-                identityBody is UserIdentityToken token)
-            {
-                endpoint.UserIdentity = token;
-            }
-
-            endpoint.ReverseConnect = DecodeOptionalObject(decoder, "ReverseConnect",
-                d => new ReverseConnectEndpoint
-                {
-                    Enabled = d.ReadBoolean("Enabled"),
-                    ServerUri = d.ReadString("ServerUri"),
-                    Thumbprint = d.ReadString("Thumbprint")
-                });
-
-            endpoint.Extensions = decoder.ReadXmlElementArray("Extensions");
-            return endpoint;
-        }
-
-        private static T ParseConfigEnum<T>(string value) where T : struct, Enum
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return default;
-            }
-
-            int idx = value.LastIndexOf('_');
-#pragma warning disable CA1846
-            if (idx >= 0 &&
-                int.TryParse(
-                    value[(idx + 1)..],
-                    System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out int intVal))
-#pragma warning restore CA1846
-            {
-                try
-                {
-                    return (T)(object)intVal;
-                }
-                catch
-                {
-                    // Fall through to string parse
-                }
-            }
-
-            return Enum.TryParse(value, false, out T result) ? result : default;
-        }
-
-        private static T DecodeOptionalObject<T>(
-            XmlParser decoder,
-            string elementName,
-            Func<XmlParser, T> decode) where T : class
-        {
-            if (!decoder.Peek(elementName))
-            {
-                return null;
-            }
-
-            decoder.ReadStartElement();
-            decoder.PushNamespace(Namespaces.OpcUaConfig);
-            T result = decode(decoder);
-            decoder.PopNamespace();
-            decoder.Skip(new XmlQualifiedName(elementName, Namespaces.OpcUaConfig));
-            return result;
-        }
+        private static readonly char[] s_separator = ['-', '[', ':', ']'];
     }
 
     /// <summary>

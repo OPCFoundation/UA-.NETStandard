@@ -2150,7 +2150,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The default configuration to use when connecting to an endpoint.
+        /// The configured endpoints.
         /// </summary>
         public List<ConfiguredEndpoint> Endpoints
         {
@@ -2166,10 +2166,31 @@ namespace Opc.Ua
             }
         }
 
+        [DataTypeField(Order = 1, ForceEncodeable = true, Name = "Endpoints")]
+        private ArrayOf<ConfiguredEndpoint> EndpointsEncodeable
+        {
+            get => m_endpoints.ToArrayOf();
+            set
+            {
+                m_endpoints = value.ToList();
+                foreach (ConfiguredEndpoint endpoint in m_endpoints)
+                {
+                    endpoint.Collection = this;
+                }
+            }
+        }
+
         /// <summary>
         /// The URL of the UA TCP proxy server.
         /// </summary>
         public Uri TcpProxyUrl { get; set; }
+
+        [DataTypeField(Order = 2, Name = "TcpProxyUrl")]
+        private string TcpProxyUrlString
+        {
+            get => TcpProxyUrl?.ToString();
+            set => TcpProxyUrl = value != null ? new Uri(value) : null;
+        }
 
         private string m_filepath;
         private ArrayOf<string> m_knownHosts;
@@ -2243,8 +2264,20 @@ namespace Opc.Ua
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
-        [DataTypeField(Order = 3)]
         public BinaryEncodingSupport BinaryEncodingSupport { get; set; }
+
+        [DataTypeField(Order = 3, Name = "BinaryEncodingSupport")]
+        private string BinaryEncodingSupportString
+        {
+            get => BinaryEncodingSupport.ToString();
+            set
+            {
+                if (Enum.TryParse(value, out BinaryEncodingSupport parsed))
+                {
+                    BinaryEncodingSupport = parsed;
+                }
+            }
+        }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.

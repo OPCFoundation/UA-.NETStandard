@@ -1122,11 +1122,14 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 nodeId = NormalizeExpandedNodeId(nodeId);
             }
+
+            // TODO: get everything including system types.
+            // return TypeInfo.GetSystemType(nodeId, m_complexTypeResolver.FactoryBuilder);
+
             if (m_complexTypeResolver.FactoryBuilder.TryGetType(nodeId, out IType? type))
             {
                 return type;
             }
-            // TODO: Try get system type
             return null;
         }
 

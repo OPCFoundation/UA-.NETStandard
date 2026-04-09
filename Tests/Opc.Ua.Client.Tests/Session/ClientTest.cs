@@ -704,7 +704,7 @@ namespace Opc.Ua.Client.Tests
             session2.Dispose();
 
             //Recreate session using same channel
-            ISession session3 = await ClientFixture
+            using ISession session3 = await ClientFixture
                 .SessionFactory.RecreateAsync(session1, channel)
                 .ConfigureAwait(false);
 
