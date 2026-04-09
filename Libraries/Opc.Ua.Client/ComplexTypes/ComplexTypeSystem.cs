@@ -1230,9 +1230,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         encodeableType);
                     break;
                 case IEnumeratedType enumeratedType:
-                    // m_complexTypeResolver.FactoryBuilder.AddEnumeratedType(
-                    //     internalNodeId,
-                    //     enumeratedType);
+                    m_complexTypeResolver.FactoryBuilder.AddEnumeratedType(
+                        internalNodeId,
+                        enumeratedType);
                     break;
             }
         }

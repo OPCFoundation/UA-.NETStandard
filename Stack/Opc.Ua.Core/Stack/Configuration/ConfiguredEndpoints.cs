@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -46,20 +46,16 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with its default endpoint configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(EndpointConfiguration configuration)
+        public ConfiguredEndpointCollection(EndpointConfiguration configuration) : this()
         {
-            Initialize();
-
             DefaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
 
         /// <summary>
         /// Initializes the object from an application configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(ApplicationConfiguration configuration)
+        public ConfiguredEndpointCollection(ApplicationConfiguration configuration) : this()
         {
-            Initialize();
-
             DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             if (configuration.ClientConfiguration != null)
