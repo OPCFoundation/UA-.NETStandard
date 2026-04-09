@@ -75,7 +75,7 @@ namespace Opc.Ua.Configuration
         /// Gets or sets the type of configuration file.
         /// </summary>
         /// <value>The type of configuration file.</value>
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         Type ConfigurationType { get; set; }
 
         /// <summary>

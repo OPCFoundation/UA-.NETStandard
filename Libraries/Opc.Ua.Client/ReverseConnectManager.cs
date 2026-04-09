@@ -838,7 +838,7 @@ namespace Opc.Ua.Client
             cts.Dispose();
         }
 
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         private Type? m_configType;
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;

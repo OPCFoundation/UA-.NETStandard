@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -416,27 +415,21 @@ namespace Opc.Ua.Gds.Tests
     /// Stores the configuration the data access node manager.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public partial class GlobalDiscoveryTestClientConfiguration
     {
         [DataTypeField(Order = 1)]
-        [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 
         [DataTypeField(Order = 2)]
-        [DataMember(Order = 2)]
         public string AppUserName { get; set; }
 
         [DataTypeField(Order = 3)]
-        [DataMember(Order = 3)]
         public string AppPassword { get; set; }
 
         [DataTypeField(Order = 4)]
-        [DataMember(Order = 4, IsRequired = true)]
         public string AdminUserName { get; set; }
 
         [DataTypeField(Order = 5)]
-        [DataMember(Order = 5, IsRequired = true)]
         public string AdminPassword { get; set; }
     }
 }

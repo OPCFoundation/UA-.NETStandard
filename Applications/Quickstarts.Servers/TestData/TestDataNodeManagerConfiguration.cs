@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace TestData
@@ -36,7 +35,6 @@ namespace TestData
     /// Stores the configuration the test node manager
     /// </summary>
     [DataType(Namespace = Namespaces.TestData)]
-    [DataContract(Namespace = Namespaces.TestData)]
     public partial class TestDataNodeManagerConfiguration
     {
         /// <summary>
@@ -59,21 +57,18 @@ namespace TestData
         /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataTypeField(Order = 1)]
-        [DataMember(Order = 1)]
         public string SaveFilePath { get; set; }
 
         /// <summary>
         /// The maximum length for a monitored item sampling queue.
         /// </summary>
         [DataTypeField(Order = 2)]
-        [DataMember(Order = 2)]
         public uint MaxQueueSize { get; set; }
 
         /// <summary>
         /// The next unused value that can be assigned to new nodes.
         /// </summary>
         [DataTypeField(Order = 3)]
-        [DataMember(Order = 3)]
         public uint NextUnusedId { get; set; }
     }
 }

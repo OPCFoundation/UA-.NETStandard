@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace MemoryBuffer
@@ -36,7 +35,6 @@ namespace MemoryBuffer
     /// Stores the configuration the test node manager
     /// </summary>
     [DataType(Namespace = Namespaces.MemoryBuffer)]
-    [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public partial class MemoryBufferConfiguration
     {
         /// <summary>
@@ -50,7 +48,6 @@ namespace MemoryBuffer
         /// The buffers exposed by the memory
         /// </summary>
         [DataTypeField(Order = 1, ForceEncodeable = true)]
-        [DataMember(Order = 1)]
         public ArrayOf<MemoryBufferInstance> Buffers { get; set; }
     }
 
@@ -58,7 +55,6 @@ namespace MemoryBuffer
     /// Stores the configuration for a memory buffer instance.
     /// </summary>
     [DataType(Namespace = Namespaces.MemoryBuffer)]
-    [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public partial class MemoryBufferInstance
     {
         /// <summary>
@@ -72,21 +68,18 @@ namespace MemoryBuffer
         /// The browse name for the instance.
         /// </summary>
         [DataTypeField(Order = 1)]
-        [DataMember(Order = 1)]
         public string Name { get; set; }
 
         /// <summary>
         /// The number of tags in the buffer.
         /// </summary>
         [DataTypeField(Order = 2)]
-        [DataMember(Order = 2)]
         public int TagCount { get; set; }
 
         /// <summary>
         /// The data type of the tags in the buffer.
         /// </summary>
         [DataTypeField(Order = 3)]
-        [DataMember(Order = 3)]
         public string DataType { get; set; }
     }
 }

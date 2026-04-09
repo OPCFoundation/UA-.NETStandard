@@ -169,11 +169,10 @@ namespace Opc.Ua.Security
                         IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                             ServiceMessageContext.CreateEmpty(m_telemetry);
                         var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
-                        applicationConfiguration = new ApplicationConfiguration();
+                        applicationConfiguration = new ApplicationConfiguration(m_telemetry);
                         applicationConfiguration.Decode(parser);
                         applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
                         applicationConfiguration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
-                        applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
                 finally

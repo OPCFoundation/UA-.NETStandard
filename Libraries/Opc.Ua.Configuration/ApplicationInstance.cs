@@ -113,7 +113,7 @@ namespace Opc.Ua.Configuration
         public string ConfigSectionName { get; set; }
 
         /// <inheritdoc/>
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         public Type ConfigurationType { get; set; }
 
         /// <inheritdoc/>
@@ -516,7 +516,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
@@ -564,7 +564,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)

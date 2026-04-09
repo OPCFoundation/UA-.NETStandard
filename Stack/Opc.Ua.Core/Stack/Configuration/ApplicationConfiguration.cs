@@ -266,7 +266,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
         {
             return LoadAsync(sectionName, applicationType, systemType, LoggerUtils.Null.Logger, null);
         }
@@ -286,7 +286,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             ILogger logger,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
@@ -317,9 +317,11 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static ApplicationConfiguration LoadWithNoValidation(
             FileInfo file,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             ITelemetryContext telemetry)
         {
+            systemType ??= typeof(ApplicationConfiguration);
+
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
@@ -327,13 +329,26 @@ namespace Opc.Ua
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
-                ApplicationConfiguration configuration = systemType == null || systemType == typeof(ApplicationConfiguration)
-                    ? new ApplicationConfiguration()
-                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                ApplicationConfiguration configuration;
+                if (systemType == typeof(ApplicationConfiguration))
+                {
+                    configuration = new ApplicationConfiguration(telemetry);
+                }
+                else
+                {
+                    try
+                    {
+                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
+                    }
+                    catch
+                    {
+                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                    }
+                }
+
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
-                configuration.Initialize(telemetry);
                 configuration.SourceFilePath = file.FullName;
                 return configuration;
             }
@@ -358,7 +373,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
         {
             return LoadAsync(file, applicationType, systemType, null);
         }
@@ -375,7 +390,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
@@ -395,7 +410,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -423,7 +438,7 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -470,7 +485,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -498,7 +513,7 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             bool applyTraceSettings,
             ITelemetryContext telemetry,
             ICertificatePasswordProvider certificatePasswordProvider = null,
@@ -513,13 +528,24 @@ namespace Opc.Ua
                 IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
                 var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
-                configuration = systemType == typeof(ApplicationConfiguration)
-                    ? new ApplicationConfiguration()
-                    : (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                if (systemType == typeof(ApplicationConfiguration))
+                {
+                    configuration = new ApplicationConfiguration(telemetry);
+                }
+                else
+                {
+                    try
+                    {
+                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
+                    }
+                    catch
+                    {
+                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType);
+                    }
+                }
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
-                configuration.Initialize(telemetry);
             }
             catch (Exception e)
             {
