@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -179,7 +180,7 @@ namespace Quickstarts
                 }
 
                 // start the status thread
-                m_status = Task.Run(StatusThreadAsync);
+                m_status = Task.Run(StatusThreadAsync, default);
 
                 // print notification on session events
                 Server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
@@ -203,7 +204,7 @@ namespace Quickstarts
                 if (Server != null)
                 {
                     using T server = Server;
-                    // Stop status thread
+                    // Stop status thread which monitores the server property.
                     Server = null;
                     await m_status.ConfigureAwait(false);
 
