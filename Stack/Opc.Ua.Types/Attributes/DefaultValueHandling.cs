@@ -27,59 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
+#nullable enable
 
-namespace MemoryBuffer
+using System;
+
+namespace Opc.Ua
 {
     /// <summary>
-    /// Stores the configuration the test node manager
+    /// Controls default value handling during encode/decode.
     /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
-    public partial class MemoryBufferConfiguration
+    [Flags]
+    public enum DefaultValueHandling
     {
         /// <summary>
-        /// The default constructor.
+        /// Omit default values on write; preserve constructor
+        /// defaults on read when field is absent. This is the
+        /// default and works well for configuration.
         /// </summary>
-        public MemoryBufferConfiguration()
-        {
-        }
+        Exclude = 0,
 
         /// <summary>
-        /// The buffers exposed by the memory
+        /// Always write the field, even if it holds the
+        /// default value. This mimics the DataMemberAttribute
+        /// EmitDefaultValue set to true.
         /// </summary>
-        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
-        public ArrayOf<MemoryBufferInstance> Buffers { get; set; }
-    }
-
-    /// <summary>
-    /// Stores the configuration for a memory buffer instance.
-    /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
-    public partial class MemoryBufferInstance
-    {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public MemoryBufferInstance()
-        {
-        }
+        Emit = 1,
 
         /// <summary>
-        /// The browse name for the instance.
+        /// Always set the property on read, even if the field
+        /// is absent (overwrites the class defaults with decoder's
+        /// zero/false/null).
         /// </summary>
-        [DataTypeField(Order = 1)]
-        public string Name { get; set; }
+        SetIfMissing = 2,
 
         /// <summary>
-        /// The number of tags in the buffer.
+        /// Always write AND always read — equivalent to
+        /// Emit | SetIfMissing.
         /// </summary>
-        [DataTypeField(Order = 2)]
-        public int TagCount { get; set; }
-
-        /// <summary>
-        /// The data type of the tags in the buffer.
-        /// </summary>
-        [DataTypeField(Order = 3)]
-        public string DataType { get; set; }
+        Include = Emit | SetIfMissing
     }
 }

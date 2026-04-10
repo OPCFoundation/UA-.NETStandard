@@ -232,16 +232,15 @@ namespace Opc.Ua.SourceGeneration
         public bool HasDataTypeFieldAttribute { get; set; }
 
         /// <summary>
-        /// Tri-state for ForceEncodeable from [DataTypeField].
-        /// null = auto-detect, true = force WriteEncodeable,
-        /// false = force WriteEncodeableAsExtensionObject.
+        /// Structure handling from [DataTypeField].
+        /// 0 = Auto, 1 = Inline, 2 = ExtensionObject.
         /// </summary>
-        public bool? ForceEncodeable { get; set; }
+        public int StructureHandling { get; set; }
 
         /// <summary>
         /// True if the field's encodeable type is sealed and has
         /// no IEncodeable base type (auto-detected when
-        /// ForceEncodeable is null).
+        /// StructureHandling is Auto).
         /// </summary>
         public bool FieldTypeIsSealed { get; set; }
 
@@ -252,11 +251,10 @@ namespace Opc.Ua.SourceGeneration
         public bool FieldTypeHasEncodeableBase { get; set; }
 
         /// <summary>
-        /// When false, the generated code conditionally omits the field
-        /// on encode (if CanOmitFields) and skips assignment on decode
-        /// (if !HasField). Default is false.
+        /// Controls default value handling during encode/decode.
+        /// 0 = Exclude, 1 = Emit, 2 = SetIfMissing, 3 = Include.
         /// </summary>
-        public bool EmitDefaultValue { get; set; }
+        public int DefaultValueHandling { get; set; }
     }
 
     /// <summary>

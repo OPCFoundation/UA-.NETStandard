@@ -329,7 +329,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void GenerateWithForceEncodeableTrueUsesWriteEncodeable()
+        public void GenerateWithStructureHandlingInlineUsesWriteEncodeable()
         {
             var model = new TypeSourceModel
             {
@@ -348,7 +348,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         TypeName = "global::Test.Ns.ChildType",
                         ShortTypeName = "ChildType",
                         IsEncodeable = true,
-                        ForceEncodeable = true,
+                        StructureHandling = 1, // Inline
                         Order = 0
                     }
                 }

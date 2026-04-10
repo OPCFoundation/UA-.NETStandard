@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// The security configuration for the application.
         /// </summary>
         /// <value>The security configuration.</value>
-        [DataTypeField(Order = 4, ForceEncodeable = true)]
+        [DataTypeField(Order = 4, StructureHandling = StructureHandling.Inline)]
         public SecurityConfiguration SecurityConfiguration
         {
             get => m_securityConfiguration;
@@ -161,7 +161,7 @@ namespace Opc.Ua
         /// The transport configuration for the application.
         /// </summary>
         /// <value>The transport configurations.</value>
-        [DataTypeField(Order = 4, ForceEncodeable = true)]
+        [DataTypeField(Order = 4, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<TransportConfiguration> TransportConfigurations
         {
             get => m_transportConfigurations;
@@ -172,28 +172,28 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         /// <value>The transport quotas.</value>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public TransportQuotas TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
-        [DataTypeField(Order = 7, ForceEncodeable = true)]
+        [DataTypeField(Order = 7, StructureHandling = StructureHandling.Inline)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
-        [DataTypeField(Order = 8, ForceEncodeable = true)]
+        [DataTypeField(Order = 8, StructureHandling = StructureHandling.Inline)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         /// <value>The trace configuration.</value>
-        [DataTypeField(Order = 10, ForceEncodeable = true)]
+        [DataTypeField(Order = 10, StructureHandling = StructureHandling.Inline)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>
@@ -552,7 +552,7 @@ namespace Opc.Ua
         /// This private property exists solely to control serialization of the legacy single
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true, Name = "ApplicationCertificate")]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline, Name = "ApplicationCertificate")]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
@@ -568,7 +568,7 @@ namespace Opc.Ua
         /// <summary>
         /// The application instance certificates in use for the application.
         /// </summary>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<CertificateIdentifier> ApplicationCertificates
         {
             get => m_applicationCertificates;
@@ -648,7 +648,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 12, ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 12, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedIssuerCertificates
         {
             get => m_trustedIssuerCertificates;
@@ -658,7 +658,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 13, ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 13, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedPeerCertificates
         {
             get => m_trustedPeerCertificates;
@@ -680,7 +680,7 @@ namespace Opc.Ua
         /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
         /// <summary>
@@ -771,7 +771,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataTypeField(Order = 14, ForceEncodeable = true)]
+        [DataTypeField(Order = 14, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList UserIssuerCertificates
         {
             get => m_userIssuerCertificates;
@@ -781,7 +781,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataTypeField(Order = 15, ForceEncodeable = true)]
+        [DataTypeField(Order = 15, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedUserCertificates
         {
             get => m_trustedUserCertificates;
@@ -791,7 +791,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataTypeField(Order = 16, ForceEncodeable = true)]
+        [DataTypeField(Order = 16, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get => m_httpsIssuerCertificates;
@@ -801,7 +801,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataTypeField(Order = 17, ForceEncodeable = true)]
+        [DataTypeField(Order = 17, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get => m_trustedHttpsCertificates;
@@ -998,7 +998,7 @@ namespace Opc.Ua
         /// <remarks>
         /// An endpoint description is created for each combination of base address and security policy.
         /// </remarks>
-        [DataTypeField(Order = 2, ForceEncodeable = true)]
+        [DataTypeField(Order = 2, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ServerSecurityPolicy> SecurityPolicies
         {
             get => m_securityPolicies;
@@ -1054,7 +1054,7 @@ namespace Opc.Ua
         /// The user tokens accepted by the server.
         /// </summary>
         /// <value>The user token policies.</value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<UserTokenPolicy> UserTokenPolicies
         {
             get => m_userTokenPolicies;
@@ -1188,14 +1188,14 @@ namespace Opc.Ua
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
-        [DataTypeField(Order = 18, ForceEncodeable = true)]
+        [DataTypeField(Order = 18, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<SamplingRateGroup> AvailableSamplingRates { get; set; }
 
         /// <summary>
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
-        [DataTypeField(Order = 22, ForceEncodeable = true)]
+        [DataTypeField(Order = 22, StructureHandling = StructureHandling.Inline)]
         public EndpointDescription RegistrationEndpoint { get; set; }
 
         /// <summary>
@@ -1297,13 +1297,13 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
-        [DataTypeField(Order = 35, ForceEncodeable = true)]
+        [DataTypeField(Order = 35, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectServerConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
-        [DataTypeField(Order = 36, ForceEncodeable = true)]
+        [DataTypeField(Order = 36, StructureHandling = StructureHandling.Inline)]
         public OperationLimits OperationLimits { get; set; } = new();
 
         /// <summary>
@@ -1370,7 +1370,7 @@ namespace Opc.Ua
         /// <summary>
         /// A collection of reverse connect clients.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true)]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ReverseConnectClient> Clients { get; set; }
 
         /// <summary>
@@ -1530,7 +1530,7 @@ namespace Opc.Ua
         /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
-        [DataTypeField(Order = 3, EmitDefaultValue = true)]
+        [DataTypeField(Order = 3, DefaultValueHandling = DefaultValueHandling.Include)]
         public bool Enabled { get; set; } = true;
     }
 
@@ -1571,7 +1571,7 @@ namespace Opc.Ua
         /// The endpoint descriptions for central discovery servers.
         /// </summary>
         /// <value>The endpoint descriptions for central discovery servers.</value>
-        [DataTypeField(Order = 2, ForceEncodeable = true)]
+        [DataTypeField(Order = 2, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<EndpointDescription> DiscoveryServers
         {
             get => m_discoveryServers;
@@ -1595,7 +1595,7 @@ namespace Opc.Ua
         /// <summary>
         /// The reverse connect Client configuration.
         /// </summary>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectClientConfiguration ReverseConnect { get; set; }
 
         /// <summary>
@@ -1605,7 +1605,7 @@ namespace Opc.Ua
         /// Values not equal to zero are overwritten with smaller values set by the server.
         /// The values are used to limit client service calls.
         /// </remarks>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public OperationLimits OperationLimits { get; set; } = new();
 
         private ArrayOf<string> m_wellKnownDiscoveryUrls;
@@ -1621,7 +1621,7 @@ namespace Opc.Ua
         /// <summary>
         /// A collection of reverse connect client endpoints.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true)]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ReverseConnectClientEndpoint> ClientEndpoints { get; set; }
 
         /// <summary>
@@ -1684,7 +1684,7 @@ namespace Opc.Ua
         /// Gets or sets the server registrations associated with the discovery server.
         /// </summary>
         /// <value>The server registrations.</value>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ServerRegistration> ServerRegistrations { get; set; }
 
     }
@@ -1799,7 +1799,7 @@ namespace Opc.Ua
         /// <value>
         /// The list of trusted certificates.
         /// </value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<CertificateIdentifier> TrustedCertificates
         {
             get => m_trustedCertificates;
@@ -2090,7 +2090,7 @@ namespace Opc.Ua
             }
         }
 
-        [DataTypeField(Order = 1, ForceEncodeable = true, Name = "Endpoints")]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline, Name = "Endpoints")]
         private ArrayOf<ConfiguredEndpoint> EndpointsEncodeable
         {
             get => m_endpoints.ToArrayOf();
@@ -2140,7 +2140,7 @@ namespace Opc.Ua
         /// <summary>
         /// The description for the endpoint.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 0, Name = "Endpoint", ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 0, Name = "Endpoint", StructureHandling = StructureHandling.Inline)]
         public EndpointDescription Description
         {
             get => m_description;
@@ -2150,7 +2150,7 @@ namespace Opc.Ua
         /// <summary>
         /// The configuration to use when connecting to an endpoint.
         /// </summary>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public EndpointConfiguration Configuration
         {
             get => m_configuration;
@@ -2176,7 +2176,7 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the endpoint information should be updated before connecting to the server.
         /// </summary>
-        [DataTypeField(Order = 2, EmitDefaultValue = true)]
+        [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.Include)]
         public bool UpdateBeforeConnect { get; set; } = true;
 
         /// <summary>
@@ -2206,13 +2206,13 @@ namespace Opc.Ua
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectEndpoint ReverseConnect { get; set; }
 
         /// <summary>

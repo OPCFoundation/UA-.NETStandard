@@ -27,59 +27,39 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
+#nullable enable
 
-namespace MemoryBuffer
+namespace Opc.Ua
 {
     /// <summary>
-    /// Stores the configuration the test node manager
+    /// Controls how IEncodeable fields are encoded.
     /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
-    public partial class MemoryBufferConfiguration
+    public enum StructureHandling
     {
         /// <summary>
-        /// The default constructor.
+        /// Generator decides automatically based on sealed/base
+        /// type analysis. If the type is sealed and not deriving
+        /// it uses Inline mode, otherwise it uses ExtensionObject.
+        /// This is the default.
         /// </summary>
-        public MemoryBufferConfiguration()
-        {
-        }
+        Auto = 0,
 
         /// <summary>
-        /// The buffers exposed by the memory
+        /// Force encoding as encodeable object (using the defined
+        /// data encoding) via WriteEncodeable/ReadEncodeable. This
+        /// produces the exact type but expects the receiver to
+        /// know the type already.
         /// </summary>
-        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
-        public ArrayOf<MemoryBufferInstance> Buffers { get; set; }
-    }
-
-    /// <summary>
-    /// Stores the configuration for a memory buffer instance.
-    /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
-    public partial class MemoryBufferInstance
-    {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public MemoryBufferInstance()
-        {
-        }
+        Inline = 1,
 
         /// <summary>
-        /// The browse name for the instance.
+        /// Force encoding and decoding the structure as an
+        /// ExtensionObject via WriteEncodeableAsExtensionObject and
+        /// ReadEncodeableAsExtensionObject. This adds the type
+        /// information to the encoded data and allows the receiver
+        /// to decode the structure without prior knowledge of the
+        /// type, including support for polymorphic types.
         /// </summary>
-        [DataTypeField(Order = 1)]
-        public string Name { get; set; }
-
-        /// <summary>
-        /// The number of tags in the buffer.
-        /// </summary>
-        [DataTypeField(Order = 2)]
-        public int TagCount { get; set; }
-
-        /// <summary>
-        /// The data type of the tags in the buffer.
-        /// </summary>
-        [DataTypeField(Order = 3)]
-        public string DataType { get; set; }
+        ExtensionObject = 2
     }
 }

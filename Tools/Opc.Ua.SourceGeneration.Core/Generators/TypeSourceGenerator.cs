@@ -359,7 +359,7 @@ namespace Opc.Ua.SourceGeneration
                     field.PropertyName);
             }
 
-            if (!field.EmitDefaultValue)
+            if ((field.DefaultValueHandling & 1) == 0)
             {
                 encodeLine = CoreUtils.Format(
                     "if (!encoder.CanOmitFields || {0}) {1}",
@@ -445,7 +445,7 @@ namespace Opc.Ua.SourceGeneration
                     field.FieldName.Escape());
             }
 
-            if (!field.EmitDefaultValue)
+            if ((field.DefaultValueHandling & 2) == 0)
             {
                 decodeLine = CoreUtils.Format(
                     """if (decoder.HasField("{0}")) {1}""",
@@ -580,12 +580,13 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         internal static bool ShouldUseExtensionObject(TypeFieldModel field)
         {
-            // Explicit override from [DataTypeField(ForceEncodeable = ...)]
-            if (field.ForceEncodeable == true)
+            // Explicit override from [DataTypeField(StructureHandling = ...)]
+            if (field.StructureHandling == 1) // Per data encoding
             {
                 return false;
             }
-            if (field.ForceEncodeable == false)
+
+            if (field.StructureHandling == 2) // As ExtensionObject
             {
                 return true;
             }

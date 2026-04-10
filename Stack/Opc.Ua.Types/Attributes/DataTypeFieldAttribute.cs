@@ -43,47 +43,40 @@ namespace Opc.Ua
     public sealed class DataTypeFieldAttribute : Attribute
     {
         /// <summary>
-        /// Order during encoding or decoding.
+        /// Order during encoding or decoding. Order is important for
+        /// binary encoding and the field should always be specified
+        /// to ensure ordering is not left to the compiler.
         /// </summary>
         public int Order { get; set; }
 
         /// <summary>
-        /// The name of the field in the structure if
-        /// different from the name of the property. Used
-        /// during serialization and deserialization.
+        /// The name of the field in the structure if different from
+        /// the name of the property. Used during serialization and
+        /// deserialization.
         /// </summary>
         public string? Name { get; set; }
 
         /// <summary>
-        /// If explicitly set to <c>true</c>, the field is encoded using
-        /// <c>WriteEncodeable</c>/<c>ReadEncodeable</c> (exact type).
-        /// If explicitly set to <c>false</c>, the field is encoded using
-        /// <c>WriteEncodeableAsExtensionObject</c>/<c>ReadEncodeableAsExtensionObject</c>
-        /// (allows subtyping).
-        /// If not set (null), the generator decides automatically:
-        /// <c>WriteEncodeable</c> is used if the field type is sealed
-        /// and does not derive from another IEncodeable base type;
-        /// otherwise <c>WriteEncodeableAsExtensionObject</c> is used.
+        /// Controls how IEncodeable fields are encoded.
+        /// <see cref="StructureHandling.Auto"/> (default) lets the
+        /// generator decide.
+        /// <see cref="StructureHandling.Inline"/> forces
+        /// WriteEncodeable/ReadEncodeable.
+        /// <see cref="StructureHandling.ExtensionObject"/> forces
+        /// ExtensionObject wrapping.
+        /// Only applicable to IEncodeable fields.
         /// </summary>
-        /// <remarks>
-        /// Only applicable to fields whose type implements
-        /// <see cref="IEncodeable"/>. Ignored for built-in types,
-        /// enums, and arrays.
-        /// </remarks>
-        public object? ForceEncodeable { get; set; }
+        public StructureHandling StructureHandling { get; set; }
 
         /// <summary>
-        /// Controls whether the field is emitted when its value
-        /// equals default(T).
-        /// When false (the default), the encoder may omit the
-        /// field if its value equals default(T) and the encoder
-        /// supports it (see <see cref="IEncoder.CanOmitFields"/>).
-        /// On decode, absent fields preserve the field default
-        /// value when the decoder supports it (see
-        /// <see cref="IDecoder.HasField"/>). This matches the
-        /// DataMemberAttribute.EmitDefaultValue convention.
+        /// Controls default value handling during encode/decode.
+        /// <see cref="DefaultValueHandling.Exclude"/> (default)
+        /// omits defaults on write and preserves constructor
+        /// defaults on read when field is absent.
+        /// <see cref="DefaultValueHandling.Include"/> always
+        /// writes and reads.
         /// </summary>
-        public bool EmitDefaultValue { get; set; }
+        public DefaultValueHandling DefaultValueHandling { get; set; }
 
         /// <summary>
         /// Indicates whether the field is required.
