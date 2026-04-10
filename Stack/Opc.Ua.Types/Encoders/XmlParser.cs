@@ -2042,6 +2042,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName))
+            {
+                return true;
+            }
+
+            ElementContext context = m_contextStack.Peek();
+            string ns = m_namespaces.Peek();
+            return FindChildIndex(context, fieldName, ns) >= 0;
+        }
+
+        /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             CheckAndIncrementNestingLevel();

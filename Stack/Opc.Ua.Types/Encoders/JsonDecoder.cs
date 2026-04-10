@@ -1077,6 +1077,19 @@ namespace Opc.Ua
             return DefaultOrThrow(value);
         }
 
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName) || m_stack.Count == 0)
+            {
+                return true;
+            }
+
+            JsonElement top = m_stack.Peek();
+            return top.ValueKind == JsonValueKind.Object &&
+                top.TryGetProperty(fieldName, out _);
+        }
+
         /// <summary>
         /// Get boolean from element
         /// </summary>

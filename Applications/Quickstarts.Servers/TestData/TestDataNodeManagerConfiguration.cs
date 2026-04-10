@@ -38,22 +38,6 @@ namespace TestData
     public partial class TestDataNodeManagerConfiguration
     {
         /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public TestDataNodeManagerConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            MaxQueueSize = 100;
-        }
-
-        /// <summary>
         /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataTypeField(Order = 1)]
@@ -63,7 +47,7 @@ namespace TestData
         /// The maximum length for a monitored item sampling queue.
         /// </summary>
         [DataTypeField(Order = 2)]
-        public uint MaxQueueSize { get; set; }
+        public uint MaxQueueSize { get; set; } = 100;
 
         /// <summary>
         /// The next unused value that can be assigned to new nodes.

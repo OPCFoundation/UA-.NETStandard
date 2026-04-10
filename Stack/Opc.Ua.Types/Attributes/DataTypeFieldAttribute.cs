@@ -73,6 +73,19 @@ namespace Opc.Ua
         public object? ForceEncodeable { get; set; }
 
         /// <summary>
+        /// Controls whether the field is emitted when its value
+        /// equals default(T).
+        /// When false (the default), the encoder may omit the
+        /// field if its value equals default(T) and the encoder
+        /// supports it (see <see cref="IEncoder.CanOmitFields"/>).
+        /// On decode, absent fields preserve the field default
+        /// value when the decoder supports it (see
+        /// <see cref="IDecoder.HasField"/>). This matches the
+        /// DataMemberAttribute.EmitDefaultValue convention.
+        /// </summary>
+        public bool EmitDefaultValue { get; set; }
+
+        /// <summary>
         /// Indicates whether the field is required.
         /// Reserved for future use in optional-field structures.
         /// </summary>

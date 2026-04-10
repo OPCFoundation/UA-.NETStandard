@@ -82,11 +82,6 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public CertificateGroupConfiguration()
         {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
             DefaultCertificateLifetime = CertificateFactory.DefaultLifeTime;
             DefaultCertificateKeySize = CertificateFactory.DefaultKeySize;
             DefaultCertificateHashSize = CertificateFactory.DefaultHashSize;

@@ -581,6 +581,9 @@ namespace Opc.Ua.PubSub.Encoding
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
+        /// <inheritdoc/>
         public bool UseReversibleEncoding => EncodingToUse != PubSubJsonEncoding.NonReversible;
 
         /// <summary>

@@ -306,6 +306,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            string encodeLine;
             if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
@@ -314,42 +315,59 @@ namespace Opc.Ua.SourceGeneration
                     string method = useExtObj
                         ? "WriteEncodeableArrayAsExtensionObjects"
                         : "WriteEncodeableArray";
-                    return (TemplateString)CoreUtils.Format(
+                    encodeLine = CoreUtils.Format(
                         "encoder.{0}(\"{1}\", {2});",
                         method,
                         field.FieldName.Escape(),
                         field.PropertyName);
                 }
-                string scalarMethod = useExtObj
-                    ? "WriteEncodeableAsExtensionObject"
-                    : "WriteEncodeable";
-                return (TemplateString)CoreUtils.Format(
-                    "encoder.{0}(\"{1}\", {2});",
-                    scalarMethod,
-                    field.FieldName.Escape(),
-                    field.PropertyName);
-            }
-
-            if (field.IsEnum)
-            {
-                if (field.IsArray)
+                else
                 {
-                    return (TemplateString)CoreUtils.Format(
-                    """encoder.WriteEnumeratedArray("{0}", {1});""",
+                    string scalarMethod = useExtObj
+                        ? "WriteEncodeableAsExtensionObject"
+                        : "WriteEncodeable";
+                    encodeLine = CoreUtils.Format(
+                        "encoder.{0}(\"{1}\", {2});",
+                        scalarMethod,
                         field.FieldName.Escape(),
                         field.PropertyName);
                 }
-                return (TemplateString)CoreUtils.Format(
-                    """encoder.WriteEnumerated("{0}", {1});""",
+            }
+            else if (field.IsEnum)
+            {
+                if (field.IsArray)
+                {
+                    encodeLine = CoreUtils.Format(
+                        """encoder.WriteEnumeratedArray("{0}", {1});""",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+                }
+                else
+                {
+                    encodeLine = CoreUtils.Format(
+                        """encoder.WriteEnumerated("{0}", {1});""",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+                }
+            }
+            else
+            {
+                encodeLine = CoreUtils.Format(
+                    """encoder.{0}("{1}", {2});""",
+                    writeMethod,
                     field.FieldName.Escape(),
                     field.PropertyName);
             }
 
-            return (TemplateString)CoreUtils.Format(
-                """encoder.{0}("{1}", {2});""",
-                writeMethod,
-                field.FieldName.Escape(),
-                field.PropertyName);
+            if (!field.EmitDefaultValue)
+            {
+                encodeLine = CoreUtils.Format(
+                    "if (!encoder.CanOmitFields || {0}) {1}",
+                    GetNotDefaultCheck(field),
+                    encodeLine);
+            }
+
+            return (TemplateString)encodeLine;
         }
 
         private static TemplateString LoadTemplate_ListOfDecodedFields(ILoadContext context)
@@ -365,6 +383,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            string decodeLine;
             if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
@@ -373,51 +392,68 @@ namespace Opc.Ua.SourceGeneration
                     string method = useExtObj
                         ? "ReadEncodeableArrayAsExtensionObjects"
                         : "ReadEncodeableArray";
-                    return (TemplateString)CoreUtils.Format(
+                    decodeLine = CoreUtils.Format(
                         "{0} = decoder.{1}<{2}>(\"{3}\");",
                         field.PropertyName,
                         method,
                         field.ElementTypeName,
                         field.FieldName.Escape());
                 }
-                if (useExtObj)
+                else if (useExtObj)
                 {
-                    return (TemplateString)CoreUtils.Format(
+                    decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEncodeableAsExtensionObject<{1}>(\"{2}\");",
                         field.PropertyName,
                         field.TypeName,
                         field.FieldName.Escape());
                 }
-                return (TemplateString)CoreUtils.Format(
-                    "{0} = decoder.ReadEncodeable<{1}>(\"{2}\");",
-                    field.PropertyName,
-                    field.TypeName,
-                    field.FieldName.Escape());
+                else
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadEncodeable<{1}>(\"{2}\");",
+                        field.PropertyName,
+                        field.TypeName,
+                        field.FieldName.Escape());
+                }
             }
-
-            if (field.IsEnum)
+            else if (field.IsEnum)
             {
                 string typeName = field.IsArray ? field.ElementTypeName : field.TypeName;
                 if (field.IsArray)
                 {
-                    return (TemplateString)CoreUtils.Format(
-                    """{0} = decoder.ReadEnumeratedArray<{1}>("{2}");""",
+                    decodeLine = CoreUtils.Format(
+                        """{0} = decoder.ReadEnumeratedArray<{1}>("{2}");""",
                         field.PropertyName,
                         typeName,
                         field.FieldName.Escape());
                 }
-                return (TemplateString)CoreUtils.Format(
-                    "{0} = decoder.ReadEnumerated<{1}>(\"{2}\");",
+                else
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadEnumerated<{1}>(\"{2}\");",
+                        field.PropertyName,
+                        typeName,
+                        field.FieldName.Escape());
+                }
+            }
+            else
+            {
+                decodeLine = CoreUtils.Format(
+                    """{0} = decoder.{1}("{2}");""",
                     field.PropertyName,
-                    typeName,
+                    readMethod,
                     field.FieldName.Escape());
             }
 
-            return (TemplateString)CoreUtils.Format(
-                """{0} = decoder.{1}("{2}");""",
-                field.PropertyName,
-                readMethod,
-                field.FieldName.Escape());
+            if (!field.EmitDefaultValue)
+            {
+                decodeLine = CoreUtils.Format(
+                    """if (decoder.HasField("{0}")) {1}""",
+                    field.FieldName.Escape(),
+                    decodeLine);
+            }
+
+            return (TemplateString)decodeLine;
         }
 
         private static TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
@@ -622,9 +658,7 @@ namespace Opc.Ua.SourceGeneration
                 ["Boolean"] = ("WriteBoolean", "ReadBoolean"),
                 ["bool"] = ("WriteBoolean", "ReadBoolean"),
                 ["SByte"] = ("WriteSByte", "ReadSByte"),
-                ["sbyte"] = ("WriteSByte", "ReadSByte"),
                 ["Byte"] = ("WriteByte", "ReadByte"),
-                ["byte"] = ("WriteByte", "ReadByte"),
                 ["Int16"] = ("WriteInt16", "ReadInt16"),
                 ["short"] = ("WriteInt16", "ReadInt16"),
                 ["UInt16"] = ("WriteUInt16", "ReadUInt16"),
@@ -640,9 +674,7 @@ namespace Opc.Ua.SourceGeneration
                 ["Single"] = ("WriteFloat", "ReadFloat"),
                 ["float"] = ("WriteFloat", "ReadFloat"),
                 ["Double"] = ("WriteDouble", "ReadDouble"),
-                ["double"] = ("WriteDouble", "ReadDouble"),
                 ["String"] = ("WriteString", "ReadString"),
-                ["string"] = ("WriteString", "ReadString"),
                 ["DateTime"] = ("WriteDateTime", "ReadDateTime"),
                 ["DateTimeUtc"] = ("WriteDateTime", "ReadDateTime"),
                 ["Guid"] = ("WriteGuid", "ReadGuid"),
@@ -659,6 +691,60 @@ namespace Opc.Ua.SourceGeneration
                 ["DiagnosticInfo"] = ("WriteDiagnosticInfo", "ReadDiagnosticInfo"),
                 ["XmlElement"] = ("WriteXmlElement", "ReadXmlElement"),
             };
+
+        internal static readonly Dictionary<string, string> NotDefaultCheckExpression =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Boolean"] = "{0}",
+                ["bool"] = "{0}",
+                ["SByte"] = "{0} != (sbyte)0",
+                ["Byte"] = "{0} != (byte)0",
+                ["Int16"] = "{0} != (short)0",
+                ["short"] = "{0} != (short)0",
+                ["UInt16"] = "{0} != (ushort)0",
+                ["ushort"] = "{0} != (ushort)0",
+                ["Int32"] = "{0} != 0",
+                ["int"] = "{0} != 0",
+                ["UInt32"] = "{0} != 0u",
+                ["uint"] = "{0} != 0u",
+                ["Int64"] = "{0} != 0L",
+                ["long"] = "{0} != 0L",
+                ["UInt64"] = "{0} != 0UL",
+                ["ulong"] = "{0} != 0UL",
+                ["Single"] = "{0} != 0f",
+                ["float"] = "{0} != 0f",
+                ["Double"] = "{0} != 0.0",
+                ["String"] = "!string.IsNullOrEmpty({0})",
+                ["DateTime"] = "{0} != global::System.DateTime.MinValue",
+                ["DateTimeUtc"] = "!{0}.IsNull",
+                ["Guid"] = "{0} != global::System.Guid.Empty",
+                ["Uuid"] = "{0} != global::Opc.Ua.Uuid.Empty",
+                ["ByteString"] = "!{0}.IsNull",
+                ["NodeId"] = "!{0}.IsNull",
+                ["ExpandedNodeId"] = "!{0}.IsNull",
+                ["StatusCode"] = "{0} != global::Opc.Ua.StatusCodes.Good",
+                ["QualifiedName"] = "!{0}.IsNull",
+                ["LocalizedText"] = "!{0}.IsNull",
+                ["ExtensionObject"] = "!{0}.IsNull",
+                ["DataValue"] = "!({0} is null)",
+                ["Variant"] = "!{0}.IsNull",
+                ["DiagnosticInfo"] = "!({0} is null)",
+                ["XmlElement"] = "!{0}.IsNull"
+            };
+
+        private static string GetNotDefaultCheck(TypeFieldModel field)
+        {
+            if (field.IsArray || field.IsMatrix)
+            {
+                return $"!{field.PropertyName}.IsNull";
+            }
+            if (field.IsEnum ||
+                !NotDefaultCheckExpression.TryGetValue(field.ShortTypeName, out string expr))
+            {
+                return $"{field.PropertyName} != default";
+            }
+            return CoreUtils.Format(expr, field.PropertyName);
+        }
 
         private static string FormatExpandedNodeIdExpression(
             string idString,

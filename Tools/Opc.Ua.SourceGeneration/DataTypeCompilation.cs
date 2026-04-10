@@ -445,6 +445,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             bool? forceEncodeable = null;
+            bool emitDefaultValue = false;
             if (dtfAttr != null)
             {
                 foreach (var kvp in dtfAttr.NamedArguments)
@@ -452,6 +453,10 @@ namespace Opc.Ua.SourceGeneration
                     if (kvp.Key == "ForceEncodeable" && kvp.Value.Value is bool b)
                     {
                         forceEncodeable = b;
+                    }
+                    else if (kvp.Key == "EmitDefaultValue" && kvp.Value.Value is bool edv)
+                    {
+                        emitDefaultValue = edv;
                     }
                 }
             }
@@ -479,6 +484,7 @@ namespace Opc.Ua.SourceGeneration
                 Order = order,
                 HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
                 ForceEncodeable = forceEncodeable,
+                EmitDefaultValue = emitDefaultValue,
                 FieldTypeIsSealed = fieldTypeIsSealed,
                 FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
             };

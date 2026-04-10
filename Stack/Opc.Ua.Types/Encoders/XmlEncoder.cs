@@ -251,6 +251,9 @@ namespace Opc.Ua
         /// </summary>
         public EncodingType EncodingType => EncodingType.Xml;
 
+        /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>

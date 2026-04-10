@@ -137,6 +137,9 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>

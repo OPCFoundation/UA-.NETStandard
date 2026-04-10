@@ -250,6 +250,13 @@ namespace Opc.Ua.SourceGeneration
         /// another IEncodeable (has a non-trivial IEncodeable base).
         /// </summary>
         public bool FieldTypeHasEncodeableBase { get; set; }
+
+        /// <summary>
+        /// When false, the generated code conditionally omits the field
+        /// on encode (if CanOmitFields) and skips assignment on decode
+        /// (if !HasField). Default is false.
+        /// </summary>
+        public bool EmitDefaultValue { get; set; }
     }
 
     /// <summary>

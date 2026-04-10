@@ -2036,6 +2036,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            return Peek(fieldName);
+        }
+
+        /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             CheckAndIncrementNestingLevel();
