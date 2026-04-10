@@ -265,7 +265,7 @@ namespace Opc.Ua.SourceGeneration
             bool baseTypeIsEncodeable = symbol.BaseType != null &&
                 symbol.BaseType.Name != "Object" &&
                 (symbol.BaseType.ImplementsInterface("IEncodeable") ||
-                 symbol.BaseType.HasAttribute("DataTypeAttribute"));
+                    symbol.BaseType.HasAttribute("DataTypeAttribute"));
             return new TypeSourceModel
             {
                 ClassName = symbol.Name,
@@ -406,7 +406,7 @@ namespace Opc.Ua.SourceGeneration
             bool isEnum = type.TypeKind == TypeKind.Enum;
             bool isEncodeable = !isEnum &&
                 (type.ImplementsInterface(nameof(IEncodeable)) ||
-                 type.HasAttribute(nameof(DataTypeAttribute)));
+                    type.HasAttribute(nameof(DataTypeAttribute)));
             bool isArray = false;
             bool isMatrix = false;
             string elementShortTypeName = null;
@@ -425,7 +425,7 @@ namespace Opc.Ua.SourceGeneration
                 isEnum = elem.TypeKind == TypeKind.Enum;
                 isEncodeable = !isEnum &&
                     (elem.ImplementsInterface(nameof(IEncodeable)) ||
-                     elem.HasAttribute(nameof(DataTypeAttribute)));
+                        elem.HasAttribute(nameof(DataTypeAttribute)));
                 encodeableType = elem;
             }
             else if (shortName == "MatrixOf" &&
@@ -440,18 +440,24 @@ namespace Opc.Ua.SourceGeneration
                 isEnum = elem.TypeKind == TypeKind.Enum;
                 isEncodeable = !isEnum &&
                     (elem.ImplementsInterface(nameof(IEncodeable)) ||
-                     elem.HasAttribute(nameof(DataTypeAttribute)));
+                        elem.HasAttribute(nameof(DataTypeAttribute)));
                 encodeableType = elem;
             }
 
-            bool? forceEncodeable = null;
+            int structureHandling = 0;
+            int defaultValueHandling = 0;
             if (dtfAttr != null)
             {
                 foreach (KeyValuePair<string, TypedConstant> kvp in dtfAttr.NamedArguments)
                 {
-                    if (kvp.Key == "ForceEncodeable" && kvp.Value.Value is bool b)
+                    switch (kvp.Key)
                     {
-                        forceEncodeable = b;
+                        case "StructureHandling" when kvp.Value.Value is int sh:
+                            structureHandling = sh;
+                            break;
+                        case "DefaultValueHandling" when kvp.Value.Value is int dvh:
+                            defaultValueHandling = dvh;
+                            break;
                     }
                 }
             }
@@ -478,7 +484,8 @@ namespace Opc.Ua.SourceGeneration
                 IsEnum = isEnum,
                 Order = order,
                 HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
-                ForceEncodeable = forceEncodeable,
+                StructureHandling = structureHandling,
+                DefaultValueHandling = defaultValueHandling,
                 FieldTypeIsSealed = fieldTypeIsSealed,
                 FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
             };

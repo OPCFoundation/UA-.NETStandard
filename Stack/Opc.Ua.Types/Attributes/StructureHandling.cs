@@ -27,32 +27,39 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
+#nullable enable
 
-namespace TestData
+namespace Opc.Ua
 {
     /// <summary>
-    /// Stores the configuration the test node manager
+    /// Controls how IEncodeable fields are encoded.
     /// </summary>
-    [DataType(Namespace = Namespaces.TestData)]
-    public partial class TestDataNodeManagerConfiguration
+    public enum StructureHandling
     {
         /// <summary>
-        /// The path to the file that stores state of the node manager.
+        /// Generator decides automatically based on sealed/base
+        /// type analysis. If the type is sealed and not deriving
+        /// it uses Inline mode, otherwise it uses ExtensionObject.
+        /// This is the default.
         /// </summary>
-        [DataTypeField(Order = 1)]
-        public string SaveFilePath { get; set; }
+        Auto = 0,
 
         /// <summary>
-        /// The maximum length for a monitored item sampling queue.
+        /// Force encoding as encodeable object (using the defined
+        /// data encoding) via WriteEncodeable/ReadEncodeable. This
+        /// produces the exact type but expects the receiver to
+        /// know the type already.
         /// </summary>
-        [DataTypeField(Order = 2)]
-        public uint MaxQueueSize { get; set; } = 100;
+        Inline = 1,
 
         /// <summary>
-        /// The next unused value that can be assigned to new nodes.
+        /// Force encoding and decoding the structure as an
+        /// ExtensionObject via WriteEncodeableAsExtensionObject and
+        /// ReadEncodeableAsExtensionObject. This adds the type
+        /// information to the encoded data and allows the receiver
+        /// to decode the structure without prior knowledge of the
+        /// type, including support for polymorphic types.
         /// </summary>
-        [DataTypeField(Order = 3)]
-        public uint NextUnusedId { get; set; }
+        ExtensionObject = 2
     }
 }

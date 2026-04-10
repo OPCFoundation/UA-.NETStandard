@@ -1588,6 +1588,12 @@ namespace Opc.Ua
             return ReadUInt32("EncodingMask");
         }
 
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            return true;
+        }
+
         /// <summary>
         /// Read variant value which is the content of the variant.
         /// </summary>

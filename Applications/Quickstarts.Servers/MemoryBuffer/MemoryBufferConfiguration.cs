@@ -47,7 +47,7 @@ namespace MemoryBuffer
         /// <summary>
         /// The buffers exposed by the memory
         /// </summary>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<MemoryBufferInstance> Buffers { get; set; }
     }
 

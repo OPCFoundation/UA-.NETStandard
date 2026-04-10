@@ -384,7 +384,7 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
                     application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.That(result, Is.Not.Null);
-                List<T> serverCapabilities = result.ServerCapabilities.ToList();
+                var serverCapabilities = result.ServerCapabilities.ToList();
                 serverCapabilities.Sort();
                 result.ServerCapabilities = serverCapabilities;
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client &&
@@ -517,7 +517,7 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
                     application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.That(result, Is.Not.Null);
-                List<T> serverCapabilities = result.ServerCapabilities.ToList();
+                var serverCapabilities = result.ServerCapabilities.ToList();
                 serverCapabilities.Sort();
                 result.ServerCapabilities = serverCapabilities;
                 serverCapabilities = application.ApplicationRecord.ServerCapabilities.ToList();

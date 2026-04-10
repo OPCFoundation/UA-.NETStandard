@@ -42,6 +42,13 @@ namespace Opc.Ua
         EncodingType EncodingType { get; }
 
         /// <summary>
+        /// Returns true if the encoder supports omitting fields with default values.
+        /// Binary encoding returns false (all fields must be written).
+        /// XML and JSON return true.
+        /// </summary>
+        bool CanOmitFields { get; }
+
+        /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
         IServiceMessageContext Context { get; }

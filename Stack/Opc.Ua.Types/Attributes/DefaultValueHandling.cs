@@ -27,32 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
+#nullable enable
 
-namespace TestData
+using System;
+
+namespace Opc.Ua
 {
     /// <summary>
-    /// Stores the configuration the test node manager
+    /// Controls default value handling during encode/decode.
     /// </summary>
-    [DataType(Namespace = Namespaces.TestData)]
-    public partial class TestDataNodeManagerConfiguration
+    [Flags]
+    public enum DefaultValueHandling
     {
         /// <summary>
-        /// The path to the file that stores state of the node manager.
+        /// Omit default values on write; preserve constructor
+        /// defaults on read when field is absent. This is the
+        /// default and works well for configuration.
         /// </summary>
-        [DataTypeField(Order = 1)]
-        public string SaveFilePath { get; set; }
+        Exclude = 0,
 
         /// <summary>
-        /// The maximum length for a monitored item sampling queue.
+        /// Always write the field, even if it holds the
+        /// default value. This mimics the DataMemberAttribute
+        /// EmitDefaultValue set to true.
         /// </summary>
-        [DataTypeField(Order = 2)]
-        public uint MaxQueueSize { get; set; } = 100;
+        Emit = 1,
 
         /// <summary>
-        /// The next unused value that can be assigned to new nodes.
+        /// Always set the property on read, even if the field
+        /// is absent (overwrites the class defaults with decoder's
+        /// zero/false/null).
         /// </summary>
-        [DataTypeField(Order = 3)]
-        public uint NextUnusedId { get; set; }
+        SetIfMissing = 2,
+
+        /// <summary>
+        /// Always write AND always read — equivalent to
+        /// Emit | SetIfMissing.
+        /// </summary>
+        Include = Emit | SetIfMissing
     }
 }

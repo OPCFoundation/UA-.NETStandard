@@ -354,6 +354,9 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Binary;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => false;
+
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>

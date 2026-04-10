@@ -459,5 +459,12 @@ namespace Opc.Ua
         /// <param name="masks">The list of field names in the order of the
         /// bits in the optional fields mask.</param>
         uint ReadEncodingMask(IList<string> masks);
+
+        /// <summary>
+        /// Returns true if the named field exists in the encoded data.
+        /// Binary decoding always returns true (all fields are present).
+        /// XML checks for the element; JSON checks for the property.
+        /// </summary>
+        bool HasField(string fieldName);
     }
 }

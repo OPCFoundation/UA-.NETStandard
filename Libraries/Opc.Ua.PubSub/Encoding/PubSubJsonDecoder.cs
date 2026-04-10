@@ -275,6 +275,18 @@ namespace Opc.Ua.PubSub.Encoding
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName) || m_stack.Count == 0)
+            {
+                return true;
+            }
+
+            return m_stack.Peek() is Dictionary<string, object> context &&
+                context.ContainsKey(fieldName);
+        }
+
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>

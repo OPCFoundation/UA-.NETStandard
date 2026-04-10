@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.Tests
             finally
             {
                 // Cleanup
-                List<T> closeTasks = sessions.Select(session => Task.Run(async () =>
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
                 {
                     try
                     {
@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Tests
             finally
             {
                 // Cleanup
-                List<T> closeTasks = sessions.Select(session => Task.Run(async () =>
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
                 {
                     try
                     {
@@ -672,7 +672,7 @@ namespace Opc.Ua.Client.Tests
             finally
             {
                 // Cleanup all sessions.
-                List<T> closeTasks = sessions.Select(session => Task.Run(async () =>
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
                 {
                     try
                     {

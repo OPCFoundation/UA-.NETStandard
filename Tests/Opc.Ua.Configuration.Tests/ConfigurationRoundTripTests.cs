@@ -1070,6 +1070,121 @@ namespace Opc.Ua.Configuration.Tests
             return result;
         }
 
+        [Test]
+        public void SecurityConfigurationMissingNonceLengthUsesDefault()
+        {
+            ApplicationConfiguration config =
+                DecodeFromFile<ApplicationConfiguration>("test-security-defaults.xml");
+
+            // NonceLength must default to 32 when absent from XML (0 is never valid)
+            Assert.That(
+                config.SecurityConfiguration.NonceLength,
+                Is.EqualTo(32),
+                "NonceLength should default to 32 when absent from XML.");
+
+            // Bool defaults handled by HasField
+            Assert.That(
+                config.SecurityConfiguration.RejectSHA1SignedCertificates,
+                Is.True,
+                "RejectSHA1SignedCertificates should default to true.");
+            Assert.That(
+                config.SecurityConfiguration.AddAppCertToTrustedStore,
+                Is.True,
+                "AddAppCertToTrustedStore should default to true.");
+            Assert.That(
+                config.SecurityConfiguration.SendCertificateChain,
+                Is.True,
+                "SendCertificateChain should default to true.");
+
+            // Round-trip should preserve the default
+            string xml = EncodeToXml(config);
+            ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
+            Assert.That(roundTripped.SecurityConfiguration.NonceLength, Is.EqualTo(32));
+        }
+
+        [Test]
+        public void MissingFieldsPreserveConstructorDefaults()
+        {
+            ApplicationConfiguration config =
+                DecodeFromFile<ApplicationConfiguration>("test-security-defaults.xml");
+
+            Assert.That(
+                config.SecurityConfiguration.NonceLength,
+                Is.EqualTo(32));
+            Assert.That(
+                config.SecurityConfiguration.RejectSHA1SignedCertificates,
+                Is.True);
+            Assert.That(
+                config.SecurityConfiguration.AddAppCertToTrustedStore,
+                Is.True);
+            Assert.That(
+                config.SecurityConfiguration.SendCertificateChain,
+                Is.True);
+            Assert.That(
+                config.SecurityConfiguration.MinimumCertificateKeySize,
+                Is.EqualTo(CertificateFactory.DefaultKeySize));
+            Assert.That(
+                config.SecurityConfiguration.MaxRejectedCertificates,
+                Is.EqualTo(5));
+        }
+
+        [Test]
+        public void ExplicitZeroIsPreservedWhenPresent()
+        {
+            ApplicationConfiguration config =
+                DecodeFromFile<ApplicationConfiguration>("test-server-explicit.xml");
+
+            // Explicit non-default value
+            Assert.That(
+                config.ServerConfiguration.MaxSessionCount,
+                Is.EqualTo(50),
+                "MaxSessionCount should be the explicit value from XML.");
+
+            // Explicit zero (0 = no limit for MaxTrustListSize)
+            Assert.That(
+                config.ServerConfiguration.MaxTrustListSize,
+                Is.EqualTo(0),
+                "MaxTrustListSize should preserve explicit 0 from XML.");
+
+            // Round-trip
+            string xml = EncodeToXml(config);
+            ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
+            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(50));
+            Assert.That(roundTripped.ServerConfiguration.MaxTrustListSize, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ServerConfigurationDefaultsPreservedWhenAbsent()
+        {
+            ApplicationConfiguration config =
+                DecodeFromFile<ApplicationConfiguration>("test-server-defaults.xml");
+
+            Assert.That(
+                config.ServerConfiguration.MaxSessionCount,
+                Is.EqualTo(100),
+                "MaxSessionCount should default to 100.");
+            Assert.That(
+                config.ServerConfiguration.MinSessionTimeout,
+                Is.EqualTo(10000),
+                "MinSessionTimeout should default to 10000.");
+            Assert.That(
+                config.ServerConfiguration.MaxSessionTimeout,
+                Is.EqualTo(3600000),
+                "MaxSessionTimeout should default to 3600000.");
+            Assert.That(
+                config.ServerConfiguration.ShutdownDelay,
+                Is.EqualTo(5),
+                "ShutdownDelay should default to 5.");
+
+            // Round-trip: encode, re-parse, verify defaults persist
+            string xml = EncodeToXml(config);
+            ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
+            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(100));
+            Assert.That(roundTripped.ServerConfiguration.MinSessionTimeout, Is.EqualTo(10000));
+            Assert.That(roundTripped.ServerConfiguration.MaxSessionTimeout, Is.EqualTo(3600000));
+            Assert.That(roundTripped.ServerConfiguration.ShutdownDelay, Is.EqualTo(5));
+        }
+
         private static string EncodeToXml<T>(T value) where T : IEncodeable
         {
             IServiceMessageContext ctx = CreateMessageContext();

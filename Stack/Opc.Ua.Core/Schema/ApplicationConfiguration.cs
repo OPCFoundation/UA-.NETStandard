@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// The security configuration for the application.
         /// </summary>
         /// <value>The security configuration.</value>
-        [DataTypeField(Order = 4, ForceEncodeable = true)]
+        [DataTypeField(Order = 4, StructureHandling = StructureHandling.Inline)]
         public SecurityConfiguration SecurityConfiguration
         {
             get => m_securityConfiguration;
@@ -161,7 +161,7 @@ namespace Opc.Ua
         /// The transport configuration for the application.
         /// </summary>
         /// <value>The transport configurations.</value>
-        [DataTypeField(Order = 4, ForceEncodeable = true)]
+        [DataTypeField(Order = 4, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<TransportConfiguration> TransportConfigurations
         {
             get => m_transportConfigurations;
@@ -172,28 +172,28 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         /// <value>The transport quotas.</value>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public TransportQuotas TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
-        [DataTypeField(Order = 7, ForceEncodeable = true)]
+        [DataTypeField(Order = 7, StructureHandling = StructureHandling.Inline)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
-        [DataTypeField(Order = 8, ForceEncodeable = true)]
+        [DataTypeField(Order = 8, StructureHandling = StructureHandling.Inline)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         /// <value>The trace configuration.</value>
-        [DataTypeField(Order = 10, ForceEncodeable = true)]
+        [DataTypeField(Order = 10, StructureHandling = StructureHandling.Inline)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>
@@ -496,16 +496,7 @@ namespace Opc.Ua
             m_applicationCertificates = [];
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
-            NonceLength = 32;
-            MaxRejectedCertificates = 5;
-            AutoAcceptUntrustedCertificates = false;
-            RejectSHA1SignedCertificates = true;
-            RejectUnknownRevocationStatus = false;
             MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
-            AddAppCertToTrustedStore = true;
-            SendCertificateChain = true;
-            SuppressNonceValidationErrors = false;
-            IsDeprecatedConfiguration = false;
         }
 
         /// <summary>
@@ -561,7 +552,7 @@ namespace Opc.Ua
         /// This private property exists solely to control serialization of the legacy single
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true, Name = "ApplicationCertificate")]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline, Name = "ApplicationCertificate")]
         private CertificateIdentifier ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
@@ -577,7 +568,7 @@ namespace Opc.Ua
         /// <summary>
         /// The application instance certificates in use for the application.
         /// </summary>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<CertificateIdentifier> ApplicationCertificates
         {
             get => m_applicationCertificates;
@@ -657,7 +648,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 12, ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 12, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedIssuerCertificates
         {
             get => m_trustedIssuerCertificates;
@@ -667,7 +658,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 13, ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 13, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedPeerCertificates
         {
             get => m_trustedPeerCertificates;
@@ -681,7 +672,7 @@ namespace Opc.Ua
         /// The length of nonce in the CreateSession service.
         /// </value>
         [DataTypeField(Order = 2)]
-        public int NonceLength { get; set; }
+        public int NonceLength { get; set; } = 32;
 
         /// <summary>
         /// A store where invalid certificates can be placed for later review by the administrator.
@@ -689,7 +680,7 @@ namespace Opc.Ua
         /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
         /// <summary>
@@ -703,7 +694,7 @@ namespace Opc.Ua
         /// A negative number to keep no history.
         /// </remarks>
         [DataTypeField(Order = 4)]
-        public int MaxRejectedCertificates { get; set; }
+        public int MaxRejectedCertificates { get; set; } = 5;
 
         /// <summary>
         /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
@@ -728,7 +719,7 @@ namespace Opc.Ua
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
         [DataTypeField(Order = 7)]
-        public bool RejectSHA1SignedCertificates { get; set; }
+        public bool RejectSHA1SignedCertificates { get; set; } = true;
 
         /// <summary>
         /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
@@ -766,7 +757,7 @@ namespace Opc.Ua
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
         [DataTypeField(Order = 9)]
-        public bool AddAppCertToTrustedStore { get; set; }
+        public bool AddAppCertToTrustedStore { get; set; } = true;
 
         /// <summary>
         /// Gets or sets a value indicating whether the application should send the complete certificate chain.
@@ -775,12 +766,12 @@ namespace Opc.Ua
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
         [DataTypeField(Order = 10)]
-        public bool SendCertificateChain { get; set; }
+        public bool SendCertificateChain { get; set; } = true;
 
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataTypeField(Order = 14, ForceEncodeable = true)]
+        [DataTypeField(Order = 14, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList UserIssuerCertificates
         {
             get => m_userIssuerCertificates;
@@ -790,7 +781,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataTypeField(Order = 15, ForceEncodeable = true)]
+        [DataTypeField(Order = 15, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedUserCertificates
         {
             get => m_trustedUserCertificates;
@@ -800,7 +791,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataTypeField(Order = 16, ForceEncodeable = true)]
+        [DataTypeField(Order = 16, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get => m_httpsIssuerCertificates;
@@ -810,7 +801,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataTypeField(Order = 17, ForceEncodeable = true)]
+        [DataTypeField(Order = 17, StructureHandling = StructureHandling.Inline)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get => m_trustedHttpsCertificates;
@@ -853,7 +844,6 @@ namespace Opc.Ua
         /// </summary>
         public SamplingRateGroup()
         {
-            Initialize();
         }
 
         /// <summary>
@@ -870,21 +860,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            Start = 1000;
-            Increment = 0;
-            Count = 0;
-        }
-
-        /// <summary>
         /// The first sampling rate in the group (in milliseconds).
         /// </summary>
         /// <value>The first sampling rate in the group (in milliseconds).</value>
         [DataTypeField(Order = 0)]
-        public double Start { get; set; }
+        public double Start { get; set; } = 1000;
 
         /// <summary>
         /// The increment between sampling rates in the group (in milliseconds).
@@ -921,9 +901,6 @@ namespace Opc.Ua
             m_baseAddresses = [];
             m_alternateBaseAddresses = [];
             m_securityPolicies = [];
-            MinRequestThreadCount = 10;
-            MaxRequestThreadCount = 100;
-            MaxQueuedRequestCount = 200;
         }
 
         /// <summary>
@@ -1021,7 +998,7 @@ namespace Opc.Ua
         /// <remarks>
         /// An endpoint description is created for each combination of base address and security policy.
         /// </remarks>
-        [DataTypeField(Order = 2, ForceEncodeable = true)]
+        [DataTypeField(Order = 2, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ServerSecurityPolicy> SecurityPolicies
         {
             get => m_securityPolicies;
@@ -1033,21 +1010,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum request thread count.</value>
         [DataTypeField(Order = 3)]
-        public int MinRequestThreadCount { get; set; }
+        public int MinRequestThreadCount { get; set; } = 10;
 
         /// <summary>
         /// The maximum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The maximum request thread count.</value>
         [DataTypeField(Order = 4)]
-        public int MaxRequestThreadCount { get; set; }
+        public int MaxRequestThreadCount { get; set; } = 100;
 
         /// <summary>
         /// The maximum number of requests that will be queued waiting for a thread.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataTypeField(Order = 5)]
-        public int MaxQueuedRequestCount { get; set; }
+        public int MaxQueuedRequestCount { get; set; } = 200;
 
         private ArrayOf<string> m_baseAddresses;
         private ArrayOf<string> m_alternateBaseAddresses;
@@ -1066,51 +1043,18 @@ namespace Opc.Ua
         public ServerConfiguration()
         {
             m_userTokenPolicies = [];
-            DiagnosticsEnabled = false;
-            MaxSessionCount = 100;
-            MaxChannelCount = 1000;
-            MaxSessionTimeout = 3600000;
-            MinSessionTimeout = 10000;
-            MaxBrowseContinuationPoints = 10;
-            MaxQueryContinuationPoints = 10;
-            MaxHistoryContinuationPoints = 100;
-            MaxRequestAge = 600000;
-            MinPublishingInterval = 100;
-            MaxPublishingInterval = 3600000;
-            PublishingResolution = 100;
-            MinSubscriptionLifetime = 10000;
-            MaxSubscriptionLifetime = 3600000;
-            MaxMessageQueueSize = 10;
-            MaxNotificationQueueSize = 100;
-            MaxNotificationsPerPublish = 100;
-            MinMetadataSamplingInterval = 1000;
             AvailableSamplingRates = [];
-            RegistrationEndpoint = null;
-            MaxRegistrationInterval = 30000;
-            MaxPublishRequestCount = 20;
-            MaxSubscriptionCount = 100;
-            MaxEventQueueSize = 10000;
             // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
             m_serverProfileArray = ["http://opcfoundation.org/UA-Profile/Server/StandardUA2017"];
-            ShutdownDelay = 5;
             m_serverCapabilities = ["DA"];
             m_supportedPrivateKeyFormats = ["PFX", "PEM"];
-            MaxTrustListSize = 0;
-            MultiCastDnsEnabled = false;
-            OperationLimits = new OperationLimits();
-            AuditingEnabled = false;
-            HttpsMutualTls = true;
-            DurableSubscriptionsEnabled = false;
-            MaxDurableNotificationQueueSize = 200000;
-            MaxDurableEventQueueSize = 200000;
-            MaxDurableSubscriptionLifetimeInHours = 10;
         }
 
         /// <summary>
         /// The user tokens accepted by the server.
         /// </summary>
         /// <value>The user token policies.</value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<UserTokenPolicy> UserTokenPolicies
         {
             get => m_userTokenPolicies;
@@ -1129,14 +1073,14 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum session count.</value>
         [DataTypeField(Order = 5)]
-        public int MaxSessionCount { get; set; }
+        public int MaxSessionCount { get; set; } = 100;
 
         /// <summary>
         /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataTypeField(Order = 6)]
-        public int MaxChannelCount { get; set; }
+        public int MaxChannelCount { get; set; } = 1000;
 
         /// <summary>
         /// That minimum period of that a session is allowed to remain
@@ -1144,7 +1088,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum session timeout.</value>
         [DataTypeField(Order = 7)]
-        public int MinSessionTimeout { get; set; }
+        public int MinSessionTimeout { get; set; } = 10000;
 
         /// <summary>
         /// That maximum period of that a session is allowed to remain
@@ -1152,7 +1096,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum session timeout.</value>
         [DataTypeField(Order = 8)]
-        public int MaxSessionTimeout { get; set; }
+        public int MaxSessionTimeout { get; set; } = 3600000;
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1160,7 +1104,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
         [DataTypeField(Order = 9)]
-        public int MaxBrowseContinuationPoints { get; set; }
+        public int MaxBrowseContinuationPoints { get; set; } = 10;
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1168,90 +1112,90 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
         [DataTypeField(Order = 10)]
-        public int MaxQueryContinuationPoints { get; set; }
+        public int MaxQueryContinuationPoints { get; set; } = 10;
 
         /// <summary>
         /// The maximum number of continuation points used for HistoryRead operations.
         /// </summary>
         /// <value>The maximum number of  history continuation points.</value>
         [DataTypeField(Order = 11)]
-        public int MaxHistoryContinuationPoints { get; set; }
+        public int MaxHistoryContinuationPoints { get; set; } = 100;
 
         /// <summary>
         /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
         [DataTypeField(Order = 12)]
-        public int MaxRequestAge { get; set; }
+        public int MaxRequestAge { get; set; } = 600000;
 
         /// <summary>
         /// The minimum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The minimum publishing interval.</value>
         [DataTypeField(Order = 13)]
-        public int MinPublishingInterval { get; set; }
+        public int MinPublishingInterval { get; set; } = 100;
 
         /// <summary>
         /// The maximum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The maximum publishing interval.</value>
         [DataTypeField(Order = 14)]
-        public int MaxPublishingInterval { get; set; }
+        public int MaxPublishingInterval { get; set; } = 3600000;
 
         /// <summary>
         /// The minimum difference between supported publishing interval (in milliseconds).
         /// </summary>
         /// <value>The publishing resolution.</value>
         [DataTypeField(Order = 15)]
-        public int PublishingResolution { get; set; }
+        public int PublishingResolution { get; set; } = 100;
 
         /// <summary>
         /// How long the subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum subscription lifetime.</value>
         [DataTypeField(Order = 16)]
-        public int MaxSubscriptionLifetime { get; set; }
+        public int MaxSubscriptionLifetime { get; set; } = 3600000;
 
         /// <summary>
         /// The maximum number of messages saved in the queue for each subscription.
         /// </summary>
         /// <value>The maximum size of the  message queue.</value>
         [DataTypeField(Order = 17)]
-        public int MaxMessageQueueSize { get; set; }
+        public int MaxMessageQueueSize { get; set; } = 10;
 
         /// <summary>
         /// The maximum number of notificates saved in the queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the notification queue.</value>
         [DataTypeField(Order = 19)]
-        public int MaxNotificationQueueSize { get; set; }
+        public int MaxNotificationQueueSize { get; set; } = 100;
 
         /// <summary>
         /// The maximum number of notifications per publish.
         /// </summary>
         /// <value>The maximum number of notifications per publish.</value>
         [DataTypeField(Order = 20)]
-        public int MaxNotificationsPerPublish { get; set; }
+        public int MaxNotificationsPerPublish { get; set; } = 100;
 
         /// <summary>
         /// The minimum sampling interval for metadata.
         /// </summary>
         /// <value>The minimum sampling interval for metadata.</value>
         [DataTypeField(Order = 21)]
-        public int MinMetadataSamplingInterval { get; set; }
+        public int MinMetadataSamplingInterval { get; set; } = 1000;
 
         /// <summary>
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
-        [DataTypeField(Order = 18, ForceEncodeable = true)]
+        [DataTypeField(Order = 18, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<SamplingRateGroup> AvailableSamplingRates { get; set; }
 
         /// <summary>
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
-        [DataTypeField(Order = 22, ForceEncodeable = true)]
+        [DataTypeField(Order = 22, StructureHandling = StructureHandling.Inline)]
         public EndpointDescription RegistrationEndpoint { get; set; }
 
         /// <summary>
@@ -1259,7 +1203,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum time between registration attempts (in milliseconds).</value>
         [DataTypeField(Order = 23)]
-        public int MaxRegistrationInterval { get; set; }
+        public int MaxRegistrationInterval { get; set; } = 30000;
 
         /// <summary>
         /// The path to the file containing nodes persisted by the core node manager.
@@ -1273,28 +1217,28 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataTypeField(Order = 25)]
-        public int MinSubscriptionLifetime { get; set; }
+        public int MinSubscriptionLifetime { get; set; } = 10000;
 
         /// <summary>
         /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
         [DataTypeField(Order = 26)]
-        public int MaxPublishRequestCount { get; set; }
+        public int MaxPublishRequestCount { get; set; } = 20;
 
         /// <summary>
         /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
         [DataTypeField(Order = 27)]
-        public int MaxSubscriptionCount { get; set; }
+        public int MaxSubscriptionCount { get; set; } = 100;
 
         /// <summary>
         /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
         [DataTypeField(Order = 28)]
-        public int MaxEventQueueSize { get; set; }
+        public int MaxEventQueueSize { get; set; } = 10000;
 
         /// <summary>
         /// The server profile array.
@@ -1312,7 +1256,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
         [DataTypeField(Order = 30)]
-        public int ShutdownDelay { get; set; }
+        public int ShutdownDelay { get; set; } = 5;
 
         /// <summary>
         /// The server capabilities.
@@ -1353,14 +1297,14 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
-        [DataTypeField(Order = 35, ForceEncodeable = true)]
+        [DataTypeField(Order = 35, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectServerConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
-        [DataTypeField(Order = 36, ForceEncodeable = true)]
-        public OperationLimits OperationLimits { get; set; }
+        [DataTypeField(Order = 36, StructureHandling = StructureHandling.Inline)]
+        public OperationLimits OperationLimits { get; set; } = new();
 
         /// <summary>
         /// Whether auditing is enabled.
@@ -1374,7 +1318,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
         [DataTypeField(Order = 38)]
-        public bool HttpsMutualTls { get; set; }
+        public bool HttpsMutualTls { get; set; } = true;
 
         /// <summary>
         /// Enable / disable support for durable subscriptions
@@ -1388,21 +1332,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
         [DataTypeField(Order = 40)]
-        public int MaxDurableNotificationQueueSize { get; set; }
+        public int MaxDurableNotificationQueueSize { get; set; } = 200000;
 
         /// <summary>
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
         [DataTypeField(Order = 41)]
-        public int MaxDurableEventQueueSize { get; set; }
+        public int MaxDurableEventQueueSize { get; set; } = 200000;
 
         /// <summary>
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
         [DataTypeField(Order = 42)]
-        public int MaxDurableSubscriptionLifetimeInHours { get; set; }
+        public int MaxDurableSubscriptionLifetimeInHours { get; set; } = 10;
 
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
@@ -1421,35 +1365,32 @@ namespace Opc.Ua
         /// </summary>
         public ReverseConnectServerConfiguration()
         {
-            ConnectInterval = 15000;
-            ConnectTimeout = 30000;
-            RejectTimeout = 60000;
         }
 
         /// <summary>
         /// A collection of reverse connect clients.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true)]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ReverseConnectClient> Clients { get; set; }
 
         /// <summary>
         /// The interval after which a new reverse connection is attempted.
         /// </summary>
         [DataTypeField(Order = 1)]
-        public int ConnectInterval { get; set; }
+        public int ConnectInterval { get; set; } = 15000;
 
         /// <summary>
         /// The default timeout to wait for a response to a reverse connection.
         /// </summary>
         [DataTypeField(Order = 2)]
-        public int ConnectTimeout { get; set; }
+        public int ConnectTimeout { get; set; } = 30000;
 
         /// <summary>
         /// The timeout to wait to establish a new reverse
         /// connection after a rejected attempt.
         /// </summary>
         [DataTypeField(Order = 3)]
-        public int RejectTimeout { get; set; }
+        public int RejectTimeout { get; set; } = 60000;
     }
 
     /// <summary>
@@ -1463,18 +1404,6 @@ namespace Opc.Ua
         /// </summary>
         public OperationLimits()
         {
-            MaxNodesPerRead = 0;
-            MaxNodesPerHistoryReadData = 0;
-            MaxNodesPerHistoryReadEvents = 0;
-            MaxNodesPerWrite = 0;
-            MaxNodesPerHistoryUpdateData = 0;
-            MaxNodesPerHistoryUpdateEvents = 0;
-            MaxNodesPerMethodCall = 0;
-            MaxNodesPerBrowse = 0;
-            MaxNodesPerRegisterNodes = 0;
-            MaxNodesPerTranslateBrowsePathsToNodeIds = 0;
-            MaxNodesPerNodeManagement = 0;
-            MaxMonitoredItemsPerCall = 0;
         }
 
         /// <summary>
@@ -1573,7 +1502,6 @@ namespace Opc.Ua
         /// </summary>
         public ReverseConnectClient()
         {
-            Enabled = true;
         }
 
         /// <summary>
@@ -1602,7 +1530,7 @@ namespace Opc.Ua
         /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
-        [DataTypeField(Order = 3)]
+        [DataTypeField(Order = 3, DefaultValueHandling = DefaultValueHandling.Emit)]
         public bool Enabled { get; set; } = true;
     }
 
@@ -1617,11 +1545,8 @@ namespace Opc.Ua
         /// </summary>
         public ClientConfiguration()
         {
-            DefaultSessionTimeout = 60000;
-            MinSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = [];
             m_discoveryServers = [];
-            OperationLimits = new OperationLimits();
         }
 
         /// <summary>
@@ -1629,7 +1554,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The default session timeout.</value>
         [DataTypeField(Order = 0)]
-        public int DefaultSessionTimeout { get; set; }
+        public int DefaultSessionTimeout { get; set; } = 60000;
 
         /// <summary>
         /// The well known URLs for the local discovery servers.
@@ -1646,7 +1571,7 @@ namespace Opc.Ua
         /// The endpoint descriptions for central discovery servers.
         /// </summary>
         /// <value>The endpoint descriptions for central discovery servers.</value>
-        [DataTypeField(Order = 2, ForceEncodeable = true)]
+        [DataTypeField(Order = 2, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<EndpointDescription> DiscoveryServers
         {
             get => m_discoveryServers;
@@ -1665,12 +1590,12 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataTypeField(Order = 4)]
-        public int MinSubscriptionLifetime { get; set; }
+        public int MinSubscriptionLifetime { get; set; } = 10000;
 
         /// <summary>
         /// The reverse connect Client configuration.
         /// </summary>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectClientConfiguration ReverseConnect { get; set; }
 
         /// <summary>
@@ -1680,8 +1605,8 @@ namespace Opc.Ua
         /// Values not equal to zero are overwritten with smaller values set by the server.
         /// The values are used to limit client service calls.
         /// </remarks>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
-        public OperationLimits OperationLimits { get; set; }
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
+        public OperationLimits OperationLimits { get; set; } = new();
 
         private ArrayOf<string> m_wellKnownDiscoveryUrls;
         private ArrayOf<EndpointDescription> m_discoveryServers;
@@ -1696,7 +1621,7 @@ namespace Opc.Ua
         /// <summary>
         /// A collection of reverse connect client endpoints.
         /// </summary>
-        [DataTypeField(Order = 0, ForceEncodeable = true)]
+        [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ReverseConnectClientEndpoint> ClientEndpoints { get; set; }
 
         /// <summary>
@@ -1759,7 +1684,7 @@ namespace Opc.Ua
         /// Gets or sets the server registrations associated with the discovery server.
         /// </summary>
         /// <value>The server registrations.</value>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<ServerRegistration> ServerRegistrations { get; set; }
 
     }
@@ -1775,7 +1700,6 @@ namespace Opc.Ua
         /// </summary>
         public ServerRegistration()
         {
-            ApplicationUri = null;
             AlternateDiscoveryUrls = [];
         }
 
@@ -1875,7 +1799,7 @@ namespace Opc.Ua
         /// <value>
         /// The list of trusted certificates.
         /// </value>
-        [DataTypeField(Order = 3, ForceEncodeable = true)]
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<CertificateIdentifier> TrustedCertificates
         {
             get => m_trustedCertificates;
@@ -2166,7 +2090,7 @@ namespace Opc.Ua
             }
         }
 
-        [DataTypeField(Order = 1, ForceEncodeable = true, Name = "Endpoints")]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline, Name = "Endpoints")]
         private ArrayOf<ConfiguredEndpoint> EndpointsEncodeable
         {
             get => m_endpoints.ToArrayOf();
@@ -2209,20 +2133,14 @@ namespace Opc.Ua
         /// </summary>
         public ConfiguredEndpoint()
         {
-            m_collection = null;
             m_description = new EndpointDescription();
-            m_configuration = null;
-            UpdateBeforeConnect = true;
             BinaryEncodingSupport = BinaryEncodingSupport.Optional;
-            SelectedUserTokenPolicyIndex = 0;
-            UserIdentity = null;
-            ReverseConnect = null;
         }
 
         /// <summary>
         /// The description for the endpoint.
         /// </summary>
-        [DataTypeField(IsRequired = true, Order = 0, Name = "Endpoint", ForceEncodeable = true)]
+        [DataTypeField(IsRequired = true, Order = 0, Name = "Endpoint", StructureHandling = StructureHandling.Inline)]
         public EndpointDescription Description
         {
             get => m_description;
@@ -2232,7 +2150,7 @@ namespace Opc.Ua
         /// <summary>
         /// The configuration to use when connecting to an endpoint.
         /// </summary>
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public EndpointConfiguration Configuration
         {
             get => m_configuration;
@@ -2256,10 +2174,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the endpoint information should be updated before connecting to the server.
+        /// Whether the endpoint information should be updated before connecting
+        /// to the server.
         /// </summary>
-        [DataTypeField(Order = 2)]
-        public bool UpdateBeforeConnect { get; set; }
+        [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.Emit)]
+        public bool UpdateBeforeConnect { get; set; } = true;
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
@@ -2288,13 +2207,13 @@ namespace Opc.Ua
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
-        [DataTypeField(Order = 5, ForceEncodeable = true)]
+        [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
-        [DataTypeField(Order = 6, ForceEncodeable = true)]
+        [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public ReverseConnectEndpoint ReverseConnect { get; set; }
 
         /// <summary>

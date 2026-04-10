@@ -367,7 +367,7 @@ namespace Opc.Ua.Client.Tests
 
             // test register nodes
             TestContext.Out.WriteLine("Test Register Nodes...");
-            List<T> nodesToRegister = nodesToRead.ConvertAll(n => n.NodeId).ToList();
+            var nodesToRegister = nodesToRead.ConvertAll(n => n.NodeId).ToList();
             RegisterNodesResponse registerResponse = await Session
                 .RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None)
                 .ConfigureAwait(false);
