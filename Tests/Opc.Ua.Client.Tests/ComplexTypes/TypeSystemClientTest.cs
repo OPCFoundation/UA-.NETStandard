@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             m_fetchedNodesCount = allNodes.Count;
 
-            List<T> variableIds =
+            var variableIds =
                 allNodes
                     .Where(r =>
                         r.NodeClass == NodeClass.Variable &&

@@ -233,7 +233,7 @@ namespace Opc.Ua.Gds.Client
                 foreach (ServerOnNetwork server in servers)
                 {
                     // ignore GDS and LDS servers
-                    List<T> set = server.ServerCapabilities.ToList();
+                    var set = server.ServerCapabilities.ToList();
                     if (set.Contains(ServerCapability.GlobalDiscoveryServer) ||
                         set.Contains(ServerCapability.LocalDiscoveryServer))
                     {

@@ -303,7 +303,7 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 return string.Empty;
             }
-            List<T> uniqueCapabilities = application.ServerCapabilities.ToList();
+            var uniqueCapabilities = application.ServerCapabilities.ToList();
             var capabilities = new StringBuilder();
             uniqueCapabilities.Sort();
             foreach (string capability in uniqueCapabilities)
