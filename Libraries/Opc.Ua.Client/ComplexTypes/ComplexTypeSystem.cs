@@ -948,7 +948,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         {
                                             if (!structTypesToDoList.Any(n => n.NodeId == id))
                                             {
-                                                var todo = await m_complexTypeResolver.FindAsync(id, ct)
+                                                INode todo = await m_complexTypeResolver.FindAsync(id, ct)
                                                         .ConfigureAwait(false);
                                                 if (todo != null)
                                                 {

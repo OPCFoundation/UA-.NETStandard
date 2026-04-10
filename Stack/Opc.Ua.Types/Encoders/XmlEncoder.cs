@@ -1728,7 +1728,7 @@ namespace Opc.Ua
                 // encode each element in the array.
                 foreach (EnumValue value in values)
                 {
-                    var xmlName = value.XmlName
+                    XmlQualifiedName xmlName = value.XmlName
                         ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                     PushNamespace(xmlName.Namespace);

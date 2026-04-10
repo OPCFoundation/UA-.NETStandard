@@ -34,7 +34,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Complex type property info.
     /// </summary>
-    public class Field : ICloneable
+    public class Field : ICloneable, IStructureField
     {
         /// <summary>
         /// Create the property state of the structure field

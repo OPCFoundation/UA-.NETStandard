@@ -775,7 +775,7 @@ namespace Opc.Ua
             {
                 InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
 
-                var applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
+                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
                 for (int i = 0; i < applicationCertificates.Count; i++)
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];

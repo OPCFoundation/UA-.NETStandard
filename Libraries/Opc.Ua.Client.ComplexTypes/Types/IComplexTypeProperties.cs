@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Interface to access properties of a complex type.
     /// </summary>
-    public interface IComplexTypeProperties
+    public interface IComplexTypeProperties : IStructure
     {
         /// <summary>
         /// Get count of properties.
@@ -51,16 +51,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Get ordered list of property types.
         /// </summary>
         IList<Type> GetPropertyTypes();
-
-        /// <summary>
-        /// Access property values by index.
-        /// </summary>
-        Variant this[int index] { get; set; }
-
-        /// <summary>
-        /// Access property values by name.
-        /// </summary>
-        Variant this[string name] { get; set; }
 
         /// <summary>
         /// Ordered enumerator for properties.

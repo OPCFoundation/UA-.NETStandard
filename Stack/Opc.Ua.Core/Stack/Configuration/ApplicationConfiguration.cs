@@ -652,7 +652,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate(m_telemetry);
 
             // load private keys
-            var appCerts = SecurityConfiguration.ApplicationCertificates;
+            ArrayOf<CertificateIdentifier> appCerts = SecurityConfiguration.ApplicationCertificates;
             for (int i = 0; i < appCerts.Count; i++)
             {
                 CertificateIdentifier applicationCertificate = appCerts[i];

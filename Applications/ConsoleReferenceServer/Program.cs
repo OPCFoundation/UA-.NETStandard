@@ -238,7 +238,7 @@ namespace Quickstarts.ReferenceServer
                     // wait for timeout or Ctrl-C (cancellationToken is cancelled on Ctrl-C by System.CommandLine)
                     if (timeout >= 0)
                     {
-                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                         timeoutCts.CancelAfter(timeout);
                         try
                         {
@@ -263,7 +263,7 @@ namespace Quickstarts.ReferenceServer
 
                     // stop server. May have to wait for clients to disconnect.
                     Console.WriteLine("Server stopped. Waiting for exit...");
-                    await server.StopAsync().ConfigureAwait(false);
+                    await server.StopAsync(default).ConfigureAwait(false);
 
                     return (int)ExitCode.Ok;
                 }

@@ -2001,7 +2001,7 @@ namespace Opc.Ua
                 // TODO: We need to blindly discover the structure of the enumeration array
                 // We peek the first element and push the namespace, then move to it. But
                 // what if there is no first element?  We need test coverage here.
-                var xmlName = Peek(XmlNodeType.Element);
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))

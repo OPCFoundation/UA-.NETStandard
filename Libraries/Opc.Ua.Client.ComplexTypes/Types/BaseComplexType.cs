@@ -258,6 +258,12 @@ namespace Opc.Ua.Client.ComplexTypes
             return m_propertyList;
         }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<IStructureField> GetFields()
+        {
+            return [.. m_propertyList];
+        }
+
         /// <summary>
         /// Formatting helper.
         /// </summary>

@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests
                 // starting writes. This prevents the first few writes from being missed when
                 // the CI machine is under load and the subscription is still starting up.
                 TestContext.Out.WriteLine("Waiting for subscription to deliver initial values...");
-                var settleDeadline = DateTime.UtcNow.AddSeconds(15);
+                DateTime settleDeadline = DateTime.UtcNow.AddSeconds(15);
                 while (valueChanges.Values.Sum() < nodeIds.Count && DateTime.UtcNow < settleDeadline)
                 {
                     await Task.Delay(200).ConfigureAwait(false);

@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 NodeIdDictionary<DataTypeDefinition> definitions =
                     typeSystem.GetDataTypeDefinitionsForDataType(dataTypeId);
                 Assert.That(definitions, Is.Not.Empty);
-                Assert.That(Session.Factory.TryGetType(dataTypeId, out var type), Is.True);
+                Assert.That(Session.Factory.TryGetType(dataTypeId, out IType type), Is.True);
 
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
                 if (type is IEnumeratedType)
@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             m_fetchedNodesCount = allNodes.Count;
 
-            var variableIds =
+            List<T> variableIds =
                 allNodes
                     .Where(r =>
                         r.NodeClass == NodeClass.Variable &&
@@ -331,7 +331,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                     if (value.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
                         extensionObject.TryGetEncodeable(out IEncodeable encodeable))
                     {
-                        if (!Session.Factory.TryGetType(encodeable.TypeId, out var valueType) ||
+                        if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
                             valueType.XmlName != type.XmlName)
                         {
                             testFailed = true;
@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                         {
                             if (valueItem.TryGetEncodeable(out encodeable))
                             {
-                                if (!Session.Factory.TryGetType(encodeable.TypeId, out var valueType) ||
+                                if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
                                     valueType.XmlName != type.XmlName)
                                 {
                                     testFailed = true;
@@ -414,14 +414,14 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
-            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (string property in complexType.GetPropertyNames())
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetFields().Count);
+            foreach (IStructureField property in complexType.GetFields())
             {
                 TestContext.Out.WriteLine(
                     "{0} (Type: {1}): {2})",
-                    property,
-                    complexType[property].TypeInfo,
-                    complexType[property].ToString());
+                    property.Name,
+                    complexType[property.Name].TypeInfo,
+                    complexType[property.Name].ToString());
             }
 
             complexType["ByteValue"] = (byte)0;
@@ -466,14 +466,14 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
-            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (string property in complexType.GetPropertyNames())
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetFields().Count);
+            foreach (IStructureField property in complexType.GetFields())
             {
                 TestContext.Out.WriteLine(
                     "{0} (Type: {1}): {2})",
-                    property,
-                    complexType[property].TypeInfo,
-                    complexType[property].ToString());
+                    property.Name,
+                    complexType[property.Name].TypeInfo,
+                    complexType[property.Name].ToString());
             }
 
             Assert.That(complexType["ByteValue"], Is.EqualTo(new Variant((byte)0)));

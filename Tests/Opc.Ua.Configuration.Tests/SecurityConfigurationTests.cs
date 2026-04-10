@@ -75,7 +75,7 @@ namespace Opc.Ua.Configuration.Tests
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
 
             using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
-            var reloadedConfiguration = DecodeApplicationConfiguration(stream);
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(stream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -88,7 +88,7 @@ namespace Opc.Ua.Configuration.Tests
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
 
             using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
-            var reloadedConfiguration = DecodeApplicationConfiguration(stream);
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(stream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -126,7 +126,7 @@ namespace Opc.Ua.Configuration.Tests
             string xml = EncodeApplicationConfiguration(configuration);
 
             using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            var reloadedConfiguration = DecodeApplicationConfiguration(readStream);
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(readStream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -162,7 +162,7 @@ namespace Opc.Ua.Configuration.Tests
 
             var document = XDocument.Parse(xml);
             using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            var roundTripped = DecodeApplicationConfiguration(readStream);
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.True);
@@ -202,7 +202,7 @@ namespace Opc.Ua.Configuration.Tests
 
             var document = XDocument.Parse(xml);
             using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            var roundTripped = DecodeApplicationConfiguration(readStream);
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Configuration.Tests
 
             var document = XDocument.Parse(xml);
             using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            var roundTripped = DecodeApplicationConfiguration(readStream);
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
             Assert.That(roundTripped.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);

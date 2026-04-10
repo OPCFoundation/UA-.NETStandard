@@ -251,7 +251,7 @@ namespace Opc.Ua.Aot.Tests
             IStructure complexType = encodeable as IStructure;
             await Assert.That(complexType).IsNotNull()
                 .Because("Decoded type should implement IStructure");
-            await Assert.That(complexType.GetPropertyCount()).IsGreaterThan(0);
+            await Assert.That(complexType.GetFields().Count).IsGreaterThan(0);
         }
     }
 }

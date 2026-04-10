@@ -420,8 +420,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void ResolveEncoderDecoderForScalarField()
         {
-            var field = CreateField("Value", "Int32");
-            var result = TypeSourceGenerator.ResolveEncoderDecoder(field);
+            TypeFieldModel field = CreateField("Value", "Int32");
+            (string writeMethod, string readMethod) result = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(result.writeMethod, Is.EqualTo("WriteInt32"));
             Assert.That(result.readMethod, Is.EqualTo("ReadInt32"));
         }
@@ -429,8 +429,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void ResolveEncoderDecoderForArrayField()
         {
-            var field = CreateField("Values", "ArrayOf", isArray: true, elementType: "String");
-            var result = TypeSourceGenerator.ResolveEncoderDecoder(field);
+            TypeFieldModel field = CreateField("Values", "ArrayOf", isArray: true, elementType: "String");
+            (string writeMethod, string readMethod) result = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(result.writeMethod, Is.EqualTo("WriteStringArray"));
             Assert.That(result.readMethod, Is.EqualTo("ReadStringArray"));
         }

@@ -2,12 +2,12 @@
 
 ## Overview
 
-The `Opc.Ua.Client.ComplexTypes` library provides support for handling custom data types (complex types) in OPC UA client applications. Complex types include:
+The `Opc.Ua.Client` and `Opc.Ua.Client.ComplexTypes` libraries provide support for handling custom data types (complex types) in OPC UA client applications. Complex types include:
 
 - **Custom Structures**: User-defined structured data types with multiple fields
 - **Custom Enumerations**: User-defined enumeration types with custom values
 
-This library allows OPC UA clients to automatically discover, load, and work with server-specific custom types, enabling seamless reading and writing of structured data without manual type definitions.
+The library allows OPC UA clients to automatically discover, load, and work with server-specific custom types, enabling seamless reading and writing of structured data without manual type definitions.
 
 ## Key Concepts
 
@@ -25,8 +25,7 @@ The `ComplexTypeSystem` class manages the discovery and loading of custom types 
 
 1. Browses the server's type system to discover custom types
 2. Loads type definitions (using DataTypeDefinition attribute or binary/XML dictionaries)
-3. Dynamically generates .NET types at runtime
-4. Registers these types in the session's type factory for encoding/decoding
+3. Registers types complying to the type definitions in the session's type factory for encoding/decoding
 
 ### Supported Type Systems
 
@@ -40,9 +39,17 @@ The library automatically uses the most appropriate mechanism available on the s
 
 ## Getting Started
 
-### Installation
+### Type builders
 
-Add the NuGet package to your project:
+#### Default type builder
+
+A type builder builds the types that are registered in the `EncodeableFactory` by the `ComplexTypeSystem` class.  The default type builder registers in memory `IEncodeable` "adapter" classes that wrap discovered `DataTypeDefinition` and provide "state" (a list of Variants for the properties) clone, compare, and encode/decode behavior. The default type builder is part of the Opc.Ua.Client library and used when no type builder is provided in the constructor of the `ComplexTypeSystem` class.
+
+#### Reflection.Emit based type builder
+
+The `OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes` nuget package extends the Opc.Ua.Client library by adding a type builder implementation that supports dynamically generating .NET types via `Reflection.Emit` at runtime. This has the added benefit over the default approach that the types can be reflected over by other tools, e.g. serializers. However, this is not NativeAOT compliant, and therefore building against a NativeAOT runtime will always fall back to the default behavior.
+
+To use the Reflection.Emit type builder add the NuGet package to your project:
 
 ```bash
 dotnet add package OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
@@ -69,7 +76,20 @@ using Opc.Ua.Client.ComplexTypes;
 var session = await Session.Create(...);
 
 // Create and load the complex type system
-var complexTypeSystem = new ComplexTypeSystem(session);
+ComplexTypeSystem complexTypeSystem;
+if (!useReflectionEmitTypeBuilder)
+{
+    // Uses the default type builder
+    complexTypeSystem = new ComplexTypeSystem(session);
+}
+else
+{
+    // Uses the Reflection.Emit type builder
+    // Only works if the OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
+    // nuget is referenced
+    complexTypeSystem = ComplexTypeSystem.Create(session);
+}
+
 await complexTypeSystem.LoadAsync();
 
 Console.WriteLine($"Loaded {complexTypeSystem.GetDefinedTypes().Length} custom types");
@@ -90,19 +110,19 @@ DataValue dataValue = await session.ReadValueAsync(nodeId);
 if (dataValue.Value is ExtensionObject extensionObject)
 {
     // Access the structured data
-    if (extensionObject.Body is IComplexTypeProperties complexType)
+    if (extensionObject.Body is IStructure complexType)
     {
         // Access properties by name
-        var temperatureValue = complexType["Temperature"];
-        var pressureValue = complexType["Pressure"];
-        
+        Variant temperatureValue = complexType["Temperature"];
+        Variant pressureValue = complexType["Pressure"];
+
         Console.WriteLine($"Temperature: {temperatureValue}");
         Console.WriteLine($"Pressure: {pressureValue}");
-        
+
         // Enumerate all properties
-        foreach (var property in complexType.GetPropertyEnumerator())
+        foreach (var property in complexType.GetFields())
         {
-            Console.WriteLine($"{property.Name}: {property.GetValue(complexType)}");
+            Console.WriteLine($"{property.Name}: {complexType[property.Name]}");
         }
     }
 }
@@ -116,7 +136,7 @@ To write complex type values, modify the properties and write back:
 // Read current value
 DataValue dataValue = await session.ReadValueAsync(nodeId);
 var extensionObject = (ExtensionObject)dataValue.Value;
-var complexType = (IComplexTypeProperties)extensionObject.Body;
+var complexType = (IStructure)extensionObject.Body;
 
 // Modify properties
 complexType["Temperature"] = 25.5;
@@ -156,7 +176,7 @@ var complexTypeSystem = new ComplexTypeSystem(session);
 
 // Load a specific type by NodeId
 ExpandedNodeId typeNodeId = new ExpandedNodeId("ns=2;i=3001");
-Type systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId);
+IType systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId);
 
 if (systemType != null)
 {
@@ -169,7 +189,7 @@ if (systemType != null)
 ```csharp
 // Load a type and all its subtypes
 ExpandedNodeId typeNodeId = new ExpandedNodeId("ns=2;i=3001");
-Type systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, subTypes: true);
+IType systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, subTypes: true);
 ```
 
 #### Load All Types from a Namespace
@@ -189,16 +209,16 @@ if (success)
 
 ### Working with Complex Type Properties
 
-The `IComplexTypeProperties` interface provides flexible access to complex type fields:
+The `IStructure` interface provides flexible access to complex type fields:
 
 #### Access by Name
 
 ```csharp
-if (extensionObject.Body is IComplexTypeProperties complexType)
+if (extensionObject.Body is IStructure complexType)
 {
     // Get property value by name
-    object value = complexType["PropertyName"];
-    
+    Variant value = complexType["PropertyName"];
+
     // Set property value by name
     complexType["PropertyName"] = newValue;
 }
@@ -207,11 +227,11 @@ if (extensionObject.Body is IComplexTypeProperties complexType)
 #### Access by Index
 
 ```csharp
-if (extensionObject.Body is IComplexTypeProperties complexType)
+if (extensionObject.Body is IStructure complexType)
 {
     // Get property value by index
-    object value = complexType[0];
-    
+    Variant value = complexType[0];
+
     // Set property value by index
     complexType[0] = newValue;
 }
@@ -220,23 +240,15 @@ if (extensionObject.Body is IComplexTypeProperties complexType)
 #### Enumerate Properties
 
 ```csharp
-if (extensionObject.Body is IComplexTypeProperties complexType)
+if (extensionObject.Body is IStructure complexType)
 {
-    // Get all property names
-    IList<string> names = complexType.GetPropertyNames();
-    
-    // Get all property types
-    IList<Type> types = complexType.GetPropertyTypes();
-    
     // Enumerate with detailed information
-    foreach (ComplexTypePropertyInfo property in complexType.GetPropertyEnumerator())
+    foreach (IStructureField property in complexType.GetFields())
     {
         Console.WriteLine($"Property: {property.Name}");
-        Console.WriteLine($"  Type: {property.PropertyType}");
-        Console.WriteLine($"  Order: {property.Order}");
+        Console.WriteLine($"  Type: {property.TypeInfo}");
         Console.WriteLine($"  IsOptional: {property.IsOptional}");
-        Console.WriteLine($"  ValueRank: {property.ValueRank}");
-        Console.WriteLine($"  Value: {property.GetValue(complexType)}");
+        Console.WriteLine($"  Value: {complexType[property.Name]}");
     }
 }
 ```
@@ -249,17 +261,15 @@ Custom enumerations are also supported:
 // After loading the type system, enum values are automatically decoded
 DataValue dataValue = await session.ReadValueAsync(enumNodeId);
 
-if (dataValue.Value is int enumValue)
+if (dataValue.Value.TryGet(out EnumValue enumValue))
 {
     // The value is the numeric representation
     Console.WriteLine($"Enum value: {enumValue}");
-    
+
     // You can also get the enum type from the factory
-    var enumType = session.Factory.GetSystemType(enumTypeId);
-    if (enumType?.IsEnum == true)
+    if (session.Factory.TryGetEnumeratedType(enumTypeId, out IType enumType))
     {
-        var enumName = Enum.GetName(enumType, enumValue);
-        Console.WriteLine($"Enum name: {enumName}");
+        Console.WriteLine($"Enum type: {enumType.XmlName}");
     }
 }
 ```
@@ -273,11 +283,11 @@ var complexTypeSystem = new ComplexTypeSystem(session);
 await complexTypeSystem.LoadAsync();
 
 // Get all types that were dynamically created
-Type[] definedTypes = complexTypeSystem.GetDefinedTypes();
+IType[] definedTypes = complexTypeSystem.GetDefinedTypes();
 
-foreach (Type type in definedTypes)
+foreach (IType type in definedTypes)
 {
-    Console.WriteLine($"Type: {type.Namespace}.{type.Name}");
+    Console.WriteLine($"Type: {type.XmlName.Namespace}.{type.XmlName.Name}");
 }
 ```
 
@@ -352,11 +362,11 @@ public async Task<ISession> CreateSessionWithTypes(string endpointUrl)
         null,
         null
     );
-    
+
     // Load all custom types immediately after connection
     var complexTypeSystem = new ComplexTypeSystem(session);
     await complexTypeSystem.LoadAsync();
-    
+
     return session;
 }
 ```
@@ -369,7 +379,7 @@ public class OpcUaClient
     private ISession _session;
     private ComplexTypeSystem _complexTypeSystem;
     private bool _typesLoaded;
-    
+
     public async Task EnsureTypesLoadedAsync()
     {
         if (!_typesLoaded)
@@ -379,7 +389,7 @@ public class OpcUaClient
             _typesLoaded = true;
         }
     }
-    
+
     public async Task<DataValue> ReadComplexValueAsync(NodeId nodeId)
     {
         await EnsureTypesLoadedAsync();
@@ -396,14 +406,14 @@ public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
     // Load types once
     var complexTypeSystem = new ComplexTypeSystem(session);
     await complexTypeSystem.LoadAsync();
-    
+
     // Read all values
     var nodesToRead = nodeIds.Select(id => new ReadValueId
     {
         NodeId = id,
         AttributeId = Attributes.Value
     }).ToList();
-    
+
     var response = await session.ReadAsync(
         null,
         0,
@@ -411,16 +421,16 @@ public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
         new ReadValueIdCollection(nodesToRead),
         CancellationToken.None
     );
-    
+
     // Process results
     for (int i = 0; i < response.Results.Count; i++)
     {
         var dataValue = response.Results[i];
         if (dataValue.Value is ExtensionObject extensionObject &&
-            extensionObject.Body is IComplexTypeProperties complexType)
+            extensionObject.Body is IStructure complexType)
         {
             Console.WriteLine($"NodeId: {nodeIds[i]}");
-            foreach (var property in complexType.GetPropertyEnumerator())
+            foreach (var property in complexType.GetFields())
             {
                 Console.WriteLine($"  {property.Name}: {property.GetValue(complexType)}");
             }
@@ -438,7 +448,7 @@ try
 {
     var complexTypeSystem = new ComplexTypeSystem(session);
     bool success = await complexTypeSystem.LoadAsync(throwOnError: true);
-    
+
     if (success)
     {
         Console.WriteLine("All types loaded successfully");
@@ -562,6 +572,10 @@ ComplexTypeSystem(ISession session, IComplexTypeFactory factory, ITelemetryConte
 // Create with resolver
 ComplexTypeSystem(IComplexTypeResolver resolver, ITelemetryContext telemetry)
 ComplexTypeSystem(IComplexTypeResolver resolver, IComplexTypeFactory factory, ITelemetryContext telemetry)
+
+// Create with reflection.emit type builder
+ComplexTypeSystem.Create(IComplexTypeResolver resolver, ITelemetryContext telemetry)
+ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)
 ```
 
 #### Methods
@@ -571,13 +585,13 @@ ComplexTypeSystem(IComplexTypeResolver resolver, IComplexTypeFactory factory, IT
 ValueTask<bool> LoadAsync(bool onlyEnumTypes = false, bool throwOnError = false, CancellationToken ct = default)
 
 // Load a specific type with optional subtypes
-Task<Type> LoadTypeAsync(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
+Task<IType> LoadTypeAsync(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
 
 // Load all types from a namespace
 Task<bool> LoadNamespaceAsync(string ns, bool throwOnError = false, CancellationToken ct = default)
 
 // Get all dynamically created types
-Type[] GetDefinedTypes()
+IType[] GetDefinedTypes()
 
 // Get all loaded data type NodeIds
 IEnumerable<ExpandedNodeId> GetDefinedDataTypeIds()
@@ -596,53 +610,30 @@ void ClearDataTypeCache()
 NodeIdDictionary<DataDictionary> DataTypeSystem { get; }
 ```
 
-### IComplexTypeProperties Interface
+### IStructure Interface
 
 Interface for accessing properties of complex types.
 
-#### Methods and Properties
-
 ```csharp
 // Access property by zero-based index
-object this[int index] { get; set; }
+Variant this[int index] { get; set; }
 
 // Access property by name
-object this[string name] { get; set; }
-
-// Get property count
-int GetPropertyCount()
+Variant this[string name] { get; set; }
 
 // Get property names
-IList<string> GetPropertyNames()
+IReadOnlyList<IStructureField> GetFields()
 
-// Get property types
-IList<Type> GetPropertyTypes()
-
-// Enumerate properties with metadata
-IEnumerable<ComplexTypePropertyInfo> GetPropertyEnumerator()
 ```
 
-### ComplexTypePropertyInfo Class
+### IStructureField Interface
 
 Provides metadata about a property in a complex type.
 
-#### Properties
-
 ```csharp
-PropertyInfo PropertyInfo { get; }        // Reflection property info
 string Name { get; }                      // Property name
-Type PropertyType { get; }                // Property type
-int Order { get; }                        // Field order in structure
 bool IsOptional { get; }                  // Whether field is optional
-int ValueRank { get; }                    // Array rank (-1 = scalar, >=0 = array)
-BuiltInType BuiltInType { get; }         // OPC UA built-in type
-```
-
-#### Methods
-
-```csharp
-object GetValue(object o)                 // Get property value
-void SetValue(object o, object v)         // Set property value
+int TypeInfo { get; }                     // Type info of the field
 ```
 
 ## Known Limitations

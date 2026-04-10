@@ -447,7 +447,7 @@ namespace Opc.Ua.SourceGeneration
             bool? forceEncodeable = null;
             if (dtfAttr != null)
             {
-                foreach (var kvp in dtfAttr.NamedArguments)
+                foreach (KeyValuePair<string, TypedConstant> kvp in dtfAttr.NamedArguments)
                 {
                     if (kvp.Key == "ForceEncodeable" && kvp.Value.Value is bool b)
                     {
