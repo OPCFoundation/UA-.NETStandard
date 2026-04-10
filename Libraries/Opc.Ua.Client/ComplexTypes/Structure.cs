@@ -211,15 +211,9 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public virtual int GetPropertyCount()
+        public virtual IReadOnlyList<IStructureField> GetFields()
         {
-            return PropertyList.Count;
-        }
-
-        /// <inheritdoc/>
-        public virtual IReadOnlyList<string> GetPropertyNames()
-        {
-            return [.. PropertyList.Select(p => p.Name)];
+            return PropertyList;
         }
 
         /// <inheritdoc/>

@@ -37,7 +37,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Complex type property info.
     /// </summary>
-    public class ComplexTypePropertyInfo
+    public class ComplexTypePropertyInfo : IStructureField
     {
         /// <inheritdoc cref="System.Reflection.PropertyInfo"/>
         public PropertyInfo PropertyInfo { get; }
@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Get the name of the complex type.
+        /// Get the name of the complex type field.
         /// </summary>
         public string Name => PropertyInfo.Name;
 

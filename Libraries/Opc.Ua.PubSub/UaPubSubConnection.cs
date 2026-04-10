@@ -451,7 +451,7 @@ namespace Opc.Ua.PubSub
         {
             var responses = new List<DataSetWriterConfigurationResponse>();
 
-            var writerGroupsIds = PubSubConnectionConfiguration
+            List<T> writerGroupsIds = PubSubConnectionConfiguration
                 .WriterGroups
                 .ToList()
                 .SelectMany(group => group.DataSetWriters.ToList())

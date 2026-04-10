@@ -251,7 +251,7 @@ namespace Opc.Ua
 
                 if (!configuration.ApplicationCertificates.IsEmpty)
                 {
-                    var appCerts = configuration.ApplicationCertificates;
+                    ArrayOf<CertificateIdentifier> appCerts = configuration.ApplicationCertificates;
                     for (int i = 0; i < appCerts.Count; i++)
                     {
                         CertificateIdentifier applicationCertificate = appCerts[i];
@@ -309,7 +309,7 @@ namespace Opc.Ua
                 //     applicationCertificate.DisposeCertificate();
                 // }
 
-                var secAppCerts = securityConfiguration.ApplicationCertificates;
+                ArrayOf<CertificateIdentifier> secAppCerts = securityConfiguration.ApplicationCertificates;
                 for (int i = 0; i < secAppCerts.Count; i++)
                 {
                     CertificateIdentifier applicationCertificate = secAppCerts[i];

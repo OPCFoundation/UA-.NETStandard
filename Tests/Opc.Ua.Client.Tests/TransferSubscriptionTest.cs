@@ -445,7 +445,7 @@ namespace Opc.Ua.Client.Tests
             if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
             {
                 uint expectedCount0 = 2u * transferSubscriptions[0].MonitoredItemCount;
-                var deadline = DateTime.UtcNow.AddSeconds(10);
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
                 while ((uint)targetSubscriptionCounters[0] < expectedCount0 &&
                     DateTime.UtcNow < deadline)
                 {

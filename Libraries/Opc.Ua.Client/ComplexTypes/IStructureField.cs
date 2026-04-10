@@ -27,28 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
-    /// Interface to access properties of a complex type.
+    /// Field of a <see cref="IStructure"/>
     /// </summary>
-    public interface IStructure
+    public interface IStructureField
     {
         /// <summary>
-        /// Fields of the structure
+        /// Type information for the field
         /// </summary>
-        IReadOnlyList<IStructureField> GetFields();
+        TypeInfo TypeInfo { get; }
 
         /// <summary>
-        /// Access property values by index.
+        /// Name of the field
         /// </summary>
-        Variant this[int index] { get; set; }
+        string Name { get; }
 
         /// <summary>
-        /// Access property values by name.
+        /// Whether the field is optional
         /// </summary>
-        Variant this[string name] { get; set; }
+        bool IsOptional { get; }
     }
 }

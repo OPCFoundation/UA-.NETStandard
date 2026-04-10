@@ -257,7 +257,7 @@ namespace Opc.Ua
             "Cannot get the values of the type in AOT. Use GetDefault<T> instead.")]
         public static EnumValue GetDefault(Type type)
         {
-            var values = Enum.GetValues(type);
+            Array values = Enum.GetValues(type);
             if (values == null || values.Length == 0)
             {
                 return default;

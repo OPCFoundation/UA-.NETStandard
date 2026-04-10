@@ -70,8 +70,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 case StructureType.Structure:
                 case StructureType.StructureWithSubtypedValues:
                     Assert.That(structure, Is.Not.Null);
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structure.GetPropertyCount()));
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structure.GetPropertyNames().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structure.GetFields().Count));
                     break;
                 case StructureType.StructureWithOptionalFields:
                     var optionalFields = instance as StructureWithOptionalFields;
@@ -79,31 +78,27 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                     Assert.That(optionalFields.EncodingMask, Is.Zero);
                     Assert.That(
                         propertyBuiltInTypes,
-                        Is.EqualTo(optionalFields.GetPropertyCount()));
-                    Assert.That(
-                        propertyBuiltInTypes,
-                        Is.EqualTo(optionalFields.GetPropertyNames().Count));
+                        Is.EqualTo(optionalFields.GetFields().Count));
                     break;
                 case StructureType.Union:
                 case StructureType.UnionWithSubtypedValues:
                     var union = instance as ComplexUnion;
                     Assert.That(union, Is.Not.Null);
                     Assert.That(union.SwitchField, Is.Zero);
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(union.GetPropertyCount()));
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(union.GetPropertyNames().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(union.GetFields().Count));
                     Assert.That(union.Value.IsNull, Is.True);
                     break;
             }
 
-            var encodeable = instance as IEncodeable;
+            IEncodeable encodeable = instance;
             Assert.That(encodeable, Is.Not.Null);
 
-            foreach (string accessorName in structure.GetPropertyNames())
+            foreach (IStructureField accessorName in structure.GetFields())
             {
-                _ = structure[accessorName];
+                _ = structure[accessorName.Name];
             }
 
-            for (int i = 0; i < structure.GetPropertyCount(); i++)
+            for (int i = 0; i < structure.GetFields().Count; i++)
             {
                 _ = structure[i];
             }
@@ -128,7 +123,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             FillStructWithValues(structure, randomValue, NameSpaceUris);
 
             var union = structure as ComplexUnion;
-            for (int i = 0; i < structure.GetPropertyCount(); i++)
+            for (int i = 0; i < structure.GetFields().Count; i++)
             {
                 Variant obj = structure[i];
                 if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)

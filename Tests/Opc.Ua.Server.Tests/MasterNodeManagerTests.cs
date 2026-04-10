@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateRolePermissions_NullNodeMetadata_ReturnsGood()
         {
-            var result = MasterNodeManager.ValidateRolePermissions(null, null, PermissionType.Read);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, null, PermissionType.Read);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
         public void ValidateRolePermissions_PermissionNone_ReturnsGood()
         {
             var nodeMetadata = new NodeMetadata(null, new NodeId(1));
-            var result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.None);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.None);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests
         public void ValidateRolePermissions_NoRestrictions_ReturnsGood()
         {
             var nodeMetadata = new NodeMetadata(null, new NodeId(1));
-            var result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.Read);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.Read);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             loggerMock.Verify(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             loggerMock.Verify(
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
-            var result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
