@@ -92,7 +92,7 @@ else
 
 await complexTypeSystem.LoadAsync();
 
-Console.WriteLine($"Loaded {complexTypeSystem.GetDefinedTypes().Length} custom types");
+Console.WriteLine($"Loaded {complexTypeSystem.GetDefinedTypes().Count} custom types");
 ```
 
 After loading, the session can automatically encode and decode custom types when reading or writing values.
@@ -107,7 +107,8 @@ NodeId nodeId = new NodeId("ns=2;s=MyCustomStructVariable");
 DataValue dataValue = await session.ReadValueAsync(nodeId);
 
 // The value is automatically decoded to a .NET type
-if (dataValue.Value is ExtensionObject extensionObject)
+// Note: DataValue.Value is obsolete. Use WrappedValue (Variant) instead.
+if (dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject))
 {
     // Access the structured data
     if (extensionObject.Body is IStructure complexType)
@@ -120,7 +121,7 @@ if (dataValue.Value is ExtensionObject extensionObject)
         Console.WriteLine($"Pressure: {pressureValue}");
 
         // Enumerate all properties
-        foreach (var property in complexType.GetFields())
+        foreach (IStructureField property in complexType.GetFields())
         {
             Console.WriteLine($"{property.Name}: {complexType[property.Name]}");
         }
@@ -135,7 +136,7 @@ To write complex type values, modify the properties and write back:
 ```csharp
 // Read current value
 DataValue dataValue = await session.ReadValueAsync(nodeId);
-var extensionObject = (ExtensionObject)dataValue.Value;
+dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject);
 var complexType = (IStructure)extensionObject.Body;
 
 // Modify properties
@@ -149,7 +150,7 @@ var writeValue = new WriteValue
     AttributeId = Attributes.Value,
     Value = new DataValue
     {
-        Value = extensionObject,
+        WrappedValue = extensionObject,
         SourceTimestamp = DateTime.UtcNow
     }
 };
@@ -176,11 +177,11 @@ var complexTypeSystem = new ComplexTypeSystem(session);
 
 // Load a specific type by NodeId
 ExpandedNodeId typeNodeId = new ExpandedNodeId("ns=2;i=3001");
-IType systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId);
+IType? systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId);
 
 if (systemType != null)
 {
-    Console.WriteLine($"Loaded type: {systemType.Name}");
+    Console.WriteLine($"Loaded type: {systemType.XmlName}");
 }
 ```
 
@@ -189,7 +190,7 @@ if (systemType != null)
 ```csharp
 // Load a type and all its subtypes
 ExpandedNodeId typeNodeId = new ExpandedNodeId("ns=2;i=3001");
-IType systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, subTypes: true);
+IType? systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, subTypes: true);
 ```
 
 #### Load All Types from a Namespace
@@ -261,13 +262,14 @@ Custom enumerations are also supported:
 // After loading the type system, enum values are automatically decoded
 DataValue dataValue = await session.ReadValueAsync(enumNodeId);
 
-if (dataValue.Value.TryGet(out EnumValue enumValue))
+if (dataValue.WrappedValue.TryGet(out EnumValue enumValue))
 {
     // The value is the numeric representation
     Console.WriteLine($"Enum value: {enumValue}");
 
     // You can also get the enum type from the factory
-    if (session.Factory.TryGetEnumeratedType(enumTypeId, out IType enumType))
+    ExpandedNodeId enumTypeId = ...;
+    if (session.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType enumType))
     {
         Console.WriteLine($"Enum type: {enumType.XmlName}");
     }
@@ -283,11 +285,11 @@ var complexTypeSystem = new ComplexTypeSystem(session);
 await complexTypeSystem.LoadAsync();
 
 // Get all types that were dynamically created
-IType[] definedTypes = complexTypeSystem.GetDefinedTypes();
+IReadOnlyList<XmlQualifiedName> definedTypes = complexTypeSystem.GetDefinedTypes();
 
-foreach (IType type in definedTypes)
+foreach (XmlQualifiedName type in definedTypes)
 {
-    Console.WriteLine($"Type: {type.XmlName.Namespace}.{type.XmlName.Name}");
+    Console.WriteLine($"Type: {type.Namespace}.{type.Name}");
 }
 ```
 
@@ -323,7 +325,7 @@ You can provide a custom type factory for advanced scenarios:
 
 ```csharp
 // Create a custom factory (implement IComplexTypeFactory)
-var customFactory = new MyCustomComplexTypeFactory();
+IComplexTypeFactory customFactory = new MyCustomComplexTypeFactory();
 
 // Use it with the ComplexTypeSystem
 var complexTypeSystem = new ComplexTypeSystem(session, customFactory);
@@ -426,13 +428,13 @@ public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
     for (int i = 0; i < response.Results.Count; i++)
     {
         var dataValue = response.Results[i];
-        if (dataValue.Value is ExtensionObject extensionObject &&
+        if (dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
             extensionObject.Body is IStructure complexType)
         {
             Console.WriteLine($"NodeId: {nodeIds[i]}");
-            foreach (var property in complexType.GetFields())
+            foreach (IStructureField property in complexType.GetFields())
             {
-                Console.WriteLine($"  {property.Name}: {property.GetValue(complexType)}");
+                Console.WriteLine($"  {property.Name}: {complexType[property.Name]}");
             }
         }
     }
@@ -470,7 +472,7 @@ catch (ServiceResultException ex)
 ```csharp
 // Try to load a specific type
 var complexTypeSystem = new ComplexTypeSystem(session);
-Type systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, throwOnError: false);
+IType? systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, throwOnError: false);
 
 if (systemType == null)
 {
@@ -563,19 +565,27 @@ The main class for managing complex types.
 #### Constructors
 
 ```csharp
-// Create with session
+// Create with session (uses DefaultComplexTypeFactory and session's telemetry)
 ComplexTypeSystem(ISession session)
+
+// Create with session and custom telemetry
 ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
-ComplexTypeSystem(ISession session, IComplexTypeFactory factory)
-ComplexTypeSystem(ISession session, IComplexTypeFactory factory, ITelemetryContext telemetry)
 
-// Create with resolver
-ComplexTypeSystem(IComplexTypeResolver resolver, ITelemetryContext telemetry)
-ComplexTypeSystem(IComplexTypeResolver resolver, IComplexTypeFactory factory, ITelemetryContext telemetry)
+// Create with session and custom type builder factory
+ComplexTypeSystem(ISession session, IComplexTypeFactory complexTypeBuilderFactory)
 
-// Create with reflection.emit type builder
-ComplexTypeSystem.Create(IComplexTypeResolver resolver, ITelemetryContext telemetry)
-ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)
+// Create with session, custom factory and telemetry
+ComplexTypeSystem(ISession session, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
+
+// Create with resolver and telemetry
+ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, ITelemetryContext telemetry)
+
+// Create with resolver, custom factory and telemetry
+ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
+
+// Create with Reflection.Emit type builder (requires OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes)
+static ComplexTypeSystem ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)
+static ComplexTypeSystem ComplexTypeSystem.Create(IComplexTypeResolver complexTypeResolver, ITelemetryContext telemetry)
 ```
 
 #### Methods
@@ -585,13 +595,13 @@ ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)
 ValueTask<bool> LoadAsync(bool onlyEnumTypes = false, bool throwOnError = false, CancellationToken ct = default)
 
 // Load a specific type with optional subtypes
-Task<IType> LoadTypeAsync(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
+Task<IType?> LoadTypeAsync(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
 
 // Load all types from a namespace
 Task<bool> LoadNamespaceAsync(string ns, bool throwOnError = false, CancellationToken ct = default)
 
-// Get all dynamically created types
-IType[] GetDefinedTypes()
+// Get all dynamically created type names
+IReadOnlyList<XmlQualifiedName> GetDefinedTypes()
 
 // Get all loaded data type NodeIds
 IEnumerable<ExpandedNodeId> GetDefinedDataTypeIds()
@@ -633,7 +643,7 @@ Provides metadata about a property in a complex type.
 ```csharp
 string Name { get; }                      // Property name
 bool IsOptional { get; }                  // Whether field is optional
-int TypeInfo { get; }                     // Type info of the field
+TypeInfo TypeInfo { get; }                // Type info of the field
 ```
 
 ## Known Limitations
