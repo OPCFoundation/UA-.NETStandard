@@ -1530,7 +1530,7 @@ namespace Opc.Ua
         /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
-        [DataTypeField(Order = 3)]
+        [DataTypeField(Order = 3, EmitDefaultValue = true)]
         public bool Enabled { get; set; } = true;
     }
 
@@ -2176,7 +2176,7 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the endpoint information should be updated before connecting to the server.
         /// </summary>
-        [DataTypeField(Order = 2)]
+        [DataTypeField(Order = 2, EmitDefaultValue = true)]
         public bool UpdateBeforeConnect { get; set; } = true;
 
         /// <summary>
