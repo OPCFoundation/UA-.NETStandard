@@ -114,7 +114,8 @@ public sealed class DataTypeFieldAttribute : Attribute
 {
     public int Order { get; set; }
     public string? Name { get; set; }
-    public object? ForceEncodeable { get; set; }
+    public StructureHandling StructureHandling { get; set; }
+    public DefaultValueHandling DefaultValueHandling { get; set; }
     public bool IsRequired { get; set; }
 }
 ```
@@ -125,7 +126,8 @@ public sealed class DataTypeFieldAttribute : Attribute
 |---|---|
 | `Order` | The encoding/decoding order of this field. Fields are sorted by `Order` before code generation. |
 | `Name` | The serialized field name. Defaults to the property name if not set. |
-| `ForceEncodeable` | For `IEncodeable`-typed fields: `true` forces `WriteEncodeable` (exact type), `false` forces `WriteEncodeableAsExtensionObject` (allows subtyping). If omitted, auto-detected based on whether the type is sealed. |
+| `StructureHandling` | For `IEncodeable`-typed fields: controls the encoding strategy. See [StructureHandling](#structurehandling-enum). |
+| `DefaultValueHandling` | Controls how default values are handled during encode/decode. See [DefaultValueHandling](#defaultvaluehandling-enum). |
 | `IsRequired` | Indicates whether the field is required. Reserved for future use with optional-field structures. |
 
 ### Field Selection Rules
@@ -156,8 +158,6 @@ public partial class ServerSettings
 
 The source generator supports the following property types:
 
-### Scalar Built-In Types
-
 | C# Type | OPC UA Type | Encoder Method |
 |---|---|---|
 | `bool` | Boolean | `WriteBoolean` |
@@ -174,22 +174,17 @@ The source generator supports the following property types:
 | `string` | String | `WriteString` |
 | `DateTime` | DateTime | `WriteDateTime` |
 | `Guid` / `Uuid` | Guid | `WriteGuid` |
-| `byte[]` (`ByteString`) | ByteString | `WriteByteString` |
-
-### OPC UA Built-In Types
-
-| Type | Encoder Method |
-|---|---|
-| `NodeId` | `WriteNodeId` |
-| `ExpandedNodeId` | `WriteExpandedNodeId` |
-| `StatusCode` | `WriteStatusCode` |
-| `QualifiedName` | `WriteQualifiedName` |
-| `LocalizedText` | `WriteLocalizedText` |
-| `ExtensionObject` | `WriteExtensionObject` |
-| `DataValue` | `WriteDataValue` |
-| `Variant` | `WriteVariant` |
-| `DiagnosticInfo` | `WriteDiagnosticInfo` |
-| `XmlElement` | `WriteXmlElement` |
+| `ByteString` | ByteString | `WriteByteString` |
+| `NodeId` | NodeId | `WriteNodeId` |
+| `ExpandedNodeId` | ExpandedNodeId | `WriteExpandedNodeId` |
+| `StatusCode` | StatusCode | `WriteStatusCode` |
+| `QualifiedName` | QualifiedName | `WriteQualifiedName` |
+| `LocalizedText` | LocalizedText | `WriteLocalizedText` |
+| `ExtensionObject` | ExtensionObject | `WriteExtensionObject` |
+| `DataValue` | DataValue | `WriteDataValue` |
+| `Variant` | Variant | `WriteVariant` |
+| `DiagnosticInfo` | DiagnosticInfo | `WriteDiagnosticInfo` |
+| `XmlElement` | XmlElement | `WriteXmlElement` |
 
 ### Collections
 
@@ -329,7 +324,7 @@ namespace MemoryBuffer
         {
         }
 
-        [DataTypeField(Order = 1, ForceEncodeable = true)]
+        [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<MemoryBufferInstance> Buffers { get; set; }
     }
 
@@ -355,12 +350,12 @@ namespace MemoryBuffer
 Key points in this example:
 
 - Both classes are `partial` and have parameterless constructors
-- `ForceEncodeable = true` on `Buffers` forces exact-type encoding (rather
-  than extension object wrapping) since the element type is known at compile
-  time
+- `StructureHandling = StructureHandling.Inline` on `Buffers` forces exact-type
+  encoding (rather than extension object wrapping) since the element type is known
+  at compile time
 - `Order` controls the encoding sequence
 
-## ForceEncodeable Explained
+## `StructureHandling` Enum
 
 When a property's type implements `IEncodeable`, the generator must choose
 between two encoding strategies:
@@ -370,12 +365,117 @@ between two encoding strategies:
 | Exact type | `WriteEncodeable` / `ReadEncodeable` | The concrete type is always known (sealed, no subtypes) |
 | Extension Object | `WriteEncodeableAsExtensionObject` / `ReadEncodeableAsExtensionObject` | Subtypes may be substituted at runtime |
 
-**Auto-detection (default)**: If the field type is `sealed` and does not derive
-from another `IEncodeable`, `WriteEncodeable` is used. Otherwise,
-`WriteEncodeableAsExtensionObject` is used.
+The `StructureHandling` enum controls this choice:
 
-**Override**: Set `ForceEncodeable = true` to force exact-type encoding, or
-`ForceEncodeable = false` to force extension object encoding.
+```csharp
+public enum StructureHandling
+{
+    Auto = 0,             // Generator decides based on type analysis
+    Inline = 1,           // Force WriteEncodeable / ReadEncodeable
+    ExtensionObject = 2   // Force WriteEncodeableAsExtensionObject
+}
+```
+
+| Value | Behavior |
+|---|---|
+| `Auto` (default) | If the field type is `sealed` and does not derive from another `IEncodeable`, `WriteEncodeable` is used. Otherwise, `WriteEncodeableAsExtensionObject` is used. |
+| `Inline` | Forces `WriteEncodeable`/`ReadEncodeable` — the exact type is written inline. Use when the concrete type is always known at compile time. |
+| `ExtensionObject` | Forces `WriteEncodeableAsExtensionObject`/`ReadEncodeableAsExtensionObject` — the value is wrapped in an `ExtensionObject`. Use when subtypes may be substituted at runtime. |
+
+Example:
+
+```csharp
+[DataType(Namespace = "urn:myapp")]
+public partial class MyConfig
+{
+    // Inline: always encodes as EndpointDescription directly
+    [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline)]
+    public EndpointDescription Endpoint { get; set; }
+
+    // Auto (default): generator decides based on whether the type is sealed
+    [DataTypeField(Order = 1)]
+    public OperationLimits Limits { get; set; }
+}
+```
+
+## `DefaultValueHandling` Enum
+
+Controls how default values are handled during encode and decode. This is
+particularly important for configuration types where constructor defaults
+(e.g., `NonceLength = 32`, `RejectSHA1SignedCertificates = true`) should be
+preserved when the field is absent from XML/JSON.
+
+```csharp
+[Flags]
+public enum DefaultValueHandling
+{
+    Exclude = 0,                       // Omit on write, preserve default on read
+    Emit = 1,                          // Always write, even if default value
+    SetIfMissing = 2,                  // Always set on read, even if absent
+    Include = Emit | SetIfMissing      // Always write AND read (legacy behavior)
+}
+```
+
+| Value | Encode Behavior | Decode Behavior |
+|---|---|---|
+| `Exclude` (default) | Omits the field from XML/JSON if value equals `default(T)`. Binary always writes. | Skips assignment if field is absent from XML/JSON, preserving the constructor default. Binary always reads. |
+| `Emit` | Always writes the field, even if default. | Same as `Exclude` for decode. |
+| `SetIfMissing` | Same as `Exclude` for encode. | Always assigns the decoded value, even if the field is absent (overwrites constructor default). |
+| `Include` | Always writes. | Always reads and assigns. |
+
+### How It Works
+
+The generated code uses two new `IEncoder`/`IDecoder` APIs:
+
+- **`IEncoder.CanOmitFields`**: Returns `true` for XML and JSON encoders,
+  `false` for Binary. Used by the encode guard.
+- **`IDecoder.HasField(string)`**: Returns `true` if the field exists in the
+  encoded data. Always `true` for Binary. Checks element/property existence
+  for XML/JSON.
+
+Generated encode (when `Exclude` or `SetIfMissing`, i.e., `Emit` flag is NOT set):
+```csharp
+if (!encoder.CanOmitFields || NonceLength != default)
+    encoder.WriteInt32("NonceLength", NonceLength);
+```
+
+Generated decode (when `Exclude` or `Emit`, i.e., `SetIfMissing` flag is NOT set):
+```csharp
+if (decoder.HasField("NonceLength"))
+    NonceLength = decoder.ReadInt32("NonceLength");
+```
+
+### Example: Configuration with Defaults
+
+```csharp
+[DataType(Namespace = "urn:myapp")]
+public partial class SecuritySettings
+{
+    public SecuritySettings()
+    {
+        NonceLength = 32;
+        RejectExpiredCertificates = true;
+    }
+
+    // Exclude (default): omit from XML when 32, preserve 32 when absent
+    [DataTypeField(Order = 0)]
+    public int NonceLength { get; set; } = 32;
+
+    // Include: always write and read — use for bool fields that default
+    // to true, since false (the type default) is a valid explicit value
+    [DataTypeField(Order = 1, DefaultValueHandling = DefaultValueHandling.Include)]
+    public bool RejectExpiredCertificates { get; set; }
+
+    // Exclude (default): omit false from XML, preserve false when absent
+    [DataTypeField(Order = 2)]
+    public bool AllowAnonymous { get; set; }
+}
+```
+
+> **Guideline**: Use `DefaultValueHandling.Include` for bool properties that
+> default to `true` in the constructor. Since `false` is the type default,
+> `Exclude` would omit an explicit `false` on encode. `Include` ensures the
+> value always round-trips correctly.
 
 ## Requirements and Constraints
 
